@@ -210,6 +210,18 @@ class TheRules(unittest.TestCase):
         with self.assertRaises(BuildDeadline):
             GR.GameRuntimeExecutor(Late(), 'warn').execute(repository=GOOD, spec=None)
 
+    def test_the_rehearsal_judges_a_game_request_as_a_game_and_customers_still_cannot_order_one(self):
+        from omni_prod import output_profile as OP
+        from omni_prod.intake.families import classify_family
+        self.assertEqual(classify_family('תבנה לי משחק קפיצות עם ניקוד'), 'game')
+        self.assertFalse(OP.route('game').supported)                       # the profile is not declared yet
+        src = (Path(__file__).resolve().parent.parent / 'omni_prod' / 'rehearsal.py').read_text(encoding='utf-8')
+        self.assertIn("if report['family'] == 'game':", src)
+        self.assertLess(src.index('install_game_runtime(engine)'), src.index('result = engine.build(prompt)'))
+        self.assertIn("report['game_runtime'] = game_runtime_report(engine)", src)
+        worker = (Path(__file__).resolve().parent.parent / 'omni_prod' / 'worker_tasks.py').read_text(encoding='utf-8')
+        self.assertNotIn('game_runtime', worker)                           # no customer build is judged as a game
+
     def test_it_enters_at_warn_and_the_mode_is_written(self):
         from types import SimpleNamespace
         self.assertIn('GAME', G.CALIBRATING)

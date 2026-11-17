@@ -42,6 +42,14 @@ def run(prompt: str) -> dict:
         install_all(engine)
         from .runtime_load import install as install_runtime_load
         install_runtime_load(engine)
+        # A request for a game is also judged as a game (omni_prod/game_runtime). The game profile is NOT open to
+        # customers; this is how the engine is proven able to build one before the profile is declared (a profile is
+        # a promise the engine must keep, output_profile.check_truth).
+        from .intake.families import classify_family
+        report['family'] = classify_family(prompt)
+        if report['family'] == 'game':
+            from .game_runtime import install as install_game_runtime
+            install_game_runtime(engine)
     except Exception as exc:
         report['skill_gates_error'] = f'{type(exc).__name__}: {exc}'[:300]
     try:
@@ -72,6 +80,8 @@ def run(prompt: str) -> dict:
     report['skill_gates'] = skill_gate_report(engine)
     from .runtime_load import report as runtime_load_report
     report['runtime_load'] = runtime_load_report(engine)
+    from .game_runtime import report as game_runtime_report
+    report['game_runtime'] = game_runtime_report(engine)
     report['failure_taxonomy'] = getattr(engine, 'failure_taxonomy', [])
     report['first_pass'] = getattr(engine, 'first_pass', None)
     spent, calls = spend_snapshot(gateway)
@@ -121,6 +131,9 @@ def annotations(report: dict) -> list[str]:
             f"{g} mode={r.get('mode')} status={r.get('status', 'NOT_RUN')} "
             + json.dumps(r.get('failures') or [], ensure_ascii=False)[:600]
             for g, r in report['skill_gates'].items())))
+    if (report.get('runtime_load') or {}).get('last') or (report.get('game_runtime') or {}).get('last'):
+        lines.append(note('runtime', json.dumps({'family': report.get('family'), 'load': report['runtime_load'].get('last'),
+                                                 'game': report['game_runtime'].get('last')}, ensure_ascii=False)))
     if report.get('tokens'):
         lines.append(note('cost', f"tokens {json.dumps(report['tokens'])}\nsame tokens on each model (USD): "
                                   f"{json.dumps(report.get('same_tokens_cost_usd'))}"))
