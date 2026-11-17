@@ -1,3 +1,27 @@
+# 2026-11-17 — three new checks, all entering at warn: G5 rights, A4 asset plan, G8 runtime and load (Claude Code)
+
+- **G5 (rights), rewritten after an independent review:** every served file is read with a real parser (HTML, CSS,
+  scripts that build media, JSON-LD, SVG data: URIs); the source of every font, image and media file must be one the
+  registry names (`omni_prod/rights_sources.json`). It reads the page as written (the platform's own assets as their
+  placeholders). The worker installs it.
+- **A4 (assets agent), first slice:** one asset plan per build. A generated image had no place at all -- the code
+  model chose. Now every image has one place by stated rules (the customer's photo keeps its place and the hero; a
+  generated picture is the hero only when the hero is free), the generator is told the plan, and the finished page
+  is checked against it. A plan that cannot be (two heroes, over 12 images, over 1.5 MB together) stops the build.
+- **G8 (runtime and load):** the product is started in the sandbox and asked for its page 60 times, 6 at a time. It
+  must answer every request, stay up, answer within 1.5 s at the 95th percentile and hold under 256 MB.
+- **All three warn (`gate.CALIBRATING`):** findings and measurements go to the log and the build evidence
+  (`skill_gates`, `asset_plan`, `runtime_load`); none blocks before three calibration builds. The rehearsal installs
+  the same checks.
+- **Evidence:** `tests/test_skill_gate_rights.py`, `tests/test_a4_asset_plan.py` (17), `tests/test_g8_runtime_load.py`
+  (15: real servers are started -- a healthy one, one that dies under load, one that answers 500, a slow one, one
+  that never starts -- and the script passes the real sandbox request policy); negative controls
+  `skill_gate_rights` 20/20, `a4_asset_plan` 10/10, `g8_runtime_load`, `gates_calibrating` 6/6.
+- **Not verified:** none of the three has run in the real sandbox or on a real build; G8's limits are first guesses
+  to calibrate, and its memory reading depends on the sandbox exposing /proc (said as NOT_RUN when it does not).
+- **Not in the repository (asked in DECISIONS.md):** the skills triage list (88 keep / 32 merge / 17 drop) and
+  `parked/`; stage E cannot start without them.
+
 # 2026-11-17 — uncalibrated gates warn; the page carries a light rendition of every photo (Claude Code)
 
 - **Merged:** #424 `5556c28` -> `a5ab25d` (the worker's time budget; the dead ends). Not released yet.

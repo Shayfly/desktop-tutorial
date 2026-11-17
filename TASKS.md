@@ -32,3 +32,6 @@
 | DEAD-END | Claude Code | In review | 80 of 252 walks stuck -> 0; NC 5/5 |
 | GATES-WARN | Claude Code | In review | six uncalibrated gates warn; rehearsal runs the worker gates; NC 6/6 |
 | W114-A | Claude Code | In review | web-sized rendition of uploaded and generated images; NC 8/8 |
+| G5-WARN | Claude Code | In review | rights gate rewritten; enters at warn; NC 20/20 |
+| A4-1 | Claude Code | In review | asset plan: one place per image; warn check; NC 10/10 |
+| G8-1 | Claude Code | In review | runtime and load gate on real servers; enters at warn |
