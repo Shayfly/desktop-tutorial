@@ -103,6 +103,46 @@ class AppleGateExecutor:
                 'render': render, 'reviewers': reviews, 'not_run': not_run}
 
 
+CONTRACT_REQUIREMENT = 'DESIGN-CONTRACT'
+
+
+def with_contract(spec, contract: dict):
+    """The spec the generator builds from, with the design contract in it AS WRITTEN (deterministic, no model call).
+
+    Rehearsal 44043708644 (the butcher, 2026-11-17): the contract was only appended to the prompt. The prompt goes to
+    the architect, which writes the spec in its own words, and the generator gets the spec and nothing else. The page
+    came back with its own :root (CONTRACT_MISSING, raw colours, a third weight, emoji icons): the generator had never
+    seen the block it was checked against. A summary of a contract is not the contract.
+
+    The requirement is mandatory, so it has an acceptance criterion a sandbox test can check over HTTP: the served
+    page carries the contract's primary colour token as the contract writes it."""
+    from ..product_spec import ProductSpec
+    data = spec.to_dict()
+    if any(r['id'] == CONTRACT_REQUIREMENT for r in data['requirements']):
+        return spec
+    data['requirements'].append({'id': CONTRACT_REQUIREMENT, 'text': C.rules(contract), 'kind': 'quality',
+                                 'mandatory': True})
+    token = f"--color-primary: {contract['tokens']['--color-primary']}"
+    data['acceptance'].append({
+        'id': CONTRACT_REQUIREMENT, 'requirement_id': CONTRACT_REQUIREMENT,
+        'text': f'GET / returns 200 and its HTML contains the text "{token}" (the :root block of design contract '
+                f"{contract['fingerprint']}, inside the page's <style>)."})
+    return ProductSpec.from_dict(data)
+
+
+class ContractArchitect:
+    """Wraps the engine's architect: every spec it returns carries the design contract as written."""
+
+    def __init__(self, inner, contract: dict):
+        self._inner, self.contract = inner, contract
+
+    def __getattr__(self, item):
+        return getattr(self._inner, item)
+
+    def create_spec(self, prompt, *args, **kwargs):
+        return with_contract(self._inner.create_spec(prompt, *args, **kwargs), self.contract)
+
+
 def install(engine, *, prompt: str, gateway=None) -> str:
     """Lock the contract, give it to the generator, and install the gate in its mode. Returns the prompt the engine
     builds from. Installed last, right before the build."""
@@ -123,7 +163,19 @@ def install(engine, *, prompt: str, gateway=None) -> str:
     business = (prompt or '').split('--- Approved project brief')[0].strip()
     core.executor = core.apple_gate = AppleGateExecutor(core.executor, contract, mode, gateway=gateway,
                                                          business=business, not_run=why)
-    _LOG.info('GATE_ON gate=%s mode=%s contract=%s', GATE, mode, contract['fingerprint'] if contract else 'NONE')
+    carried = False
+    if contract:
+        for holder in (core, engine):                    # the architect the build calls (autonomous_core._build)
+            architect = getattr(holder, 'architect', None)
+            if architect is not None and not isinstance(architect, ContractArchitect):
+                holder.architect = ContractArchitect(architect, contract)
+            carried = carried or isinstance(getattr(holder, 'architect', None), ContractArchitect)
+        if not carried:                                  # said, never silent: the generator will not see the contract
+            _LOG.warning('APPLE_CONTRACT_NOT_CARRIED the engine has no architect to carry design contract %s',
+                         contract['fingerprint'])
+    core.design_contract_carried = carried
+    _LOG.info('GATE_ON gate=%s mode=%s contract=%s carried=%s', GATE, mode,
+              contract['fingerprint'] if contract else 'NONE', carried)
     return prompt + '\n\n' + C.rules(contract) if contract else prompt
 
 
@@ -134,4 +186,5 @@ def report(engine) -> dict:
     contract = getattr(core, 'design_contract', None)
     return {'gate': GATE, 'mode': modes.get(GATE) if isinstance(modes, dict) else None,
             'contract': {k: contract[k] for k in ('fingerprint', 'tokens', 'contrast', 'dropped')} if isinstance(contract, dict) else None,
+            'carried': getattr(core, 'design_contract_carried', None),      # the generator got the contract as written
             'last': gate.last_apple if isinstance(gate, AppleGateExecutor) else None}

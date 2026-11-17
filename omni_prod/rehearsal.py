@@ -68,6 +68,17 @@ def run(prompt: str) -> dict:
                                                                  contract_version=1).to_dict())
     except Exception as exc:
         report['acceptance_scope_error'] = f'{type(exc).__name__}: {exc}'[:300]
+    # What the worker installs from the approved request alone, in the worker's order (worker_tasks.run_build).
+    # Rehearsal 44043708644 (the butcher, 2026-11-17): the review was never given the request, so its fact canon was
+    # empty and the customer's own opening hours were called "invented" -- a blocking finding and a paid repair round
+    # that no customer's build has. A step that cannot be installed is in the report, never skipped in silence.
+    try:
+        from .page_locale import install as install_page_locale
+        install_page_locale(engine, prompt)
+        from .product_review import install_review_request
+        report['review_request_installed'] = install_review_request(engine, prompt)
+    except Exception as exc:
+        report['request_installs_error'] = f'{type(exc).__name__}: {exc}'[:300]
     # The same skill gates a customer's build runs (gate.WORKER_GATES), each in its own mode. A calibrating gate warns:
     # its findings are in the report, which is how a gate is calibrated on real generated pages before it blocks.
     try:

@@ -1,0 +1,148 @@
+{
+ "pr": "g-apple-contract-carried",
+ "sha256": [
+  "tests/test_g_apple_contract_carried.py",
+  "omni_prod/g_apple/__init__.py",
+  "omni_prod/g_apple/reviewers.py",
+  "omni_prod/g_apple/contract.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the contract stays in the prompt only: the architect is not wrapped",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/__init__.py",
+     "old": "                holder.architect = ContractArchitect(architect, contract)\n",
+     "new": "                pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple_contract_carried.py"
+   ],
+   "expect_failed": [
+    "test_it_is_added_once",
+    "test_through_the_real_build_loop"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the generator gets a summary, not the contract",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/__init__.py",
+     "old": "'text': C.rules(contract), 'kind': 'quality',",
+     "new": "'text': C.rules(contract)[:200], 'kind': 'quality',"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple_contract_carried.py"
+   ],
+   "expect_failed": [
+    "test_through_the_real_build_loop"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the requirement is optional",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/__init__.py",
+     "old": "'kind': 'quality',\n                                 'mandatory': True})",
+     "new": "'kind': 'quality',\n                                 'mandatory': False})"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple_contract_carried.py"
+   ],
+   "expect_failed": [
+    "test_through_the_real_build_loop"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "no architect, and nothing is said",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/__init__.py",
+     "old": "        if not carried:  ",
+     "new": "        if False:  "
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple_contract_carried.py"
+   ],
+   "expect_failed": [
+    "test_an_engine_with_no_architect_is_said_not_assumed"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the contract is added twice",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/__init__.py",
+     "old": "    if any(r['id'] == CONTRACT_REQUIREMENT for r in data['requirements']):\n        return spec\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple_contract_carried.py"
+   ],
+   "expect_failed": [
+    "test_it_is_added_once"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the criterion names no token",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/__init__.py",
+     "old": "    token = f\"--color-primary: {contract['tokens']['--color-primary']}\"",
+     "new": "    token = '--color-primary'"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple_contract_carried.py"
+   ],
+   "expect_failed": [
+    "test_the_mandatory_requirement_has_a_criterion_a_sandbox_test_can_check"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the reviewers are not told they see one screen",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/reviewers.py",
+     "old": "SYSTEM = {name: text + ' ' + FIRST_SCREEN for name, text in SYSTEM.items()}\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple_contract_carried.py"
+   ],
+   "expect_failed": [
+    "test_both_are_told_the_screenshots_are_the_first_screen_only"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the rules do not mention browser default margins",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/contract.py",
+     "old": "        '- Start the stylesheet by setting margin: 0 and padding: 0 on h1, h2, h3, h4, p, ul, ol, li and figure, then '\n        'give each its spacing from var(--space-...): a browser default margin is not on the grid.',\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple_contract_carried.py"
+   ],
+   "expect_failed": [
+    "test_the_generator_is_told_to_leave_no_browser_default_margin"
+   ]
+  }
+ ]
+}

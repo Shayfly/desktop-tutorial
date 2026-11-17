@@ -40,3 +40,5 @@
 | A4-2 | Claude Code | In review | A4 decides the picture count (up to 3); planner writes quantity; NC 7/7 |
 | PR-427 | Claude Code | Done | #427 `360080d` -> `d29d8da` (A4 picture count) |
 | SYNTAX-LINE | Claude Code | In review | a syntax failure carries the line itself; NC 4/4; found by rehearsal 44042316516 |
+| PR-428 | Claude Code | Done | #428 `8e26a8f` -> `4d9b1fb` (syntax message carries the line) |
+| APPLE-CARRIED | Claude Code | In review | the design contract rides the spec word for word; rehearsal installs the request; reviewers told they see one screen; NC 8/8 + 2/2 |
