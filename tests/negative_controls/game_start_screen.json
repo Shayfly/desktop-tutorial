@@ -3,7 +3,7 @@
  "controls": [
   {
    "id": "NC1",
-   "what": "the probe never presses start: a working game behind a start screen reads as frozen again",
+   "what": "browser only: the probe never presses start: a working game behind a start screen reads as frozen again",
    "mutations": [
     {
      "file": "omni_prod/game_runtime.py",
@@ -16,11 +16,14 @@
    ],
    "expect_failed": [
     "test_a_start_screen_is_started_the_way_a_player_starts_it"
+   ],
+   "envs": [
+    "browser"
    ]
   },
   {
    "id": "NC2",
-   "what": "any button counts as start (the probe clicks the first visible control)",
+   "what": "browser only: any button counts as start (the probe clicks the first visible control)",
    "mutations": [
     {
      "file": "omni_prod/game_runtime.py",
@@ -33,6 +36,9 @@
    ],
    "expect_failed": [
     "test_a_control_that_is_not_start_is_not_pressed"
+   ],
+   "envs": [
+    "browser"
    ]
   }
  ]
