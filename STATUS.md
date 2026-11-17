@@ -11,8 +11,16 @@
   returned a valid repair"), and the screen says why in Hebrew and English. Any other error ends the build as before.
   Tests `tests/test_repair_model_unavailable.py` 4/4 (the real loop and the real release verdict); controls 3/3.
 - **Cost of the three failed builds:** $0.42 + $0.47 + $0.22 provider spend (company loss; the owner's credits returned).
-- **Open:** the OpenAI account has no credit (the owner's); the code models' answers that fail JSON (leading prose,
-  truncation) are not fixed here.
+- **The OpenAI route reopened (CLAUDE.md section 5, 2026-11-17 23:44 UTC):** the owner topped up the account ("הטענתי
+  עכשיו"); the circuit (`provider_health`) would have kept the route closed until its 24-hour trial (2026-11-18 07:56).
+  Backup branch `backup-before-openai-route-reset-2026-11-17` (br-tiny-hat-b9nclt9c); dry read: 6 rows, two
+  CREDIT_EXHAUSTED; one transaction guarded on the old value (a first try matched 0 rows -- the stored time has
+  microseconds -- and changed nothing); old: `openai-gpt-6-1-sol` CREDIT_EXHAUSTED since 2026-11-17 07:56:42.188853,
+  failures 1, recheck 2026-11-18 07:56; new: UNKNOWN, `reset_by` "claude-code for the owner: OpenAI credit topped up
+  2026-11-17" -- the same row `omni_prod.intelligence.health reset` writes; verified by a separate query (1 row
+  changed, the other 5 as they were). Not reset: `anthropic-claude-sonnet-5-5`, CREDIT_EXHAUSTED since 2026-11-16 (the
+  owner named OpenAI only).
+- **Open:** the code models' answers that fail JSON (leading prose, truncation) are not fixed here.
 
 # 2026-11-17 — the conversation rehearsal runs on the production intake path (Claude Code)
 
