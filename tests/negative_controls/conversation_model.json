@@ -1,0 +1,45 @@
+{
+ "pr": "conversation-model",
+ "sha256": [
+  "tests/test_intelligence_plane.py",
+  "omni_prod/intelligence/task_policy.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the conversation goes back to cheapest-first",
+   "mutations": [
+    {
+     "file": "omni_prod/intelligence/task_policy.py",
+     "old": "    TaskClass('conversation', 'customer intake dialogue (Hebrew/English)', 85, 70, prefer_models=CONVERSATION_STATION),",
+     "new": "    TaskClass('conversation', 'customer intake dialogue (Hebrew/English)', 70, 70),"
+    }
+   ],
+   "targets": [
+    "tests/test_intelligence_plane.py"
+   ],
+   "expect_failed": [
+    "test_conversation_tries_the_strong_model_first_and_degrades_to_the_cheaper_one",
+    "test_generated_files_are_current_and_valid"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the mandatory floor drops: a weak model may answer the customer",
+   "mutations": [
+    {
+     "file": "omni_prod/intelligence/task_policy.py",
+     "old": "    TaskClass('conversation', 'customer intake dialogue (Hebrew/English)', 85, 70, prefer_models=CONVERSATION_STATION),",
+     "new": "    TaskClass('conversation', 'customer intake dialogue (Hebrew/English)', 85, 0, prefer_models=CONVERSATION_STATION),"
+    }
+   ],
+   "targets": [
+    "tests/test_intelligence_plane.py"
+   ],
+   "expect_failed": [
+    "test_conversation_tries_the_strong_model_first_and_degrades_to_the_cheaper_one",
+    "test_generated_files_are_current_and_valid"
+   ]
+  }
+ ]
+}

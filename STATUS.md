@@ -1,3 +1,32 @@
+# 2026-11-17 — conversation on Sonnet; per-account agent; classification corpus; Hebrew whole words; conversation rehearsal (Claude Code)
+
+- **Merged and released:** #440 `7087e3c` -> `8d37478` (phase 3; CI validate limit 15 min).
+- **The owner, 2026-11-17: "decide everything yourself"** -- decisions 2-11 closed in DECISIONS.md, with the owner's
+  later refinements (per-account flag, decision 8 restricted, decision 3 signal, decision 7 fallback, phase-4
+  acceptance on the live model only, validate duration printed, unique URL in the corpus).
+- **D10:** task `conversation` (and `conversation_complex`) prefers Sonnet 5.5 (preferred floor 85); the mandatory
+  floor stays 70.
+- **Per-account agent:** `OMNI_INTAKE_AGENT=accounts` + `OMNI_INTAKE_AGENT_ACCOUNTS`; every other account keeps the
+  conversation as it was. The account of the turn is set for the whole turn (a context variable).
+- **One broken method, not three bugs:** words were matched inside words -- "פירוק" read as green, "כפתורים" as
+  appointments, "בלי טופס הרשמה" as asking for sign-up, "ישיר" as a song (#434). Two explicit rules, each with a
+  control: whole words with Hebrew prefixes; a negated cue asks for nothing.
+- **Classification corpus:** `tests/fixtures/classification_corpus.json`, 101 frozen requests (25 real first messages
+  from production, read only; 76 written by Claude Code), each with the type a professional would build; CI runs it.
+  It forced four fixes: a site that runs something is an app; a score app is no game; a business that gives its street
+  or phone describes a site; "דף" is a page. Run-10b's R3 and R4 locked failures now pass (markers removed).
+- **Conversation agent fixes found by the rehearsal:** "לא שומרים כלום" is content only (deciding phrases); a question
+  the agent cannot default stays asked in words (it used to send the customer to a Requirements-tab card that the
+  agent never shows).
+- **Conversation rehearsal (phase 4 tool):** `omni_prod/conversation_rehearsal.py` + `.github/workflows/conversation-rehearsal.yml`:
+  the real supervisor with the live model, a frozen scripted customer, measured acceptance (no card, approval reached,
+  facts kept, a model wrote the replies). A scripted model is a development tool only, never the gate.
+- **CI:** the validate job prints its duration; over 12 minutes is a warning to investigate.
+- **Evidence:** classification corpus 2 tests, controls `classification_corpus` 6/6, `hebrew_whole_words` 4/4,
+  `conversation_agent_phase1` 8/8, `conversation_rehearsal` 3/3, `conversation_model` 2/2; `test_fast.sh` exit 0
+  (1428 passed, the 4 run-10b locks now pass).
+- **NOT verified:** a live conversation (the rehearsal workflow runs after this is deployed).
+
 # 2026-11-17 — conversation agent, phase 3: an exact hand-off -- the customer's facts and page structure reach the generator (Claude Code)
 
 - **Merged and released:** #439 `a10a0a7` -> `ee2d7ca` (phase 2).

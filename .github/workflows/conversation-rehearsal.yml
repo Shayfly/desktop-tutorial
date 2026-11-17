@@ -1,0 +1,39 @@
+name: Conversation rehearsal
+
+# Conversation agent, phase 4 (the owner, 2026-11-17): real conversations with the live model, on the worker host,
+# through the real supervisor -- no database, no project, no credit. The customer is scripted
+# (omni_prod/conversation_rehearsal.py); the agent is the routed gateway (task `conversation`). The gateway budget
+# (OMNI_EXTERNAL_BUDGET_USD, 0.40 here) bounds spend. One notice per scenario and per turn.
+on:
+  workflow_dispatch:
+    inputs:
+      scenarios:
+        description: "Scenario names, space separated (empty = all): doors butcher bare"
+        required: false
+        default: ""
+
+concurrency:
+  group: conversation-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  rehearsal:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 20
+    steps:
+      - name: Rehearse the conversations
+        timeout-minutes: 15
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+        env:
+          SCENARIOS: ${{ inputs.scenarios }}
+        run: |
+          set +e
+          set -uo pipefail
+          docker compose run --rm --no-deps -T -e OMNI_EXTERNAL_BUDGET_USD=0.40 -e OMNI_EXTERNAL_CALLS_PER_BUILD=60 -e SCENARIOS="$SCENARIOS" worker \
+            python -c 'import os, sys; from omni_prod.conversation_rehearsal import main; sys.exit(main(os.environ.get("SCENARIOS", "").split()))' 2>&1 \
+            | sed -E 's/(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{16,}/[redacted]/g' > "$RUNNER_TEMP/conversation.out"
+          rc=${PIPESTATUS[0]}
+          readonly rc
+          echo "conversation rehearsal exit code: $rc"
+          grep -E '^(::notice|::error|Traceback|  File|[A-Za-z]+Error)' "$RUNNER_TEMP/conversation.out" | tail -80
+          exit $rc

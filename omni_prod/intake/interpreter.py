@@ -113,9 +113,12 @@ RULES: tuple[tuple[str, str, str, str], ...] = (
     (r'(עברית ואנגלית|אנגלית ועברית|דו[- ]?לשוני|hebrew and english|english and hebrew|bilingual)', 'languages', 'he_en', HIGH),
     (r'(בעברית|עברית בלבד|רק עברית|in hebrew|hebrew only)', 'languages', 'he', HIGH),
     (r'(באנגלית|אנגלית בלבד|רק אנגלית|in english|english only)', 'languages', 'en', HIGH),
-    (r'(כחול|blue)', 'color', 'blue', HIGH), (r'(ירוק|green)', 'color', 'green', HIGH),
-    (r'(סגול|purple)', 'color', 'purple', HIGH), (r'(כתום|orange)', 'color', 'orange', HIGH),
-    (r'(טורקיז|teal|turquoise)', 'color', 'teal', HIGH), (r'(אפור|שחור|neutral|monochrome)', 'color', 'neutral', MEDIUM),
+    # colour words are whole words: "פירוק" (dismantling) is not "ירוק" (green) -- found 2026-11-17 in the "148
+    # דלתות" brief ("פירוק הדלת הישנה"), which then read as a customer who asked for green
+    (_terms('כחול', 'blue'), 'color', 'blue', HIGH), (_terms('ירוק', 'green'), 'color', 'green', HIGH),
+    (_terms('סגול', 'purple'), 'color', 'purple', HIGH), (_terms('כתום', 'orange'), 'color', 'orange', HIGH),
+    (_terms('טורקיז', 'teal', 'turquoise'), 'color', 'teal', HIGH),
+    (_terms('אפור', 'שחור', 'neutral', 'monochrome'), 'color', 'neutral', MEDIUM),
     (_terms(*_CLEAN), 'style', 'clean', MEDIUM),
     (_terms(*_WARM), 'style', 'warm', MEDIUM),
     (_terms(*_FORMAL), 'style', 'formal', MEDIUM),

@@ -21,6 +21,10 @@ jobs:
     # (1f09ad1, every step green until the limit). A cancelled check is not green; the limit, not a test, failed.
     timeout-minutes: 15
     steps:
+      # The owner, 2026-11-17: a raised limit can hide a real hang -- the duration is printed on every run, and a run
+      # over 12 minutes is investigated, never answered by raising the limit again.
+      - name: Start the clock
+        run: echo "VALIDATE_START=$(date +%s)" >> "$GITHUB_ENV"
       # Audited registry snapshots refer to the PR HEAD, not GitHub's
       # synthetic merge SHA, which can include unrelated base-branch changes.
       # Merge compatibility still requires a separately verified merge gate.
@@ -74,3 +78,12 @@ jobs:
           OMNI_S3_SECRET_KEY: CHANGE_ME
           OMNI_SANDBOX_RUNNER_URL: https://sandbox.invalid
           OMNI_LOCAL_MODEL_URL: https://model.invalid/v1
+
+      - name: Validate duration
+        if: always()
+        run: |
+          took=$(( $(date +%s) - VALIDATE_START ))
+          echo "::notice title=validate duration::${took}s ($((took / 60))m$((took % 60))s) of 15m"
+          if [ "$took" -gt 720 ]; then
+            echo "::warning title=validate over 12 minutes::${took}s -- investigate the slow step; do not raise the limit"
+          fi

@@ -25,6 +25,23 @@ _SONG = r'(?<![א-ת])[הבלו]?שיר(?:ים)?(?![א-ת])'
 # site; a brief that describes a page and mentions a video in passing is a website.
 _NAMES_A_SITE = re.compile(r'אתר|דף נחיתה|דף (?:סטטי|מכירה|הבית)|מבנה הדף|landing page|web ?site|web ?page', re.I)
 
+# What makes a request an application rather than a site: something it manages, records or lets users do.
+# Whole words only (Hebrew prefixes allowed): "כפתורים" (buttons) is not "תורים" (appointments).
+_APP_CUES = re.compile(r'(?<![\w֐-׿])[הובשלמכ]{0,2}(?:ניהול|מערכת(?!\s+ה?(?:שעות|שיעורים))|הרשמה|להירשם|נרשמות|נרשמים|'
+                       r'מנויים|מנוי|הזמנות|הזמנה אונליין|תורים|תור|לקבוע תור|רישום|מאגר|טבלה|טופס להוספת|להוסיף|'
+                       r'לעדכן|למחוק|לבטל|מבטלות|מבטלים|להשאיל|השאלה|ניקוד|כניסה למשתמשים|התחברות|dashboard|crm|'
+                       r'booking|manage|login)(?![\w֐-׿])', re.I)
+# A business that gives its phone or street is describing itself for a site ("האטליז של סבא שמעון, רחוב ..., טלפון").
+_BUSINESS_FACTS = re.compile(r'(?<!\d)0\d{1,2}[- ]?\d{3}[- ]?\d{4}(?!\d)|(?<![\w֐-׿])(?:רחוב|רח\'|שדרות)\s', re.I)
+
+_NEGATION = re.compile(r'(?:בלי|ללא|אין|לא|without|no)\s+(?:\S+\s+){0,2}$', re.I)
+
+
+def _asks_for_an_app(t: str) -> bool:
+    """An app cue the request asks FOR -- "בלי טופס הרשמה" (no sign-up form) names a cue and asks for none of it."""
+    return any(not _NEGATION.search(t[max(0, m.start() - 40):m.start()]) for m in _APP_CUES.finditer(t))
+
+
 _RULES = (
     ('game', r'(משחק|גיים|game\b|games\b|platformer|multiplayer|מולטיפלייר|שלבים במשחק)'),
     ('3d_experience', r'(תלת[- ]?מימד|\b3d\b|three\.?js|מודל תלת)'),
@@ -44,7 +61,7 @@ _REQUEST = (r'(?:\b(?:build|create|make|generate|develop)\b|'
             r'\s+(?:(?:me|a|an|the|new|responsive|simple|modern|public|internal|static|לי)\s+)*')
 _PRODUCTS = (
     ('game', r'(?:(?:2d|3d)\s+)?games?\b|משחק'),
-    ('website', r'websites?\b|site\b|landing page\b|portfolio\b|blog\b|אתר|דף נחיתה|תיק עבודות|בלוג'),
+    ('website', r'websites?\b|site\b|landing page\b|portfolio\b|blog\b|אתר|דף נחיתה|דף(?![\w֐-׿])|תיק עבודות|בלוג'),
     ('web_app', r'web (?:app(?:lication)?|dashboard)\b|saas\b|אפליקציית ווב|יישום ווב'),
     ('mobile_app', r'(?:mobile|native|ios|android)\s+app(?:lication)?\b|'
                    r'אפליקציה (?:לנייד|לטלפון|לאייפון|לאנדרואיד)|אפליקציית מובייל'),
@@ -102,9 +119,14 @@ def classify_family(text: str) -> str:
     t = _norm(text)
     explicit = _explicit(t)         # the explicitly requested product wins over incidental feature keywords
     if explicit:
-        return min(explicit, key=lambda match: match[0])[1]
+        first = min(explicit, key=lambda match: match[0])[1]
+        # "אני רוצה אתר שבו מתאמנות נרשמות לשיעור ומבטלות" asks for a site that RUNS something: an app
+        # (classification corpus 2026-11-17)
+        return 'web_app' if first == 'website' and _asks_for_an_app(t) else first
     for family, pattern in _RULES:
         if re.search(pattern, t, re.I):
+            if family == 'game' and _asks_for_an_app(t):
+                continue                       # "אפליקציה לניהול ניקוד במשחקי לוח" manages scores; it is no game
             # the product the request opens with resolves a conflict between keyword cues ("אתר לחנות משחקים" is
             # not a game). A request with no cue keeps the web_app default as before: "אתר לניהול ספרייה עם מנויים"
             # stays web_app (tests/test_discovery_and_approval.py relies on it), and both families are built.
@@ -112,6 +134,11 @@ def classify_family(text: str) -> str:
             if opening is None and family not in EXECUTABLE and _NAMES_A_SITE.search(t):
                 return 'website'           # a passing word in a text that describes a site is not a request for it
             return opening or family
+    # Conversation rehearsal 2026-11-17: "אתר לאטליז "בשר השכונה"..." matched no rule and became a web APP --
+    # internal audience, records, CRUD acceptance -- and so did the owner's "אתר" for 148 דלתות. A request that opens
+    # with "אתר", or that describes a page ("מבנה הדף", "דף סטטי"), is a website unless it names a system to run.
+    if not _asks_for_an_app(t) and (_opening(t) == 'website' or _NAMES_A_SITE.search(t) or _BUSINESS_FACTS.search(t)):
+        return 'website'
     return 'web_app'
 
 

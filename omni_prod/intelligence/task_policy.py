@@ -44,16 +44,22 @@ class TaskClass:
 CODE_WRITING_DENY = ('gpt-6-luna',)
 CODE_STATION = ('anthropic-claude-sonnet-5-5', 'gemini-3-8-flash')
 QA_STATION = ('openai-gpt-6-1-sol', 'gemini-3-8-flash')
+CONVERSATION_STATION = ('anthropic-claude-sonnet-5-5',)
 ARCHITECT_STATION = ('anthropic-claude-sonnet-5-5', 'openai-gpt-6-1-sol')
 
 TASK_CLASSES: dict[str, TaskClass] = {t.key: t for t in (
     TaskClass('general', 'unclassified call (strict default)', 70, 70),
     TaskClass('classification', 'route a change request / intent', 70, 70),
-    TaskClass('conversation', 'customer intake dialogue (Hebrew/English)', 70, 70),
+    # The owner, 2026-11-17 (DECISIONS 10, "you decide everything"): the first conversation is a live agent that
+    # knows the work, and what is said there decides what gets built -- the strong model first (preferred 85, the
+    # conversation station Sonnet), the mandatory floor unchanged: an unavailable strong model degrades to the
+    # standard lane, never below 70.
+    TaskClass('conversation', 'customer intake dialogue (Hebrew/English)', 85, 70, prefer_models=CONVERSATION_STATION),
     # Master directive stage 1: HIGH/RISKY intake turns escalate to the strongest
     # allowed model first (preferred 85); the mandatory floor stays 70, so an
     # unavailable strong model degrades to the standard lane, never below it.
-    TaskClass('conversation_complex', 'complex or sensitive intake turn (escalated)', 85, 70),
+    TaskClass('conversation_complex', 'complex or sensitive intake turn (escalated)', 85, 70,
+              prefer_models=CONVERSATION_STATION),
     TaskClass('intake_extraction', 'structured requirements from the dialogue', 70, 70, deterministic_first=True),
     TaskClass('architecture', 'architecture + plan for the build', 85, 70, prefer_models=ARCHITECT_STATION),
     # Founder 2026-10-20: gpt-6-luna out of code writing. Paid run 39377332673 (inspect 39378559811): every

@@ -52,23 +52,23 @@ def production_canon_status(name: str) -> str:
 
 class LockedFailures(unittest.TestCase):
     # ---- R3: "a page for my business / my shop" is a website ----
-    @unittest.expectedFailure
+    # fixed 2026-11-17 (classification corpus: a business that gives its street or phone describes a site)
     def test_r3_locksmith_is_a_website(self):
         from omni_prod.intake.families import classify_family
         self.assertEqual(classify_family(typed('locksmith_hard')), 'website')
 
-    @unittest.expectedFailure
+    # fixed 2026-11-17 (classification corpus: a business that gives its street or phone describes a site)
     def test_r3_florist_details_is_a_website(self):
         from omni_prod.intake.families import classify_family
         self.assertEqual(classify_family(typed('florist_details')), 'website')
 
-    @unittest.expectedFailure
+    # fixed 2026-11-17 (classification corpus: a business that gives its street or phone describes a site)
     def test_r3_florist_nodetails_is_a_website(self):
         from omni_prod.intake.families import classify_family
         self.assertEqual(classify_family(typed('florist_nodetails')), 'website')
 
     # ---- R4: the warned path fires on a business page with no phone and no address (arm 3: it did not) ----
-    @unittest.expectedFailure
+    # fixed 2026-11-17 (classification corpus: a business that gives its street or phone describes a site)
     def test_r4_florist_nodetails_warns(self):
         self.assertEqual(production_canon_status('florist_nodetails'), 'CANON_INCOMPLETE')
 
@@ -191,7 +191,7 @@ class R2Discovery(unittest.TestCase):
         from omni_prod import discovery as d
         from omni_prod.intake.families import classify_family
         text = typed('florist_details')
-        self.assertEqual(classify_family(text), 'web_app')            # R3 not fixed: the slot must not depend on it
+        self.assertEqual(classify_family(text), 'website')            # R3 fixed 2026-11-17; the slot never depended on it
         self.assertIn('content_only', self.pending_ids(d.start(text)))  # 8.2: open from the first turn
 
     def test_an_answer_on_a_web_app_brief_is_kept_and_bound(self):

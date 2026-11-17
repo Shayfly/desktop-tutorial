@@ -270,8 +270,9 @@ _RULES: tuple[tuple[str, str, str, str], ...] = (
     (_vocab.terms('צוות', 'עובדים', 'פנימי', 'פנימית', 'שלי בלבד', 'לשימוש פנימי'), 'audience', 'internal', 'hint'),
     (r'בעברית', 'languages', 'he', 'high'),
     (r'(באנגלית|in english)', 'languages', 'en', 'high'),
-    (r'(כחול)', 'color', 'blue', 'high'), (r'(ירוק)', 'color', 'green', 'high'), (r'(סגול)', 'color', 'purple', 'high'),
-    (r'(כתום)', 'color', 'orange', 'high'), (r'(טורקיז)', 'color', 'teal', 'high'),
+    (_vocab.terms('כחול'), 'color', 'blue', 'high'), (_vocab.terms('ירוק'), 'color', 'green', 'high'),
+    (_vocab.terms('סגול'), 'color', 'purple', 'high'),
+    (_vocab.terms('כתום'), 'color', 'orange', 'high'), (_vocab.terms('טורקיז'), 'color', 'teal', 'high'),
     (_vocab.terms(*_vocab.BOOKING_WORDS), 'dates', 'future_year', 'hint'),
 )
 

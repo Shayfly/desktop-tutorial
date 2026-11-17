@@ -21,6 +21,7 @@
    ],
    "expect_failed": [
     "test_each_question_is_in_the_reply_in_words",
+    "test_per_account_only_the_listed_account_talks_to_the_agent",
     "test_the_whole_conversation_has_no_card_and_reaches_the_approval"
    ]
   },
@@ -101,7 +102,7 @@
    "mutations": [
     {
      "file": "omni_prod/intake/conversation_agent.py",
-     "old": "    if value not in ('0', '1'):\n        raise ValueError",
+     "old": "    if value not in ('0', '1', 'accounts'):\n        raise ValueError",
      "new": "    if False:\n        raise ValueError"
     }
    ],
@@ -110,6 +111,40 @@
    ],
    "expect_failed": [
     "test_the_flag_is_strict"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "an account not listed talks to the agent",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "    return account is not None and str(account) in allowed",
+     "new": "    return True"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_no_cards.py"
+   ],
+   "expect_failed": [
+    "test_per_account_only_the_listed_account_talks_to_the_agent"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the turn's account is never set",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        token = agent.for_account(account_id)",
+     "new": "        token = agent.for_account(None)"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_no_cards.py"
+   ],
+   "expect_failed": [
+    "test_per_account_only_the_listed_account_talks_to_the_agent"
    ]
   }
  ]

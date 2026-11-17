@@ -1,0 +1,61 @@
+{
+ "pr": "conversation-rehearsal",
+ "sha256": [
+  "tests/test_conversation_rehearsal.py",
+  "omni_prod/conversation_rehearsal.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a card does not fail the scenario",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "    return cards == 0 and reached and not missing and",
+     "new": "    return reached and not missing and"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_rehearsal.py"
+   ],
+   "expect_failed": [
+    "test_each_acceptance_condition_fails_on_its_own"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "rules alone pass as a model",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": " and any(str(m).startswith('model') for m in models)",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_rehearsal.py"
+   ],
+   "expect_failed": [
+    "test_each_acceptance_condition_fails_on_its_own",
+    "test_rules_alone_do_not_pass"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "no bound on turns",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "    for _ in range(MAX_TURNS):",
+     "new": "    for _ in range(MAX_TURNS * 10):"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_rehearsal.py"
+   ],
+   "expect_failed": [
+    "test_turns_are_bounded"
+   ]
+  }
+ ]
+}

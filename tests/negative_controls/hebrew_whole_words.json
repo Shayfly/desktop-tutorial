@@ -1,0 +1,80 @@
+{
+ "pr": "hebrew-whole-words",
+ "sha256": [
+  "tests/test_a_word_inside_another_word.py",
+  "omni_prod/intake/families.py",
+  "omni_prod/intake/interpreter.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "green matches inside dismantling again",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "(_terms('ירוק', 'green'), 'color', 'green', HIGH)",
+     "new": "(r'(ירוק|green)', 'color', 'green', HIGH)"
+    }
+   ],
+   "targets": [
+    "tests/test_a_word_inside_another_word.py"
+   ],
+   "expect_failed": [
+    "test_dismantling_is_not_green"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "app cues match inside other words",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/families.py",
+     "old": "_APP_CUES = re.compile(r'(?<![\\w֐-׿])[הובשלמכ]{0,2}(?:",
+     "new": "_APP_CUES = re.compile(r'(?:"
+    }
+   ],
+   "targets": [
+    "tests/test_a_word_inside_another_word.py"
+   ],
+   "expect_failed": [
+    "test_buttons_are_not_appointments_and_a_refused_form_is_not_asked_for"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a refused form still asks for an app",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/families.py",
+     "old": "    return any(not _NEGATION.search(t[max(0, m.start() - 40):m.start()]) for m in _APP_CUES.finditer(t))",
+     "new": "    return bool(_APP_CUES.search(t))"
+    }
+   ],
+   "targets": [
+    "tests/test_a_word_inside_another_word.py"
+   ],
+   "expect_failed": [
+    "test_buttons_are_not_appointments_and_a_refused_form_is_not_asked_for"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a request that opens with a site falls back to an app",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/families.py",
+     "old": "    if not _asks_for_an_app(t) and (_opening(t) == 'website' or _NAMES_A_SITE.search(t) or _BUSINESS_FACTS.search(t)):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_a_word_inside_another_word.py"
+   ],
+   "expect_failed": [
+    "test_a_business_site_gets_the_public_audience_not_internal",
+    "test_a_request_that_opens_with_a_site_is_a_website",
+    "test_buttons_are_not_appointments_and_a_refused_form_is_not_asked_for"
+   ]
+  }
+ ]
+}

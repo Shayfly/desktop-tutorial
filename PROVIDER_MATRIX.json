@@ -1309,13 +1309,15 @@
   {
    "task": "conversation",
    "description": "customer intake dialogue (Hebrew/English)",
-   "preferred_floor": 70,
+   "preferred_floor": 85,
    "mandatory_floor": 70,
    "allow_models": [],
    "deny_models": [],
    "independent_of": [],
    "deterministic_first": false,
-   "prefer_models": []
+   "prefer_models": [
+    "anthropic-claude-sonnet-5-5"
+   ]
   },
   {
    "task": "conversation_complex",
@@ -1326,7 +1328,9 @@
    "deny_models": [],
    "independent_of": [],
    "deterministic_first": false,
-   "prefer_models": []
+   "prefer_models": [
+    "anthropic-claude-sonnet-5-5"
+   ]
   },
   {
    "task": "intake_extraction",
