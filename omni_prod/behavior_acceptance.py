@@ -89,15 +89,30 @@ if _SITE_AUTH_V2:
     _SCRIPT = _SCRIPT.replace('mod.WebSaaSAcceptanceRunner(', 'mod.HardenedAcceptanceRunner(')
 
 
+MAX_CHAIN = 64       # the longest executor wrapper chain any walk follows; past it the walk fails, it never guesses
+
+
+class ChainTooLong(RuntimeError):
+    """A wrapper chain longer than MAX_CHAIN (or a cycle). Raised, never answered with "not found"."""
+
+
 def find_in_chain(executor, cls):
-    """The first executor of type `cls` in a wrapper chain (wrappers keep `_inner`)."""
-    seen = 0
-    while executor is not None and seen < 20:
+    """The first executor of type `cls` in a wrapper chain (wrappers keep `_inner`). None when the chain has none.
+
+    Production 2026-11-17, bld_a875456f ("148 דלתות"): the walk stopped after 20 wrappers and answered None. The
+    worker's chain had grown past 20 (ten skill gates, G8, A4, the asset markers and G-APPLE on top of the build's
+    own stages), so the consistency gate, the preview check and the behavioural acceptance -- the deepest three --
+    were "not found", their evidence was null, and the release policy failed a build whose every check had passed:
+    "mandatory checks not passed: ... NOT_RUN". A bound that is reached is an error to raise, not an answer."""
+    for _ in range(MAX_CHAIN):
+        if executor is None:
+            return None
         if isinstance(executor, cls):
             return executor
         executor = getattr(executor, '__dict__', {}).get('_inner')
-        seen += 1
-    return None
+    if executor is None:
+        return None
+    raise ChainTooLong(f'executor chain longer than {MAX_CHAIN} wrappers while looking for {cls.__name__}')
 
 
 def _sent(request) -> str:

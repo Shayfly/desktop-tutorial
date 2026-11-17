@@ -1,0 +1,62 @@
+{
+ "pr": "chain-walk-bound",
+ "sha256": [
+  "tests/test_chain_walk_reaches_the_deepest_stage.py",
+  "omni_prod/behavior_acceptance.py",
+  "omni_prod/skill_units/gate.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the walk stops after 20 wrappers again",
+   "mutations": [
+    {
+     "file": "omni_prod/behavior_acceptance.py",
+     "old": "MAX_CHAIN = 64 ",
+     "new": "MAX_CHAIN = 20 "
+    }
+   ],
+   "targets": [
+    "tests/test_chain_walk_reaches_the_deepest_stage.py"
+   ],
+   "expect_failed": [
+    "test_one_bound_for_every_walk",
+    "test_the_workers_chain_is_longer_than_the_old_bound_and_every_evidence_is_read"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a chain past the bound is answered with not found",
+   "mutations": [
+    {
+     "file": "omni_prod/behavior_acceptance.py",
+     "old": "    raise ChainTooLong(",
+     "new": "    return None\n    raise ChainTooLong("
+    }
+   ],
+   "targets": [
+    "tests/test_chain_walk_reaches_the_deepest_stage.py"
+   ],
+   "expect_failed": [
+    "test_a_chain_past_the_bound_is_an_error_never_not_found"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the gates report keeps its own bound of 20",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "from ..behavior_acceptance import MAX_CHAIN      #",
+     "new": "MAX_CHAIN = 20  #"
+    }
+   ],
+   "targets": [
+    "tests/test_chain_walk_reaches_the_deepest_stage.py"
+   ],
+   "expect_failed": [
+    "test_one_bound_for_every_walk"
+   ]
+  }
+ ]
+}

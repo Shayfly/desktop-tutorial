@@ -51,7 +51,7 @@ def sources_of(repository: dict[str, str]) -> list[tuple[str, str]]:
 
 
 MODES = ('block', 'warn', 'off')
-MAX_CHAIN = 20           # the longest executor wrapper chain report() walks
+from ..behavior_acceptance import MAX_CHAIN      # one bound for every chain walk (it was 20 here; see find_in_chain)
 # owner 2026-11-16: G4 warns (a unit that warns makes it a gate; without the unit it is a heading) until warehouse 114
 # (the hero image inlined as base64) is fixed; G3 and G6 block.
 # The owner, 2026-11-16 (rule 4): a new gate enters at warn -- three builds, calibration, a proven fall on a broken page
