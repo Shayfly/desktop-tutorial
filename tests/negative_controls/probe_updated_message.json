@@ -1,0 +1,96 @@
+{
+ "pr": "probe-updated-message",
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a message that stays and is rewritten is called no feedback again (the production false finding)",
+   "mutations": [
+    {
+     "file": "omni_prod/browser_probe.py",
+     "old": "and not second[\"revealed\"] and not second.get(\"updated\")",
+     "new": "and not second[\"revealed\"]"
+    }
+   ],
+   "targets": [
+    "tests/test_feedback_rule.py"
+   ],
+   "expect_failed": [
+    "test_a_visible_message_rewritten_by_the_second_save_is_feedback"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a revealed message no longer counts",
+   "mutations": [
+    {
+     "file": "omni_prod/browser_probe.py",
+     "old": "bool(second[\"ok_write\"]) and not second[\"revealed\"]",
+     "new": "bool(second[\"ok_write\"])"
+    }
+   ],
+   "targets": [
+    "tests/test_feedback_rule.py"
+   ],
+   "expect_failed": [
+    "test_a_revealed_message_is_feedback"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the sandbox runs its own copy of the rule, not this one",
+   "mutations": [
+    {
+     "file": "omni_prod/browser_probe.py",
+     "old": "PROBE = PROBE.replace('#FEEDBACK_MISSING#', _inspect.getsource(feedback_missing))",
+     "new": "PROBE = PROBE.replace('#FEEDBACK_MISSING#', 'def feedback_missing(first, second):\\n    return False\\n')"
+    }
+   ],
+   "targets": [
+    "tests/test_feedback_rule.py"
+   ],
+   "expect_failed": [
+    "test_the_sandbox_runs_this_same_rule"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "browser only: any visible element counts as updated, even one whose words did not change",
+   "envs": [
+    "browser"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/browser_probe.py",
+     "old": "text.length <= 200 && text !== before[id]) out.push",
+     "new": "text.length <= 200) out.push"
+    }
+   ],
+   "targets": [
+    "tests/test_browser_probe.py"
+   ],
+   "expect_failed": [
+    "test_a_message_that_stays_unchanged_is_not_feedback"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "browser only: a message rewritten while it disappears counts as updated",
+   "envs": [
+    "browser"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/browser_probe.py",
+     "old": "    if (vis && text && text.length <= 200",
+     "new": "    if (text && text.length <= 200"
+    }
+   ],
+   "targets": [
+    "tests/test_browser_probe.py"
+   ],
+   "expect_failed": [
+    "test_a_message_that_is_rewritten_while_it_disappears_is_caught"
+   ]
+  }
+ ]
+}

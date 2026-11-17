@@ -47,12 +47,26 @@ HTTPServer(("0.0.0.0", int(os.environ.get("PORT", "8000"))), H).serve_forever()
 
 
 def fixture_repository(*, feedback_bug: bool = False, dead_form: bool = False, js_error: bool = False,
-                       port: int = 8000) -> dict[str, str]:
+                       port: int = 8000, persistent: bool = False, stale: bool = False,
+                       named: bool = False, toggle: bool = False) -> dict[str, str]:
+    """`persistent=True`: the message stays visible and is rewritten with the saved name on every save (production
+    2026-11-17, a lead form) -- working feedback. `stale=True`: it stays visible but never changes after the first save
+    -- the second save tells the user nothing new. `named=True`: the message names the saved record (with
+    `feedback_bug`, the hidden banner's text still changes -- never seen, so never feedback). `toggle=True`: the
+    message stays after the first save and the second save HIDES it while rewriting its words."""
     app = _APP % {
         'reset': '' if feedback_bug else "b.style.display='';",
         'dead': 'return;' if dead_form else '',
         'js_error': 'undefinedFunctionCall();' if js_error else '',
     }
+    if toggle:
+        app = app.replace("b.className='banner ok';", "b.className=(b.className==='banner ok'?'banner':'banner ok');")
+    if persistent or stale or toggle:
+        app = app.replace("setTimeout(()=>{b.style.display='none';b.className='banner';},3000);", '')
+    if persistent or named or toggle:
+        app = app.replace("show('נוסף')", "show('נשמר עבור '+document.getElementById('name').value)")
+    if stale:
+        app = app.replace("show('נוסף')", "(document.getElementById('banner').textContent || show('נשמר'))")
     manifest = {'schema_version': 2, 'runtime': 'python:3.11-slim', 'start': ['python', 'app.py'],
                 'port': port, 'health_path': '/'}
     return {'app.py': app, '.omni/project.json': json.dumps(manifest)}

@@ -106,6 +106,19 @@ class RealBrowserTests(unittest.TestCase):
     def test_message_hidden_after_first_use_is_caught(self):
         self.assertEqual(self._probe(8792, feedback_bug=True), {'feedback_disappears'})
 
+    def test_a_message_that_stays_and_is_rewritten_is_feedback(self):
+        # production 2026-11-17 (bld_d36b3b4e): a lead form kept its success line on the page and rewrote it per save
+        self.assertEqual(self._probe(8795, persistent=True), set())
+
+    def test_a_message_that_stays_unchanged_is_not_feedback(self):
+        self.assertEqual(self._probe(8796, stale=True), {'feedback_disappears'})
+
+    def test_a_hidden_message_whose_words_change_is_still_caught(self):
+        self.assertEqual(self._probe(8797, feedback_bug=True, named=True), {'feedback_disappears'})
+
+    def test_a_message_that_is_rewritten_while_it_disappears_is_caught(self):
+        self.assertEqual(self._probe(8798, toggle=True), {'feedback_disappears'})
+
     def test_dead_form_is_caught(self):
         self.assertIn('dead_form', self._probe(8793, dead_form=True))
 
