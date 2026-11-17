@@ -1,0 +1,61 @@
+{
+ "pr": "rehearsal-says-measured",
+ "sha256": [
+  "tests/test_rehearsal_says_what_was_measured.py",
+  "omni_prod/rehearsal.py",
+  "omni_prod/g_apple/contract.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a render finding says where and not what",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "(f['code'], f['width'], f['selector'], f.get('why', ''))",
+     "new": "(f['code'], f['width'], f['selector'])"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_says_what_was_measured.py"
+   ],
+   "expect_failed": [
+    "test_a_render_finding_says_what_was_measured"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a static finding says where and not why",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "(f['code'], f['where'], f.get('why', ''))",
+     "new": "(f['code'], f['where'])"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_says_what_was_measured.py"
+   ],
+   "expect_failed": [
+    "test_a_static_finding_says_why"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the rules do not mention the half-empty hero",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/contract.py",
+     "old": "        'the call button). Never text in one half and an empty half beside it.',\n",
+     "new": "        'the call button).',\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_says_what_was_measured.py"
+   ],
+   "expect_failed": [
+    "test_the_generator_is_told_not_to_leave_half_the_hero_empty"
+   ]
+  }
+ ]
+}

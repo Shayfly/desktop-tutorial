@@ -1,3 +1,24 @@
+# 2026-11-17 — three calibration builds, P0=0 on all three; what they said is acted on (Claude Code)
+
+- **Merged and released:** #431 `d3e1dd2` -> `4071192` (`[release]`; the contract keeps the approved lines).
+- **The three builds (G-APPLE at warn, contract carried, main `b38b471`):**
+
+  | Build | Run | Result | Reviewers P0 | Static | Render | Cost, time |
+  |---|---|---|---|---|---|---|
+  | butcher | 44048592665 | ready, 1 round | 0 / 0 | 1 | 6 | $0.147, 213 s |
+  | cafe | 44049242034 | ready, 2 rounds | 0 / 0 | 1 | 8 | $0.168, 256 s |
+  | fitness trainer | 44050605137 | ready, 1 round | 0 / 0 | 0 | 2 | $0.117, 182 s |
+
+- **Seen on all three:** the hero's content in one half with the other half empty (typography reviewer, P1);
+  MEASURE on paragraphs at 768 and 1440; SHARE_META_MISSING (all three ran before #430 was deployed).
+  **Seen on two:** the customer's address missing from the first page (one repair round each).
+- **Acted on here:** the contract's rules tell the generator not to leave half the hero empty. The rehearsal notice
+  now carries WHAT was measured (`why`), because MEASURE cannot be calibrated from a selector alone.
+- **Not acted on:** MEASURE (no numbers yet); the missing address (two builds, not three).
+- **Evidence:** `tests/test_rehearsal_says_what_was_measured.py` 3 passed; controls `rehearsal_says_measured` 3/3.
+- **Open questions 5 and 6 are in DECISIONS.md** (a content site with no image at all; the rehearsal taxonomy is
+  not recorded because the push to main is refused).
+
 # 2026-11-17 — the build contract keeps the approved text's line breaks (Claude Code)
 
 - **Merged:** #430 `4b925d1` -> `1da851d` (the generator is told what the installed gates check).

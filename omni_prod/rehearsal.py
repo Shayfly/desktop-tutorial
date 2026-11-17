@@ -191,8 +191,9 @@ def annotations(report: dict) -> list[str]:
         lines.append(note('g-apple', report.get('g_apple_error') or json.dumps({
             'mode': apple.get('mode'), 'contract': (apple.get('contract') or {}).get('fingerprint'),
             'status': last.get('status'), 'reason': last.get('reason'), 'not_run': last.get('not_run'),
-            'static': [(f['code'], f['where']) for f in last.get('static') or []][:25],
-            'render': [(f['code'], f['width'], f['selector']) for f in last.get('render') or []][:25],
+            # calibration reads WHAT was measured, not only where (two builds said MEASURE with no number to read)
+            'static': [(f['code'], f['where'], f.get('why', '')) for f in last.get('static') or []][:25],
+            'render': [(f['code'], f['width'], f['selector'], f.get('why', '')) for f in last.get('render') or []][:25],
             'reviewers': [{k: r.get(k) for k in ('reviewer', 'status', 'p0', 'reason', 'category_marks', 'findings')}
                           for r in last.get('reviewers') or []]}, ensure_ascii=False)))
     if (report.get('runtime_load') or {}).get('last') or (report.get('game_runtime') or {}).get('last'):
