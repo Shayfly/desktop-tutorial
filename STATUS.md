@@ -18,7 +18,10 @@
 - **D7 part 1, nearest category:** an unrecognised business takes the palette of the nearest category -- first a related
   word listed under `near` in `vertical_palettes.json` (a pizzeria is near restaurants, a florist near furniture and
   interiors), then an inflection of a category word (letter trigrams, threshold 0.55). With no nearness at all the old
-  clause stays. The florist contract's pinned fingerprints moved (old values kept). Controls `nearest_category` 5/5,
+  clause stays (so a doors request without the word "דלתות" still has no palette: `doors_palette` NC1 keeps its
+  original three tests; Claude's first edit of that list was wrong, caught by CI on `6054d4d`, and reverted -- the
+  declaration written for it now covers no deleted line). The florist contract's pinned fingerprints moved (old
+  values kept). Controls `nearest_category` 5/5,
   `vertical_palettes` 4/4, `doors_palette` 3/3.
 - **Evidence:** full suite on the branch: 1 failed, 3840 passed -- the one is `test_m4_acceptance` W, the local
   300-second subprocess timeout (287 s on main; it passes in CI). `test_fast.sh` 1428 passed.
@@ -29,6 +32,10 @@
   agent asks the subject first, never offers the approval without it, and the answer joins the request the build
   starts from; the sensitive line says "in words". Classification corpus: 4 of 101 requests have no subject, all
   four genuinely ("אתר", "build me a 2d game", "סרטון תדמית לעסק", "שלום, אתר לעסק שלי"). Controls `agent_subject` 5/5.
+- **CI on `6054d4d`:** the pg job's negative-controls step hit its 14-minute limit. Investigated, not raised: every
+  spec ran about 1.8x slower than on `81e24c4` (476 s -> 849 s+ for the same specs, untouched ones included);
+  locally the same test file takes 13.3 s on the branch and 12.8 s on main, imports 0.1 s on both -- the runner,
+  not the change. The new specs add about 30 s.
 - **NOT done:** D7 part 2, the one colour question in words, is held until after the owner's human test (it changes the
   conversation itself).
 
