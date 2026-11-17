@@ -1,0 +1,114 @@
+{
+ "pr": "facts-shown",
+ "sha256": [
+  "tests/test_the_generator_is_told_the_facts.py",
+  "omni_prod/fact_canon.py",
+  "omni_prod/worker_tasks.py",
+  "omni_prod/rehearsal.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the architect is not wrapped: the facts never reach the generator",
+   "mutations": [
+    {
+     "file": "omni_prod/fact_canon.py",
+     "old": "            holder.architect = FactsArchitect(architect, facts)\n",
+     "new": "            pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_the_generator_is_told_the_facts.py"
+   ],
+   "expect_failed": [
+    "test_through_the_real_build_loop"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the facts requirement is optional",
+   "mutations": [
+    {
+     "file": "omni_prod/fact_canon.py",
+     "old": "'id': FACTS_REQUIREMENT, 'kind': 'functional', 'mandatory': True,",
+     "new": "'id': FACTS_REQUIREMENT, 'kind': 'functional', 'mandatory': False,"
+    }
+   ],
+   "targets": [
+    "tests/test_the_generator_is_told_the_facts.py"
+   ],
+   "expect_failed": [
+    "test_through_the_real_build_loop"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "hours are not told",
+   "mutations": [
+    {
+     "file": "omni_prod/fact_canon.py",
+     "old": "        key = 'hours' if f.key in ('hours', 'hours_day') else f.key",
+     "new": "        key = f.key"
+    }
+   ],
+   "targets": [
+    "tests/test_the_generator_is_told_the_facts.py"
+   ],
+   "expect_failed": [
+    "test_hours_alone_get_a_criterion_too",
+    "test_through_the_real_build_loop"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the facts are added twice",
+   "mutations": [
+    {
+     "file": "omni_prod/fact_canon.py",
+     "old": "    if not facts or any(r['id'] == FACTS_REQUIREMENT for r in data['requirements']):",
+     "new": "    if not facts:"
+    }
+   ],
+   "targets": [
+    "tests/test_the_generator_is_told_the_facts.py"
+   ],
+   "expect_failed": [
+    "test_no_facts_no_requirement_and_added_once"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the worker never installs it",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        install_facts(engine, prompt)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_the_generator_is_told_the_facts.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_and_the_rehearsal_install_it"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "no architect, and nothing is said",
+   "mutations": [
+    {
+     "file": "omni_prod/fact_canon.py",
+     "old": "    if not carried:\n        logging",
+     "new": "    if False:\n        logging"
+    }
+   ],
+   "targets": [
+    "tests/test_the_generator_is_told_the_facts.py"
+   ],
+   "expect_failed": [
+    "test_no_architect_is_said"
+   ]
+  }
+ ]
+}

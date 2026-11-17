@@ -17,7 +17,9 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 10 -> 15 (2026-11-17): measured 7m40s, 7m30s, 9m53s on three green runs today, then cancelled at 10m00s on #440
+    # (1f09ad1, every step green until the limit). A cancelled check is not green; the limit, not a test, failed.
+    timeout-minutes: 15
     steps:
       # Audited registry snapshots refer to the PR HEAD, not GitHub's
       # synthetic merge SHA, which can include unrelated base-branch changes.

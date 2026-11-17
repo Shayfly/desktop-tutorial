@@ -1,3 +1,19 @@
+# 2026-11-17 — conversation agent, phase 3: an exact hand-off -- the customer's facts and page structure reach the generator (Claude Code)
+
+- **Merged and released:** #439 `a10a0a7` -> `ee2d7ca` (phase 2).
+- **Why:** the architect rewrites the request in its own words and the generator gets the spec alone -- the same
+  hand-off that lost the design contract (#429). What the customer wrote exactly could be dropped there.
+- **Facts** (`fact_canon.install_facts`): one mandatory requirement with every phone, e-mail, address and hours
+  statement of the request, as written, and an HTTP-checkable criterion. Three calibration builds of four paid a
+  repair round for "facts the customer gave are missing from the page: address".
+- **Page structure** (`page_outline`): the sections the customer listed under "מבנה הדף:" (or "page structure:"), in
+  order, with what they wrote for each, become one mandatory requirement; the criterion checks the names in order.
+  The "148 דלתות" brief gives six sections (הירו ... פוטר). A request with no structure heading gets nothing.
+  Both are installed in the worker and the rehearsal; no architect is said in the log, never assumed.
+- **Evidence:** `tests/test_the_generator_is_told_the_facts.py` 6 passed, `tests/test_page_outline_reaches_the_generator.py`
+  7 passed (both through the real build loop); controls `facts_shown` 6/6, `page_outline` 6/6; `test_fast.sh` exit 0.
+- **NOT verified:** a real build with either requirement.
+
 # 2026-11-17 — conversation agent, phase 2: the model asks the customer's decisions in its own words (Claude Code)
 
 - **Merged and released:** #438 `f22c53d` -> `acbbbc8` (phase 1, behind `OMNI_INTAKE_AGENT`).

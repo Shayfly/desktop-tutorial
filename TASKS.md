@@ -59,3 +59,5 @@
 | AGENT-1 | Claude Code | In review | conversation agent phase 1: no question cards, questions in words, typed answers; NC 6/6 |
 | AGENT-1-DONE | Claude Code | Done | #438 `f22c53d` -> `acbbbc8`, released |
 | AGENT-2 | Claude Code | In review | the model asks customer decisions in its own words (ask_next); checklist from the request; NC 5/5 |
+| AGENT-2-DONE | Claude Code | Done | #439 `a10a0a7` -> `ee2d7ca`, released |
+| AGENT-3 | Claude Code | In review | exact hand-off: facts and page structure reach the generator; NC 6/6 + 6/6 |

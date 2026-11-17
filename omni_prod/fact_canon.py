@@ -516,3 +516,75 @@ def needs_customer_input(messages, prompt: str) -> list[str]:
     line = prompt[at + len(MISSING_PREFIX):].split('.', 1)[0] if at >= 0 else ''
     listed = [k for k in _NEEDS if re.search(rf'(?<![a-z]){k}(?![a-z])', line)]
     return [k for k in listed if _INVENTED[k] in text]
+
+
+# ---- the facts the page must show, told to the generator BEFORE it writes (2026-11-17) ----------------------------
+# Three calibration builds of four (butcher, cafe, fitness trainer, butcher again) paid a repair round for the same
+# blocking review finding: "facts the customer gave are missing from the page: address ...". The review checks the
+# page against this canon; the generator had never been told which facts the canon holds. One source: the canon.
+FACTS_REQUIREMENT = 'CUSTOMER-FACTS'
+_SHOWN_KEYS = ('phone', 'email', 'address')
+
+
+def facts_to_show(request_text: str) -> list[tuple[str, str]]:
+    """[(key, the customer's own words)] of every phone, e-mail, address and hours statement in the request, in the
+    order written, each once. Empty when the request states none."""
+    canon = build_canon(request_text)
+    out: list[tuple[str, str]] = []
+    for f in canon.facts:
+        key = 'hours' if f.key in ('hours', 'hours_day') else f.key
+        if key in _SHOWN_KEYS + ('hours',) and (key, f.source_ref) not in out:
+            out.append((key, f.source_ref))
+    return out
+
+
+def with_facts(spec, facts: list[tuple[str, str]]):
+    """The spec with one mandatory requirement: the page shows each fact as the customer wrote it. Its acceptance
+    criterion is checkable over HTTP (the served page contains each value). Added once; no facts, no change."""
+    from .product_spec import ProductSpec
+    data = spec.to_dict()
+    if not facts or any(r['id'] == FACTS_REQUIREMENT for r in data['requirements']):
+        return spec
+    listed = '; '.join(f'{k}: "{v}"' for k, v in facts)
+    data['requirements'].append({
+        'id': FACTS_REQUIREMENT, 'kind': 'functional', 'mandatory': True,
+        'text': ('The home page shows every business fact the customer gave, exactly as written, visible on the page '
+                 '(not only in a link or a tooltip): ' + listed + '. Never another or an additional value.')})
+    checkable = [v for k, v in facts if k in _SHOWN_KEYS]
+    data['acceptance'].append({
+        'id': FACTS_REQUIREMENT, 'requirement_id': FACTS_REQUIREMENT,
+        'text': ('GET / returns 200 and its HTML text contains ' + ', '.join(f'"{v}"' for v in checkable)
+                 if checkable else 'GET / returns 200 and its HTML text shows the opening hours as given: ' + listed)})
+    return ProductSpec.from_dict(data)
+
+
+class FactsArchitect:
+    """Wraps the engine's architect: every spec it returns carries the customer's facts as a mandatory requirement."""
+
+    def __init__(self, inner, facts):
+        self._inner, self.facts = inner, list(facts)
+
+    def __getattr__(self, item):
+        return getattr(self._inner, item)
+
+    def create_spec(self, prompt, *args, **kwargs):
+        return with_facts(self._inner.create_spec(prompt, *args, **kwargs), self.facts)
+
+
+def install_facts(engine, prompt: str) -> list[tuple[str, str]]:
+    """Give the generator the facts the review will check. Returns them; logs when there is no architect to carry
+    them (said, never assumed)."""
+    import logging
+    facts = facts_to_show(prompt)
+    if not facts:
+        return facts
+    core = getattr(engine, 'core', engine)
+    carried = False
+    for holder in (core, engine):
+        architect = getattr(holder, 'architect', None)
+        if architect is not None and not isinstance(architect, FactsArchitect):
+            holder.architect = FactsArchitect(architect, facts)
+        carried = carried or isinstance(getattr(holder, 'architect', None), FactsArchitect)
+    if not carried:
+        logging.getLogger(__name__).warning('FACTS_NOT_CARRIED %d fact(s): the engine has no architect', len(facts))
+    return facts
