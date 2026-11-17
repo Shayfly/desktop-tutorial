@@ -14,6 +14,10 @@
   negative controls `photo_weight` 8/8, `gates_calibrating` 6/6; declarations 68 -> 75, none lost.
 - **CI lesson:** `validate` failed on `ea19bf6`: `requirements.txt` (Vercel) must list exactly the pins of
   `requirements-production.txt` (`tests/test_vercel_entrypoint.py`). Pillow is added to both.
+- **CI lesson 2 (a bug of Claude's):** `pg-tests` failed on `2311e2b`: two existing controls (`skill_gate_copy` NC4,
+  `skill_gate_he` NC5) mutated the DEFAULT_MODE line this PR rewrote, so they could not be applied. Claude had run only
+  the new specs. Both controls now assert the new rule (the gate must not block before calibration), and
+  `tests/test_negative_controls_apply.py` checks every mutation of every spec still matches its file.
 - **Not verified:** the worker image has not been built with Pillow yet (the deploy builds images before it drains);
   no gate has been calibrated on a real build yet.
 - **Still open in 114:** the photo is still inside the HTML (no browser cache). Serving it as a file needs the

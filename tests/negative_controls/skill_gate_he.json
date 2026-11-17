@@ -79,19 +79,18 @@
   },
   {
    "id": "NC5",
-   "what": "the Hebrew gate warns instead of blocking",
+   "what": "the gate blocks from its first day (the owner's rule 4: HE warns until it is calibrated on three builds)",
    "mutations": [
     {
      "file": "omni_prod/skill_units/gate.py",
-     "old": "'G6': 'block', 'HE': 'block',",
-     "new": "'G6': 'block', 'HE': 'warn',"
+     "old": "CALIBRATING = ('HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE')",
+     "new": "CALIBRATING = ('G10', 'G11', 'G1', 'BRAND', 'SHARE')"
     }
    ],
    "targets": [
     "tests/test_skill_gate_he.py"
    ],
    "expect_failed": [
-    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
     "test_the_gate_is_three_units_and_blocks_by_default"
    ]
   },
