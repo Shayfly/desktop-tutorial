@@ -1,3 +1,20 @@
+# 2026-11-17 — the game check presses "start" the way a player does (Claude Code)
+
+- **Root cause (rehearsal 44079074182, the stars game):** a working game waited on its start screen; the probe tapped the
+  canvas and pressed keys but never the "התחל" button, saw one still frame and called the game frozen (`GAME_FROZEN`).
+- **Fix:** before it plays, the probe presses one visible control whose whole label is a start word ("התחל", "שחקו",
+  "start", "play"...), says which (`started_by`), and only then plays; a control that is not a start word ("הוראות") is
+  never pressed. The start words are one pattern (`START_LABEL`) injected into the sandbox script, so a browser-free test
+  checks the same pattern the browser uses.
+- **Evidence:** `tests/test_game_runtime.py` + `tests/test_game_runtime_rules.py` 22/22 locally, 13 of them in a real
+  browser; controls `game_start_screen` 4/4 with `NC_ENV=browser` (NC1-NC2 need Chromium; NC3-NC4 run in every CI job),
+  `game_runtime` 9/9. NOT run in CI: the real-browser half (no CI job has Python Playwright with Chromium -- open).
+
+# 2026-11-17 — negative controls in parallel; the pg step's limit is not raised again (Claude Code)
+
+- **Root cause (investigated, owner's rule: investigate, do not raise a limit):** the pg job's controls step was raised
+  5 -> 10 -> 14 minutes in two days and still ran over: main took 8:56 to 11:37 today, and #445 (one more spec, about
+
 # 2026-11-17 — the conversation rehearsal runs on the production intake path (Claude Code)
 
 - **Merged and released:** #444 `721f560` -> `0ce8cde` (the owner's conversation: the image question is not a loop;
