@@ -44,3 +44,5 @@
 | APPLE-CARRIED | Claude Code | In review | the design contract rides the spec word for word; rehearsal installs the request; reviewers told they see one screen; NC 8/8 + 2/2 |
 | PR-429 | Claude Code | Done | #429 `7b45e1d` -> `b38b471` (contract carried; rehearsal installs the request) |
 | GATE-RULES | Claude Code | In review | the generator is told what the installed gates check; NC 6/6 |
+| PR-430 | Claude Code | Done | #430 `4b925d1` -> `1da851d` (gate checks reach the generator) |
+| CONTRACT-LINES | Claude Code | In review | the contract keeps the approved text line by line; NC 10/10; full suite 3764/0 |

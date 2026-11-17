@@ -139,7 +139,7 @@
     "tests/test_contract_prompt_readers.py"
    ],
    "expect_failed": [
-    "test_the_missing_phone_stops_the_repairs_on_both"
+    "test_the_missing_phone_stops_the_repairs_on_every_form"
    ]
   },
   {
@@ -188,6 +188,33 @@
     "test_the_photo_binding",
     "test_the_photo_binding_is_read_from_the_contract",
     "test_the_sandbox_gets_the_photo_bytes_never_the_raw_address"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the contract stores the approved text as one long line again (a review loses its author, an image description runs on)",
+   "mutations": [
+    {
+     "file": "omni_prod/product_architect.py",
+     "old": "            \"prompt\": approved,\n",
+     "new": "            \"prompt\": clean,  # NEGATIVE CONTROL\n"
+    },
+    {
+     "file": "omni_prod/product_architect.py",
+     "old": "            prompt=approved,\n",
+     "new": "            prompt=clean,  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_contract_prompt_readers.py",
+    "tests/test_approved_decisions_reach_contract.py"
+   ],
+   "expect_failed": [
+    "test_a_review_at_the_end_of_its_line_keeps_its_author",
+    "test_an_image_description_ends_with_its_line",
+    "test_contracts_without_decisions_are_byte_identical",
+    "test_only_the_line_breaks_changed_on_2026_11_16",
+    "test_the_contract_keeps_the_approved_lines"
    ]
   }
  ]

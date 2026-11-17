@@ -195,46 +195,93 @@ def doors_brief():
 
 
 class TheSameReadersOnBothForms(unittest.TestCase):
-    """What the customer approved and what the worker reads from the contract must give the same answers."""
+    """What the customer approved and what the worker reads from the contract must give the same answers -- for a
+    contract compiled today (it keeps the approved lines) and for one stored before 2026-11-16 (one long line, like
+    the production row bc_8ffe6070), which can still be built."""
 
     @classmethod
     def setUpClass(cls):
         b = doors_brief()
         cls.approved = b.prompt + '\n' + d.requirements_text(b)
         cls.contract = ProductArchitect().compile(cls.approved, project_id='p', contract_version=1).prompt
+        cls.one_line = ' '.join(cls.approved.split())                 # how contracts were stored until 2026-11-16
+        cls.forms = {'approved': cls.approved, 'contract': cls.contract, 'one line (old contracts)': cls.one_line}
 
-    def test_the_contract_is_the_approved_text_on_one_line(self):
+    def test_the_contract_keeps_the_approved_lines(self):
         self.assertIn('\n', self.approved)
-        self.assertNotIn('\n', self.contract)
-        self.assertEqual(self.contract, ' '.join(self.approved.split()))
+        self.assertEqual(self.contract.splitlines(), [' '.join(x.split()) for x in self.approved.splitlines() if x.strip()])
+        self.assertEqual(' '.join(self.contract.split()), self.one_line)        # the same words, nothing added or lost
+        self.assertNotIn('\n', self.one_line)
+        self.assertNotIn('\n', contract().prompt)                               # the production row: the old form
+
+    def test_the_rest_of_the_contract_still_reads_the_one_line_text(self):
+        c = ProductArchitect().compile(self.approved, project_id='p', contract_version=1)
+        self.assertTrue(c.verify_fingerprint())
+        self.assertNotIn('\n', c.product_spec.title + c.product_spec.summary)   # detection and the spec read `clean`
+        self.assertEqual(ProductArchitect().compile(self.one_line, project_id='p', contract_version=1).prompt,
+                         self.one_line)                                # a one-line request is stored as it always was
 
     def test_the_photo_binding(self):
-        read = [[m.groups() for m in U._IMAGE_BINDING.finditer(p)] for p in (self.approved, self.contract)]
-        self.assertEqual(read[0], read[1])
-        self.assertEqual([g[0] for g in read[1]], ['1'])
+        read = {name: [m.groups() for m in U._IMAGE_BINDING.finditer(p)] for name, p in self.forms.items()}
+        self.assertEqual(read['approved'], read['contract'])
+        self.assertEqual(read['approved'], read['one line (old contracts)'])
+        self.assertEqual([g[0] for g in read['contract']], ['1'])
 
     def test_the_approved_and_rejected_windows_and_the_canon(self):
-        for p in (self.approved, self.contract):
-            with self.subTest(form='contract' if '\n' not in p else 'approved'):
+        for name, p in self.forms.items():
+            with self.subTest(form=name):
                 self.assertEqual(W.approved_in_prompt(p), ['age_gate', 'cookie_banner'])
                 self.assertEqual(W.rejected_in_prompt(p), ['entry_popup'])
                 self.assertEqual(F.build_canon(p).values('window'), {'age_gate', 'cookie_banner'})
 
-    def test_the_missing_phone_stops_the_repairs_on_both(self):
+    def test_the_missing_phone_stops_the_repairs_on_every_form(self):
         invented = [F._INVENTED['phone'] + '972501234567']
-        for p in (self.approved, self.contract):
-            with self.subTest(form='contract' if '\n' not in p else 'approved'):
+        for name, p in self.forms.items():
+            with self.subTest(form=name):
                 self.assertEqual(F.needs_customer_input(invented, p), ['phone'])
 
     def test_the_window_gate_holds_a_contract_build(self):
-        engine = engine_for(page(COOKIES), page(COOKIES))
-        self.assertEqual(W.install(engine, prompt=self.contract), ['age_gate', 'cookie_banner'])
-        result = engine.build(self.contract)
-        self.assertEqual(result.status, 'failed')
-        self.assertIn('WINDOW_MISSING', engine.repairer.failures[0][0]['message'])
-        passing = engine_for(page(AGE, COOKIES))
-        W.install(passing, prompt=self.contract)
-        self.assertEqual(passing.build(self.contract).status, 'ready')
+        for name in ('contract', 'one line (old contracts)'):
+            with self.subTest(form=name):
+                prompt = self.forms[name]
+                engine = engine_for(page(COOKIES), page(COOKIES))
+                self.assertEqual(W.install(engine, prompt=prompt), ['age_gate', 'cookie_banner'])
+                result = engine.build(prompt)
+                self.assertEqual(result.status, 'failed')
+                self.assertIn('WINDOW_MISSING', engine.repairer.failures[0][0]['message'])
+                passing = engine_for(page(AGE, COOKIES))
+                W.install(passing, prompt=prompt)
+                self.assertEqual(passing.build(prompt).status, 'ready')
+
+
+REVIEWS = ('בית קפה "הפינה" ברחוב הרצל 10, חיפה. טלפון 04-8123456. ביקורות של לקוחות:\n'
+           '"הקפה הכי טוב בחיפה, באמת" – דנה\n"שירות מעולה ומהיר מאוד" – יוסי כהן\n'
+           'תמונה ראשית: כוס קפה על שולחן עץ ליד חלון\nתודה רבה')
+
+
+class WhatOnlyTheLinesCarry(unittest.TestCase):
+    """Two readers cannot recover a line that was joined to the next one. They read the contract correctly only
+    because the contract keeps the approved lines."""
+
+    @classmethod
+    def setUpClass(cls):
+        b = d.start(REVIEWS)
+        cls.approved = b.prompt + '\n' + d.requirements_text(b)
+        cls.contract = ProductArchitect().compile(cls.approved, project_id='p', contract_version=1).prompt
+
+    def test_a_review_at_the_end_of_its_line_keeps_its_author(self):
+        want = {'הקפה הכי טוב בחיפה באמת|דנה', 'שירות מעולה ומהיר מאוד|יוסי כהנ'}
+        self.assertEqual(F.build_canon(self.approved).values('review'), want)
+        self.assertEqual(F.build_canon(self.contract).values('review'), want)
+        # the old one-line form reads the second author together with the next line's words: the reason for the change
+        self.assertNotEqual(F.build_canon(' '.join(self.approved.split())).values('review'), want)
+
+    def test_an_image_description_ends_with_its_line(self):
+        from omni_prod import generated_images as G
+        want = 'כוס קפה על שולחן עץ ליד חלון'
+        self.assertEqual(G.describe(self.approved, 'hero image'), want)
+        self.assertEqual(G.describe(self.contract, 'hero image'), want)
+        self.assertNotEqual(G.describe(' '.join(self.approved.split()), 'hero image'), want)
 
 
 class TheEvidenceKeepsTheGates(unittest.TestCase):

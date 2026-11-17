@@ -223,6 +223,14 @@ class ProductArchitect:
         clean = " ".join(prompt.split()).strip()
         if not clean:
             raise ValueError("prompt cannot be empty")
+        # The contract binds the approved text AS APPROVED: one line per line (2026-11-16). Until then it stored
+        # `clean`, one long line, and every reader on the worker that reads by line lost its line: the customer's
+        # photo binding (production bld_426addd3, "148 דלתות": a broken hero), the approved windows, the MISSING
+        # facts line, a review at the end of its line, an image description that ends with its line. `clean` is
+        # still what detection reads. Each line's own whitespace is collapsed and blank lines are dropped, so
+        # " ".join(approved.split()) == clean always. Contracts stored before this are one line and stay valid;
+        # the worker's readers read both forms (tests/test_contract_prompt_readers.py).
+        approved = "\n".join(" ".join(line.split()) for line in prompt.splitlines() if line.strip())
         if not project_id.strip():
             raise ValueError("project_id cannot be empty")
         if contract_version < 1:
@@ -346,7 +354,7 @@ class ProductArchitect:
             "project_id": project_id,
             "contract_version": contract_version,
             "status": status.value,
-            "prompt": clean,
+            "prompt": approved,
             "product_family": profile.key,
             "target": "web",
             "release_target": "vercel",
@@ -377,7 +385,7 @@ class ProductArchitect:
             project_id=project_id,
             contract_version=contract_version,
             status=status,
-            prompt=clean,
+            prompt=approved,
             product_family=profile.key,
             target="web",
             release_target="vercel",
