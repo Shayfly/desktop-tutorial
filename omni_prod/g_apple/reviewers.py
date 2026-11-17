@@ -42,6 +42,12 @@ SYSTEM = {
         'screen says nothing about what the business does, the imagery contradicts the trade. '
         + _SHAPE % ', "category_marks": ["<each mark of this business you see, in a few words>"]'),
 }
+# Calibration, rehearsal 44043708644 (the butcher, 2026-11-17): the brand reviewer reported "the contact details
+# section ... is missing from the visible view". The section was on the page, below the first screen: visual QA's
+# screenshots are one viewport each, and the reviewer was never told. A reviewer judges what it is shown.
+FIRST_SCREEN = ('Each screenshot shows ONLY the first screen of the page, as a visitor sees it before scrolling; the '
+                'page continues below it. Never report content as missing because it is not in a screenshot.')
+SYSTEM = {name: text + ' ' + FIRST_SCREEN for name, text in SYSTEM.items()}
 REVIEWERS = tuple(SYSTEM)
 
 

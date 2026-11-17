@@ -1,0 +1,46 @@
+{
+ "pr": "rehearsal-installs-request",
+ "sha256": [
+  "tests/test_rehearsal_installs_the_request.py",
+  "omni_prod/rehearsal.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the review is not given the request",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "        report['review_request_installed'] = install_review_request(engine, prompt)\n",
+     "new": "        report['review_request_installed'] = True\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_installs_the_request.py"
+   ],
+   "expect_failed": [
+    "test_an_engine_without_a_review_says_so",
+    "test_it_is_installed_before_the_gates_as_in_the_worker",
+    "test_the_canon_of_the_review_is_the_customers_request"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a Hebrew page gets no right-to-left rule",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "        install_page_locale(engine, prompt)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_installs_the_request.py"
+   ],
+   "expect_failed": [
+    "test_a_hebrew_request_gets_the_right_to_left_rule",
+    "test_it_is_installed_before_the_gates_as_in_the_worker"
+   ]
+  }
+ ]
+}

@@ -1,3 +1,29 @@
+# 2026-11-17 — G-APPLE ran on a real page for the first time; three roots from that build fixed (Claude Code)
+
+- **Merged:** #428 `8e26a8f` -> `4d9b1fb` (a syntax failure carries the line itself).
+- **The build (rehearsal 44043708644, the butcher, main `609929e`, $0.211, 380 s):** ready after 2 repair rounds.
+  G8 passed (60 requests, 0 errors, p95 7 ms, 22 MB). Both reviewers ran on a real vision model: typography/layout
+  P0=1 (emoji icons drawn as empty boxes), brand/category P0=0 with four marks of the business named. G-APPLE static:
+  CONTRACT_MISSING, raw colours, a third weight, emoji icons; render: 24 OFF_GRID. SHARE: no og:title/og:description.
+- **Root 1 (mine):** the design contract was only appended to the prompt. The prompt goes to the architect, which
+  writes the spec in its own words; the generator gets the spec and nothing else, so it never saw the contract it
+  was checked against. Fixed: `g_apple.ContractArchitect` puts the contract into the spec word for word, as a
+  mandatory requirement with an HTTP-checkable criterion. `report()['carried']` says whether it was carried.
+- **Root 2 (mine):** the rehearsal never gave the review the approved request (the worker does:
+  `install_review_request`), so the fact canon was empty and the customer's own opening hours were "invented" -- a
+  blocking finding and a paid repair round no customer's build has. Fixed: the rehearsal installs the request and
+  the right-to-left rule, in the worker's order, and reports whether it did.
+- **Root 3 (calibration of the gate):** the brand reviewer reported the contact section "missing from the visible
+  view": the screenshots are one screen each and the reviewer was never told. Both reviewers are now told.
+- **Also:** the contract's rules now say to reset browser default margins (the 24 OFF_GRID findings were headings
+  and links on the browser's own margins).
+- **Evidence:** `tests/test_g_apple_contract_carried.py` 7 passed (one through the real build loop);
+  `tests/test_rehearsal_installs_the_request.py` 4 passed; controls `g_apple_contract_carried` 8/8,
+  `rehearsal_installs_request` 2/2; `test_fast.sh` exit 0.
+- **NOT verified:** that the generator follows the contract once it has it. The next butcher rehearsal says.
+- **NOT fixed:** `publish-taxonomy` cannot push to main (protected branch); the share gate found a real gap (no
+  og tags) and nothing tells the generator to write them.
+
 # 2026-11-17 — the butcher rehearsal failed on a syntax error nobody could read; the message now carries the line (Claude Code)
 
 - **Merged:** #427 `360080d` -> `d29d8da` (A4 picture count; no release of its own).

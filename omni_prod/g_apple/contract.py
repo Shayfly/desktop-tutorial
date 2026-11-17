@@ -144,4 +144,8 @@ def rules(contract: dict) -> str:
         '- Body text lines are 55 to 75 characters long on a wide screen: give paragraphs a max-width (for Hebrew text '
         'about 52ch -- a Hebrew letter is narrower than the "0" that ch measures); controls are at least 44px '
         'high; nothing scrolls sideways at 320px.',
+        # calibration, rehearsal 44043708644: 24 OFF_GRID findings were headings and links left on the browser's own
+        # margins (an h2's default is 0.83em: 19.92px at 24px), which no rule above mentions
+        '- Start the stylesheet by setting margin: 0 and padding: 0 on h1, h2, h3, h4, p, ul, ol, li and figure, then '
+        'give each its spacing from var(--space-...): a browser default margin is not on the grid.',
     ])
