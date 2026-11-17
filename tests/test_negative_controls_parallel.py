@@ -62,6 +62,22 @@ class Parallel(unittest.TestCase):
                          ['a_one', 'b_two', 'c_bad'])
         self.assertEqual(serial[0], 1)
 
+    def test_the_tests_of_a_control_do_not_see_the_runners_settings(self):
+        (self.repo / 'test_env.py').write_text(textwrap.dedent('''
+            import os, unittest
+            from lib import gate
+            class E(unittest.TestCase):
+                def test_refuses(self): self.assertFalse(gate(-1))
+                def test_plain_environment(self): self.assertNotIn('NC_JOBS', os.environ)
+        '''))
+        with mock.patch.dict(os.environ, {'NC_JOBS': '3', 'NC_ENV': ''}):
+            nc = load()
+            nc.ROOT = self.repo
+            with redirect_stdout(io.StringIO()):
+                ok, detail = nc.run_control({'mutations': [{'file': 'lib.py', 'old': 'return x > 0', 'new': 'return True'}],
+                                             'targets': ['test_env.py'], 'expect_failed': ['test_refuses']})
+        self.assertTrue(ok, detail)
+
     def test_a_worker_gets_its_own_database_and_redis_index(self):
         nc = load()
         env = {'NC_DB_URL': 'postgresql://u:p@h:5432/postgres', DB_VAR: 'postgresql://u:p@h:5432/postgres',

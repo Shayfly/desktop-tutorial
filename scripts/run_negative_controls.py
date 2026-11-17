@@ -47,6 +47,7 @@ def _git(repo, *args, check=False):
 
 ENV = (os.getenv('NC_ENV') or '').strip()      # '' (v24-ci, no Postgres) | 'pg' (intake-budget-pg, real Postgres)
 JOBS = int(os.getenv('NC_JOBS') or '1')        # not a number -> ValueError at start, never a silent default
+RUNNER_SETTINGS = ('NC_JOBS', 'NC_DB_URL', 'NC_REDIS_URL')
 if JOBS < 1:
     raise ValueError(f'NC_JOBS must be at least 1, not {JOBS}')
 
@@ -149,6 +150,8 @@ def run_control(spec: dict, cid: str = 'NC', nc_env: str | None = None, out=None
             out(f"NC-EVIDENCE MUTATION {cid} diff: {line}")
         report = tmp / 'report.xml'
         proc_env = {**os.environ, **(env_extra or {}), 'PYTHONPATH': str(repo), 'OMNI_EVIDENCE_NOTICES': ''}
+        for key in RUNNER_SETTINGS:           # the runner's own settings never reach the tests it runs: a test of the
+            proc_env.pop(key, None)           # runner itself must see a plain environment
         try:
             proc = subprocess.run([sys.executable, '-m', 'pytest', '-q', '-p', 'no:cacheprovider',
                                    f'--junitxml={report}', *spec['targets']],
