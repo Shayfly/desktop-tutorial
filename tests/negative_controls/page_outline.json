@@ -1,0 +1,114 @@
+{
+ "pr": "page-outline",
+ "sha256": [
+  "tests/test_page_outline_reaches_the_generator.py",
+  "omni_prod/page_outline.py",
+  "omni_prod/worker_tasks.py",
+  "omni_prod/rehearsal.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the architect is not wrapped",
+   "mutations": [
+    {
+     "file": "omni_prod/page_outline.py",
+     "old": "            holder.architect = OutlineArchitect(architect, sections)\n",
+     "new": "            pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_outline_reaches_the_generator.py"
+   ],
+   "expect_failed": [
+    "test_through_the_real_build_loop"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the structure requirement is optional",
+   "mutations": [
+    {
+     "file": "omni_prod/page_outline.py",
+     "old": "        'id': REQUIREMENT, 'kind': 'functional', 'mandatory': True,",
+     "new": "        'id': REQUIREMENT, 'kind': 'functional', 'mandatory': False,"
+    }
+   ],
+   "targets": [
+    "tests/test_page_outline_reaches_the_generator.py"
+   ],
+   "expect_failed": [
+    "test_through_the_real_build_loop"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the brief block is read as the customer's structure",
+   "mutations": [
+    {
+     "file": "omni_prod/page_outline.py",
+     "old": "    lines = (text or '').split('--- Approved project brief')[0].splitlines()",
+     "new": "    lines = (text or '').splitlines()"
+    }
+   ],
+   "targets": [
+    "tests/test_page_outline_reaches_the_generator.py"
+   ],
+   "expect_failed": [
+    "test_the_brief_block_is_not_read_as_the_customers_structure"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "no bound on sections",
+   "mutations": [
+    {
+     "file": "omni_prod/page_outline.py",
+     "old": "            if len(out) >= MAX_SECTIONS:",
+     "new": "            if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_page_outline_reaches_the_generator.py"
+   ],
+   "expect_failed": [
+    "test_it_is_bounded_and_the_cut_is_said"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the worker never installs it",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        install_page_outline(engine, prompt)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_outline_reaches_the_generator.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_and_the_rehearsal_install_it"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a blank line does not end the structure",
+   "mutations": [
+    {
+     "file": "omni_prod/page_outline.py",
+     "old": "                if out:\n                    break ",
+     "new": "                if False:\n                    break "
+    }
+   ],
+   "targets": [
+    "tests/test_page_outline_reaches_the_generator.py"
+   ],
+   "expect_failed": [
+    "test_the_production_structure_is_read_in_order_as_written",
+    "test_through_the_real_build_loop"
+   ]
+  }
+ ]
+}

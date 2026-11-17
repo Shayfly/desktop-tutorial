@@ -77,6 +77,10 @@ def run(prompt: str) -> dict:
         install_page_locale(engine, prompt)
         from .product_review import install_review_request
         report['review_request_installed'] = install_review_request(engine, prompt)
+        from .fact_canon import install_facts
+        report['facts_carried'] = len(install_facts(engine, prompt))
+        from .page_outline import install as install_page_outline
+        report['outline_carried'] = len(install_page_outline(engine, prompt))
     except Exception as exc:
         report['request_installs_error'] = f'{type(exc).__name__}: {exc}'[:300]
     # The same skill gates a customer's build runs (gate.WORKER_GATES), each in its own mode. A calibrating gate warns:

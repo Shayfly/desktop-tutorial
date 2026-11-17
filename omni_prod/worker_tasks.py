@@ -1020,6 +1020,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # Michael 2026-11-10 condition 2: the truth gate's canon comes from the APPROVED request, not the spec summary.
         from .product_review import install_review_request
         install_review_request(engine, prompt)
+        # 2026-11-17: the generator is told the facts the review checks, before it writes (fact_canon.install_facts)
+        from .fact_canon import install_facts
+        install_facts(engine, prompt)
+        # conversation agent phase 3: the customer's own page structure, in order, reaches the generator
+        from .page_outline import install as install_page_outline
+        install_page_outline(engine, prompt)
         _install_quarantine_history(jobs, build_id)
         model_budget_binding = bind_model_budget_to_reservation(gateway, request)
         agentic_repair = _install_agentic_repair(engine, request)
