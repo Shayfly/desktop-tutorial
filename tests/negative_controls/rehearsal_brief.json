@@ -54,6 +54,7 @@
     "tests/test_rehearsal_brief.py"
    ],
    "expect_failed": [
+    "test_main_builds_from_the_brief_when_answers_are_given_and_from_the_raw_request_when_not",
     "test_the_prompt_carries_the_brief_block_and_the_customers_decision",
     "test_with_the_brief_a_cafe_page_is_not_contracted_as_an_app"
    ]
