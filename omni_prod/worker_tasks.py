@@ -1114,6 +1114,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # production 2026-11-16 ("148 דלתות"): no raw 148ai-asset:// address reaches the browser (a broken image)
         from .asset_markers import install as install_asset_marker_gate
         install_asset_marker_gate(engine)
+        # G-APPLE (the owner 2026-11-17): the design contract is locked and the gate installed LAST, right before the
+        # build; it warns until it is calibrated. Its two reviewers use the build's own routed, budgeted gateway.
+        from .g_apple import install as install_apple_gate
+        from .attempt_ledger import TaskTaggedGateway as _ReviewGateway
+        build_prompt = install_apple_gate(engine, prompt=build_prompt,
+                                          gateway=_ReviewGateway(getattr(gateway, '_inner', gateway), 'review'))
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
         from .fact_canon import needs_customer_input
         getattr(engine, 'core', engine).missing_input = (                    # #335 (d)
@@ -1375,6 +1381,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         actual_cost = spent if evidence['billing'] == 'settled' else None
     from .skill_units.gate import report as skill_gate_report
     evidence['skill_gates'] = skill_gate_report(engine)       # every gate's mode (OFF included) and result
+    from .g_apple import report as apple_gate_report
+    evidence['g_apple'] = apple_gate_report(engine)           # the design contract and the gate's findings
     from .runtime_load import report as runtime_load_report
     evidence['runtime_load'] = runtime_load_report(engine)    # G8: the measurement of the last check
     from .a4 import report as asset_plan_report

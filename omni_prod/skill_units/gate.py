@@ -72,6 +72,7 @@ CALIBRATING = (
     'A4',        # the asset plan's placement check (omni_prod/a4)
     'G8',        # runtime and load (omni_prod/runtime_load)
     'GAME',      # a game plays (omni_prod/game_runtime)
+    'APPLE',     # the design gate: contract, refusal list, render, two reviewers (omni_prod/g_apple)
 )
 DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block', **{g: 'warn' for g in CALIBRATING}}
 # Gates that read the page AS WRITTEN: the platform's own assets as their 148ai-asset:// placeholders, not as the

@@ -85,6 +85,14 @@ def run(prompt: str) -> dict:
             install_game_runtime(engine)
     except Exception as exc:
         report['skill_gates_error'] = f'{type(exc).__name__}: {exc}'[:300]
+    # G-APPLE, last, right before the build: the design contract goes into the prompt, as in a customer's build.
+    try:
+        from .attempt_ledger import TaskTaggedGateway
+        from .g_apple import install as install_apple_gate
+        prompt = install_apple_gate(engine, prompt=prompt,
+                                    gateway=TaskTaggedGateway(getattr(gateway, '_inner', gateway), 'review'))
+    except Exception as exc:
+        report['g_apple_error'] = f'{type(exc).__name__}: {exc}'[:300]
     try:
         result = engine.build(prompt)
     except Exception as exc:
@@ -111,6 +119,8 @@ def run(prompt: str) -> dict:
         )
     from .skill_units.gate import report as skill_gate_report
     report['skill_gates'] = skill_gate_report(engine)
+    from .g_apple import report as apple_gate_report
+    report['g_apple'] = apple_gate_report(engine)
     from .runtime_load import report as runtime_load_report
     report['runtime_load'] = runtime_load_report(engine)
     from .game_runtime import report as game_runtime_report
@@ -164,6 +174,16 @@ def annotations(report: dict) -> list[str]:
             f"{g} mode={r.get('mode')} status={r.get('status', 'NOT_RUN')} "
             + json.dumps(r.get('failures') or [], ensure_ascii=False)[:600]
             for g, r in report['skill_gates'].items())))
+    if report.get('g_apple') or report.get('g_apple_error'):
+        apple = report.get('g_apple') or {}
+        last = apple.get('last') or {}
+        lines.append(note('g-apple', report.get('g_apple_error') or json.dumps({
+            'mode': apple.get('mode'), 'contract': (apple.get('contract') or {}).get('fingerprint'),
+            'status': last.get('status'), 'reason': last.get('reason'), 'not_run': last.get('not_run'),
+            'static': [(f['code'], f['where']) for f in last.get('static') or []][:25],
+            'render': [(f['code'], f['width'], f['selector']) for f in last.get('render') or []][:25],
+            'reviewers': [{k: r.get(k) for k in ('reviewer', 'status', 'p0', 'reason', 'category_marks', 'findings')}
+                          for r in last.get('reviewers') or []]}, ensure_ascii=False)))
     if (report.get('runtime_load') or {}).get('last') or (report.get('game_runtime') or {}).get('last'):
         lines.append(note('runtime', json.dumps({'family': report.get('family'), 'load': report['runtime_load'].get('last'),
                                                  'game': report['game_runtime'].get('last')}, ensure_ascii=False)))
