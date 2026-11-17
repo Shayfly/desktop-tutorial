@@ -6139,7 +6139,7 @@
    "gap": "unlabelled_field rule, advisory",
    "missing_contract_fields": [],
    "status": "INTEGRATION_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py",
+   "why": "real-server evidence is stale; code changed since: omni_prod/consistency_gate.py, omni_prod/visual_qa.py",
    "evidence": [
     "tests/test_visual_qa.py"
    ],

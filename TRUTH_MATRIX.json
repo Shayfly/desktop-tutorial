@@ -203,17 +203,17 @@
     "tests/test_consistency_gate.py"
    ],
    "evidence": [
-    "postdeploy-checks gate-replay run 38083647077"
+    "tests/test_consistency_gate.py"
    ],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "UNIT_TESTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "platform:consistency_gate",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: no false positive on stored working versions; repair prompt contains the code"
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/consistency_gate.py"
     }
    ]
   },
@@ -451,7 +451,7 @@
     {
      "part": "skill:label_test",
      "status": "INTEGRATION_TESTED",
-     "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py"
+     "why": "real-server evidence is stale; code changed since: omni_prod/consistency_gate.py, omni_prod/visual_qa.py"
     },
     {
      "part": "skill:contrast_test",
@@ -1136,10 +1136,10 @@
  ],
  "counts": {
   "IMPLEMENTED": 12,
-  "UNIT_TESTED": 8,
-  "REAL_SERVER_VERIFIED": 5,
+  "UNIT_TESTED": 9,
   "INTEGRATION_TESTED": 3,
   "NOT_IMPLEMENTED": 5,
+  "REAL_SERVER_VERIFIED": 4,
   "BLOCKED": 3
  },
  "customer_visible_findings": [

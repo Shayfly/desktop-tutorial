@@ -38,3 +38,5 @@
 | G-APPLE | Claude Code | In review | design contract + static + render + two reviewers, warn; mutations and block tomorrow (owner) |
 | PR-426 | Claude Code | Done | #426 `95f851c` -> `609929e` (G-APPLE, G5, A4-1, G8-1, game gate, registry) |
 | A4-2 | Claude Code | In review | A4 decides the picture count (up to 3); planner writes quantity; NC 7/7 |
+| PR-427 | Claude Code | Done | #427 `360080d` -> `d29d8da` (A4 picture count) |
+| SYNTAX-LINE | Claude Code | In review | a syntax failure carries the line itself; NC 4/4; found by rehearsal 44042316516 |

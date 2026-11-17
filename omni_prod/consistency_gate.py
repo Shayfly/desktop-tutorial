@@ -90,7 +90,9 @@ def _syntax(repo: dict[str, str], out: list[Finding]) -> None:
             try:
                 compile(text, path, 'exec', dont_inherit=True)
             except SyntaxError as exc:
-                out.append(Finding('syntax', path, exc.lineno, f'Python syntax error: {exc.msg}',
+                from .round_preflight import source_line
+                out.append(Finding('syntax', path, exc.lineno,
+                                   f'Python syntax error: {exc.msg}' + source_line(text, exc.lineno),
                                    'fix the syntax so the file compiles'))
             except ValueError as exc:  # e.g. null bytes
                 out.append(Finding('syntax', path, None, f'Python source cannot be compiled: {exc}',

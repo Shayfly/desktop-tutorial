@@ -1,3 +1,21 @@
+# 2026-11-17 — the butcher rehearsal failed on a syntax error nobody could read; the message now carries the line (Claude Code)
+
+- **Merged:** #427 `360080d` -> `d29d8da` (A4 picture count; no release of its own).
+- **What broke (rehearsal 44042316516, main `609929e`, $0.188, 199 s):** the generated `tests/test_site.py` did not
+  compile (`:96 closing parenthesis ']' does not match opening parenthesis '('`). One pre-flight fix and one repair
+  round returned the same message word for word; the build stopped as `no_progress_same_failure`. No gate ran on a
+  page: G-APPLE reported `status: null`.
+- **Root, as far as the evidence goes:** the failure named a line number and nothing else. The file itself is not in
+  the evidence, so WHY the model wrote that line twice is NOT known. Fixed here: the message carries the line as
+  written (`omni_prod/round_preflight.source_line`, used by pre-flight and by the consistency gate), cut at 200
+  characters with the cut marked. The next failure of this kind is readable in the log and by the repairer.
+- **Evidence:** `tests/test_syntax_message_carries_the_line.py` 5 passed; controls `syntax_message_line` 4/4;
+  `test_fast.sh` exit 0.
+- **Also seen, NOT fixed:** the rehearsal's `publish-taxonomy` job pushes straight to main and is refused (GH006,
+  protected branch). The taxonomy of this rehearsal was not recorded.
+- **NOT verified:** that the readable message makes the repair succeed. A second butcher rehearsal (44043708644) is
+  running on the old code.
+
 # 2026-11-17 — A4 decides how many pictures a build generates; #426 merged and released (Claude Code)
 
 - **Merged:** #426 `95f851c` -> `609929e` (`[release]`). CI green on the exact SHA (17 checks; `publish-report` is a

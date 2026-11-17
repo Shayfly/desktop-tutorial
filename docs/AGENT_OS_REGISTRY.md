@@ -381,7 +381,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 86, UNIT_TESTED 30, INTEGRATION
 | `load_test` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
 | `keyboard_navigation_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
 | `semantic_html_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
-| `label_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | unlabelled_field rule, advisory |
+| `label_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | real-server evidence is stale; code changed since: omni_prod/consistency_gate.py, omni_prod/visual_qa.py | unlabelled_field rule, advisory |
 | `contrast_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | WCAG AA ratio, advisory |
 | `touch_target_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | mobile 24x24 CSS px, advisory |
 | `screen_reader_structure_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
