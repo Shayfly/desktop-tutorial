@@ -173,7 +173,8 @@
     }
    ],
    "targets": [
-    "tests/test_a2_collect.py"
+    "tests/test_a2_collect.py::Offline::test_the_browsers_transient_capture_error_is_tried_again_and_the_good_site_passes",
+    "tests/test_a2_collect.py::Offline::test_when_the_error_persists_the_site_is_still_rejected_after_a_bounded_number_of_tries"
    ],
    "expect_failed": [
     "test_the_browsers_transient_capture_error_is_tried_again_and_the_good_site_passes",
@@ -194,7 +195,9 @@
     }
    ],
    "targets": [
-    "tests/test_a2_collect.py"
+    "tests/test_a2_collect.py::Offline::test_any_other_capture_error_is_not_tried_again",
+    "tests/test_a2_collect.py::Offline::test_the_browsers_transient_capture_error_is_tried_again_and_the_good_site_passes",
+    "tests/test_a2_collect.py::Offline::test_when_the_error_persists_the_site_is_still_rejected_after_a_bounded_number_of_tries"
    ],
    "expect_failed": [
     "test_any_other_capture_error_is_not_tried_again"

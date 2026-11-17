@@ -20,6 +20,11 @@
   "Audience: Internal team" and "persistence: records" for a doors company's site; (2) G-APPLE was NOT_RUN -- "the
   Design line has no four-colour palette": the business category was not recognised, so there was no contract.
 - **NOT verified:** a production build after the fix. Only the owner can run one.
+- **CI on the first push (`0c0b136`): `a2-offline` failed, and not because of this change.** A control I wrote in
+  #425 (`a2_collect` NC8, "the flake as it was") ran the whole test file under its mutation, real-browser tests
+  included; when Chromium really threw its transient error, two more sites were rejected and a test outside the
+  expected list failed. A control whose result depends on a real flake is not a control. NC8 and NC9 now target the
+  three tests that raise the error on purpose. `a2_collect` 9/9 locally (NC_ENV=a2).
 
 # 2026-11-17 — three calibration builds, P0=0 on all three; what they said is acted on (Claude Code)
 
