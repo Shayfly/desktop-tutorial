@@ -1,3 +1,20 @@
+# 2026-11-17 — the conversation rehearsal runs on the production intake path (Claude Code)
+
+- **Merged and released:** #444 `721f560` -> `0ce8cde` (the owner's conversation: the image question is not a loop;
+  "only I can change" is not an audience; a leading "לא" answers the login question). Merged: #446 `c5bf71c` ->
+  `448a18a` (negative controls in parallel). This replaces #445, which could not take main without a force-push.
+- **Why:** the rehearsal ran on the routed gateway; production intake runs through Venice. It passed on Sonnet while the
+  owner's real conversation ran on Haiku -- a rehearsal that is not the production path is not evidence of it
+  (CLAUDE.md section 3: tests run on the real path).
+- **Now:** by default (`REHEARSAL_PATH=production`) every agent call builds the gateway the intake worker builds for a
+  reservation (`reservation_worker.build_gateway`), from the quote of the newest settled production reservation, read
+  from the database -- production's provider, allowed models, price ceiling and per-call bound (recomputed for each
+  call's input with the same formula as `budget.quote`). Every call's real model is recorded (`provider_models`).
+  `routed` keeps the old path and says it is not the production path. Tests `tests/test_rehearsal_production_path.py`
+  4/4; controls `rehearsal_production_path` 4/4.
+
+# 2026-11-17 — the owner's human test: the image question looped; the conversation ran on Haiku (Claude Code)
+
 # 2026-11-17 — negative controls in parallel; the pg step's limit is not raised again (Claude Code)
 
 - **Root cause (investigated, owner's rule: investigate, do not raise a limit):** the pg job's controls step was raised
