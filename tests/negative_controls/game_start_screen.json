@@ -40,6 +40,40 @@
    "envs": [
     "browser"
    ]
+  },
+  {
+   "id": "NC3",
+   "what": "any label counts as start (the probe would press 'הוראות' or 'הגדרות')",
+   "mutations": [
+    {
+     "file": "omni_prod/game_runtime.py",
+     "old": "START_LABEL = r'^(?:התחל|התחילו|התחלה|התחל משחק|שחק|שחקו|בואו נשחק|start|start game|play|play now|begin)[!.\\s]*$'",
+     "new": "START_LABEL = r'.*'"
+    }
+   ],
+   "targets": [
+    "tests/test_game_runtime_rules.py"
+   ],
+   "expect_failed": [
+    "test_other_controls_are_not_start"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the sandbox script carries its own copy of the pattern, not this one",
+   "mutations": [
+    {
+     "file": "omni_prod/game_runtime.py",
+     "old": "_PROBE = _PROBE.replace('#START_LABEL#', json.dumps(START_LABEL, ensure_ascii=False).replace('\\\\', '\\\\\\\\'))",
+     "new": "_PROBE = _PROBE.replace('#START_LABEL#', '\"^(?:start)$\"')"
+    }
+   ],
+   "targets": [
+    "tests/test_game_runtime_rules.py"
+   ],
+   "expect_failed": [
+    "test_the_sandbox_script_uses_this_pattern"
+   ]
   }
  ]
 }
