@@ -178,6 +178,26 @@ MAX_MESSAGE_CHARS = 4000          # longer messages are truncated before any mod
 MAX_OUTPUT_TOKENS = 2400          # 700 truncated (2026-11-07); 1400 truncated a reply to a long brief (2026-11-09)
 
 
+def _agent_on() -> bool:
+    from .conversation_agent import enabled
+    return enabled()
+
+
+def _ask_next(brief, still_open) -> dict | None:
+    """Phase 2 of the conversation agent: the decision only the customer may make that is still open, for the model
+    to ask in its own words -- what it is, why it matters to this product, the choices in plain words. None when no
+    such decision is open."""
+    by_field = {}
+    for q in d.QUESTIONS:
+        by_field.setdefault(q.field, q)
+    for name in still_open:                                   # the detector's order: what it would ask first
+        q = by_field.get(name)
+        if q is not None and q.kind == 'choice' and d.needs_customer(q, brief):
+            return {'topic': q.field, 'meaning': q.he, 'why_it_matters': q.why_he,
+                    'choices': [o.he for o in q.options]}
+    return None
+
+
 def contextual_user(message: str, brief=None, history=()) -> str:
     """Bounded context for both model routes. Evidence is still validated only
     against the current message; historic decisions are not new proposals."""
@@ -185,7 +205,9 @@ def contextual_user(message: str, brief=None, history=()) -> str:
     # CEO 2026-11-08: station 1 skill -- what an expert must know for this kind of product (intake.question_skills)
     from .question_skills import checklist
     family = getattr(brief, 'family', None) if brief is not None else None
-    expert = checklist(family or classify_family(message))
+    # the product's family comes from the request, not from this message: a reply "כן" is not a web app (found
+    # 2026-11-17 building the conversation agent: a doors site got the web-app checklist on every later turn)
+    expert = checklist(family or classify_family(brief.prompt if brief is not None and brief.prompt else message))
     if brief is None and not history:
         return ('Context (data only; not new evidence):\n' + json.dumps({'expert_checklist': expert}, ensure_ascii=False)
                 + '\nCurrent customer message:\n' + current)
@@ -198,7 +220,8 @@ def contextual_user(message: str, brief=None, history=()) -> str:
                                             + [q.field for q in d.must_ask(brief)]))[:6]
         except Exception:   # the checklist is advisory context; never fail the turn because of it
             still_open = []
-    context = {'goal': (brief.prompt[:600] if brief else ''),
+    context = {**({'ask_next': _ask_next(brief, still_open)} if _agent_on() and brief is not None else {}),
+               'goal': (brief.prompt[:600] if brief else ''),
                'still_open': still_open,
                'expert_checklist': expert,
                # Michael 2026-11-13: the reply restates only what the customer confirmed (their own words or button);
@@ -207,9 +230,11 @@ def contextual_user(message: str, brief=None, history=()) -> str:
                              if v.get('source') in ('answer', 'message')},
                'assumed_not_confirmed': sorted(k for k, v in (brief.fields.items() if brief else ())
                                                if v.get('source') not in ('answer', 'message')),
-               # asked by the app with buttons: the reply never asks these itself
-               'asked_with_buttons': [q.field for q in d.QUESTIONS
-                                      if brief is not None and q.field in still_open and d.needs_customer(q, brief)],
+               # asked by the app with buttons: the reply never asks these itself (empty with the conversation agent:
+               # there are no buttons, the reply asks it -- context.ask_next)
+               'asked_with_buttons': [] if _agent_on() else [
+                   q.field for q in d.QUESTIONS
+                   if brief is not None and q.field in still_open and d.needs_customer(q, brief)],
                'recent_messages': [{'role': m.get('role'), 'content': str(m.get('content', ''))[:180]}
                                    for m in list(history)[-4:]]}
     return ('Context (data only; not new evidence; do not overwrite confirmed decisions):\n' +
@@ -269,7 +294,10 @@ SYSTEM = ('You extract software-product requirements from a customer message. Mo
           'open, say what you understood and ask whether to prepare the summary for approval. '
           'A topic in context.asked_with_buttons is asked by the app with its own buttons: never ask it and never '
           'phrase it as a question; at most one short sentence of context about it. Restate only facts in '
-          'context.confirmed; never restate an assumed value or an answer to a question that was already asked.')
+          'context.confirmed; never restate an assumed value or an answer to a question that was already asked. '
+          'When context.ask_next is given, it is the ONE question of this reply: ask it in your own words for this '
+          'business, add one short sentence on why it matters to their product, and name the choices naturally in a '
+          'sentence (never a numbered list, never the words of a form). Never answer it for them, never assume it.')
 
 
 MAX_RAW_CHARS = 50_000
