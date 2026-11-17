@@ -34,6 +34,11 @@
   - **Per the owner: negative controls and the move to block are tomorrow.** Tests today: `tests/test_g_apple.py`
     (20) and `tests/test_g_apple_render.py` (6, four of them in a real browser).
   - **Not verified:** no real build has run under the contract; the reviewers have not run on a real vision model.
+- **CI time, root cause and fix (a513b1a):** `test` was cancelled and `pg-tests` failed with no failing test. The
+  negative controls ran after pytest inside `test`, and with five new specs the two passed the job's 20-minute limit
+  (pytest 8.5 min; the controls over 11). Fix: G8's controls target a server-free rules file (6 min -> 11 s); the
+  controls run in their own job, `negative-controls`, beside the tests (the follow-up the workflow's own comment asked
+  for); the pg job's control step gets 14 minutes of its 20. Every spec still runs on every push.
 - **All three warn (`gate.CALIBRATING`):** findings and measurements go to the log and the build evidence
   (`skill_gates`, `asset_plan`, `runtime_load`); none blocks before three calibration builds. The rehearsal installs
   the same checks.

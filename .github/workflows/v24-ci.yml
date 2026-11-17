@@ -92,10 +92,6 @@ jobs:
       - name: Evidence notices (readable as check-run annotations, no log access needed)
         if: always()
         run: cat evidence-notices.txt 2>/dev/null || echo "no evidence notices were written"
-      - name: Negative controls (one SPEC ::notice per spec; per-control NC-EVIDENCE log lines; ::error on FAIL)
-        if: always()
-        timeout-minutes: 20
-        run: python scripts/run_negative_controls.py
       - name: Keep the test report for the published summary
         if: always()
         uses: actions/upload-artifact@v4
@@ -126,6 +122,24 @@ jobs:
         run: python scripts/run_international_gate.py
         env:
           OMNI_PYTEST_REPORT: pytest-report.xml
+  # 2026-11-17: the negative controls ran inside `test`, after pytest, and the two together passed the job's 20-minute
+  # policy limit on #426 (pytest 8.5 min + controls over 11 min; `test` was cancelled, no test had failed). This is
+  # the follow-up the comment on `test` asked for: the controls run in their own job, beside the tests. Every spec
+  # still runs on every push; nothing is skipped.
+  negative-controls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
+      - name: Negative controls (one SPEC ::notice per spec; per-control NC-EVIDENCE log lines; ::error on FAIL)
+        timeout-minutes: 18
+        run: python scripts/run_negative_controls.py
   publish-report:
     # smoke/ci-last-run.md: the latest main CI result, readable without job logs.
     # main pushes only. The bot never pushes to main: the report goes to the
