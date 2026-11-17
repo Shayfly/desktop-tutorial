@@ -28,10 +28,7 @@
       ],
       "expect_failed_pg": [
         "test_a_decided_or_inapplicable_field_is_never_offered",
-        "test_a_label_that_reads_as_another_family_does_not_reset_the_spec",
-        "test_new_instance_each_turn_memory_store",
-        "test_new_instance_each_turn_real_store",
-        "test_the_reproduced_sequence_never_reasks_an_answered_field"
+        "test_a_label_that_reads_as_another_family_does_not_reset_the_spec"
       ]
     },
     {
@@ -68,9 +65,7 @@
         "test_a_label_that_reads_as_another_family_does_not_reset_the_spec"
       ],
       "expect_failed_pg": [
-        "test_a_label_that_reads_as_another_family_does_not_reset_the_spec",
-        "test_new_instance_each_turn_memory_store",
-        "test_new_instance_each_turn_real_store"
+        "test_a_label_that_reads_as_another_family_does_not_reset_the_spec"
       ]
     },
     {
