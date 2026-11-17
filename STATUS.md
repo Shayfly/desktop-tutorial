@@ -10,8 +10,18 @@
   form) was failed -- reproduced locally with the real probe (`text_changed: true`, `revealed: []`).
 - **Fix:** a visible message whose words change after a successful save is feedback (`SNAP`/`UPDATED` in
   `omni_prod/browser_probe.py`); a message that stays unchanged, one hidden after first use, and one that disappears
-  while it is rewritten are still caught. Real-browser tests 13/13 in `tests/test_browser_probe.py`; controls
-  `probe_updated_message` 3/3. The T4 evidence lock follows `browser_probe.py`'s new hash.
+  while it is rewritten are still caught. The decision is one pure function (`feedback_missing`) that the sandbox
+  script runs from the same source; `tests/test_feedback_rule.py` checks it with no browser. Controls
+  `probe_updated_message`: NC1-NC3 run in every CI job; NC4-NC5 (the JavaScript, `envs: browser`) need Chromium.
+  Real-browser tests 13/13 in `tests/test_browser_probe.py`, locally. The T4 evidence lock follows the new hash.
+- **Found on the way (CI gap, open):** no CI job has Python Playwright with Chromium, so the real-browser Python tests
+  (`test_browser_probe.py`, the browser half of `test_game_runtime.py`) are skipped in CI and run only locally. The
+  first push of this fix (`bd17229`) put browser tests under controls and CI reported them DID NOT RUN (skipped)
+  -- correctly; the controls now point at the browser-free rule.
+- **The owner's build:** bld_d36b3b4e ended FAILED at 19:33 UTC on this finding alone in its last round (stop reason
+  `time_budget`, provider spend $0.42). Its evidence keeps the finding but not the per-round `text_changed` /
+  `revealed` data, so for this exact build the cause is inferred from the message text (it names the saved record)
+  and the local reproduction, not read from the build.
 
 # 2026-11-17 — DECISIONS 5, 7 (part 1) and 8 (Claude Code)
 

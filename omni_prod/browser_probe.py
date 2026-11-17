@@ -31,6 +31,14 @@ import json
 from .autonomous_core import AcceptanceFailure, ExecutionReport
 from .sandbox_script import staged_script
 
+def feedback_missing(first, second):
+    """The second of two successful saves told the user nothing: the first revealed a message, the second neither
+    revealed one nor changed the words of a visible one (production 2026-11-17, bld_d36b3b4e: a lead form that kept
+    its success line and rewrote it per save was failed by the old rule, which only counted a revealed element).
+    Pure and browser-free: PROBE runs this same source in the sandbox, and the unit tests run it here."""
+    return bool(first["revealed"]) and bool(second["ok_write"]) and not second["revealed"] and not second.get("updated")
+
+
 BROWSER_FAILURE_ID = 'BROWSER'
 BROWSER_PROFILE = 'browser'
 
@@ -53,6 +61,7 @@ for _ in range(60):
     except Exception:
         time.sleep(0.5)
 from playwright.sync_api import sync_playwright
+#FEEDBACK_MISSING#
 VISIBLE = """() => { let n = 0; for (const el of document.querySelectorAll('body *')) {
   el.dataset.omniSeen = String(n++); } }"""
 REVEALED = """(before) => { const out = [];
@@ -152,7 +161,7 @@ with sync_playwright() as p:
         first, second = rounds[0], rounds[1]
         if first["submitted"] and not first["requests"] and not first["text_changed"]:
             finding("dead_form", "form %r: submitting it sent no request and changed nothing on the page" % fid)
-        elif first["revealed"] and second["ok_write"] and not second["revealed"] and not second["updated"]:
+        elif feedback_missing(first, second):
             finding("feedback_disappears", "form %r: the first submit showed %r, the second successful submit showed no message at all "
                     "(an element hidden after the first message is never shown again)" % (fid, first["revealed"][0]))
     b.close()
@@ -163,6 +172,9 @@ for e in out["server_errors"][:3]:
     finding("server_error", "server error during the browser flow: " + e)
 print("OMNI_BROWSER_PROBE " + json.dumps(out, ensure_ascii=False))
 '''
+
+import inspect as _inspect  # noqa: E402
+PROBE = PROBE.replace('#FEEDBACK_MISSING#', _inspect.getsource(feedback_missing))   # one rule, run in both places
 
 BLOCKING = ('page_error', 'dead_form', 'feedback_disappears', 'server_error')
 

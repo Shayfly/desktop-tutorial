@@ -7,20 +7,57 @@
    "mutations": [
     {
      "file": "omni_prod/browser_probe.py",
-     "old": "and not second[\"revealed\"] and not second[\"updated\"]:",
-     "new": "and not second[\"revealed\"]:"
+     "old": "and not second[\"revealed\"] and not second.get(\"updated\")",
+     "new": "and not second[\"revealed\"]"
     }
    ],
    "targets": [
-    "tests/test_browser_probe.py"
+    "tests/test_feedback_rule.py"
    ],
    "expect_failed": [
-    "test_a_message_that_stays_and_is_rewritten_is_feedback"
+    "test_a_visible_message_rewritten_by_the_second_save_is_feedback"
    ]
   },
   {
    "id": "NC2",
-   "what": "any visible element counts as updated, even one whose words did not change",
+   "what": "a revealed message no longer counts",
+   "mutations": [
+    {
+     "file": "omni_prod/browser_probe.py",
+     "old": "bool(second[\"ok_write\"]) and not second[\"revealed\"]",
+     "new": "bool(second[\"ok_write\"])"
+    }
+   ],
+   "targets": [
+    "tests/test_feedback_rule.py"
+   ],
+   "expect_failed": [
+    "test_a_revealed_message_is_feedback"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the sandbox runs its own copy of the rule, not this one",
+   "mutations": [
+    {
+     "file": "omni_prod/browser_probe.py",
+     "old": "PROBE = PROBE.replace('#FEEDBACK_MISSING#', _inspect.getsource(feedback_missing))",
+     "new": "PROBE = PROBE.replace('#FEEDBACK_MISSING#', 'def feedback_missing(first, second):\\n    return False\\n')"
+    }
+   ],
+   "targets": [
+    "tests/test_feedback_rule.py"
+   ],
+   "expect_failed": [
+    "test_the_sandbox_runs_this_same_rule"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "browser only: any visible element counts as updated, even one whose words did not change",
+   "envs": [
+    "browser"
+   ],
    "mutations": [
     {
      "file": "omni_prod/browser_probe.py",
@@ -36,8 +73,11 @@
    ]
   },
   {
-   "id": "NC3",
-   "what": "a hidden element counts as updated",
+   "id": "NC5",
+   "what": "browser only: a message rewritten while it disappears counts as updated",
+   "envs": [
+    "browser"
+   ],
    "mutations": [
     {
      "file": "omni_prod/browser_probe.py",
