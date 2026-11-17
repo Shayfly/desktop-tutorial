@@ -1,7 +1,7 @@
 {
  "pr": "gates-calibrating",
  "sha256": [
-  "tests/test_skill_gates.py",
+  "tests/test_gates_calibrating.py",
   "omni_prod/skill_units/gate.py",
   "omni_prod/rehearsal.py"
  ],
@@ -17,7 +17,7 @@
     }
    ],
    "targets": [
-    "tests/test_skill_gates.py",
+    "tests/test_gates_calibrating.py",
     "tests/test_skill_gate_he.py"
    ],
    "expect_failed": [
@@ -37,7 +37,7 @@
     }
    ],
    "targets": [
-    "tests/test_skill_gates.py"
+    "tests/test_gates_calibrating.py"
    ],
    "expect_failed": [
     "test_every_calibrating_gate_warns_by_default_and_the_proven_ones_block",
@@ -56,7 +56,7 @@
     }
    ],
    "targets": [
-    "tests/test_skill_gates.py"
+    "tests/test_gates_calibrating.py"
    ],
    "expect_failed": [
     "test_the_rehearsal_runs_the_gates_a_customers_build_runs"
@@ -73,7 +73,7 @@
     }
    ],
    "targets": [
-    "tests/test_skill_gates.py"
+    "tests/test_gates_calibrating.py"
    ],
    "expect_failed": [
     "test_every_gate_the_worker_installs_has_a_stated_default"
@@ -90,7 +90,7 @@
     }
    ],
    "targets": [
-    "tests/test_skill_gates.py"
+    "tests/test_gates_calibrating.py"
    ],
    "expect_failed": [
     "test_a_calibrating_gate_keeps_its_findings_and_a_blocking_one_keeps_codes_only"
@@ -107,11 +107,10 @@
     }
    ],
    "targets": [
-    "tests/test_skill_gates.py"
+    "tests/test_gates_calibrating.py"
    ],
    "expect_failed": [
-    "test_a_calibrating_gate_keeps_its_findings_and_a_blocking_one_keeps_codes_only",
-    "test_g4_warns_by_default_and_the_build_goes_on"
+    "test_a_calibrating_gate_keeps_its_findings_and_a_blocking_one_keeps_codes_only"
    ]
   }
  ]
