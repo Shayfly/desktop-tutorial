@@ -1,0 +1,90 @@
+{
+ "pr": "nc-parallel",
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a worker shares the job's database (no per-worker URL)",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "            extra.update({k: target for k, v in environ.items() if v == source and k not in ('NC_DB_URL', 'NC_REDIS_URL')})",
+     "new": "            pass"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_a_worker_gets_its_own_database_and_redis_index"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a control's result is printed under another control",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "                ok, detail, lines = results[(si, spec['controls'].index(control))].result()",
+     "new": "                ok, detail, lines = results[(0, 0)].result()"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_parallel_prints_what_serial_prints_in_the_same_order"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "parallel controls on a real database run without their own databases",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "    if not db:\n        raise SystemExit('NC_JOBS > 1 on a real database",
+     "new": "    if False:\n        raise SystemExit('NC_JOBS > 1 on a real database"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_parallel_on_a_real_database_without_a_url_refuses"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "NC_JOBS=0 is accepted",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "if JOBS < 1:\n",
+     "new": "if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_jobs_must_be_a_positive_number"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the runner's NC_JOBS leaks into the tests it runs (the runner's own tests then run in parallel mode)",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "RUNNER_SETTINGS = ('NC_JOBS', 'NC_DB_URL', 'NC_REDIS_URL')",
+     "new": "RUNNER_SETTINGS = ()"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_the_tests_of_a_control_do_not_see_the_runners_settings"
+   ]
+  }
+ ]
+}

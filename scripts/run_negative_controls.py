@@ -9,6 +9,14 @@ Exit 1 when any control FAILs.
 
   python scripts/run_negative_controls.py            # every spec
   python scripts/run_negative_controls.py pr154      # specs whose file name starts with pr154
+
+Parallel (2026-11-17): NC_JOBS=N runs N controls at once; each control's lines are buffered and printed in the same
+order and format as a serial run. The pg job's step had been raised 5 -> 10 -> 14 minutes in two days and still ran
+over (main: 8:56 to 11:37; a branch with one more spec: over 14). The owner's rule is to investigate, not to raise a
+limit again: the time is 574 pytest starts in a row on a 4-core runner. On a real database (NC_ENV=pg) every worker
+gets its own copy of the migrated database (CREATE DATABASE ... TEMPLATE, from NC_DB_URL) and its own Redis database
+index (from NC_REDIS_URL): a test that empties build_jobs in one control never touches another control's data.
+NC_JOBS=1 (the default) is the serial run, unchanged.
 """
 from __future__ import annotations
 
@@ -38,6 +46,54 @@ def _git(repo, *args, check=False):
 
 
 ENV = (os.getenv('NC_ENV') or '').strip()      # '' (v24-ci, no Postgres) | 'pg' (intake-budget-pg, real Postgres)
+JOBS = int(os.getenv('NC_JOBS') or '1')        # not a number -> ValueError at start, never a silent default
+RUNNER_SETTINGS = ('NC_JOBS', 'NC_DB_URL', 'NC_REDIS_URL')
+if JOBS < 1:
+    raise ValueError(f'NC_JOBS must be at least 1, not {JOBS}')
+
+
+def _with_path(url: str, path: str) -> str:
+    from urllib.parse import urlsplit, urlunsplit
+    parts = urlsplit(url)
+    return urlunsplit((parts.scheme, parts.netloc, '/' + path, parts.query, parts.fragment))
+
+
+def slot_env(slot: int, environ=None) -> dict:
+    """The environment of one parallel worker: every variable that holds the job's database URL points at the
+    worker's own database (nc_<slot>), every one that holds the job's Redis URL at its own index (slot + 1; 0 stays
+    the job's). Only exact values are replaced; nothing else changes."""
+    environ = os.environ if environ is None else environ
+    extra = {}
+    db, redis = (environ.get('NC_DB_URL') or '').strip(), (environ.get('NC_REDIS_URL') or '').strip()
+    for source, target in ((db, _with_path(db, f'nc_{slot}') if db else ''),
+                           (redis, _with_path(redis, str(slot + 1)) if redis else '')):
+        if source:
+            extra.update({k: target for k, v in environ.items() if v == source and k not in ('NC_DB_URL', 'NC_REDIS_URL')})
+    return extra
+
+
+def prepare_databases(jobs: int) -> None:
+    """One copy of the migrated job database per worker. Loud on any failure: a shared database is never assumed."""
+    db = (os.getenv('NC_DB_URL') or '').strip()
+    if not db:
+        raise SystemExit('NC_JOBS > 1 on a real database (NC_ENV=pg) needs NC_DB_URL: one database per worker')
+    import psycopg
+    from urllib.parse import urlsplit
+    source = urlsplit(db).path.lstrip('/')
+    import time
+    with psycopg.connect(_with_path(db, 'template1'), autocommit=True) as conn:
+        for slot in range(jobs):
+            conn.execute(f'DROP DATABASE IF EXISTS nc_{slot}')
+            for attempt in range(1, 6):          # a template cannot be copied while a session is on it: bounded
+                try:
+                    conn.execute(f'CREATE DATABASE nc_{slot} TEMPLATE "{source}"')
+                    break
+                except psycopg.errors.ObjectInUse:
+                    if attempt == 5:
+                        raise
+                    print(f'NC-EVIDENCE databases: {source} is in use, copy {slot} retried ({attempt}/5)', flush=True)
+                    time.sleep(2)
+    print(f'NC-EVIDENCE databases: {jobs} copies of {source} (nc_0..nc_{jobs - 1})', flush=True)
 
 
 def expected_for(spec: dict, env: str) -> list[str]:
@@ -57,7 +113,8 @@ def verdict(failed, expected, env: str) -> tuple[bool, str]:
                 + (f' INFO extra failures in {env}: {extra}' if extra and ok else ''))
 
 
-def run_control(spec: dict, cid: str = 'NC', nc_env: str | None = None) -> tuple[bool, str]:
+def run_control(spec: dict, cid: str = 'NC', nc_env: str | None = None, out=None, env_extra=None) -> tuple[bool, str]:
+    out = out or (lambda line: print(line, flush=True))
     tmp = pathlib.Path(tempfile.mkdtemp(prefix='nc-'))
     try:
         repo = tmp / 'repo'
@@ -81,18 +138,20 @@ def run_control(spec: dict, cid: str = 'NC', nc_env: str | None = None) -> tuple
             # Read the mutated file back: the evidence is the line as it now IS, not the line we meant to write.
             after = path.read_text(encoding='utf-8').splitlines()[line_no - 1].strip()
             applied.append(f"{m['file']}:{line_no} {m['old'].strip()!r} -> {after!r}")
-            print(f"NC-EVIDENCE MUTATION {cid} applied: {m['file']}:{line_no}", flush=True)
-            print(f"NC-EVIDENCE MUTATION {cid}   before: {before}", flush=True)
-            print(f"NC-EVIDENCE MUTATION {cid}   after:  {after}", flush=True)
+            out(f"NC-EVIDENCE MUTATION {cid} applied: {m['file']}:{line_no}")
+            out(f"NC-EVIDENCE MUTATION {cid}   before: {before}")
+            out(f"NC-EVIDENCE MUTATION {cid}   after:  {after}")
         # A mutation that changed nothing must fail LOUDLY, never become a green control that tests nothing
         # (the code control of #162 went stale exactly like that in a759a13).
         if _git(repo, 'diff', '--quiet', '--', *files).returncode == 0:
-            print(f"NC-EVIDENCE MUTATION {cid} FAILED: git diff is empty, the mutation changed nothing", flush=True)
+            out(f"NC-EVIDENCE MUTATION {cid} FAILED: git diff is empty, the mutation changed nothing")
             return False, 'DID NOT RUN: the mutation changed nothing (git diff --quiet succeeded)'
         for line in _git(repo, 'diff', '-U0', '--', *files).stdout.splitlines():
-            print(f"NC-EVIDENCE MUTATION {cid} diff: {line}", flush=True)
+            out(f"NC-EVIDENCE MUTATION {cid} diff: {line}")
         report = tmp / 'report.xml'
-        proc_env = {**os.environ, 'PYTHONPATH': str(repo), 'OMNI_EVIDENCE_NOTICES': ''}
+        proc_env = {**os.environ, **(env_extra or {}), 'PYTHONPATH': str(repo), 'OMNI_EVIDENCE_NOTICES': ''}
+        for key in RUNNER_SETTINGS:           # the runner's own settings never reach the tests it runs: a test of the
+            proc_env.pop(key, None)           # runner itself must see a plain environment
         try:
             proc = subprocess.run([sys.executable, '-m', 'pytest', '-q', '-p', 'no:cacheprovider',
                                    f'--junitxml={report}', *spec['targets']],
@@ -103,7 +162,7 @@ def run_control(spec: dict, cid: str = 'NC', nc_env: str | None = None) -> tuple
             # Restore and prove nothing leaks: tracked files back to baseline, status clean.
             _git(repo, 'checkout', '-q', '--', *files)
             status = _git(repo, 'status', '--porcelain', '--untracked-files=no').stdout.strip()
-            print(f"NC-EVIDENCE restore {cid}: {'clean' if not status else 'DIRTY ' + status}", flush=True)
+            out(f"NC-EVIDENCE restore {cid}: {'clean' if not status else 'DIRTY ' + status}")
         if status:
             return False, f'restore not clean: {status}'
         if not report.exists():
@@ -127,7 +186,7 @@ def run_control(spec: dict, cid: str = 'NC', nc_env: str | None = None) -> tuple
                 f = c.find('failure') if c.find('failure') is not None else c.find('error')
                 if f is not None and c.get('name') not in expected:
                     detail = ' '.join(((f.get('message') or '') + ' ' + (f.text or '')[-600:]).split())[:900]
-                    print(f"NC-EVIDENCE UNEXPECTED {cid} {c.get('name')}: {detail}", flush=True)
+                    out(f"NC-EVIDENCE UNEXPECTED {cid} {c.get('name')}: {detail}")
         return ok, (f"mutation {'; '.join(applied)} | failed={failed} expected[{env or 'default'}]={expected} "
                     f"ran={len(cases)}" + note)
     finally:
@@ -144,8 +203,32 @@ def main(argv: list[str]) -> int:
     # cut). So each control's result is a plain log line, and every spec gets ONE ::notice summary after all its
     # controls ran -- one notice per spec, all of them visible. A FAIL is also an ::error with its full detail.
     all_ok = True
-    for path in specs:
-        spec = json.loads(path.read_text(encoding='utf-8'))
+    loaded = [(path, json.loads(path.read_text(encoding='utf-8'))) for path in specs]
+    results = {}                                      # (spec index, control index) -> future of (ok, detail, lines)
+    pool = None
+    if JOBS > 1:
+        import queue
+        from concurrent.futures import ThreadPoolExecutor
+        if ENV == 'pg':
+            prepare_databases(JOBS)
+        slots = queue.Queue()
+        for slot in range(JOBS):
+            slots.put(slot)
+
+        def job(control):
+            slot, lines = slots.get(), []
+            try:
+                ok, detail = run_control(control, control['id'], out=lines.append,
+                                         env_extra=slot_env(slot) if ENV == 'pg' else None)
+            finally:
+                slots.put(slot)
+            return ok, detail, lines
+        pool = ThreadPoolExecutor(max_workers=JOBS)
+        for si, (_, spec) in enumerate(loaded):
+            for ci, c in enumerate(spec['controls']):
+                if not c.get('envs') or ENV in c['envs']:
+                    results[(si, ci)] = pool.submit(job, c)
+    for si, (path, spec) in enumerate(loaded):
         digests = []
         for f in spec.get('sha256', []):
             digest = hashlib.sha256((ROOT / f).read_bytes()).hexdigest()
@@ -157,7 +240,12 @@ def main(argv: list[str]) -> int:
             if c not in here:                 # e.g. a real-Postgres race: said in the SPEC line, never silently dropped
                 elsewhere.append(f"{c['id']} ({'/'.join(c['envs'])} only)")
         for control in here:
-            ok, detail = run_control(control, control['id'])
+            if pool is None:
+                ok, detail = run_control(control, control['id'])
+            else:                             # the lines of this control, in order, after it finished
+                ok, detail, lines = results[(si, spec['controls'].index(control))].result()
+                for line in lines:
+                    print(line, flush=True)
             all_ok &= ok
             (passed if ok else failed).append(control['id'])
             if ok and ' INFO ' in detail:                     # an extra failure in pg: in the SPEC line, not buried
@@ -175,6 +263,8 @@ def main(argv: list[str]) -> int:
                + ')' + (f' failed={failed}' if failed else '') + (f" | INFO {'; '.join(infos)}" if infos else '')
                + (f" | not run here: {', '.join(elsewhere)}" if elsewhere else '')
                + (f" | sha256 {'; '.join(digests)}" if digests else ''))
+    if pool is not None:
+        pool.shutdown()
     return 0 if all_ok else 1
 
 
