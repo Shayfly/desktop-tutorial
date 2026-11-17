@@ -1,0 +1,164 @@
+{
+ "pr": "game-runtime",
+ "sha256": [
+  "tests/test_game_runtime_rules.py",
+  "tests/test_game_runtime.py",
+  "omni_prod/game_runtime.py",
+  "omni_prod/rehearsal.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a frozen canvas passes",
+   "mutations": [
+    {
+     "file": "omni_prod/game_runtime.py",
+     "old": "    if len(set(idle)) <= 1 and len(set(played)) <= 1 and set(idle) == set(played):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_game_runtime_rules.py"
+   ],
+   "expect_failed": [
+    "test_each_rule_on_its_own"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a game that calls no handler on input passes",
+   "mutations": [
+    {
+     "file": "omni_prod/game_runtime.py",
+     "old": "    if m.get('input_calls') == 0:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_game_runtime_rules.py"
+   ],
+   "expect_failed": [
+    "test_each_rule_on_its_own"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a blank canvas passes",
+   "mutations": [
+    {
+     "file": "omni_prod/game_runtime.py",
+     "old": "    if isinstance(m.get('colours'), int) and m['colours'] <= 1:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_game_runtime_rules.py"
+   ],
+   "expect_failed": [
+    "test_each_rule_on_its_own"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a JavaScript error while it runs passes",
+   "mutations": [
+    {
+     "file": "omni_prod/game_runtime.py",
+     "old": "    found = [f('GAME_ERROR', e) for e in (m.get('errors') or [])[:3]]",
+     "new": "    found = []"
+    }
+   ],
+   "targets": [
+    "tests/test_game_runtime_rules.py"
+   ],
+   "expect_failed": [
+    "test_each_rule_on_its_own"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a page with no canvas passes",
+   "mutations": [
+    {
+     "file": "omni_prod/game_runtime.py",
+     "old": "    if not canvas:\n        return found + [f('GAME_NO_CANVAS', f'no visible <canvas> of at least {MIN_SIDE} px')]",
+     "new": "    if not canvas:\n        return found"
+    }
+   ],
+   "targets": [
+    "tests/test_game_runtime_rules.py"
+   ],
+   "expect_failed": [
+    "test_each_rule_on_its_own"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a canvas wider than the phone passes",
+   "mutations": [
+    {
+     "file": "omni_prod/game_runtime.py",
+     "old": "    if v == 'phone' and canvas['w'] > canvas.get('screen', canvas['w']) + 2:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_game_runtime_rules.py"
+   ],
+   "expect_failed": [
+    "test_each_rule_on_its_own"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a check that could not run passes in block mode",
+   "mutations": [
+    {
+     "file": "omni_prod/game_runtime.py",
+     "old": "        if self.mode != 'block':\n            return report\n        from .verification_verdict import unverified\n",
+     "new": "        return report\n        from .verification_verdict import unverified\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_runtime_rules.py"
+   ],
+   "expect_failed": [
+    "test_what_cannot_run_is_not_run_never_a_pass"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a deadline inside the game run is swallowed",
+   "mutations": [
+    {
+     "file": "omni_prod/game_runtime.py",
+     "old": "                reraise_control(exc)\n",
+     "new": "                pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_runtime_rules.py"
+   ],
+   "expect_failed": [
+    "test_a_deadline_ends_the_build_instead_of_being_a_result"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the rehearsal builds a game without judging it as one",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "            install_game_runtime(engine)\n",
+     "new": "            pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_runtime_rules.py"
+   ],
+   "expect_failed": [
+    "test_the_rehearsal_judges_a_game_request_as_a_game_and_customers_still_cannot_order_one"
+   ]
+  }
+ ]
+}
