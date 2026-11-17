@@ -63,3 +63,7 @@
 | AGENT-3 | Claude Code | In review | exact hand-off: facts and page structure reach the generator; NC 6/6 + 6/6 |
 | AGENT-3-DONE | Claude Code | Done | #440 `7087e3c` -> `8d37478`, released |
 | AGENT-4-PREP | Claude Code | In review | Sonnet for conversation; per-account flag; classification corpus (101); Hebrew whole words; rehearsal tool |
+| D5-HERO | Claude Code | In review | default hero for content sites; the brief's text-logo line no longer orders an icon; NC 5/5 |
+| D8-TEST-EDITS | Claude Code | In review | `omni_prod/test_edit_guard.py`: expected values only, customer facts frozen, counted, twice escalates; NC 7/7 |
+| D7-NEAREST | Claude Code | In review (part 1) | nearest-category palette; part 2 (the colour question) after the owner's human test; NC 5/5 |
+| AGENT-FLAG | Claude Code | Done | #441 `81e24c4` -> `f14b773`; Vercel `OMNI_INTAKE_AGENT=accounts`, owner's account only; redeploy `dpl_6cVPvSHA23juKTo3nQ1LETaGZUBD` |

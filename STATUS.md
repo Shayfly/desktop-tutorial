@@ -1,3 +1,30 @@
+# 2026-11-17 — DECISIONS 5, 7 (part 1) and 8 (Claude Code)
+
+- **Merged and released:** #441 `81e24c4` -> `f14b773`. Vercel production: `OMNI_INTAKE_AGENT=accounts` and
+  `OMNI_INTAKE_AGENT_ACCOUNTS` (the owner's account only) set, then a redeploy of `f14b773` (the release build had
+  started 3.6 s before the variables were saved).
+- **Root cause of #441's first red CI (Claude's bug):** NC1/NC3 of `no_repeat_questions` had their default expected
+  lists shrunk but not the pg ones (`expect_failed_pg`); pg-tests failed on `c4d5a7f`. Fixed and declared.
+- **D5, default hero:** a content-only website with no uploaded photo and no "בלי תמונות" gets one generated main
+  image (optional: a failed generation never fails the build). Found on the way: the approved brief's
+  "Logo: a text logo ..." line ordered a generated icon in EVERY build; now only the customer's own words order one.
+  Controls `default_hero` 5/5.
+- **D8, the repairer and the builder's tests:** the rule "the repair never touches tests" lived only in the prompt; no
+  code enforced it. Now `omni_prod/test_edit_guard.py` reviews every repair round: in a test the builder wrote in this
+  build only an assert's expected value may change; a test whose changed line carries the customer's phone, price,
+  address or hours is reverted; any other change is reverted and the repairer is told why; every allowed edit is
+  counted in the build evidence (`test_edits`); the same value fixed twice stops the loop (`test_value_fixed_twice`,
+  explained in the chat in Hebrew and English). Controls `repair_test_edits` 7/7.
+- **D7 part 1, nearest category:** an unrecognised business takes the palette of the nearest category -- first a related
+  word listed under `near` in `vertical_palettes.json` (a pizzeria is near restaurants, a florist near furniture and
+  interiors), then an inflection of a category word (letter trigrams, threshold 0.55). With no nearness at all the old
+  clause stays. The florist contract's pinned fingerprints moved (old values kept). Controls `nearest_category` 5/5,
+  `vertical_palettes` 4/4, `doors_palette` 3/3.
+- **Evidence:** full suite on the branch: 1 failed, 3840 passed -- the one is `test_m4_acceptance` W, the local
+  300-second subprocess timeout (287 s on main; it passes in CI). `test_fast.sh` 1428 passed.
+- **NOT done:** D7 part 2, the one colour question in words, is held until after the owner's human test (it changes the
+  conversation itself).
+
 # 2026-11-17 — conversation on Sonnet; per-account agent; classification corpus; Hebrew whole words; conversation rehearsal (Claude Code)
 
 - **Merged and released:** #440 `7087e3c` -> `8d37478` (phase 3; CI validate limit 15 min).
