@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 import re
 
 from collections import OrderedDict
@@ -193,6 +195,7 @@ class CapabilityPlanner:
                     key=key,
                     purpose=purpose,
                     required=required_by_key.get(key, explicit_required),
+                    quantity=self._picture_count(key, purpose, prompt)["count"],
                     constraints=self._image_constraints(key, purpose, prompt),
                     dependency_ids=tuple(id_by_key[dep] for dep in definition.dependency_keys),
                 )
@@ -211,6 +214,18 @@ class CapabilityPlanner:
     def _has_any(text: str, *terms: str) -> bool:
         # Token-aware: "api" must not match "rapid", "db" must not match "feedback".
         return has_term(text, *terms)
+
+    @staticmethod
+    def _picture_count(key: str, purpose: str, prompt: str) -> dict:
+        """How many pictures the image requirement generates: A4 decides (a4.pictures; the owner, 2026-11-17). An
+        icon is always one, and so is every capability that is not an image."""
+        if key != "media.image.generate":
+            return {"asked": 1, "uploaded": 0, "count": 1}
+        from .a4 import pictures
+        from .generated_images import _kind
+        if _kind(purpose) == "icon":
+            return {"asked": 1, "uploaded": 0, "count": 1}
+        return pictures(prompt)
 
     @staticmethod
     def _image_constraints(key: str, purpose: str, prompt: str) -> dict:
@@ -237,6 +252,11 @@ class CapabilityPlanner:
             constraints["style"] = said_style
         if said_colours and "colours" not in constraints:
             constraints["colours"] = said_colours
+        count = CapabilityPlanner._picture_count(key, purpose, prompt)
+        if count["asked"] - count["uploaded"] > count["count"]:    # cut to the cap: said, never silent
+            constraints["pictures_asked"] = count["asked"]
+            logging.getLogger(__name__).warning(
+                "PICTURES_CUT asked=%s uploaded=%s generated=%s", count["asked"], count["uploaded"], count["count"])
         return constraints
 
     @staticmethod

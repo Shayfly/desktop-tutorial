@@ -36,3 +36,5 @@
 | A4-1 | Claude Code | In review | asset plan: one place per image; warn check; NC 10/10 |
 | G8-1 | Claude Code | In review | runtime and load gate on real servers; enters at warn |
 | G-APPLE | Claude Code | In review | design contract + static + render + two reviewers, warn; mutations and block tomorrow (owner) |
+| PR-426 | Claude Code | Done | #426 `95f851c` -> `609929e` (G-APPLE, G5, A4-1, G8-1, game gate, registry) |
+| A4-2 | Claude Code | In review | A4 decides the picture count (up to 3); planner writes quantity; NC 7/7 |

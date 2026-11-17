@@ -1,0 +1,132 @@
+{
+ "pr": "a4-picture-count",
+ "sha256": [
+  "tests/test_a4_picture_count.py",
+  "omni_prod/a4/__init__.py",
+  "omni_prod/capability_planner.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the cap is gone: eight pictures are generated",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "max(1, min(asked - uploaded, FIRST_CAP))",
+     "new": "max(1, asked - uploaded)"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_picture_count.py"
+   ],
+   "expect_failed": [
+    "test_a_cut_is_written_on_the_requirement",
+    "test_past_the_cap_is_cut_to_it"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the customer's own photos are not counted",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    uploaded = len(set(_UPLOAD.findall(prompt or '')))\n",
+     "new": "    uploaded = 0\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_picture_count.py"
+   ],
+   "expect_failed": [
+    "test_never_below_one",
+    "test_the_customers_photos_fill_places_first"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the planner ignores A4: always one picture",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "quantity=self._picture_count(key, purpose, prompt)[\"count\"],",
+     "new": "quantity=1,"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_picture_count.py"
+   ],
+   "expect_failed": [
+    "test_a_cut_is_written_on_the_requirement",
+    "test_quantity_is_what_a4_decided"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a cut is made in silence",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "            constraints[\"pictures_asked\"] = count[\"asked\"]\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_a4_picture_count.py"
+   ],
+   "expect_failed": [
+    "test_a_cut_is_written_on_the_requirement"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "an icon is generated several times",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "        if _kind(purpose) == \"icon\":\n            return {\"asked\": 1, \"uploaded\": 0, \"count\": 1}\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_a4_picture_count.py"
+   ],
+   "expect_failed": [
+    "test_an_icon_is_one"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the brief's own text is read as the customer's count",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    for m in _ASKED.finditer(_request_text(prompt)):",
+     "new": "    for m in _ASKED.finditer(prompt or ''):"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_picture_count.py"
+   ],
+   "expect_failed": [
+    "test_only_the_customers_request_is_read"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a decimal is read as a count",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "(?<![\\w.])(\\d{1,3}|",
+     "new": "(?<![\\w])(\\d{1,3}|"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_picture_count.py"
+   ],
+   "expect_failed": [
+    "test_a_number_that_is_not_a_count_of_pictures"
+   ]
+  }
+ ]
+}
