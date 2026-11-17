@@ -1,0 +1,56 @@
+{
+ "pr": "probe-updated-message",
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a message that stays and is rewritten is called no feedback again (the production false finding)",
+   "mutations": [
+    {
+     "file": "omni_prod/browser_probe.py",
+     "old": "and not second[\"revealed\"] and not second[\"updated\"]:",
+     "new": "and not second[\"revealed\"]:"
+    }
+   ],
+   "targets": [
+    "tests/test_browser_probe.py"
+   ],
+   "expect_failed": [
+    "test_a_message_that_stays_and_is_rewritten_is_feedback"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "any visible element counts as updated, even one whose words did not change",
+   "mutations": [
+    {
+     "file": "omni_prod/browser_probe.py",
+     "old": "text.length <= 200 && text !== before[id]) out.push",
+     "new": "text.length <= 200) out.push"
+    }
+   ],
+   "targets": [
+    "tests/test_browser_probe.py"
+   ],
+   "expect_failed": [
+    "test_a_message_that_stays_unchanged_is_not_feedback"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a hidden element counts as updated",
+   "mutations": [
+    {
+     "file": "omni_prod/browser_probe.py",
+     "old": "    if (vis && text && text.length <= 200",
+     "new": "    if (text && text.length <= 200"
+    }
+   ],
+   "targets": [
+    "tests/test_browser_probe.py"
+   ],
+   "expect_failed": [
+    "test_a_message_that_is_rewritten_while_it_disappears_is_caught"
+   ]
+  }
+ ]
+}

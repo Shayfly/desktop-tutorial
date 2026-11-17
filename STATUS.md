@@ -1,3 +1,18 @@
+# 2026-11-17 — the browser check called a working lead form "no feedback" (Claude Code)
+
+- **Merged and released:** #442 `0d9bfe3` -> `04dcec6` (D5, D7 part 1, D8, the agent asks the subject first). Live
+  rehearsal on production code (run 44141955553): doors, butcher and bare all PASSED, 0 cards, every fact kept,
+  $0.034 + $0.096 + $0.148.
+- **The owner's human test (bld_d36b3b4e, "148 doors", personal data: yes):** rounds 1 and 2 failed on the same
+  finding: "form 'lead-form': the first submit showed '...בדיקה 1 נשמרה בהצלחה...', the second successful submit
+  showed no message". Root cause in the platform, not the site: the probe's second round counted only an element
+  that was HIDDEN and then shown. A success line that stays on the page and is rewritten per save (a normal lead
+  form) was failed -- reproduced locally with the real probe (`text_changed: true`, `revealed: []`).
+- **Fix:** a visible message whose words change after a successful save is feedback (`SNAP`/`UPDATED` in
+  `omni_prod/browser_probe.py`); a message that stays unchanged, one hidden after first use, and one that disappears
+  while it is rewritten are still caught. Real-browser tests 13/13 in `tests/test_browser_probe.py`; controls
+  `probe_updated_message` 3/3. The T4 evidence lock follows `browser_probe.py`'s new hash.
+
 # 2026-11-17 — DECISIONS 5, 7 (part 1) and 8 (Claude Code)
 
 - **Merged and released:** #441 `81e24c4` -> `f14b773`. Vercel production: `OMNI_INTAKE_AGENT=accounts` and

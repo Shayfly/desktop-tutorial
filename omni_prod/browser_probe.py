@@ -16,8 +16,9 @@ records. It reports, as JSON on stdout:
   page_error          an uncaught JavaScript exception (the page is broken)
   dead_form           submit produced no request and no visible change
   feedback_disappears the first submit revealed a message, the second
-                      (also successful) revealed nothing: the user cannot
-                      tell whether anything happened
+                      (also successful) neither revealed one nor changed the
+                      words of a visible one: the user cannot tell whether
+                      anything happened
   server_error        a same-origin request answered 5xx during the flow
 
 These are blocking findings for repair (`BrowserFlowExecutor`). Nothing here
@@ -66,6 +67,24 @@ HIDDEN = """() => { const out = [];
     const s = getComputedStyle(el); const r = el.getBoundingClientRect();
     if (s.display === 'none' || s.visibility === 'hidden' || r.width === 0 || r.height === 0) out.push(el.dataset.omniSeen);
   } return out; }"""
+# Production 2026-11-17 (bld_d36b3b4e, "148 doors"): a lead form whose success message STAYS on the page and is rewritten
+# on every save ("... בדיקה 1 נשמרה", then "... בדיקה 2 נשמרה") was called "feedback_disappears" -- the check only
+# counted an element that was hidden and then shown. A visible message whose words change after a successful save is
+# feedback too. Short, leaf-like text outside lists, tables and the form itself; a hidden element never counts.
+SNAP = """() => { const out = {};
+  for (const el of document.querySelectorAll('[data-omni-seen]')) {
+    const s = getComputedStyle(el); const r = el.getBoundingClientRect();
+    const vis = s.display !== 'none' && s.visibility !== 'hidden' && parseFloat(s.opacity || '1') > 0.05 && r.width > 0 && r.height > 0;
+    if (vis && el.childElementCount <= 2 && !el.closest('table, ul, ol, form')) out[el.dataset.omniSeen] = (el.innerText || '').trim();
+  } return out; }"""
+UPDATED = """(before) => { const out = [];
+  for (const el of document.querySelectorAll('[data-omni-seen]')) {
+    const id = el.dataset.omniSeen; if (!(id in before)) continue;
+    const s = getComputedStyle(el); const r = el.getBoundingClientRect();
+    const vis = s.display !== 'none' && s.visibility !== 'hidden' && parseFloat(s.opacity || '1') > 0.05 && r.width > 0 && r.height > 0;
+    const text = (el.innerText || '').trim();
+    if (vis && text && text.length <= 200 && text !== before[id]) out.push(text.slice(0, 80));
+  } return out; }"""
 FILL = """(args) => { const [formIndex, round] = args; const f = document.forms[formIndex]; if (!f) return 0;
   const day = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
   let filled = 0;
@@ -108,6 +127,7 @@ with sync_playwright() as p:
         for rnd in range(2):
             page.evaluate(VISIBLE)
             hidden = page.evaluate(HIDDEN)
+            shown = page.evaluate(SNAP)
             text_before = page.evaluate("() => document.body.innerText")
             page.evaluate(FILL, [i, rnd])
             mark = len(reqs)
@@ -121,8 +141,10 @@ with sync_playwright() as p:
             ok_write = any(200 <= r[2] < 300 for r in writes)
             changed = page.evaluate("() => document.body.innerText") != text_before
             revealed = page.evaluate(REVEALED, hidden)
+            updated = page.evaluate(UPDATED, shown)
             rounds.append({"submitted": submitted, "requests": ["%s %s %s" % r for r in new][:6],
-                           "ok_write": ok_write, "text_changed": changed, "revealed": revealed[:3]})
+                           "ok_write": ok_write, "text_changed": changed, "revealed": revealed[:3],
+                           "updated": updated[:3]})
             if rnd == 0:
                 page.wait_for_timeout(6000)  # let transient messages time out, like a person reading
         fid = page.evaluate("(i) => { const f = document.forms[i]; return f ? (f.id || f.getAttribute('name') || ('form ' + (i + 1))) : ''; }", i)
@@ -130,7 +152,7 @@ with sync_playwright() as p:
         first, second = rounds[0], rounds[1]
         if first["submitted"] and not first["requests"] and not first["text_changed"]:
             finding("dead_form", "form %r: submitting it sent no request and changed nothing on the page" % fid)
-        elif first["revealed"] and second["ok_write"] and not second["revealed"]:
+        elif first["revealed"] and second["ok_write"] and not second["revealed"] and not second["updated"]:
             finding("feedback_disappears", "form %r: the first submit showed %r, the second successful submit showed no message at all "
                     "(an element hidden after the first message is never shown again)" % (fid, first["revealed"][0]))
     b.close()
