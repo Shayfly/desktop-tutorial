@@ -1,3 +1,31 @@
+# 2026-11-17 — PRODUCTION: every build since #426 failed the release policy; a bug of mine; fixed (Claude Code)
+
+- **What broke (the owner's build, bld_a875456f, 09:27 UTC, worker `4071192`, $0.18):** two rounds, every test
+  passed, quality 89, QA review clean -- and `release_policy_failed`: "mandatory checks not passed:
+  files/cross_file_consistency NOT_RUN (consistency gate did not run (disabled)); preview/preview_starts NOT_RUN;
+  acceptance/behavioural_acceptance NOT_RUN". In the stored evidence `consistency_gate`, `preview_smoke` and
+  `behavior_acceptance` are null.
+- **Root (a bug of mine, shipped in #426 today):** `behavior_acceptance.find_in_chain` walked at most 20 wrappers
+  and then answered "not found". #426 added G5, G8, A4 and G-APPLE on top of the build's stages; the worker's chain
+  became longer than 20, so the three deepest stages were never reached. They had run and passed; their evidence
+  was read as missing. No build could pass the release policy from `609929e` on. The rehearsal does not run the
+  release policy, so five rehearsals today did not show it.
+- **Fix:** one bound for every chain walk (`behavior_acceptance.MAX_CHAIN = 64`, used by the gates' report and the
+  asset-marker install too), and a walk that reaches the bound raises `ChainTooLong` instead of answering.
+- **Evidence:** `tests/test_chain_walk_reaches_the_deepest_stage.py` builds the worker's chain with the real stage
+  executors and the real installs: depth 26; on the code before the fix `consistency_evidence`, `behavior_evidence`
+  and `preview_smoke_evidence` are all None (reproduced), after it all three are read. 5 passed; controls
+  `chain_walk_bound` 3/3; `test_fast.sh` exit 0.
+- **Also seen in that build, NOT fixed here:** (1) the request reached the build as the single word "אתר", with
+  "Audience: Internal team" and "persistence: records" for a doors company's site; (2) G-APPLE was NOT_RUN -- "the
+  Design line has no four-colour palette": the business category was not recognised, so there was no contract.
+- **NOT verified:** a production build after the fix. Only the owner can run one.
+- **CI on the first push (`0c0b136`): `a2-offline` failed, and not because of this change.** A control I wrote in
+  #425 (`a2_collect` NC8, "the flake as it was") ran the whole test file under its mutation, real-browser tests
+  included; when Chromium really threw its transient error, two more sites were rejected and a test outside the
+  expected list failed. A control whose result depends on a real flake is not a control. NC8 and NC9 now target the
+  three tests that raise the error on purpose. `a2_collect` 9/9 locally (NC_ENV=a2).
+
 # 2026-11-17 — three calibration builds, P0=0 on all three; what they said is acted on (Claude Code)
 
 - **Merged and released:** #431 `d3e1dd2` -> `4071192` (`[release]`; the contract keeps the approved lines).

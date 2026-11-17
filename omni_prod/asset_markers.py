@@ -84,7 +84,8 @@ def install(engine) -> AssetMarkerExecutor:
     """Wrap the engine's executor once (a second install returns the gate already there)."""
     core = getattr(engine, 'core', engine)
     ex = getattr(core, 'executor', None)
-    for _ in range(20):          # bounded walk; `_inner` from the instance's own __dict__ only
+    from .behavior_acceptance import MAX_CHAIN
+    for _ in range(MAX_CHAIN):   # bounded walk; `_inner` from the instance's own __dict__ only
         if isinstance(ex, AssetMarkerExecutor):
             return ex
         ex = getattr(ex, '__dict__', {}).get('_inner') if ex is not None else None
