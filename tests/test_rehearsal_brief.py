@@ -42,7 +42,8 @@ class TheApprovedBrief(unittest.TestCase):
         from contextlib import redirect_stdout
         from unittest import mock
         seen = []
-        fake = lambda prompt: seen.append(prompt) or {'outcome': 'ready', 'quality': {'passed': True}}
+        fake = lambda prompt: seen.append(prompt) or {'outcome': 'ready', 'quality': {'passed': True},
+                                                      'release_policy': {'decision': 'READY'}}
         with mock.patch.object(R, 'run', fake), mock.patch.object(R, 'annotations', lambda report: []), \
                 redirect_stdout(io.StringIO()) as out:
             self.assertEqual(R.main([CAFE, json.dumps(ANSWERS)]), 0)

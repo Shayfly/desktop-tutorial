@@ -1,3 +1,14 @@
+# 2026-11-17 — the rehearsal asks the release policy (Claude Code)
+
+- **Merged and released:** #434 `01e39ab` -> `69a308c` (`[release]`; the pasted brief reaches the build).
+- **Why:** for half a day every customer build failed `release_policy_failed` while five rehearsals of the same code
+  said "ready". The rehearsal stopped at the engine's result and never asked the policy.
+- **Change:** `rehearsal.release_policy` runs the worker's own `release_quality_report` on the rehearsal's build; a
+  build the policy blocks is a failed rehearsal (exit 1) with an `::error` in the customer's words. Rights are not
+  assessed in a rehearsal (no account, no markets) and are reported `NOT_ASSESSED`.
+- **Evidence:** `tests/test_rehearsal_asks_the_release_policy.py` 5 passed (one reproduces the production state: the
+  same three NOT_RUN checks, the same words); controls `rehearsal_asks_release_policy` 5/5.
+
 # 2026-11-17 — the owner's brief never reached the build; what the customer wrote now does (Claude Code)
 
 - **Merged and released:** #433 `96958b3` -> `7596591` (`[release]`; the chain walk reaches the deepest stage).
