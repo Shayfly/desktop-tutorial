@@ -77,6 +77,13 @@ FLAT = """() => { const el = document.querySelector('canvas[data-omni-game]'); i
   for (let i = 0; i < d.length; i += 4) seen.add(d[i] + ',' + d[i+1] + ',' + d[i+2] + ',' + d[i+3]);
   return seen.size; }"""
 TEXT = "() => (document.body.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 4000)"
+START = """() => { const words = /^(התחל|התחילו|התחלה|התחל משחק|שחק|שחקו|בואו נשחק|start|start game|play|play now|begin)[!.\\s]*$/i;
+  for (const el of document.querySelectorAll('button, [role=button], a, input[type=button], input[type=submit]')) {
+    const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
+    const text = (el.innerText || el.value || el.getAttribute('aria-label') || '').trim();
+    if (r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && words.test(text)) {
+      el.click(); return text.slice(0, 40); } }
+  return null; }"""
 # Installed before any script of the page runs: counts calls of the page's own input listeners, and (WRAP, run just
 # before the input) of handlers set as properties (onkeydown = ...).
 INIT = """(() => { const TYPES = ['keydown','keyup','keypress','pointerdown','pointerup','touchstart','touchend','mousedown','mouseup','click'];
@@ -112,6 +119,12 @@ if out["started"]:
                     return None if shot is None else hashlib.sha256(shot.encode()).hexdigest()[:16]
                 for _ in range(SAMPLES):
                     out["idle"].append(sample()); page.wait_for_timeout(GAP)
+                # Rehearsal 44079074182 (2026-11-17, the stars game): a real game waits on its start screen; the
+                # probe tapped the canvas and pressed keys, never the "התחל" button, and called a working game frozen.
+                # A player presses start first: one visible control whose text says start, clicked once, said.
+                out["started_by"] = page.evaluate(START)
+                if out["started_by"]:
+                    page.wait_for_timeout(GAP)
                 text_before = page.evaluate(TEXT)
                 page.evaluate(WRAP)
                 before_calls = page.evaluate("() => window.__omniInput.calls")
