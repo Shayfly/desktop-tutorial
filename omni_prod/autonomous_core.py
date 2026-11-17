@@ -271,6 +271,12 @@ class AutonomousProductEngine:
         # The plan verified in round 0 is a floor for every repair round (plan_floor, founder 2026-11-02).
         from . import plan_floor
         floor, plan_note = plan_floor.plan_block(repo), None
+        # DECISIONS 8 (the owner 2026-11-17): the repairer may fix an expected value in a test the builder wrote in
+        # this build -- never a test of the customer's facts; every edit counted; the same value twice escalates.
+        from .test_edit_guard import TestEditLedger, customer_facts
+        from .repair_contracts import _TEST_FILE
+        self.test_edits = TestEditLedger(frozenset(p for p in repo if _TEST_FILE.search(p)), customer_facts(prompt))
+        test_note = None
         # Founder build bld_ca727ba7 (2026-11-08): the loop stopped after 2 of 6 rounds on one unchanged patch. The
         # stop-loss stays, but production gets `no_progress_retries` second chances: the next repair is told plainly
         # that its last answer changed nothing, before the loop gives up. 0 (the default) is the old behaviour.
@@ -316,6 +322,9 @@ class AutonomousProductEngine:
             if progress_note:
                 failures = failures + [progress_note]
                 progress_note = None
+            if test_note:
+                failures = failures + [test_note]
+                test_note = None
             transform = getattr(self, 'repository_transform', None)
             if transform is not None and hasattr(transform, 'redact_text'):
                 failures = [{k: transform.redact_text(v) if isinstance(v, str) else v
@@ -335,6 +344,14 @@ class AutonomousProductEngine:
             candidate = apply_patch(repo, patch)
             if getattr(self,'repository_transform',None):
                 candidate = self.repository_transform(candidate)
+            candidate, refused_tests = self.test_edits.review(repo, candidate)
+            if refused_tests:
+                test_note = {'acceptance_id': 'TEST_EDIT_REVERTED', 'message': ' '.join(refused_tests)[:1500],
+                             'evidence': ''}
+            if self.test_edits.escalate:
+                stop_reason = 'test_value_fixed_twice'
+                self.trace.append({'round': rounds + 1, 'escalated': self.test_edits.escalate})
+                break
             # Before the fingerprint: a repair that only cut the plan is then "unchanged", not a new state to verify.
             candidate, plan_lost = plan_floor.enforce(candidate, floor, repo)
             self.trace.append({

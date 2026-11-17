@@ -45,7 +45,10 @@ _SYSTEM = (
     'repair\n'
     'Method: read the failures, read the code they point at, find the root cause, edit the file that owns it, '
     'check that the edit is clean, then submit. Keep every behaviour that already passes. Never weaken a test or an '
-    'acceptance step to make it pass unless it contradicts the approved acceptance text. File content keeps every '
+    'acceptance step to make it pass unless it contradicts the approved acceptance text. In a test file you may only '
+    'change the expected value of an assert whose assumption is wrong; a test of the customer\'s phone, price, '
+    'address or hours is never edited (the code shows them as given), and any other test change is reverted and '
+    'counted. File content keeps every '
     'newline and indentation. Submit before you run out of steps (steps_left).'
 )
 
