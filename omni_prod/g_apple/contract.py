@@ -148,4 +148,9 @@ def rules(contract: dict) -> str:
         # margins (an h2's default is 0.83em: 19.92px at 24px), which no rule above mentions
         '- Start the stylesheet by setting margin: 0 and padding: 0 on h1, h2, h3, h4, p, ul, ol, li and figure, then '
         'give each its spacing from var(--space-...): a browser default margin is not on the grid.',
+        # calibration, three builds of three (44048592665, 44049242034, 44050605137): the typography reviewer said the
+        # hero's content sat in one half of a wide card and left the other half empty (P1 each time)
+        '- The top area (hero): on a wide screen its content fills the width it is given -- either the text block is '
+        'centred as a block with a max-width, or the second half holds real content (an image, the opening hours, '
+        'the call button). Never text in one half and an empty half beside it.',
     ])

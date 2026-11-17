@@ -46,3 +46,5 @@
 | GATE-RULES | Claude Code | In review | the generator is told what the installed gates check; NC 6/6 |
 | PR-430 | Claude Code | Done | #430 `4b925d1` -> `1da851d` (gate checks reach the generator) |
 | CONTRACT-LINES | Claude Code | In review | the contract keeps the approved text line by line; NC 10/10; full suite 3764/0 |
+| PR-431 | Claude Code | Done | #431 `d3e1dd2` -> `4071192` (contract keeps lines) |
+| CALIB-3 | Claude Code | In review | three calibration builds P0=0; hero rule; notice says what was measured; NC 3/3 |
