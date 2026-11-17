@@ -49,4 +49,5 @@
 | PR-431 | Claude Code | Done | #431 `d3e1dd2` -> `4071192` (contract keeps lines) |
 | CALIB-3 | Claude Code | In review | three calibration builds P0=0; hero rule; notice says what was measured; NC 3/3 |
 | PR-432 | Claude Code | Done | #432 `e49b3c0` -> `a9c97b6` (hero rule; notice says what was measured) |
-| CHAIN-BOUND | Claude Code | In review | PRODUCTION: chain walk stopped at 20 wrappers, release policy failed every build since #426; NC 3/3 |
+| CHAIN-BOUND | Claude Code | Done | #433 `96958b3` -> `7596591`, released |
+| BRIEF-KEPT | Claude Code | In review | the pasted brief reaches the build ("ישיר" is not a song; a kept message is part of the request); NC 5/5; full suite 3779/0 |

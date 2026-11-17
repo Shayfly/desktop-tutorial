@@ -1,3 +1,28 @@
+# 2026-11-17 — the owner's brief never reached the build; what the customer wrote now does (Claude Code)
+
+- **Merged and released:** #433 `96958b3` -> `7596591` (`[release]`; the chain walk reaches the deepest stage).
+- **What broke ("148 דלתות", builds bld_a875456f 09:27 and bld_77899122 09:49, $0.18 + $0.30):** the owner pasted a
+  3,295-character brief (business, offer, page structure, FAQ, palette). The router answered "שיר, סרטון או מוזיקה
+  עוד לא ... ההודעה שלכם נשמרה בשיחה", and the brief was then started from the next message alone: "אתר". With the
+  answers "צוות פנימי" and "פרטים אישיים: כן" the build became an internal leads database
+  ("persistence: records"). The second build failed its own generated test 3 rounds in a row (the test posts phone
+  "053-7778899" and looks for it unchanged; the app stores it normalised; the repairer may not edit tests).
+- **Roots (both mine to fix):**
+  1. `intake/families.py`: the media rule matched "שיר" (a song) inside "ישיר" ("טון: ישיר, מקצועי" -- a direct
+     tone). Now "שיר" is a word, alone or after one Hebrew prefix letter; and a text that describes a page and mentions
+     a video in passing is a website.
+  2. `conversation/supervisor.py`: a message the customer was told was kept was not part of the request. A new
+     brief now starts from everything the customer wrote in the project before it (last five messages, 12,000
+     characters, newest words never cut, a cut is logged).
+- **Evidence:** `tests/test_a_refused_message_is_still_the_request.py` 8 passed (the production message, excerpted
+  read-only, starts a brief that carries "148 דלתות", "1,390 ₪", the service area and "בלי קרוסלה"); controls
+  `refused_message_kept` 5/5; full suite on this change 3779 passed, 0 failed.
+- **NOT fixed here:** the conversation accepted "content only: yes" and "personal data: yes" together without
+  asking which one holds; a generated test that contradicts the app cannot be repaired (the repairer may not edit
+  tests).
+- **NOT verified:** the owner's conversation on production after the release. The existing project keeps its brief
+  (fingerprint 3c1889fd) -- a new project is needed.
+
 # 2026-11-17 — PRODUCTION: every build since #426 failed the release policy; a bug of mine; fixed (Claude Code)
 
 - **What broke (the owner's build, bld_a875456f, 09:27 UTC, worker `4071192`, $0.18):** two rounds, every test
