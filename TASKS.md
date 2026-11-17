@@ -35,3 +35,4 @@
 | G5-WARN | Claude Code | In review | rights gate rewritten; enters at warn; NC 20/20 |
 | A4-1 | Claude Code | In review | asset plan: one place per image; warn check; NC 10/10 |
 | G8-1 | Claude Code | In review | runtime and load gate on real servers; enters at warn |
+| G-APPLE | Claude Code | In review | design contract + static + render + two reviewers, warn; mutations and block tomorrow (owner) |

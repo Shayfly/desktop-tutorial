@@ -10,6 +10,30 @@
   is checked against it. A plan that cannot be (two heroes, over 12 images, over 1.5 MB together) stops the build.
 - **G8 (runtime and load):** the product is started in the sandbox and asked for its page 60 times, 6 at a time. It
   must answer every request, stay up, answer within 1.5 s at the 95th percentile and hold under 256 MB.
+- **G-APPLE, the design gate (the owner's relayed spec, 2026-11-17), in this PR at warn:**
+  - *Design contract, locked before code* (`omni_prod/g_apple/contract.py`): from the approved brief's Design line --
+    a type scale, the 8-grid (4 is the one half step), a semantic palette whose every text pair's contrast is
+    computed and corrected, two weights, one radius, motion tokens. One accent: the palette's second colour is
+    dropped, and the contract says so. The generator gets the `:root` block and may use nothing else.
+  - *Static enforcement and the refusal list* (`static.py`): raw colour, px off the scale, a third weight, a second
+    radius, a missing contract, missing `:focus-visible` / `:hover` / `:active`; gradient hero with outlined text,
+    three icon cards, carousel, shadow everywhere, 24px everywhere, everything centred, a second accent, more than
+    two button styles, emoji as icons, lorem.
+  - *Render probe* (`render.py`, sandbox browser, 390 / 768 / 1440 / 320, one full-page screenshot each): sideways
+    scroll, cut text, a control under 44 px, off-grid spacing, line length outside 55-75, the 30 / 60 character
+    string test.
+  - *Two separate vision reviewers* (`reviewers.py`): typography/layout and brand/category, findings with a selector
+    and a severity; P0 blocks (in block mode); a reviewer never proposes code; the category clause makes a page with
+    no visible mark of its business a P0.
+  - Installed last, right before the build, in the worker and in the rehearsal; evidence key `g_apple`.
+  - **Decisions made while building it (said, not hidden):** line length is judged at 768 and 1440 only (at 320-390
+    a 55-character line needs unreadably small text); the reviewers see the two screenshots visual QA returns (1440
+    and 390) -- the four-width screenshots stay in the sandbox and only their digests are reported; the old butcher
+    page predates the contract and fails it by design (30+ findings), so "P0 = 0 on the butcher page" is measured
+    on a butcher page BUILT under the contract.
+  - **Per the owner: negative controls and the move to block are tomorrow.** Tests today: `tests/test_g_apple.py`
+    (20) and `tests/test_g_apple_render.py` (6, four of them in a real browser).
+  - **Not verified:** no real build has run under the contract; the reviewers have not run on a real vision model.
 - **All three warn (`gate.CALIBRATING`):** findings and measurements go to the log and the build evidence
   (`skill_gates`, `asset_plan`, `runtime_load`); none blocks before three calibration builds. The rehearsal installs
   the same checks.
