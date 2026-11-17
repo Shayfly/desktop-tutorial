@@ -1,0 +1,96 @@
+{
+ "pr": "content-only-holds",
+ "sha256": [
+  "tests/test_content_only_is_not_overruled_in_silence.py",
+  "omni_prod/discovery.py",
+  "omni_prod/fact_canon.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "personal data is asked after content-only yes again",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "             ask_if=lambda v: v.get('content_only') != 'yes'),",
+     "new": "             ask_if=lambda v: True),"
+    }
+   ],
+   "targets": [
+    "tests/test_content_only_is_not_overruled_in_silence.py"
+   ],
+   "expect_failed": [
+    "test_after_content_only_yes_personal_data_is_not_asked_and_the_site_stores_nothing"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "content-only needs an explicit personal-data no again",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "and v.get('personal_data') in ('no', None) and",
+     "new": "and v.get('personal_data') == 'no' and"
+    }
+   ],
+   "targets": [
+    "tests/test_content_only_is_not_overruled_in_silence.py"
+   ],
+   "expect_failed": [
+    "test_after_content_only_yes_personal_data_is_not_asked_and_the_site_stores_nothing",
+    "test_the_approval_summary_says_personal_details_are_not_stored"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the build is not told to store no personal details",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "    if scope == 'no_personal' or v.get('personal_data') == 'no' or _content_only(v, login):",
+     "new": "    if scope == 'no_personal' or v.get('personal_data') == 'no':"
+    }
+   ],
+   "targets": [
+    "tests/test_content_only_is_not_overruled_in_silence.py"
+   ],
+   "expect_failed": [
+    "test_after_content_only_yes_personal_data_is_not_asked_and_the_site_stores_nothing"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the approval summary does not say it",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "    if v.get('personal_data') == 'no' or v.get('access_scope') == 'no_personal' \\\n            or _content_only(v, 'none' if login == 'none' else 'x'):",
+     "new": "    if v.get('personal_data') == 'no' or v.get('access_scope') == 'no_personal':"
+    }
+   ],
+   "targets": [
+    "tests/test_content_only_is_not_overruled_in_silence.py"
+   ],
+   "expect_failed": [
+    "test_the_approval_summary_says_personal_details_are_not_stored"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a hex fingerprint is read as a phone again",
+   "mutations": [
+    {
+     "file": "omni_prod/fact_canon.py",
+     "old": "    text = _HEX_TOKEN.sub(' ', decode_entities(raw))",
+     "new": "    text = decode_entities(raw)"
+    }
+   ],
+   "targets": [
+    "tests/test_content_only_is_not_overruled_in_silence.py"
+   ],
+   "expect_failed": [
+    "test_the_production_fingerprint_reads_no_phone"
+   ]
+  }
+ ]
+}

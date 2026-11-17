@@ -1,3 +1,24 @@
+# 2026-11-17 — what "148 דלתות" still showed: no palette for doors, a measure rule that failed its own check, a content-only answer overruled in silence, a phone read from a hash (Claude Code)
+
+- **Merged:** #435 `cdc0bb3` -> `0316cbe` (the rehearsal asks the release policy).
+- **1. No design contract for a doors company** (bld_a875456f: G-APPLE `NOT_RUN`, "the Design line has no
+  four-colour palette"): doors were not a category. Doors are a trade: `vertical_palettes.json` renovation gains
+  "דלתות", "התקנת דלתות", "דלת ממד", "doors" ("דלת" alone is not one: "דלת הכניסה של האטליז" stays a butcher).
+  An unknown business is still said, not defaulted (DECISIONS.md, open question 7).
+- **2. The measure rule failed its own check** (rehearsal 44057019675: "about 52ch" gave Hebrew paragraphs 53
+  characters a line against a minimum of 55). The rule now gives `max-width: 35rem` (about 65 characters at 16px);
+  measured in a real browser on three font stacks, no MEASURE finding. The check (55-75) is unchanged.
+- **3. A content-only answer overruled in silence** (the owner: "תוכן בלבד: כן", then "פרטים אישיים: כן"; the first
+  was dropped and the site became a leads database). After content-only "yes" the personal-data question is not
+  asked; a content-only site is told to store no personal details and the approval summary says so. "personal data:
+  yes" first still makes a site that stores.
+- **4. Found while fixing 3: a phone read from a hash.** The fact canon read "+97229093349" out of a brief's hex
+  fingerprint ("fingerprint e029093349ecb315"); whether a brief got an invented phone depended on its hash. Hex
+  tokens are blanked before the canon reads phones.
+- **Evidence:** `tests/test_doors_get_a_design_contract.py` 4 passed; `tests/test_content_only_is_not_overruled_in_silence.py`
+  5 passed; controls `doors_palette` 3/3, `content_only_holds` 5/5; `test_fast.sh` exit 0.
+- **NOT verified:** a production conversation with these changes.
+
 # 2026-11-17 — the rehearsal asks the release policy (Claude Code)
 
 - **Merged and released:** #434 `01e39ab` -> `69a308c` (`[release]`; the pasted brief reaches the build).

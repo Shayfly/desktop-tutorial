@@ -1,0 +1,63 @@
+{
+ "pr": "doors-palette",
+ "sha256": [
+  "tests/test_doors_get_a_design_contract.py",
+  "omni_prod/vertical_palettes.json",
+  "omni_prod/g_apple/contract.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "doors are not recognised again",
+   "mutations": [
+    {
+     "file": "omni_prod/vertical_palettes.json",
+     "old": ", \"דלתות\", \"התקנת דלתות\", \"דלת ממד\", \"doors\"]",
+     "new": "]"
+    }
+   ],
+   "targets": [
+    "tests/test_doors_get_a_design_contract.py"
+   ],
+   "expect_failed": [
+    "test_the_brief_carries_a_palette_and_g_apple_locks_a_contract",
+    "test_the_production_request_is_recognised",
+    "test_the_rule_gives_a_fixed_width_not_a_ch_value"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "any door is a door shop",
+   "mutations": [
+    {
+     "file": "omni_prod/vertical_palettes.json",
+     "old": "\"דלת ממד\", \"doors\"]",
+     "new": "\"דלת ממד\", \"doors\", \"דלת\"]"
+    }
+   ],
+   "targets": [
+    "tests/test_doors_get_a_design_contract.py"
+   ],
+   "expect_failed": [
+    "test_a_door_in_another_trade_does_not_make_it_a_door_shop"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the measure rule gives a ch width again",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/contract.py",
+     "old": "give every paragraph max-width: 35rem (about '",
+     "new": "give every paragraph max-width: about 52ch (about '"
+    }
+   ],
+   "targets": [
+    "tests/test_doors_get_a_design_contract.py"
+   ],
+   "expect_failed": [
+    "test_the_rule_gives_a_fixed_width_not_a_ch_value"
+   ]
+  }
+ ]
+}

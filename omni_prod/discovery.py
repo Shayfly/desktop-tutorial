@@ -146,7 +146,12 @@ QUESTIONS: tuple[Question, ...] = (
     Question('personal_data', 'personal_data', 'access', 'האם יישמרו פרטים אישיים של אנשים (שם, טלפון, מייל)?',
              'Will it store personal details (name, phone, email)?',
              'פרטים אישיים מחייבים לחשוב מי רשאי לראות אותם.', 'Personal data needs a decision about who may see it.',
-             options=(_o('yes', 'כן', 'Yes'), _o('no', 'לא', 'No')), recommended='yes'),
+             options=(_o('yes', 'כן', 'Yes'), _o('no', 'לא', 'No')), recommended='yes',
+             # Production 2026-11-17 ("148 דלתות"): the owner answered "content only: yes", was then asked this
+             # question, answered "yes", and the first answer was dropped in silence (_drop_inapplicable) -- the site
+             # became a leads database. A site that stores nothing from its visitors stores no personal details: the
+             # question is not asked after that answer, and _content_only reads its absence as "no".
+             ask_if=lambda v: v.get('content_only') != 'yes'),
     # Content-only sites (landing pages, brochure sites): the one structured decision that lets acceptance skip
     # "create records" checks. Never delegable and never defaulted: only the customer's own answer (or an
     # unchanged pre-selected hint they confirm) sets it, it is shown in the approval summary, and it is bound
@@ -787,7 +792,7 @@ CONTENT_ONLY_LINE = ('Product kind: CONTENT-ONLY website. Visitors only read the
 def _content_only(v: dict, login: str) -> bool:
     """Only an explicit, non-delegated yes together with no sign-in and no personal data."""
     return (v.get('content_only') == 'yes' and login == 'none'
-            and v.get('personal_data') == 'no' and v.get('access_scope') != 'add_login')
+            and v.get('personal_data') in ('no', None) and v.get('access_scope') != 'add_login')
 
 
 def stores_by_own_answer(brief) -> str | None:
@@ -968,7 +973,7 @@ def requirements_text(brief: Brief) -> str:
                                 'roles': 'users with different roles (e.g. admin and staff).'}.get(login, login))
     if scope == 'internal_link':
         lines.append('Access: internal tool; only the owner gets the link (no public pages).')
-    if scope == 'no_personal' or v.get('personal_data') == 'no':
+    if scope == 'no_personal' or v.get('personal_data') == 'no' or _content_only(v, login):
         lines.append('Do not store personal or contact details of people.')
     if _content_only(v, login):
         lines.append(CONTENT_ONLY_LINE)
@@ -1057,7 +1062,8 @@ def summary(brief: Brief, lang: str = 'he') -> dict:
         excluded.append('התחברות והרשאות' if he else 'Sign-in and roles')
     else:
         included.append('התחברות' if he else 'Sign-in')
-    if v.get('personal_data') == 'no' or v.get('access_scope') == 'no_personal':
+    if v.get('personal_data') == 'no' or v.get('access_scope') == 'no_personal' \
+            or _content_only(v, 'none' if login == 'none' else 'x'):
         excluded.append('שמירת פרטים אישיים' if he else 'Personal details')
     if _content_only(v, 'none' if login == 'none' else 'x'):
         excluded.append('שמירת נתונים מהמבקרים (אתר תוכן בלבד)' if he else 'Visitor data storage (content-only site)')

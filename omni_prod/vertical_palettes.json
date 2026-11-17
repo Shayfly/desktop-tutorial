@@ -30,7 +30,7 @@
   "vets":               {"palette": "clinic",   "words": ["וטרינר", "וטרינרית", "מרפאה וטרינרית", "vet", "veterinary"]},
   "lawyers":            {"palette": "counsel",  "words": ["עורך דין", "עורכת דין", "עורכי דין", "משרד עורכי דין", "lawyer", "attorney"]},
   "accountants":        {"palette": "counsel",  "words": ["רואה חשבון", "רואת חשבון", "רואי חשבון", "הנהלת חשבונות", "accountant"]},
-  "renovation":         {"palette": "trade",    "words": ["שיפוצים", "שיפוץ", "קבלן שיפוצים", "renovation"]},
+  "renovation":         {"palette": "trade",    "words": ["שיפוצים", "שיפוץ", "קבלן שיפוצים", "renovation", "דלתות", "התקנת דלתות", "דלת ממד", "doors"]},
   "electrical":         {"palette": "trade",    "words": ["חשמלאי", "חשמלאים", "עבודות חשמל", "electrician"]},
   "plumbing":           {"palette": "trade",    "words": ["אינסטלטור", "אינסטלציה", "plumber", "plumbing"]},
   "hvac":               {"palette": "trade",    "words": ["מיזוג", "מזגנים", "מזגן", "טכנאי מזגנים", "hvac"]},
