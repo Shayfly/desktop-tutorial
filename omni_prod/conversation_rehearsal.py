@@ -1,7 +1,7 @@
 """Conversation rehearsal (conversation agent, phase 4; the owner, 2026-11-17): real conversations with the live
 model, on the worker host, through the real supervisor -- with no database, no project and no credit.
 
-The agent is real (the routed gateway, task `conversation`); the customer is scripted: for every turn it answers the
+The agent is real (by default the production intake path, below); the customer is scripted: for every turn it answers the
 question the agent asked (recorded as `asked`) with what a real customer would type, or, when nothing was asked,
 with its next line. Bounded: MAX_TURNS per scenario and the gateway budget (OMNI_EXTERNAL_BUDGET_USD).
 
@@ -11,6 +11,13 @@ Acceptance per scenario, all measured, never judged by eye:
   facts         every fact the customer gave (phone, address) is in the brief the builder gets, as written
   model         the replies were written by a model (the interpreter name), not by the rules alone
 Cost (the interpreter's metered USD) and the number of turns are reported.
+
+The path (the owner's human test, 2026-11-17): by default the agent runs on the PRODUCTION path -- the gateway the intake
+worker builds for a reservation (reservation_worker.build_gateway), from the quote of the newest settled production
+reservation, read from the database (CLAUDE.md section 4: global data from a global source). Its provider, allowed
+models, price ceiling and per-call amount are production's own. The first version ran on the routed gateway, which
+production intake does not use (production runs through Venice): it passed on Sonnet while every real conversation ran
+on Haiku. Every call's real model is recorded (`provider_models`). REHEARSAL_PATH=routed keeps the old path.
 """
 from __future__ import annotations
 
@@ -89,6 +96,57 @@ class _Supervisor:
                     context=lambda p: {})
 
 
+PATH_ENV = 'REHEARSAL_PATH'
+PATHS = ('production', 'routed')
+
+
+def production_quote(pool) -> dict:
+    """The newest settled production intake reservation's quote, with its id and per-call amount. Loud when none."""
+    with pool.connection() as conn:
+        row = conn.execute("SELECT id, quoted_usd, quote FROM intake_reservations WHERE state = 'SETTLED' "
+                           "AND quote IS NOT NULL ORDER BY settled_at DESC NULLS LAST, updated_at DESC LIMIT 1").fetchone()
+    if row is None:
+        raise SystemExit('no settled production intake reservation: the production path cannot be rehearsed')
+    rid, quoted, quote = row[0], row[1], row[2]
+    quote = quote if isinstance(quote, dict) else json.loads(quote)
+    return {'reservation_id': rid, 'quoted_usd': Decimal(str(quoted)), 'quote': quote}
+
+
+class ProductionPathGateway:
+    """Every call builds the gateway the intake worker builds for a reservation, from production's own quote. The
+    per-call amount is the quote's bound recomputed for THIS call's input (the same formula as budget.quote), so a
+    longer conversation is not refused by an amount priced for a shorter one. Records the model every call ran on."""
+
+    def __init__(self, quote: dict):
+        self.quote = quote
+        self.recorder = None
+        self.models_used: list[str] = []
+
+    def amount(self, system: str, user: str, max_tokens: int) -> Decimal:
+        from decimal import ROUND_CEILING
+        q = self.quote
+        if q.get('provider') == 'venice':
+            cin, cout = (Decimal(str(x)) for x in q['venice_ceiling_usd_per_m'])
+            tokens_in = len(f'{system}{user}'.encode('utf-8')) + 64
+            return ((Decimal(tokens_in) * cin + Decimal(max_tokens) * cout) / Decimal(1_000_000)).quantize(
+                Decimal('0.00000001'), rounding=ROUND_CEILING)
+        from .intake import budget as B
+        return B.quote(system=system, user=user, max_tokens=max_tokens, task='conversation',
+                       models=tuple(q.get('allowed_models') or ()) or None).amount_usd
+
+    def complete_json(self, *, system: str, user: str, max_tokens: int, task: str = 'conversation') -> dict:
+        from .intake.reservation_worker import build_gateway
+        q = self.quote
+        gateway = build_gateway(self.amount(system, user, max_tokens), tuple(q.get('allowed_models') or ()), q)
+        self.recorder = getattr(gateway, 'recorder', None)
+        try:
+            return gateway.complete_json(system=system, user=user, max_tokens=max_tokens, task=task)
+        finally:
+            for r in (getattr(self.recorder, 'records', None) or []):
+                if getattr(r, 'model', None):
+                    self.models_used.append(str(r.model))
+
+
 def run_scenario(name: str, interpreter) -> dict:
     from . import discovery as d
     spec = SCENARIOS[name]
@@ -110,8 +168,10 @@ def run_scenario(name: str, interpreter) -> dict:
     row = sup.briefs.latest(name)
     built_from = (row.brief.prompt + '\n' + d.requirements_text(row.brief)) if row else ''
     missing = [f for f in spec['facts'] if f not in built_from]
+    used = getattr(getattr(interpreter, 'gateway', None), 'models_used', None)
     result = {'scenario': name, 'turns': len(turns), 'cards': cards, 'approval': reached, 'facts_missing': missing,
-              'models': sorted(models), 'cost_usd': str(cost), 'transcript': turns}
+              'models': sorted(models), 'cost_usd': str(cost), 'transcript': turns,
+              'provider_models': sorted(set(used)) if used is not None else None}
     result['passed'] = accepted(cards=cards, reached=reached, missing=missing, models=models)
     return result
 
@@ -128,18 +188,39 @@ def main(argv=None) -> int:
     unknown = [n for n in names if n not in SCENARIOS]
     if unknown:
         raise SystemExit(f'unknown scenario(s): {unknown}; known: {sorted(SCENARIOS)}')
-    from .attempt_ledger import TaskTaggedGateway
     from .intake.interpreter import ModelInterpreter
-    from .investor_app import _live_components
-    _, gateway = _live_components()
-    interpreter = ModelInterpreter(TaskTaggedGateway(getattr(gateway, '_inner', gateway), 'conversation'))
-    results = [run_scenario(n, interpreter) for n in names]
+    path = os.environ.get(PATH_ENV, 'production').strip() or 'production'
+    if path not in PATHS:
+        raise SystemExit(f'{PATH_ENV} must be one of {PATHS}, not {path!r}')
+    if path == 'production':
+        from .db import DatabasePool
+        pool = DatabasePool(os.environ['OMNI_DATABASE_URL'], min_size=1, max_size=2).open()
+        try:
+            prod = production_quote(pool)
+        finally:
+            pool.close()
+        q = prod['quote']
+        print(f"::notice title=conversation path::production -- the quote of reservation {prod['reservation_id']}: "
+              f"provider {q.get('provider') or 'routed'}, allowed {q.get('allowed_models')}, "
+              f"ceiling {q.get('venice_ceiling_usd_per_m')}, max_tokens {q.get('max_tokens')}")
+        gateway = ProductionPathGateway(q)
+    else:
+        from .attempt_ledger import TaskTaggedGateway
+        from .investor_app import _live_components
+        _, inner = _live_components()
+        gateway = TaskTaggedGateway(getattr(inner, '_inner', inner), 'conversation')
+        print('::notice title=conversation path::routed -- NOT the production intake path')
+    results = []
+    for n in names:
+        if path == 'production':
+            gateway.models_used = []                  # per scenario: which models answered THIS conversation
+        results.append(run_scenario(n, ModelInterpreter(gateway)))
     for r in results:
         print('CONVERSATION ' + json.dumps(r, ensure_ascii=False))
         level = 'notice' if r['passed'] else 'error'
         print(f"::{level} title=conversation {r['scenario']}::passed={r['passed']} turns={r['turns']} "
               f"cards={r['cards']} approval={r['approval']} facts_missing={r['facts_missing']} "
-              f"models={r['models']} cost_usd={r['cost_usd']}")
+              f"models={r['models']} provider_models={r['provider_models']} cost_usd={r['cost_usd']}")
         for i, t in enumerate(r['transcript'], 1):
             print(f"::notice title=conversation {r['scenario']} turn {i}::customer: {t['customer']} || agent: "
                   f"{t['agent']}".replace('\n', ' ')[:1800])
