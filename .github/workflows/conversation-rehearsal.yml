@@ -11,6 +11,10 @@ on:
         description: "Scenario names, space separated (empty = all): doors butcher bare"
         required: false
         default: ""
+      path:
+        description: "production = the intake worker's gateway from the newest production quote (default); routed = the old path"
+        required: false
+        default: production
 
 concurrency:
   group: conversation-rehearsal
@@ -26,10 +30,11 @@ jobs:
         working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
         env:
           SCENARIOS: ${{ inputs.scenarios }}
+          REHEARSAL_PATH: ${{ inputs.path || 'production' }}
         run: |
           set +e
           set -uo pipefail
-          docker compose run --rm --no-deps -T -e OMNI_EXTERNAL_BUDGET_USD=0.40 -e OMNI_EXTERNAL_CALLS_PER_BUILD=60 -e SCENARIOS="$SCENARIOS" worker \
+          docker compose run --rm --no-deps -T -e OMNI_EXTERNAL_BUDGET_USD=0.40 -e OMNI_EXTERNAL_CALLS_PER_BUILD=60 -e SCENARIOS="$SCENARIOS" -e REHEARSAL_PATH="$REHEARSAL_PATH" worker \
             python -c 'import os, sys; from omni_prod.conversation_rehearsal import main; sys.exit(main(os.environ.get("SCENARIOS", "").split()))' 2>&1 \
             | sed -E 's/(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{16,}/[redacted]/g' > "$RUNNER_TEMP/conversation.out"
           rc=${PIPESTATUS[0]}
