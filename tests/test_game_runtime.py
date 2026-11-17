@@ -73,6 +73,8 @@ TOO_WIDE = game(markup='<canvas id="g" width="900" height="240"></canvas>', css=
 # A start screen (rehearsal 44079074182): one still frame until the "התחל" button OUTSIDE the canvas is pressed
 START_SCREEN = game(markup=CANVAS + '<button id="go" type="button">התחל</button>',
                     run="draw(); document.getElementById('go').addEventListener('click', () => { " + RAF + " });")
+# a control that is not "start" is never pressed for the player (only a start word counts)
+WITH_HELP = game(markup=CANVAS + '<button id="help" type="button">הוראות</button>')
 TURN_BASED = game(moving='', run='draw();', input_=INPUT + "\naddEventListener('keydown', draw); c.addEventListener('pointerdown', draw);")
 
 
@@ -131,6 +133,10 @@ class RealGamesInARealBrowser(unittest.TestCase):
 
     def test_a_game_with_no_start_control_says_none_was_pressed(self):
         gate, _ = play(GOOD)
+        self.assertEqual({m['started_by'] for m in gate.last_game['viewports'].values()}, {None})
+
+    def test_a_control_that_is_not_start_is_not_pressed(self):
+        gate, _ = play(WITH_HELP)
         self.assertEqual({m['started_by'] for m in gate.last_game['viewports'].values()}, {None})
 
     def test_one_frozen_frame_is_found(self):
