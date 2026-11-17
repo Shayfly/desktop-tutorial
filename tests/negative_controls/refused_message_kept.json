@@ -1,0 +1,96 @@
+{
+ "pr": "refused-message-kept",
+ "sha256": [
+  "tests/test_a_refused_message_is_still_the_request.py",
+  "omni_prod/intake/families.py",
+  "omni_prod/conversation/supervisor.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "'ישיר' is a song again",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/families.py",
+     "old": "_SONG = r'(?<![א-ת])[הבלו]?שיר(?:ים)?(?![א-ת])'",
+     "new": "_SONG = r'שיר'"
+    }
+   ],
+   "targets": [
+    "tests/test_a_refused_message_is_still_the_request.py"
+   ],
+   "expect_failed": [
+    "test_direct_rich_and_tied_are_not_songs"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a passing video refuses a text that describes a page",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/families.py",
+     "old": "            if opening is None and family not in EXECUTABLE and _NAMES_A_SITE.search(t):\n                return 'website'",
+     "new": "            if False:\n                return 'website'"
+    }
+   ],
+   "targets": [
+    "tests/test_a_refused_message_is_still_the_request.py"
+   ],
+   "expect_failed": [
+    "test_a_passing_video_in_a_text_that_describes_a_page_is_a_site"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a new brief starts from the last message alone",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "d.start(self._whole_request(project_id, message or ''), d.GUIDED)",
+     "new": "d.start(message or '', d.GUIDED)"
+    }
+   ],
+   "targets": [
+    "tests/test_a_refused_message_is_still_the_request.py"
+   ],
+   "expect_failed": [
+    "test_after_a_real_refusal_the_next_message_does_not_replace_what_was_written",
+    "test_what_is_carried_is_bounded"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "what is carried has no bound",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if len(whole) > self.MAX_REQUEST_CHARS:",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_a_refused_message_is_still_the_request.py"
+   ],
+   "expect_failed": [
+    "test_what_is_carried_is_bounded"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a song with a prefix letter is not a song",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/families.py",
+     "old": "[הבלו]?שיר(?:ים)?",
+     "new": "שיר(?:ים)?"
+    }
+   ],
+   "targets": [
+    "tests/test_a_refused_message_is_still_the_request.py"
+   ],
+   "expect_failed": [
+    "test_a_song_is_still_a_song"
+   ]
+  }
+ ]
+}

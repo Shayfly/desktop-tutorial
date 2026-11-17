@@ -842,6 +842,36 @@ class ConversationSupervisor:
         c = complexity.classify(message, history, confirmed=confirmed, proposed=proposed)
         return c, lanes.choose(c.level)
 
+    MAX_CARRIED_MESSAGES = 5          # earlier customer messages a new brief may start from
+    MAX_REQUEST_CHARS = 12_000        # the whole request a brief starts from
+
+    def _whole_request(self, project_id, message: str) -> str:
+        """The text a NEW brief starts from: everything the customer wrote in this project before a brief existed,
+        then this message. Production 2026-11-17, "148 דלתות": the owner pasted a full brief, the router refused it
+        (a misread word), said "ההודעה שלכם נשמרה בשיחה" -- and the brief was then started from the next message
+        alone, the single word "אתר". 3,295 characters of the customer's own words never reached the build.
+        A message said to be kept is part of the request. Bounded; a text cut by the bound is logged."""
+        earlier = [m.get('content') or '' for m in self.store.messages_for(project_id, limit=40)
+                   if m.get('role') == 'customer' and not (m.get('interpretation') or {}).get('system')]
+        if earlier and earlier[-1] == message:
+            earlier = earlier[:-1]                        # the current message was stored at turn start
+        earlier = [e.strip() for e in earlier if e.strip() and e.strip() != message.strip()]
+        earlier = earlier[-self.MAX_CARRIED_MESSAGES:]
+        if not earlier:
+            return message
+        whole = '\n'.join(earlier + [message]).strip()
+        if len(whole) > self.MAX_REQUEST_CHARS:
+            import logging
+            logging.getLogger(__name__).warning('REQUEST_CUT project=%s chars=%s kept=%s', project_id, len(whole),
+                                                self.MAX_REQUEST_CHARS)
+            # the newest words win: whole earlier messages are dropped oldest first, and the message being answered
+            # is never the part that is cut
+            while len(earlier) > 1 and len('\n'.join(earlier + [message])) > self.MAX_REQUEST_CHARS:
+                earlier = earlier[1:]
+            room = max(0, self.MAX_REQUEST_CHARS - len(message) - 1)
+            whole = ('\n'.join(earlier)[:room] + '\n' + message).strip()[:self.MAX_REQUEST_CHARS]
+        return whole
+
     def _route_output(self, row, message, lang) -> Turn | None:
         """A0 (warehouse 69, released 2026-11-15): the output type is decided before the interpreter, the model and
         the brief. A type without an output profile is refused in the customer's words -- "not yet; this, yes" --
@@ -890,7 +920,7 @@ class ConversationSupervisor:
             source.history = [m for m in self.store.messages_for(project_id, limit=6)[:-1]
                               if not (m.get('interpretation') or {}).get('system')][-4:]   # never the flow mark
             interp = source.interpret(message, row.brief if row else None)
-        brief = row.brief if row else d.start(message or '', d.GUIDED)
+        brief = row.brief if row else d.start(self._whole_request(project_id, message or ''), d.GUIDED)
         for qid, value in answers.items():
             brief = intake_agent.answer_question(brief, qid, value)
         sensitive = bool(lane and lane.get('requires_explicit_confirmation'))
