@@ -169,6 +169,49 @@ class Offline(unittest.TestCase):
         # step 1 of 3 (the owner, 2026-11-15 23:33): the rejection names the viewport, the type and the message
         self.assertEqual(c['rejection']['measured'], '1440px: RuntimeError: browser crashed')
 
+    # 2026-11-17: the browser's own "Unable to capture screenshot" (three good sites rejected in one CI run)
+    TRANSIENT = 'Page.screenshot: Protocol error (Page.captureScreenshot): Unable to capture screenshot'
+
+    def _flaky(self, failures_per_width):
+        calls = {}
+
+        def shoot(page, width):
+            calls[width] = calls.get(width, 0) + 1
+            if calls[width] <= failures_per_width:
+                raise RuntimeError(self.TRANSIENT)
+            return page.screenshot(full_page=True, type='png')
+        return shoot, calls
+
+    def test_the_browsers_transient_capture_error_is_tried_again_and_the_good_site_passes(self):
+        from omni_prod.a2 import capture as C
+        shoot, calls = self._flaky(C.MAX_SHOT_ATTEMPTS - 1)
+        with self.assertLogs(C.__name__, level='WARNING') as logs:
+            c = capture(self.session, self._cand('good-3'), MemoryArtifactStore(), shoot=shoot)
+        self.assertEqual(c['outcome'], 'pass', c.get('rejection'))
+        self.assertEqual(calls, {w: C.MAX_SHOT_ATTEMPTS for w, _ in VIEWPORTS})
+        self.assertEqual(len(logs.output), (C.MAX_SHOT_ATTEMPTS - 1) * len(VIEWPORTS))
+        self.assertIn('A2_SHOT_RETRY', logs.output[0])
+
+    def test_when_the_error_persists_the_site_is_still_rejected_after_a_bounded_number_of_tries(self):
+        from omni_prod.a2 import capture as C
+        shoot, calls = self._flaky(99)
+        with self.assertLogs(C.__name__, level='WARNING'):
+            c = capture(self.session, self._cand('good-4'), MemoryArtifactStore(), shoot=shoot)
+        self.assertEqual((c['outcome'], c['rejection']['reason_code']), ('reject', 'capture_missing'))
+        self.assertEqual(calls, {VIEWPORTS[0][0]: C.MAX_SHOT_ATTEMPTS})        # bounded, and the second viewport is not tried
+        self.assertIn('Page.captureScreenshot', c['rejection']['measured'])
+        self.assertLessEqual(C.MAX_SHOT_ATTEMPTS, 3)
+
+    def test_any_other_capture_error_is_not_tried_again(self):
+        calls = []
+
+        def shoot(page, width):
+            calls.append(width)
+            raise RuntimeError('browser crashed')
+        c = capture(self.session, self._cand('good-5'), MemoryArtifactStore(), shoot=shoot)
+        self.assertEqual(c['rejection']['reason_code'], 'capture_missing')
+        self.assertEqual(calls, [VIEWPORTS[0][0]])
+
     def test_a_page_above_twenty_thousand_pixels_is_not_captured(self):
         c = capture(self.session, self._cand('tall'), MemoryArtifactStore())
         self.assertEqual(c['rejection']['reason_code'], 'capture_missing')
