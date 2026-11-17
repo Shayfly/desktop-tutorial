@@ -155,6 +155,7 @@ _TXT = {
            'missing_none': 'לא חסר כלום — אפשר לעבור לסיכום ולאשר.', 'missing': 'חסר לי:', 'contra': 'יש סתירה שצריך להחליט עליה:',
            'conflict': 'קודם נקבע: {current}. עכשיו הבנתי: {proposed}. לא שיניתי — מה נכון?',
            'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
+           'confirm_sensitive_words': 'זה נושא רגיש ({field}), אז אני צריך תשובה מפורשת שלכם, במילים.',
            'corrected': 'עדכנתי',
            'cost': 'עלות הבנייה: {credits} קרדיטים. תקרת ההוצאה על מודלים לבנייה הזו: עד ${cap} (מוחזק לפני תחילת העבודה; מחויבת העלות בפועל).',
            'canon_ack': 'לפני האישור: כתבו בהודעה את הפרטים החסרים שלמטה, או סמנו את התיבה שמאשרת בנייה בלעדיהם.',
@@ -204,6 +205,7 @@ _TXT = {
            'contra': 'There is a contradiction to decide:',
            'conflict': 'Earlier: {current}. Now I understood: {proposed}. I did not change it — which is right?',
            'confirm_sensitive': 'This is sensitive ({field}), so I need your explicit confirmation with the button.',
+           'confirm_sensitive_words': 'This is sensitive ({field}), so I need your explicit answer, in words.',
            'corrected': 'Updated',
            'cost': 'This build costs {credits} credits. Model spending for it is capped at ${cap} (reserved before work starts; you are charged actual usage).',
            'canon_ack': 'Before approving: send the missing details below in a message, or tick the box to build without them.',
@@ -955,6 +957,10 @@ class ConversationSupervisor:
         res = intake_agent.apply(brief, interp, require_confirmation=sensitive) if interp else intake_agent.apply(
             brief, DeterministicInterpreter().interpret('', brief))
         new_brief = res.brief
+        if (agent.enabled() and row is not None and message and not answers
+                and agent.SUBJECT_ID in self._awaiting(project_id) and not agent.names_a_subject(new_brief.prompt)):
+            # the answer to "what is this about?" is part of the request the build starts from, not a side remark
+            new_brief.prompt = (new_brief.prompt.rstrip() + '\n' + message.strip()).strip()
         # Persist only schema- and evidence-validated model decisions in the same
         # brief revision. They remain reviewable and bind to the normal approval
         # fingerprint; deterministic fallback cannot silently invent exclusions.
@@ -1064,7 +1070,8 @@ class ConversationSupervisor:
         for c in res.conflicts[:3]:
             name = (d.BY_ID[c['field']].he if lang == 'he' else d.BY_ID[c['field']].en) if c['field'] in d.BY_ID else c['field']
             if c['current'] is None:     # the question itself is the card below: the text names the topic only
-                parts.append(T['confirm_sensitive'].format(field=_short(c['field'], lang)))
+                parts.append(T['confirm_sensitive_words' if agent.enabled() else 'confirm_sensitive'].format(
+                    field=_short(c['field'], lang)))
             else:
                 parts.append(T['conflict'].format(current=_label(c['field'], c['current'], lang),
                                                   proposed=_label(c['field'], c['proposed'], lang)))
@@ -1074,7 +1081,10 @@ class ConversationSupervisor:
             parts.append(f'{T["assumed"]}:' + _lines(_label(x['field'], x['value'], lang) for x in short[:3])
                          + (T['more'].format(n=more).lstrip() + '\n' if more > 0 else ''))
         unsure = bool(message and re.search(_UNSURE_RX, message.strip().lower(), re.I))
-        if row.complete and gap_q is None:
+        # the conversation agent asks what the product is about before anything else, and never offers the approval
+        # of a request that does not say it (rehearsal 44126201300: "אתר" alone reached the approval in three turns)
+        no_subject = agent.enabled() and not agent.names_a_subject(row.brief.prompt)
+        if row.complete and gap_q is None and not no_subject:
             feas = self._feasibility(row)
             if feas.get('buildable'):
                 if recorded:
@@ -1121,7 +1131,7 @@ class ConversationSupervisor:
         # conflict), the customer sees the model's own reply and question, not the detector's question, the
         # "chosen for you" list or quick-reply buttons. The detector still records the brief and decides
         # completeness; the approval gates, cost and blockers above stay authoritative and unchanged.
-        listening = not (row.complete and gap_q is None) and not res.conflicts and not turn.blocked
+        listening = not (row.complete and gap_q is None and not no_subject) and not res.conflicts and not turn.blocked
         model_reply = (interp is not None and str(getattr(interp, 'interpreter', '')).startswith('model')
                        and bool((interp.reply or '').strip()))
         if listening and model_reply:
@@ -1144,6 +1154,11 @@ class ConversationSupervisor:
             # the model is configured but did not answer in time: say so; never pass the questionnaire off as it
             turn.reply, turn.questions = T['model_unavailable'], []
         self._card_limit(project_id, account_id, turn, lang, T, request_key)
+        if no_subject and not res.conflicts and not turn.blocked:
+            base = _no_question(interp.reply.strip()) if model_reply else ''   # the model's own words, never a card list
+            turn.reply = ((base or '') + ' ' + agent.SUBJECT_QUESTION['he' if lang == 'he' else 'en']).strip()
+            turn.questions, turn.asked_in_words = [], [agent.SUBJECT_ID]
+            return turn
         if agent.enabled() and turn.questions:
             # no card: the question is part of the reply, in words; it is still recorded as asked, so the next
             # typed message is read against it (see the top of this function)
