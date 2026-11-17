@@ -598,9 +598,11 @@ def answer(brief: Brief, answers: Mapping[str, str]) -> Brief:
         else:
             if q.kind == 'choice' and value not in {o.value for o in q.options}:
                 raise ValueError(f'invalid option for {qid}')
-            stated = {k: f.get('value') for k, f in new.fields.items() if f.get('source') in ('answer', 'message')}
+            own_content_only = (new.fields.get('content_only') or {})
+            stated_content_only = (own_content_only.get('value') if own_content_only.get('source') in ('answer', 'message')
+                                   else None)
             new.fields[q.field] = {'value': value[:2000], 'source': 'answer', 'question_id': qid, 'confidence': 'confirmed'}
-            if qid == 'personal_data' and value == 'yes' and stated.get('content_only') == 'yes':
+            if qid == 'personal_data' and value == 'yes' and stated_content_only == 'yes':
                 new.hints['storage_conflict'] = 'yes'           # asked (storage_intent); nothing is dropped meanwhile
             if qid == 'storage_intent':
                 new.hints.pop('storage_conflict', None)
