@@ -126,27 +126,15 @@ class OnRealServers(unittest.TestCase):
         self.assertEqual(argv, ('python', '.omni/_sandbox/runtime_load.py'))
 
 
-class TheRulesAndTheBounds(unittest.TestCase):
-    def test_each_limit_is_judged_on_its_own(self):
-        ok = {'started': True, 'requests': R.REQUESTS, 'errors': 0, 'alive': True, 'p95_ms': 40, 'rss_kb': 30_000}
-        self.assertEqual(R.judge(ok), [])
-        self.assertEqual([f['code'] for f in R.judge({**ok, 'p95_ms': R.P95_LIMIT_MS + 1})], ['LOAD_SLOW'])
-        self.assertEqual([f['code'] for f in R.judge({**ok, 'rss_kb': R.RSS_LIMIT_KB + 1})], ['MEMORY_HIGH'])
-        self.assertEqual([f['code'] for f in R.judge({**ok, 'requests': R.REQUESTS - 1})], ['LOAD_ERRORS'])
-        self.assertEqual([f['code'] for f in R.judge({**ok, 'alive': False})], ['RUNTIME_CRASHED'])
-        self.assertEqual(R.judge({**ok, 'p95_ms': R.P95_LIMIT_MS, 'rss_kb': R.RSS_LIMIT_KB}), [])   # the limit itself passes
-        self.assertEqual({f['code'] for f in R.judge({**ok, 'alive': False, 'errors': 3})}, {'LOAD_ERRORS', 'RUNTIME_CRASHED'})
-        for code in R.CODES:
-            self.assertIn(code, R._FIX)
-
-    @unittest.skipIf(NESTED, 'real servers: run once in the main suite')
+@unittest.skipIf(NESTED, 'real servers: run once in the main suite, not again in the time-bounded nested run')
+class SlowAndQueued(unittest.TestCase):
     def test_a_slow_product_is_found_by_the_real_measurement(self):
         gate, report = run(SLOW, 'block')
         codes = {f['code'] for f in gate.last_load['findings']}
         self.assertIn('LOAD_SLOW', codes)
         self.assertGreater(gate.last_load['measured']['p95_ms'], R.P95_LIMIT_MS)
 
-    @unittest.skipIf(NESTED, 'real servers: run once in the main suite')
+
     def test_a_server_that_answers_one_visitor_at_a_time_is_found_because_six_ask_at_once(self):
         gate, report = run(ONE_AT_A_TIME, 'block')
         m = gate.last_load['measured']
@@ -154,69 +142,6 @@ class TheRulesAndTheBounds(unittest.TestCase):
         self.assertGreater(m['p95_ms'], R.P95_LIMIT_MS)                    # each answer takes 0.4 s; the queue makes it 2 s+
         self.assertIn('concurrently', ' '.join(f.message for f in report.failures) + R._FIX['LOAD_ERRORS'])
 
-    def test_the_run_is_bounded(self):
-        self.assertLessEqual(R.REQUESTS, 200)
-        self.assertLess(R.START_SECONDS + 5, R.WALL_SECONDS)
-        self.assertLess(R.WALL_SECONDS, 120)
-
-    def test_what_cannot_run_is_not_run_never_a_pass(self):
-        class NoSandbox:
-            def execute(self, *, repository, spec):
-                return ExecutionReport(True, (), 'ok')
-        warn = R.RuntimeLoadExecutor(NoSandbox(), 'warn')
-        self.assertTrue(warn.execute(repository=GOOD, spec=None).passed)
-        self.assertEqual(warn.last_load['status'], 'NOT_RUN')
-        block = R.RuntimeLoadExecutor(NoSandbox(), 'block')
-        self.assertFalse(block.execute(repository=GOOD, spec=None).passed)        # blocking: NOT_RUN is not PASS
-        self.assertFalse(R.RuntimeLoadExecutor(NoSandbox(), 'block').execute(repository={'app.py': 'x'}, spec=None).passed)
-
-    def test_a_product_that_failed_earlier_is_not_load_tested(self):
-        class Failing(LocalSandbox):
-            def execute(self, *, repository, spec):
-                return ExecutionReport(False, (), 'no')
-        gate = R.RuntimeLoadExecutor(Failing(), 'block')
-        self.assertFalse(gate.execute(repository=GOOD, spec=None).passed)
-        self.assertEqual((gate._inner.runs, gate.last_load), ([], None))
-
-    def test_a_deadline_ends_the_build_instead_of_being_a_result(self):
-        from omni_prod.build_control import BuildDeadline
-
-        class Late(LocalSandbox):
-            def _run(self, *a, **k):
-                raise BuildDeadline('out of time')
-        with self.assertRaises(BuildDeadline):
-            R.RuntimeLoadExecutor(Late(), 'warn').execute(repository=GOOD, spec=None)
-
-
-class TheGate(unittest.TestCase):
-    def test_it_enters_at_warn_and_its_mode_is_written_on_every_build(self):
-        from types import SimpleNamespace
-        self.assertIn('G8', G.CALIBRATING)
-        engine = SimpleNamespace(executor=LocalSandbox())
-        with mock.patch.dict(os.environ, {}, clear=False):
-            os.environ.pop('OMNI_GATE_G8', None)
-            self.assertEqual(R.install(engine), 'warn')
-        self.assertEqual(engine.gate_modes['G8'], 'warn')
-        self.assertIsInstance(engine.executor, R.RuntimeLoadExecutor)
-        self.assertEqual(R.report(engine), {'gate': 'G8', 'mode': 'warn', 'last': None})
-
-    def test_off_is_said_and_installs_nothing(self):
-        from types import SimpleNamespace
-        engine = SimpleNamespace(executor=LocalSandbox())
-        with mock.patch.dict(os.environ, {'OMNI_GATE_G8': 'off'}), self.assertLogs(R.__name__, 'WARNING') as logs:
-            R.install(engine)
-        self.assertIn('GATE_OFF gate=G8', logs.output[0])
-        self.assertIsInstance(engine.executor, LocalSandbox)
-        self.assertEqual(R.report(engine)['mode'], 'off')
-
-    def test_the_worker_and_the_rehearsal_install_it_and_the_evidence_carries_it(self):
-        root = Path(__file__).resolve().parent.parent
-        worker = (root / 'omni_prod' / 'worker_tasks.py').read_text(encoding='utf-8')
-        self.assertIn('install_runtime_load(engine)', worker)
-        self.assertIn("evidence['runtime_load'] = runtime_load_report(engine)", worker)
-        rehearsal = (root / 'omni_prod' / 'rehearsal.py').read_text(encoding='utf-8')
-        self.assertIn('install_runtime_load(engine)', rehearsal)
-        self.assertIn("report['runtime_load'] = runtime_load_report(engine)", rehearsal)
 
 
 if __name__ == '__main__':

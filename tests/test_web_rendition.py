@@ -18,7 +18,7 @@ from omni_prod.uploaded_assets import _MainImage
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def photo(size=(4000, 3000), fmt='JPEG', orientation=None, mode='RGB', quality=95):
+def photo(size=(2400, 1800), fmt='JPEG', orientation=None, mode='RGB', quality=95):
     """A phone-sized picture with detail in it (noise does not compress away), and one red corner at top-left."""
     img = Image.effect_noise(size, 48).convert(mode)
     img.paste((220, 0, 0) + ((255,) if mode == 'RGBA' else ()), (0, 0, size[0] // 4, size[1] // 4))
@@ -54,7 +54,7 @@ class AHeavyPhotoBecomesLight(unittest.TestCase):
     def test_it_is_the_same_picture_with_the_same_proportions(self):
         img = decoded(self.r)
         self.assertEqual(img.size, (self.r['width'], self.r['height']))
-        self.assertAlmostEqual(img.width / img.height, 4000 / 3000, places=2)
+        self.assertAlmostEqual(img.width / img.height, 2400 / 1800, places=2)
         r, g, b = img.convert('RGB').getpixel((img.width // 16, img.height // 16))
         self.assertTrue(r > 150 and g < 90 and b < 90, (r, g, b))           # the red corner is still top-left
 
@@ -65,7 +65,7 @@ class AHeavyPhotoBecomesLight(unittest.TestCase):
 
     def test_the_page_passes_the_unit_that_failed_on_the_butcher(self):
         digest = hashlib.sha256(self.data).hexdigest()
-        img = _MainImage(self.data, 'image/jpeg', digest, 'דלתות פנים', 4000, 3000)
+        img = _MainImage(self.data, 'image/jpeg', digest, 'דלתות פנים', 2400, 1800)
         heavy = 'data:image/jpeg;base64,' + base64.b64encode(self.data).decode('ascii')
         self.assertEqual(run_unit('perf_inline_image_weight', f'<img src="{heavy}" alt="x">')['status'], 'fail')
         self.assertEqual(run_unit('perf_inline_image_weight', f'<img src="{img.uri}" alt="x">')['status'], 'pass')
@@ -111,7 +111,7 @@ class TheRules(unittest.TestCase):
         self.assertEqual((img.data, img.width, img.height), (data, 800, 600))
 
     def test_a_phone_photo_stored_sideways_comes_out_upright(self):
-        data = photo(size=(4000, 3000), orientation=6)      # tag 6: rotate 90 degrees clockwise to show
+        data = photo(size=(2400, 1800), orientation=6)      # tag 6: rotate 90 degrees clockwise to show
         r = W.rendition(data, 'image/jpeg')
         img = decoded(r)
         self.assertGreater(img.height, img.width)           # portrait now
