@@ -66,8 +66,11 @@ class NoDeadEnd(unittest.TestCase):
         self.assertGreater(total, 200)                       # the walk really covered the tree (252 on 2026-11-16)
 
     def test_stored_personal_details_are_a_persistence_decision(self):
-        outcome, path, turn = walk(PROMPTS[0], (0, 0, 0, 0, 0))   # content only: yes; then personal details: yes
+        # content only: yes; then personal details: yes; then (2026-11-17, "148 דלתות") the conflict is asked in words
+        # instead of the first answer being dropped in silence -- the customer says visitors' details ARE stored
+        outcome, path, turn = walk(PROMPTS[0], (0, 0, 0, 0, 0, 1))
         self.assertEqual(dict(path).get('personal_data'), 'yes')
+        self.assertEqual(dict(path).get('storage_intent'), 'visitors')
         self.assertEqual(outcome, 'summary')
         brief = turn.brief_row.brief
         self.assertEqual(d.stores_by_own_answer(brief), 'personal_data=yes')
