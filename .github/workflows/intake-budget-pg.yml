@@ -132,6 +132,11 @@ jobs:
         timeout-minutes: 14
         env:
           NC_ENV: pg      # compare with each control's expect_failed_pg; extra failures here are INFO, not FAIL
+          # 2026-11-17: the limit was raised 5 -> 10 -> 14 and still ran over (main 8:56-11:37; a branch over 14). Not
+          # raised again: 3 controls at once, each worker on its own copy of this database and its own Redis index.
+          NC_JOBS: "3"
+          NC_DB_URL: postgresql://postgres:ci-only@127.0.0.1:5432/postgres
+          NC_REDIS_URL: redis://127.0.0.1:6379/0
         run: python scripts/run_negative_controls.py
       - name: No test may be skipped
         if: always()
