@@ -54,8 +54,10 @@ class TaskRoutingTests(unittest.TestCase):
         self.assertEqual(self.order('architecture'), ['flash', 'lite'])
 
     def test_cheap_task_classes_stay_cost_first(self):
-        for task in ('conversation', 'classification', 'general'):
+        for task in ('classification', 'general'):
             self.assertEqual(self.order(task), ['lite', 'flash'], task)
+        # DECISIONS 10 (the owner, 2026-11-17): the conversation decides what is built -- the stronger model first
+        self.assertEqual(self.order('conversation'), ['flash', 'lite'])
 
     def test_env_override(self):
         # The ops knob lowers PREFERRED floors only: codegen's mandatory 85 is not overridable (T5) ...
