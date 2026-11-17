@@ -1,3 +1,17 @@
+# 2026-11-17 — A4 decides how many pictures a build generates; #426 merged and released (Claude Code)
+
+- **Merged:** #426 `95f851c` -> `609929e` (`[release]`). CI green on the exact SHA (17 checks; `publish-report` is a
+  main-only job and is skipped on every PR); full suite on the branch: 3733 passed, 0 failed.
+- **A4 -> planner link (the owner, 2026-11-17: "as many as the customer wants while they have credits; to start, up
+  to 3 per build"):** `a4.pictures(prompt)` decides the number, `capability_planner` writes it as the image
+  requirement's `quantity` -- the number the price, the provider call (`num_outputs`) and the page already read.
+  Rule: the number the request states, minus the customer's own placed photos, at least 1, at most 3. A request past
+  the cap is cut and the cut is on the requirement (`pictures_asked`) and in the log (`PICTURES_CUT`). Whether a build
+  generates any picture is unchanged (founder decision 2026-10-07 #28). An icon is always one.
+- **Evidence:** `tests/test_a4_picture_count.py` 11 passed; controls `a4_picture_count` 7/7; `test_fast.sh` exit 0.
+- **NOT verified:** no real build has generated more than one picture. The customer is not yet told in the chat that
+  a request was cut. Three pictures are three takes of ONE subject: a picture per dish needs a requirement per picture.
+
 # 2026-11-17 — three new checks, all entering at warn: G5 rights, A4 asset plan, G8 runtime and load (Claude Code)
 
 - **G5 (rights), rewritten after an independent review:** every served file is read with a real parser (HTML, CSS,

@@ -20,8 +20,16 @@ A4 makes ONE asset plan per build, from the images the worker already bound:
    only after it is calibrated on three builds.
 4. `report(engine)` -- the plan and the last check, for the build evidence (`asset_plan`).
 
-What A4 does NOT do yet: decide HOW MANY images to generate (capability_planner still does: one requirement), price
-them, or choose between candidate images. Those need the planner to ask A4 before generation (the A4 -> A3 link).
+5. `pictures(prompt)` -- HOW MANY pictures one build generates (the A4 -> planner link; the owner, 2026-11-17: "as
+   many as the customer wants while they have credits; to start, up to 3 per build"). The capability planner asks
+   A4 and writes the answer as the image requirement's quantity, so the plan's price, the provider call and the
+   page all see the same number. The customer's own photos fill their places first: a request for five pictures
+   with two uploaded generates three. A request past FIRST_CAP is cut to it and the cut is in the requirement's
+   constraints (`pictures_asked`) and in the log -- never silent.
+
+What A4 does NOT do yet: give each generated picture its own subject (one requirement, one description, so three
+pictures are three takes of the same subject -- a menu with a photo per dish needs a requirement per picture), or
+choose between candidate images.
 """
 from __future__ import annotations
 
@@ -38,6 +46,15 @@ _PLACE_EN = {'icon': 'in the header, next to the business name', 'hero': 'the fi
              'story': 'inside the "our story" section', 'products': 'inside the products section',
              'gallery': 'inside the gallery section'}
 _IMG = re.compile(r'<img\b[^>]*>', re.I | re.S)
+FIRST_CAP = 3                           # generated pictures per build (the owner, 2026-11-17: "up to 3 to start")
+_NUMBER_WORDS = {'שתי': 2, 'שתיים': 2, 'שני': 2, 'שניים': 2, 'שלוש': 3, 'שלושה': 3, 'ארבע': 4, 'ארבעה': 4,
+                 'חמש': 5, 'חמישה': 5, 'שש': 6, 'שישה': 6, 'שבע': 7, 'שבעה': 7, 'שמונה': 8, 'תשע': 9, 'תשעה': 9,
+                 'עשר': 10, 'עשרה': 10, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7,
+                 'eight': 8, 'nine': 9, 'ten': 10}
+_PICTURE_NOUNS = r'(?:תמונות|איורים|pictures|images|photos|illustrations)'
+_ASKED = re.compile(r'(?<![\w.])(\d{1,3}|' + '|'.join(sorted(_NUMBER_WORDS, key=len, reverse=True)) + r')\s+'
+                    + _PICTURE_NOUNS + r'(?!\w)', re.I)
+_UPLOAD = re.compile(r'148ai-asset://upload/(\d+)')
 
 
 class AssetPlanError(ValueError):
@@ -47,6 +64,22 @@ class AssetPlanError(ValueError):
 def _slot(img, source: str, place: str, why: str) -> dict:
     return {'place': place, 'source': source, 'index': img.index, 'marker': img.marker, 'alt': img.alt,
             'sha256': getattr(img, 'sha256', None), 'bytes': len(getattr(img, 'data', b'') or b''), 'why': why}
+
+
+def pictures(prompt: str) -> dict:
+    """{'asked', 'uploaded', 'count'}: how many pictures this build generates, when it generates any.
+
+    `asked` is the largest number of pictures the customer's request states ("5 תמונות", "three images"); 1 when it
+    states none. `uploaded` is how many of the customer's own photos the approved request places. `count` is what is
+    generated: the pictures still missing after the customer's photos, at least 1, at most FIRST_CAP. Whether a
+    build generates a picture AT ALL is not decided here (media_pipeline: only when the request asks for one)."""
+    from ..generated_images import _request_text
+    asked = 1
+    for m in _ASKED.finditer(_request_text(prompt)):
+        word = m.group(1).lower()
+        asked = max(asked, int(word) if word.isdigit() else _NUMBER_WORDS[word])
+    uploaded = len(set(_UPLOAD.findall(prompt or '')))
+    return {'asked': asked, 'uploaded': uploaded, 'count': max(1, min(asked - uploaded, FIRST_CAP))}
 
 
 def plan(uploaded=(), generated=()) -> list[dict]:
