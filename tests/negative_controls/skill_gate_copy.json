@@ -60,19 +60,18 @@
   },
   {
    "id": "NC4",
-   "what": "the copy gate warns instead of blocking",
+   "what": "the gate blocks from its first day (the owner's rule 4: G10 warns until it is calibrated on three builds)",
    "mutations": [
     {
      "file": "omni_prod/skill_units/gate.py",
-     "old": "'HE': 'block', 'G10': 'block',",
-     "new": "'HE': 'block', 'G10': 'warn',"
+     "old": "CALIBRATING = ('HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE')",
+     "new": "CALIBRATING = ('HE', 'G11', 'G1', 'BRAND', 'SHARE')"
     }
    ],
    "targets": [
     "tests/test_skill_gate_copy.py"
    ],
    "expect_failed": [
-    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
     "test_the_gate_is_two_units_and_blocks_by_default"
    ]
   },

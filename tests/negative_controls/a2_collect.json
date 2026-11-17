@@ -108,7 +108,9 @@
    "expect_failed": [
     "test_a_missing_screenshot_is_never_a_pass",
     "test_a_page_above_twenty_thousand_pixels_is_not_captured",
-    "test_one_run_counts_every_rejection_by_its_reason"
+    "test_any_other_capture_error_is_not_tried_again",
+    "test_one_run_counts_every_rejection_by_its_reason",
+    "test_when_the_error_persists_the_site_is_still_rejected_after_a_bounded_number_of_tries"
    ]
   },
   {
@@ -155,6 +157,47 @@
     "test_more_than_sixty_is_cut_and_counted",
     "test_one_run_counts_every_rejection_by_its_reason",
     "test_the_customers_words_never_reach_the_library"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the browser's transient capture error rejects a good site at once (the a2 flake as it was)",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/capture.py",
+     "old": "            if TRANSIENT_SHOT_ERROR not in str(exc) or attempt == MAX_SHOT_ATTEMPTS:",
+     "new": "            if True:"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_collect.py"
+   ],
+   "expect_failed": [
+    "test_the_browsers_transient_capture_error_is_tried_again_and_the_good_site_passes",
+    "test_when_the_error_persists_the_site_is_still_rejected_after_a_bounded_number_of_tries"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "every capture error is tried again, not only the transient one",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/capture.py",
+     "old": "            if TRANSIENT_SHOT_ERROR not in str(exc) or attempt == MAX_SHOT_ATTEMPTS:",
+     "new": "            if attempt == MAX_SHOT_ATTEMPTS:"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_collect.py"
+   ],
+   "expect_failed": [
+    "test_any_other_capture_error_is_not_tried_again"
    ]
   }
  ]
