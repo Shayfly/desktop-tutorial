@@ -108,7 +108,8 @@ class PreflightNeverHidesARealFailure(unittest.TestCase):
         self.assertEqual(result.status, 'failed')
         self.assertGreaterEqual(result.repair_rounds, 1)
         self.assertEqual(pf.syntax_errors(chain.runs[0]), [{'file': 'tests/test_app.py', 'line': 2,
-                                                             'message': 'Python syntax error: unterminated string literal (detected at line 2)'}])
+                                                             'message': 'Python syntax error: unterminated string literal (detected at line 2)'
+                                                                        ' -> `assert "unterminated`'}])
         self.assertFalse([r for r in engine.failure_taxonomy if r['layer'] == 'preflight' and r['was_repaired']])
 
     def test_a_pre_flight_fix_may_only_touch_the_affected_files(self):

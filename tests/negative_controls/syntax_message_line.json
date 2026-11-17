@@ -1,0 +1,79 @@
+{
+ "pr": "syntax-message-line",
+ "sha256": [
+  "tests/test_syntax_message_carries_the_line.py",
+  "omni_prod/round_preflight.py",
+  "omni_prod/consistency_gate.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "pre-flight says only the line number",
+   "mutations": [
+    {
+     "file": "omni_prod/round_preflight.py",
+     "old": "f'Python syntax error: {exc.msg}' + source_line(text, exc.lineno)})",
+     "new": "f'Python syntax error: {exc.msg}'})"
+    }
+   ],
+   "targets": [
+    "tests/test_syntax_message_carries_the_line.py"
+   ],
+   "expect_failed": [
+    "test_a_long_line_is_cut_and_the_cut_is_marked",
+    "test_pre_flight"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the consistency gate says only the line number",
+   "mutations": [
+    {
+     "file": "omni_prod/consistency_gate.py",
+     "old": "f'Python syntax error: {exc.msg}' + source_line(text, exc.lineno),",
+     "new": "f'Python syntax error: {exc.msg}',"
+    }
+   ],
+   "targets": [
+    "tests/test_syntax_message_carries_the_line.py"
+   ],
+   "expect_failed": [
+    "test_the_consistency_gate_says_the_same_line"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a long line floods the message",
+   "mutations": [
+    {
+     "file": "omni_prod/round_preflight.py",
+     "old": "line[:MAX_SOURCE_LINE] + '...'",
+     "new": "line"
+    }
+   ],
+   "targets": [
+    "tests/test_syntax_message_carries_the_line.py"
+   ],
+   "expect_failed": [
+    "test_a_long_line_is_cut_and_the_cut_is_marked"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "an empty line gets an empty quote",
+   "mutations": [
+    {
+     "file": "omni_prod/round_preflight.py",
+     "old": "    if not line:\n        return ''\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_syntax_message_carries_the_line.py"
+   ],
+   "expect_failed": [
+    "test_no_line_no_tail"
+   ]
+  }
+ ]
+}

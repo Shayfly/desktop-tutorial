@@ -18,6 +18,26 @@ PLAN_PATH = '.omni/project.json'
 MAX_FIXES_PER_ISSUE = 1          # one narrow repairer call per issue per round; then the real round decides
 
 
+MAX_SOURCE_LINE = 200            # characters of the failing line that go into the message
+
+
+def source_line(text: str, lineno) -> str:
+    """' -> `<the line as written>`' for a syntax message, or '' when there is no such line.
+
+    Rehearsal 44042316516 (2026-11-17, the butcher): "tests/test_site.py:96 ... closing parenthesis ']' does not match
+    opening parenthesis '('" came back word for word after one pre-flight fix and one repair round, the build stopped
+    as no_progress_same_failure, and nothing in the evidence said what line 96 was. A message with only a line number
+    makes the repairer find the line again in a file it is rewriting, and leaves a person reading the log with
+    nothing. The line itself is the evidence."""
+    lines = (text or '').splitlines()
+    if not isinstance(lineno, int) or not 1 <= lineno <= len(lines):
+        return ''
+    line = lines[lineno - 1].strip()
+    if not line:
+        return ''
+    return ' -> `' + (line if len(line) <= MAX_SOURCE_LINE else line[:MAX_SOURCE_LINE] + '...') + '`'
+
+
 def syntax_errors(repository: dict[str, str]) -> list[dict]:
     """Python files that do not compile and JSON files that do not parse (file, line, message)."""
     out = []
@@ -29,7 +49,8 @@ def syntax_errors(repository: dict[str, str]) -> list[dict]:
             try:
                 compile(text, path, 'exec', dont_inherit=True)
             except SyntaxError as exc:
-                out.append({'file': path, 'line': exc.lineno or 0, 'message': f'Python syntax error: {exc.msg}'})
+                out.append({'file': path, 'line': exc.lineno or 0,
+                            'message': f'Python syntax error: {exc.msg}' + source_line(text, exc.lineno)})
             except ValueError as exc:                       # e.g. a NUL byte
                 out.append({'file': path, 'line': 0, 'message': f'Python source error: {exc}'})
         elif path.endswith('.json'):
