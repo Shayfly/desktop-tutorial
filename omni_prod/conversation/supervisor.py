@@ -666,7 +666,8 @@ class ConversationSupervisor:
         self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
                                interpretation={'intent': turn.intent, **(turn.interpretation or {}),
-                                               'asked': [q.id for q in turn.questions],
+                                               'asked': [q.id for q in turn.questions]
+                                                        + list(getattr(turn, 'asked_in_words', None) or ()),
                                                # R1/8.6: every time the system asks the persistence decision it is
                                                # counted (the frozen-run report reads it as systemAskedDecisions)
                                                **({'decision_asked': {'field': 'persistence', 'trigger':
@@ -920,6 +921,19 @@ class ConversationSupervisor:
             source.history = [m for m in self.store.messages_for(project_id, limit=6)[:-1]
                               if not (m.get('interpretation') or {}).get('system')][-4:]   # never the flow mark
             interp = source.interpret(message, row.brief if row else None)
+        from ..intake import conversation_agent as agent
+        if agent.enabled() and row is not None and message and not answers:
+            # phase 1 of the conversation agent (the owner, 2026-11-17): no cards, so the customer answers a question
+            # by typing. It counts only for the question asked in the previous turn, and only when the words name
+            # exactly one option or the model quoted this message for it -- otherwise the question stays open.
+            for qid in self._awaiting(project_id):
+                q = d.BY_ID.get(qid)
+                if q is None or q.kind != 'choice' or q.id in {x.id for x in d.IMAGE_QUESTIONS}:
+                    continue
+                value = agent.typed_choice(q, message) or (agent.model_choice(q, interp) if interp else None)
+                if value is not None:
+                    answers = {q.id: value}
+                    break
         brief = row.brief if row else d.start(self._whole_request(project_id, message or ''), d.GUIDED)
         for qid, value in answers.items():
             brief = intake_agent.answer_question(brief, qid, value)
@@ -1116,6 +1130,15 @@ class ConversationSupervisor:
             # the model is configured but did not answer in time: say so; never pass the questionnaire off as it
             turn.reply, turn.questions = T['model_unavailable'], []
         self._card_limit(project_id, account_id, turn, lang, T, request_key)
+        if agent.enabled() and turn.questions:
+            # no card: the question is part of the reply, in words; it is still recorded as asked, so the next
+            # typed message is read against it (see the top of this function)
+            q = turn.questions[0]
+            if not agent.has_question(turn.reply) or turn.reply.strip() in (T['ask_one'].strip(), ''):
+                base = '' if turn.reply.strip() == T['ask_one'].strip() else turn.reply.strip()
+                turn.reply = (base + ' ' + agent.asked_in_words(q, lang)).strip()
+            turn.asked_in_words = [x.id for x in turn.questions]
+            turn.questions = []
         return turn
 
     def _not_repeated(self, project_id, turn, T) -> str:

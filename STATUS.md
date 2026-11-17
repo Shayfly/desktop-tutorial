@@ -1,3 +1,19 @@
+# 2026-11-17 — conversation agent, phase 1: no question cards (Claude Code)
+
+- **The owner's order (2026-11-17):** no ready-made questionnaire; the first conversation is with a live model
+  that knows the work. Plan: `docs/CONVERSATION_AGENT_PLAN_HE.md` (four phases).
+- **Phase 1 (flag `OMNI_INTAKE_AGENT`, strict: 0 or 1, anything else raises):** the customer never sees a
+  question card. Every question is in the reply, in words; it is still recorded as asked. A typed answer settles
+  only the question asked in the previous turn, and only when the words name exactly one option
+  (`intake/conversation_agent.typed_choice`, closed word lists) or the model proposed that field with high confidence
+  and a quote from that message. Otherwise nothing is set. The deterministic layer still decides what is open and
+  when the brief is complete; the two approvals stay server-bound buttons.
+- **Evidence:** `tests/test_conversation_agent_no_cards.py` 6 passed -- a whole conversation through the real
+  supervisor reaches the spec approval with no card (content-only, from typed words); without the flag the cards are
+  as before. Controls `conversation_agent_phase1` 6/6; `test_fast.sh` exit 0.
+- **NOT verified:** a conversation with the live model (phase 4). **Open for the owner:** the conversation model
+  (DECISIONS 10) and switching the flag on in production (DECISIONS 11).
+
 # 2026-11-17 — "content only" is asked, not dropped (Claude Code)
 
 - **Merged and released:** #436 `6ad3eed` -> `227d23c` (doors palette; the measure rule keeps its check; no phone

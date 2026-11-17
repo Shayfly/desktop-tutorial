@@ -1,0 +1,116 @@
+{
+ "pr": "conversation-agent-phase1",
+ "sha256": [
+  "tests/test_conversation_agent_no_cards.py",
+  "omni_prod/conversation/supervisor.py",
+  "omni_prod/intake/conversation_agent.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the card is shown again",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            turn.questions = []\n        return turn",
+     "new": "            pass\n        return turn"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_no_cards.py"
+   ],
+   "expect_failed": [
+    "test_each_question_is_in_the_reply_in_words",
+    "test_the_whole_conversation_has_no_card_and_reaches_the_approval"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the question is not put in words",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                turn.reply = (base + ' ' + agent.asked_in_words(q, lang)).strip()",
+     "new": "                turn.reply = base or turn.reply"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_no_cards.py"
+   ],
+   "expect_failed": [
+    "test_each_question_is_in_the_reply_in_words"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a typed answer is never read",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                if value is not None:\n                    answers = {q.id: value}\n                    break",
+     "new": "                if False:\n                    answers = {q.id: value}\n                    break"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_no_cards.py"
+   ],
+   "expect_failed": [
+    "test_a_typed_answer_counts_only_for_the_question_just_asked",
+    "test_the_whole_conversation_has_no_card_and_reaches_the_approval"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the question asked in words is not remembered",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                                                        + list(getattr(turn, 'asked_in_words', None) or ()),",
+     "new": "                                                        + [],"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_no_cards.py"
+   ],
+   "expect_failed": [
+    "test_a_typed_answer_counts_only_for_the_question_just_asked",
+    "test_each_question_is_in_the_reply_in_words",
+    "test_the_whole_conversation_has_no_card_and_reaches_the_approval"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "two options named count as one",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "    return hits.pop() if len(hits) == 1 else None",
+     "new": "    return hits.pop() if hits else None"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_no_cards.py"
+   ],
+   "expect_failed": [
+    "test_words_that_name_no_option_or_two_set_nothing"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "an unknown flag value means on",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "    if value not in ('0', '1'):\n        raise ValueError",
+     "new": "    if False:\n        raise ValueError"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_no_cards.py"
+   ],
+   "expect_failed": [
+    "test_the_flag_is_strict"
+   ]
+  }
+ ]
+}
