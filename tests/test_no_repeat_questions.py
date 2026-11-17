@@ -83,10 +83,18 @@ class TheLoopIsGone(unittest.TestCase):
         self.assertNotEqual(asked(t), first)
 
     def test_a_label_that_reads_as_another_family_does_not_reset_the_spec(self):
+        # 2026-11-17: the classification corpus made this label read as a website (it opens with "אתר"), so it no
+        # longer reads as another family by itself; the guard is kept honest by a label that does
+        from unittest import mock
+        from omni_prod.intake import families
+        real = families.named_family
+        label = d.BY_ID['content_only'].options[0].he
         c = Conversation()
         c.say(FLOWERS)
         c.click({'personal_data': 'yes'})
-        t = c.click({'content_only': 'yes'})                             # label "...בלי שמירת נתונים" -> web_app
+        with mock.patch.object(families, 'named_family',
+                               lambda text: 'web_app' if label in (text or '') else real(text)):
+            t = c.click({'content_only': 'yes'})                         # the label reads as an app
         self.assertEqual(t.gaps['kind'], 'website')
         spec, _, _ = c.sup()._replayed_spec(c.pid)                       # what was said is still known
         self.assertEqual((spec.kind, spec.value('personal_data')), ('website', 'yes'))

@@ -82,6 +82,25 @@ class NoCards(unittest.TestCase):
         with mock.patch.dict(os.environ, {A.FLAG: '0'}):
             self.assertFalse(A.enabled())
 
+    def test_per_account_only_the_listed_account_talks_to_the_agent(self):
+        env = {A.FLAG: 'accounts', A.ACCOUNTS: 'usr_owner, usr_other'}
+        with mock.patch.dict(os.environ, env):
+            def first(account):
+                sup = ConversationSupervisor(briefs=MemoryBriefs(), store=MemoryConversationStore(), credits=10,
+                                             context=lambda p: {})
+                turns = [sup.turn(project_id='q', account_id=account, message=REQUEST, lang='he')]
+                for _ in range(4):
+                    if turns[-1].questions:
+                        break
+                    turns.append(sup.turn(project_id='q', account_id=account, message='תחליטו אתם', lang='he'))
+                return turns
+            self.assertTrue(all(t.questions == [] for t in first('usr_owner')))       # the agent: no card
+            self.assertTrue(any(t.questions for t in first('usr_someone_else')))     # as before: cards
+            self.assertFalse(A.enabled())                                              # outside a turn: no account
+        with mock.patch.dict(os.environ, {A.FLAG: 'accounts', A.ACCOUNTS: ''}):
+            with self.assertRaises(ValueError):
+                A.enabled('usr_owner')                                                 # nobody listed: an error
+
     def test_without_the_flag_the_cards_are_as_before(self):
         with mock.patch.dict(os.environ, {A.FLAG: '0'}):
             sup = ConversationSupervisor(briefs=MemoryBriefs(), store=MemoryConversationStore(), credits=10,

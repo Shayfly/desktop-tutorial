@@ -1,0 +1,510 @@
+{
+ "_about": "Classification corpus (the owner, 2026-11-17): Hebrew and English requests with the product type a professional would build. Frozen: a row changes only with a reason in the commit that changes it. Sources: \"production\" = the first customer message of a real project (intake_messages, read only); \"claude\" = written by Claude Code to cover the categories. Run by tests/test_classification_corpus.py.",
+ "rows": [
+  {
+   "source": "production",
+   "text": "An internal tool for my team to track equipment loans, in English, no login",
+   "expected": "web_app"
+  },
+  {
+   "source": "production",
+   "text": "Build a simple todo list app",
+   "expected": "web_app"
+  },
+  {
+   "source": "production",
+   "text": "אני מנהלת סטודיו קטן לפילאטיס בחיפה עם 3 מדריכות. אני רוצה אתר שבו מתאמנות רואות את מערכת השיעורים של השבוע, נרשמות לשיעור ומבטלות עד 4 שעות לפני",
+   "expected": "web_app"
+  },
+  {
+   "source": "production",
+   "text": "אני ספר עם שתי כיסאות. רוצה שהלקוחות יקבעו תור מהטלפון, יבטלו לבד, ושאראה יומן יומי. שיהיה בעברית ופשוט. בלי התחברות ובלי הרשאות.",
+   "expected": "web_app"
+  },
+  {
+   "source": "production",
+   "text": "אני רוצה אתר אוהדים של ביתר ירושלים שיהיה מידע על המועדון ותמונות של שחקנים",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "אני רוצה אתר לספרייה קהילתית בשכונה. אנשים יכולים לראות אילו ספרים יש, לבקש להשאיל ספר, ומנהל הספרייה מאשר ומסמן כשהספר חזר.",
+   "expected": "web_app"
+  },
+  {
+   "source": "production",
+   "text": "אני רוצה שתבנה לי אתר אוהדים של בית״ר ירושלים מידע מורחב על הקבוצה היסטוריה ועוד",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "אפליקציה לניהול ניקוד במשחקי לוח, בלי התחברות. טופס עם שדה ניקוד מספרי לכל סיבוב, וטבלה שמסכמת את הניקוד.",
+   "expected": "web_app"
+  },
+  {
+   "source": "production",
+   "text": "אתר אוהדים של בית״ר ירושלים עם תמונות של השחקנים מידע והיסטוריה",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "אתר אוהדים של רבי נחמן מאומן",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "אתר אינטרנט לחנות לדלתות פנים עם מבצע מיוחד לגבי דלת פנים לממ״ד במחיר של 1390 ש״ח כולל הובלה והתקנה",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "אתר ווב בעברית עם טופס וטבלת תוצאות. טופס עם שם ומספר, שמירה בטבלה ממוינת מהגבוה לנמוך, הצגת עשרת המובילים.",
+   "expected": "web_app"
+  },
+  {
+   "source": "production",
+   "text": "אתר ווב לטבלת שעות עבודה: טופס עם שדה מספר שעות וכפתור שמירה, וטבלה שמסכמת. בלי התחברות.",
+   "expected": "web_app"
+  },
+  {
+   "source": "production",
+   "text": "אתר לחנות פרחים בשם פרחי אילת — משלוחים לאילת, תשלום במזומן בלבד, והזמנה מראש לחתונות",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "דף נחיתה לבית קפה קטן, עם תמונה ראשית גדולה של כוס קפה על שולחן עץ ליד חלון, כותרת, שעות פתיחה וכפתור \"הזמנת שולחן\".",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "האטליז של סבא שמעון, רחוב נתיב המזלות 22, ירושלים, טלפון 0504000162. שעות: א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00, שבת סגור. בשר בקר טרי, עוף",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "המספרה דל איציק בוזגלו רחוב התמרים 20 אילת טלפון 050344565",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "מערכת הזמנות למספרה באילת עם מערכת תורים",
+   "expected": "web_app"
+  },
+  {
+   "source": "production",
+   "text": "מערכת לניהול תורים למספרה קטנה, עם התחברות לספרים בלבד",
+   "expected": "web_app"
+  },
+  {
+   "source": "production",
+   "text": "רוצה אתר תדמית למספרה באילת, עם מחירון וטופס יצירת קשר",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "תבנה לי אפליקציית iOS נייטיבית לאייפון, עם תשלומים בתוך האפליקציה דרך App Store",
+   "expected": "mobile_app"
+  },
+  {
+   "source": "production",
+   "text": "תבנה לי דף לחנות הפרחים שלי, \"שושנת העמקים\", ברח' נתיב המזלות 22, ירושלים. שיהיה כפתור להתקשר 052-1234567 וכפתור וואטסאפ לאותו מספר",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "אתר",
+   "expected": "website"
+  },
+  {
+   "source": "production",
+   "text": "שם העסק: 148 דלתות בהנהלת: נסים אוחנה טלפון: 050-345-6723. טון: ישיר, מקצועי. מבנה הדף: הירו — דלת ממד. החלטות מפורשות: דף סטטי. בלי טופס הרשמה.",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לאטליז \"בשר השכונה\" ברחוב הרצל 12, חיפה. טלפון 04-8123456.",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר תדמית לבית קפה שכונתי בתל אביב עם תפריט ומחירים",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "דף נחיתה למאפייה שלי בחיפה",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר למאמן כושר אישי ברעננה עם מחירון",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לעורך דין לענייני משפחה, עם טופס יצירת קשר",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לרואה חשבון בפתח תקווה",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לחשמלאי מוסמך באזור השרון, עם כפתור חיוג",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לאינסטלטור, זמין 24 שעות",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר למספרה שלי בחולון",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לצלמת חתונות עם גלריה",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "תיק עבודות למעצבת גרפית",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "בלוג על בישול טבעוני",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לצימר בגליל עם תמונות ומחירים",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר למרפאת שיניים ברמת גן",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לווטרינר בבאר שבע עם שעות קבלה",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לחנות תכשיטים בעבודת יד",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לקבלן שיפוצים עם גלריית עבודות",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר למנעולן באשדוד",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לחברת הובלות",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר למכון כושר עם מערכת שעות",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "דף נחיתה לסדנת קרמיקה",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר למזגנים, התקנה ותיקון, כפתור וואטסאפ",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לקייטרינג לאירועים עם תפריטים",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לחנות פרחים עם שני כפתורים גדולים לוואטסאפ ולחיוג",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לחנות יין, בלי הזמנות אונליין",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר ללהקת חתונות עם סרטון הופעה קצר",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לחברת דלתות, הובלה, הרכבה ופירוק הדלת הישנה",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "website for a dental clinic in Haifa",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "landing page for my bakery",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "portfolio site for a photographer",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "מערכת לניהול לקוחות לסוכן ביטוח",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "אתר למספרה עם קביעת תורים אונליין",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "מערכת הזמנת שולחנות למסעדה",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לבית קפה עם הזמנות אונליין לאיסוף",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "טופס הרשמה לחוג עם רשימת נרשמים למנהלת",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לניהול ספרייה עם מנויים",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "אתר בעברית לניהול טבלת ליגת כדורגל עם טופס להזנת תוצאות",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "מערכת לניהול מלאי לחנות",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "לוח מודעות לשכונה שבו כל אחד מפרסם מודעה",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "מערכת לניהול משמרות לעובדים",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "אתר עם התחברות ללקוחות לצפייה בהזמנות שלהם",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "web app to track my expenses",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "a CRM for my small agency",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "dashboard for my sales numbers",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "מחשבון משכנתא",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "רשימת קניות משותפת למשפחה",
+   "expected": "web_app"
+  },
+  {
+   "source": "claude",
+   "text": "משחק זיכרון לילדים",
+   "expected": "game"
+  },
+  {
+   "source": "claude",
+   "text": "משחק דפדפן: תופסים כוכבים נופלים עם סל",
+   "expected": "game"
+  },
+  {
+   "source": "claude",
+   "text": "תבנה לי משחק פלטפורמה",
+   "expected": "game"
+  },
+  {
+   "source": "claude",
+   "text": "build me a 2d game",
+   "expected": "game"
+  },
+  {
+   "source": "claude",
+   "text": "משחק טריוויה על ישראל",
+   "expected": "game"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לחנות משחקים לילדים",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לאולפן הקלטות מוזיקה",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "שיר ליום הולדת לאמא",
+   "expected": "media"
+  },
+  {
+   "source": "claude",
+   "text": "תכתוב לי שיר לחתונה",
+   "expected": "media"
+  },
+  {
+   "source": "claude",
+   "text": "סרטון תדמית לעסק",
+   "expected": "media"
+  },
+  {
+   "source": "claude",
+   "text": "פודקאסט על כלכלה",
+   "expected": "media"
+  },
+  {
+   "source": "claude",
+   "text": "מוזיקה רקע לסרטון",
+   "expected": "media"
+  },
+  {
+   "source": "claude",
+   "text": "קריינות לפרסומת",
+   "expected": "media"
+  },
+  {
+   "source": "claude",
+   "text": "אפליקציה לאנדרואיד לניהול אימונים",
+   "expected": "mobile_app"
+  },
+  {
+   "source": "claude",
+   "text": "mobile app for my restaurant on the app store",
+   "expected": "mobile_app"
+  },
+  {
+   "source": "claude",
+   "text": "אפליקציה לאייפון שמזכירה לשתות מים",
+   "expected": "mobile_app"
+  },
+  {
+   "source": "claude",
+   "text": "צ'אטבוט שעונה ללקוחות על שאלות נפוצות",
+   "expected": "ai_agent"
+  },
+  {
+   "source": "claude",
+   "text": "AI agent that answers support emails",
+   "expected": "ai_agent"
+  },
+  {
+   "source": "claude",
+   "text": "סוכן AI לתיאום פגישות",
+   "expected": "ai_agent"
+  },
+  {
+   "source": "claude",
+   "text": "אוטומציה ששולחת כל בוקר דוח מכירות במייל",
+   "expected": "automation"
+  },
+  {
+   "source": "claude",
+   "text": "workflow automation between my forms and my sheet",
+   "expected": "automation"
+  },
+  {
+   "source": "claude",
+   "text": "אינטגרציה בין החנות לבין מערכת המשלוחים",
+   "expected": "api_integration"
+  },
+  {
+   "source": "claude",
+   "text": "webhook שמעדכן את הלקוח כשהזמנה יוצאת",
+   "expected": "api_integration"
+  },
+  {
+   "source": "claude",
+   "text": "חוויה תלת מימדית של הדירה למכירה",
+   "expected": "3d_experience"
+  },
+  {
+   "source": "claude",
+   "text": "3d model viewer for my furniture",
+   "expected": "3d_experience"
+  },
+  {
+   "source": "claude",
+   "text": "אתר עם טון ישיר ומקצועי לחברת אינסטלציה",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לעסק משפחתי עשיר בתוכן",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "שלום, אתר לעסק שלי",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "אתר לגננת עם תמונות מהגן ושעות פעילות",
+   "expected": "website"
+  },
+  {
+   "source": "claude",
+   "text": "תבנה לי דף לסדנת יוגה בשבתות",
+   "expected": "website"
+  }
+ ]
+}

@@ -170,6 +170,7 @@ _TXT = {
            'safe_default': 'לא קיבלתי תשובה על {topic}, אז הפעלתי ברירת מחדל בטוחה: {label}. אפשר לשנות בכל רגע בלשונית "דרישות".',
            'card_blocked': 'חסרה החלטה על {topic}, ובלעדיה לא ממשיכים. אפשר לבחור בלשונית "דרישות".',
            'image_still': 'עדיין חסרה לי תשובה על {topic} כדי להמשיך. אפשר ללחוץ על אחד הכפתורים, או לכתוב במילים: {opts}.',
+           'still_in_words': 'עדיין חסרה לי תשובה על {topic} כדי להמשיך. אפשר לכתוב אחת מאלה, במילים שלכם: {opts}.',
            'image_still_text': 'עדיין חסר לי משפט קצר על התמונה כדי להמשיך — למשל "הדלת של החנות" או "סבא שמעון, הבעלים".',
            'rephrase_q': 'עוד לא קיבלתי תשובה לשאלה הזאת. אפשר ללחוץ על אחת האפשרויות למטה, או לכתוב אותה במילים.',
            'rephrase': 'לא זיהיתי שינוי מההודעה הקודמת. כתבו מה תרצו לשנות או להוסיף, או שאלו "מה חסר?".',
@@ -188,6 +189,7 @@ _TXT = {
     'en': {'safe_default': 'No answer on {topic}, so I applied a safe default: {label}. You can change it any time in the "Requirements" tab.',
            'card_blocked': 'A decision on {topic} is missing, and we cannot continue without it. You can choose in the "Requirements" tab.',
            'image_still': 'I still need an answer about {topic} to continue. Press one of the buttons, or write it in words: {opts}.',
+           'still_in_words': 'I still need an answer about {topic} to continue. Write one of these, in your own words: {opts}.',
            'image_still_text': 'I still need a short sentence about the image to continue, for example "the shop door" or "Shimon, the owner".',
            'rephrase_q': 'I have not had an answer to this question yet. Press one of the options below, or write it in words.',
            'rephrase': 'I did not see anything new since the last message. Tell me what to change or add, or ask "what is missing?".',
@@ -569,6 +571,18 @@ class ConversationSupervisor:
     # --------------------------------------------------------------------- turn
     def turn(self, *, project_id: str, account_id: str, message: str = '', answers: dict | None = None,
              request_key: str | None = None, lang: str | None = None, attachments: list | None = None) -> Turn:
+        # the conversation agent is decided per account (OMNI_INTAKE_AGENT=accounts): every check of this turn --
+        # here, in the interpreter's context, in the card limit -- reads the account set for this turn
+        from ..intake import conversation_agent as agent
+        token = agent.for_account(account_id)
+        try:
+            return self._turn(project_id=project_id, account_id=account_id, message=message, answers=answers,
+                              request_key=request_key, lang=lang, attachments=attachments)
+        finally:
+            agent.release(token)
+
+    def _turn(self, *, project_id: str, account_id: str, message: str = '', answers: dict | None = None,
+              request_key: str | None = None, lang: str | None = None, attachments: list | None = None) -> Turn:
         message = (message or '').strip()[:8000]
         lang = lang or language_of(message or 'שלום')
         T = _TXT['he' if lang == 'he' else 'en']
@@ -1196,6 +1210,14 @@ class ConversationSupervisor:
         if not d.needs_customer(q, row.brief) or self._cards_shown(project_id, q.id) < CARD_LIMIT:
             return
         topic = _short(q.field, lang)
+        from ..intake import conversation_agent as agent
+        if agent.enabled() and q.field not in SAFE_DEFAULT and q.options:
+            # the conversation agent has no Requirements-tab card to send the customer to: a question it cannot
+            # default stays asked, in words, with the choices named (conversation rehearsal 2026-11-17: the doors
+            # conversation dead-ended on "choose it in the Requirements tab")
+            turn.reply = T['still_in_words'].format(
+                topic=topic, opts=' / '.join(o.he if lang == 'he' else o.en for o in q.options))
+            return
         if q.field in d.IMAGE_FIELDS:
             # warehouse 113: the image's role has no safe default and is never delegated, so blocking it behind the
             # Requirements tab left the customer with no way forward in the chat. The card stays, with its buttons,

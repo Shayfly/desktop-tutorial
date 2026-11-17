@@ -1,0 +1,112 @@
+{
+ "pr": "classification-corpus",
+ "sha256": [
+  "tests/test_classification_corpus.py",
+  "omni_prod/intake/families.py",
+  "tests/fixtures/classification_corpus.json"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a site that runs something stays a site",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/families.py",
+     "old": "        return 'web_app' if first == 'website' and _asks_for_an_app(t) else first",
+     "new": "        return first"
+    }
+   ],
+   "targets": [
+    "tests/test_classification_corpus.py"
+   ],
+   "expect_failed": [
+    "test_every_request_gets_its_expected_type"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a score app is a game",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/families.py",
+     "old": "            if family == 'game' and _asks_for_an_app(t):\n                continue ",
+     "new": "            if False:\n                continue "
+    }
+   ],
+   "targets": [
+    "tests/test_classification_corpus.py"
+   ],
+   "expect_failed": [
+    "test_every_request_gets_its_expected_type"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a business that gives its street is an app",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/families.py",
+     "old": " or _NAMES_A_SITE.search(t) or _BUSINESS_FACTS.search(t)):",
+     "new": " or _NAMES_A_SITE.search(t)):"
+    }
+   ],
+   "targets": [
+    "tests/test_classification_corpus.py"
+   ],
+   "expect_failed": [
+    "test_every_request_gets_its_expected_type"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "'דף' alone names no site",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/families.py",
+     "old": "דף נחיתה|דף(?![\\w֐-׿])|תיק עבודות",
+     "new": "דף נחיתה|תיק עבודות"
+    }
+   ],
+   "targets": [
+    "tests/test_classification_corpus.py"
+   ],
+   "expect_failed": [
+    "test_every_request_gets_its_expected_type"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a timetable is a system",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/families.py",
+     "old": "מערכת(?!\\s+ה?(?:שעות|שיעורים))",
+     "new": "מערכת"
+    }
+   ],
+   "targets": [
+    "tests/test_classification_corpus.py"
+   ],
+   "expect_failed": [
+    "test_every_request_gets_its_expected_type"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "whole words are off: matching inside words again",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/families.py",
+     "old": "_APP_CUES = re.compile(r'(?<![\\w֐-׿])[הובשלמכ]{0,2}(?:",
+     "new": "_APP_CUES = re.compile(r'(?:"
+    }
+   ],
+   "targets": [
+    "tests/test_classification_corpus.py"
+   ],
+   "expect_failed": [
+    "test_every_request_gets_its_expected_type"
+   ]
+  }
+ ]
+}

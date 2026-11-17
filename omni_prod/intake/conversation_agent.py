@@ -15,19 +15,40 @@ Otherwise nothing is set and the question stays open -- never a guess, never a d
 """
 from __future__ import annotations
 
+import contextvars
 import os
 import re
 
 FLAG = 'OMNI_INTAKE_AGENT'
+ACCOUNTS = 'OMNI_INTAKE_AGENT_ACCOUNTS'
 MAX_QUESTION_CHARS = 400
+# The owner, 2026-11-17: the flag is per account -- the agent runs for the listed accounts only, everyone else keeps
+# the conversation as it was, one environment change away. Production is not the laboratory.
+_ACCOUNT: contextvars.ContextVar = contextvars.ContextVar('conversation_agent_account', default=None)
 
 
-def enabled() -> bool:
-    """The flag. '1' on, '0' or unset off; any other value is an error, never a silent default."""
+def for_account(account_id):
+    """Set the account of the turn being answered; returns the token for `release`."""
+    return _ACCOUNT.set(str(account_id) if account_id else None)
+
+
+def release(token) -> None:
+    _ACCOUNT.reset(token)
+
+
+def enabled(account_id=None) -> bool:
+    """The flag: '1' on for everyone, '0' or unset off, 'accounts' on only for the accounts in
+    OMNI_INTAKE_AGENT_ACCOUNTS (comma separated). Any other value is an error, never a silent default."""
     value = os.environ.get(FLAG, '0').strip()
-    if value not in ('0', '1'):
-        raise ValueError(f'{FLAG} must be 0 or 1, not {value!r}')
-    return value == '1'
+    if value not in ('0', '1', 'accounts'):
+        raise ValueError(f'{FLAG} must be 0, 1 or accounts, not {value!r}')
+    if value != 'accounts':
+        return value == '1'
+    allowed = {a.strip() for a in os.environ.get(ACCOUNTS, '').split(',') if a.strip()}
+    if not allowed:
+        raise ValueError(f'{FLAG}=accounts needs {ACCOUNTS}; none is listed')
+    account = account_id if account_id is not None else _ACCOUNT.get()
+    return account is not None and str(account) in allowed
 
 
 # per question id: option -> the words that name it. A message naming two different options names none.
@@ -52,12 +73,25 @@ WORDS: dict[str, dict[str, str]] = {
 }
 
 
+# Phrases that decide on their own, checked first: "לא שומרים כלום" contains "לא" and still means content only
+# (conversation rehearsal 2026-11-17: "כן, רק להציג מידע ומחירים, לא שומרים כלום" named yes AND no, so nothing was
+# set and the doors conversation dead-ended).
+DECIDING: dict[str, tuple[tuple[str, str], ...]] = {
+    'content_only': (('yes', r'תוכן בלבד|רק (?:להציג|מידע)|לא (?:שומר|שומרים|נשמר|נשמרים) כלום|לא שומר(?:ים)? (?:נתונים|פרטים)'),
+                     ('no', r'(?:יש|צריך|עם) (?:טופס|הרשמה|הזמנות)|שומר(?:ים)? (?:פרטים|נתונים|הזמנות)')),
+    'personal_data': (('no', r'רק (?:הטלפון|הכתובת|פרטי העסק)|לא (?:שומר|שומרים|נשמר)'),),
+}
+
+
 def typed_choice(question, text: str) -> str | None:
     """The option a typed message names for this question, or None (none named, or two different ones)."""
     words = WORDS.get(getattr(question, 'id', ''))
     t = (text or '').strip().lower()
     if not words or not t:
         return None
+    deciding = [value for value, rx in DECIDING.get(question.id, ()) if re.search(rx, t, re.I)]
+    if len(set(deciding)) == 1:
+        return deciding[0]
     hits = {value for value, rx in words.items() if re.search(rx, t, re.I)}
     if len(hits) == 2 and {'yes', 'no'} <= hits:
         return None                                    # "כן... לא" -- not an answer

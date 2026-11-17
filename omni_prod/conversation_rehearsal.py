@@ -1,0 +1,150 @@
+"""Conversation rehearsal (conversation agent, phase 4; the owner, 2026-11-17): real conversations with the live
+model, on the worker host, through the real supervisor -- with no database, no project and no credit.
+
+The agent is real (the routed gateway, task `conversation`); the customer is scripted: for every turn it answers the
+question the agent asked (recorded as `asked`) with what a real customer would type, or, when nothing was asked,
+with its next line. Bounded: MAX_TURNS per scenario and the gateway budget (OMNI_EXTERNAL_BUDGET_USD).
+
+Acceptance per scenario, all measured, never judged by eye:
+  no_cards      not one question card in the whole conversation
+  approval      the conversation reaches the spec approval (an `approve_spec` action)
+  facts         every fact the customer gave (phone, address) is in the brief the builder gets, as written
+  model         the replies were written by a model (the interpreter name), not by the rules alone
+Cost (the interpreter's metered USD) and the number of turns are reported.
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+from decimal import Decimal
+
+MAX_TURNS = 14
+TYPED = {'content_only': 'כן, רק להציג מידע ומחירים, לא שומרים כלום מהמבקרים',
+         'audience': 'לקוחות שלי ואנשים מהאזור', 'personal_data': 'לא, רק הטלפון שלי מופיע באתר',
+         'login': 'בלי התחברות', 'storage_intent': 'רק פרטי העסק', 'access_scope': 'לא לשמור פרטים',
+         'unavailable': 'לבנות בלי זה'}
+SCENARIOS = {
+    'doors': {'lines': ['''שם העסק: 148 דלתות בהנהלת: נסים אוחנה טלפון: 050-345-6723 אזור שירות: אשקלון, אשדוד, קרית גת, שדרות והסביבה
+מה זה: התקנת דלתות ממד פולימריות ודלתות פנים. עבודה עצמאית, בלי קבלן ביניים, אספקה והתקנה באותו יום.
+המבצע: דלת ממד פולימרית, 1,390 ₪ כולל הובלה והרכבה, אחריות שנה על ההתקנה.
+טון: ישיר, מקצועי, בגובה העיניים.
+
+מבנה הדף:
+הירו — "דלת ממד פולימרית. 1,390 ₪ כולל הובלה והרכבה." שני כפתורים: וואטסאפ ראשי, חיוג משני.
+מה כלול במחיר — הובלה, הרכבה, פירוק הדלת הישנה, אחריות שנה על ההתקנה.
+שאלות נפוצות — חמש, עם תשובות אמיתיות.
+צור קשר — טלפון לחיץ, כפתור וואטסאפ גדול. בלי טופס.
+
+החלטות מפורשות: דף סטטי. בלי סל, בלי תשלום, בלי טופס הרשמה. בלי קרוסלה.'''],
+              'facts': ['050-345-6723']},
+    'butcher': {'lines': ['אתר לאטליז "בשר השכונה" ברחוב הרצל 12, חיפה. טלפון 04-8123456. שעות: ראשון עד חמישי 8:00 עד '
+                          '19:00, שישי 7:00 עד 14:00.'],
+                'facts': ['04-8123456', 'הרצל 12']},
+    'bare': {'lines': ['אתר', 'למספרה שלי, "תספורת טובה" בחולון, טלפון 03-5550000', 'מחירון ותיאום תור בוואטסאפ',
+                       'נקי ומודרני'],
+             'facts': ['03-5550000']},
+}
+
+
+class MemoryBriefs:
+    """In-process brief repository (the same contract as brief_repository.PostgresBriefRepository): no database."""
+    class Row:
+        def __init__(self, revision, brief):
+            from . import discovery as d
+            self.revision, self.brief = revision, brief
+            self.complete, self.fingerprint = d.complete(brief), brief.fingerprint()
+
+    def __init__(self):
+        self.rows: dict[str, list] = {}
+
+    def latest(self, project_id):
+        return (self.rows.get(project_id) or [None])[-1]
+
+    def save(self, *, project_id, account_id, brief, expected_revision, request_key=None):
+        from . import discovery as d
+        from .brief_repository import StaleBrief
+        current = self.latest(project_id)
+        if (current.revision if current else 0) != expected_revision:
+            raise StaleBrief('stale')
+        row = self.Row(expected_revision + 1, d.Brief.from_dict(json.loads(json.dumps(brief.to_dict()))))
+        self.rows.setdefault(project_id, []).append(row)
+        return row
+
+
+class _Supervisor:
+    """The real ConversationSupervisor with the live model interpreter injected (no reservation, no database)."""
+
+    def __new__(cls, interpreter):
+        from .conversation.store import MemoryConversationStore
+        from .conversation.supervisor import ConversationSupervisor
+
+        class Live(ConversationSupervisor):
+            def _interpreter(self, project_id, account_id=None, request_key=None, task='conversation'):
+                gateway = getattr(interpreter, 'gateway', None)
+                if gateway is not None:
+                    gateway.task = task                      # conversation or conversation_complex, as the lane says
+                return interpreter
+        return Live(briefs=MemoryBriefs(), store=MemoryConversationStore(), credits=10,
+                    context=lambda p: {})
+
+
+def run_scenario(name: str, interpreter) -> dict:
+    from . import discovery as d
+    spec = SCENARIOS[name]
+    sup = _Supervisor(interpreter)
+    lines, turns, cards, cost, models, reached = list(spec['lines']), [], 0, Decimal('0'), set(), False
+    message = lines.pop(0)
+    for _ in range(MAX_TURNS):
+        t = sup.turn(project_id=name, account_id='rehearsal', message=message, lang='he')
+        meta = (sup.store.messages_for(name)[-1].get('interpretation') or {})
+        cards += len(t.questions)
+        cost += t.cost_usd or Decimal('0')
+        models.add(str(meta.get('interpreter') or (t.interpretation or {}).get('interpreter') or 'deterministic'))
+        turns.append({'customer': message[:160], 'agent': t.reply[:600], 'asked': meta.get('asked') or []})
+        if any(a['type'] == 'approve_spec' for a in t.actions):
+            reached = True
+            break
+        asked = [x for x in meta.get('asked') or [] if x in TYPED]
+        message = TYPED[asked[0]] if asked else (lines.pop(0) if lines else 'תחליטו אתם על השאר')
+    row = sup.briefs.latest(name)
+    built_from = (row.brief.prompt + '\n' + d.requirements_text(row.brief)) if row else ''
+    missing = [f for f in spec['facts'] if f not in built_from]
+    result = {'scenario': name, 'turns': len(turns), 'cards': cards, 'approval': reached, 'facts_missing': missing,
+              'models': sorted(models), 'cost_usd': str(cost), 'transcript': turns}
+    result['passed'] = accepted(cards=cards, reached=reached, missing=missing, models=models)
+    return result
+
+
+def accepted(*, cards: int, reached: bool, missing, models) -> bool:
+    """No card, the approval reached, no fact missing, and at least one reply written by a model."""
+    return cards == 0 and reached and not missing and any(str(m).startswith('model') for m in models)
+
+
+def main(argv=None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    os.environ['OMNI_INTAKE_AGENT'] = '1'
+    names = [n for n in (argv or list(SCENARIOS)) if n]
+    unknown = [n for n in names if n not in SCENARIOS]
+    if unknown:
+        raise SystemExit(f'unknown scenario(s): {unknown}; known: {sorted(SCENARIOS)}')
+    from .attempt_ledger import TaskTaggedGateway
+    from .intake.interpreter import ModelInterpreter
+    from .investor_app import _live_components
+    _, gateway = _live_components()
+    interpreter = ModelInterpreter(TaskTaggedGateway(getattr(gateway, '_inner', gateway), 'conversation'))
+    results = [run_scenario(n, interpreter) for n in names]
+    for r in results:
+        print('CONVERSATION ' + json.dumps(r, ensure_ascii=False))
+        level = 'notice' if r['passed'] else 'error'
+        print(f"::{level} title=conversation {r['scenario']}::passed={r['passed']} turns={r['turns']} "
+              f"cards={r['cards']} approval={r['approval']} facts_missing={r['facts_missing']} "
+              f"models={r['models']} cost_usd={r['cost_usd']}")
+        for i, t in enumerate(r['transcript'], 1):
+            print(f"::notice title=conversation {r['scenario']} turn {i}::customer: {t['customer']} || agent: "
+                  f"{t['agent']}".replace('\n', ' ')[:1800])
+    return 0 if all(r['passed'] for r in results) else 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

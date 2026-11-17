@@ -61,3 +61,5 @@
 | AGENT-2 | Claude Code | In review | the model asks customer decisions in its own words (ask_next); checklist from the request; NC 5/5 |
 | AGENT-2-DONE | Claude Code | Done | #439 `a10a0a7` -> `ee2d7ca`, released |
 | AGENT-3 | Claude Code | In review | exact hand-off: facts and page structure reach the generator; NC 6/6 + 6/6 |
+| AGENT-3-DONE | Claude Code | Done | #440 `7087e3c` -> `8d37478`, released |
+| AGENT-4-PREP | Claude Code | In review | Sonnet for conversation; per-account flag; classification corpus (101); Hebrew whole words; rehearsal tool |

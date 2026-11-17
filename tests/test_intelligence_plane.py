@@ -223,9 +223,13 @@ class TaskPolicyRoutingTests(unittest.TestCase):
         self.assertEqual(_gw(s).complete(system='s', user='u', task='mystery'), 'ok:m-cheap')
         self.assertNotIn('m-weak', s.calls)
 
-    def test_conversation_uses_cheapest_eligible(self):
+    def test_conversation_tries_the_strong_model_first_and_degrades_to_the_cheaper_one(self):
+        # DECISIONS 10 (the owner, 2026-11-17): the conversation decides what is built -- strong first (85)
+        s = Script({'m-cheap': ['ok'], 'm-strong': ['ok'], 'm-weak': []})
+        self.assertEqual(_gw(s).complete(system='s', user='u', task='conversation'), 'ok:m-strong')
         s = Script({'m-cheap': ['ok'], 'm-strong': [], 'm-weak': []})
         self.assertEqual(_gw(s).complete(system='s', user='u', task='conversation'), 'ok:m-cheap')
+        self.assertNotIn('m-weak', s.calls)                         # never below the mandatory floor
 
     def test_floors_are_ordered(self):
         for t in task_policy.TASK_CLASSES.values():
@@ -256,11 +260,12 @@ class CircuitBreakerTests(unittest.TestCase):
     def test_credit_exhaustion_is_remembered_across_builds(self):
         store = H.MemoryHealthStore()   # stands in for provider_health (shared by all builds)
         s1 = Script({'m-cheap': [(429, 'You have no credits remaining')], 'm-strong': ['ok'], 'm-weak': []})
-        self.assertEqual(_gw(s1, H.HealthBook(store)).complete(system='s', user='u', task='conversation'), 'ok:m-strong')
+        # a cheapest-first task (classification): conversation tries the strong model first since DECISIONS 10
+        self.assertEqual(_gw(s1, H.HealthBook(store)).complete(system='s', user='u', task='classification'), 'ok:m-strong')
         self.assertEqual(store.get('cheap').state, S.CREDIT_EXHAUSTED)
         s2 = Script({'m-cheap': ['ok'], 'm-strong': ['ok'], 'm-weak': []})
         gw2 = _gw(s2, H.HealthBook(store))
-        self.assertEqual(gw2.complete(system='s', user='u', task='conversation'), 'ok:m-strong')
+        self.assertEqual(gw2.complete(system='s', user='u', task='classification'), 'ok:m-strong')
         self.assertEqual(s2.calls, ['m-strong'])  # second build never asks the exhausted route again
         self.assertTrue(any('circuit open' in e.reason for e in gw2.events))
 
