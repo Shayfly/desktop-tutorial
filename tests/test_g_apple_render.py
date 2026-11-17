@@ -11,7 +11,7 @@ from tests.test_game_runtime import HAVE_BROWSER, LocalBrowserSandbox, MANIFEST,
 
 NESTED = os.environ.get('OMNI_M4_ACCEPTANCE_W_NESTED') == '1'
 LONG = 'בית הקפה השכונתי שלנו פתוח כל יום מהבוקר ועד הערב ומגיש קפה טרי ומאפים מהתנור. ' * 4
-GOOD = page('p{max-width:52ch;line-height:1.5;margin:0 0 var(--space-16)} main{padding:var(--space-24)} '
+GOOD = page('p{max-width:35rem;line-height:1.5;margin:0 0 var(--space-16)} main{padding:var(--space-24)} '
             '.btn{display:inline-block;min-height:48px;box-sizing:border-box}',
             body=f'<main><h1>קפה נחמה</h1><p>{LONG}</p><a class="btn" href="tel:035551234">התקשרו אלינו</a></main>')
 
@@ -40,7 +40,7 @@ class InARealBrowser(unittest.TestCase):
             'H_SCROLL': (GOOD.replace('<main>', '<main><div style="width:1900px">x</div>'), 320),
             'CONTROL_UNDER_44': (GOOD.replace('min-height:48px', 'min-height:0;padding:0;font-size:var(--text-12)'), 390),
             'OFF_GRID': (GOOD.replace('main{padding:var(--space-24)}', 'main{padding:13px}'), 768),
-            'MEASURE': (GOOD.replace('max-width:52ch', 'max-width:none'), 1440),
+            'MEASURE': (GOOD.replace('max-width:35rem', 'max-width:none'), 1440),
             'CLIPPED_TEXT': (GOOD.replace('<h1>', '<h1 style="width:60px;overflow:hidden;white-space:nowrap">'), 390),
         }
         for code, (html, width) in cases.items():
@@ -55,7 +55,7 @@ class InARealBrowser(unittest.TestCase):
         self.assertNotIn('STRING_60', [f['code'] for f in measured['findings']])
 
     def test_line_length_is_judged_on_wide_screens_only(self):
-        wide = GOOD.replace('max-width:52ch', 'max-width:none')
+        wide = GOOD.replace('max-width:35rem', 'max-width:none')
         self.assertNotIn('MEASURE', measure(wide, 390)[1])
         self.assertIn('MEASURE', measure(wide, 1440)[1])
 

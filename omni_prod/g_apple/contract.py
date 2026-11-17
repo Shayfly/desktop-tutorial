@@ -141,8 +141,10 @@ def rules(contract: dict) -> str:
         'and :disabled where it can be disabled. At most two button styles (primary and secondary).',
         '- Not allowed: a gradient hero with outlined text; a row of three icon cards; a carousel or slider; a shadow on '
         'everything; everything centred; emoji as icons; placeholder text (lorem ipsum).',
-        '- Body text lines are 55 to 75 characters long on a wide screen: give paragraphs a max-width (for Hebrew text '
-        'about 52ch -- a Hebrew letter is narrower than the "0" that ch measures); controls are at least 44px '
+        # calibration, rehearsal 44057019675 (2026-11-17): "about 52ch" gave Hebrew paragraphs 53 characters a line in
+        # Heebo -- the rule itself made the page fail the check. ch follows the font's "0"; a fixed width does not.
+        '- Body text lines are 55 to 75 characters long on a wide screen: give every paragraph max-width: 35rem (about '
+        '65 characters of Hebrew or English at 16px; never a ch value); controls are at least 44px '
         'high; nothing scrolls sideways at 320px.',
         # calibration, rehearsal 44043708644: 24 OFF_GRID findings were headings and links left on the browser's own
         # margins (an h2's default is 0.83em: 19.92px at 24px), which no rule above mentions

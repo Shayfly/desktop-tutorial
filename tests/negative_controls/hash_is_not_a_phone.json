@@ -1,0 +1,26 @@
+{
+ "pr": "hash-is-not-a-phone",
+ "sha256": [
+  "tests/test_a_hash_is_not_a_phone.py",
+  "omni_prod/fact_canon.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a hex fingerprint is read as a phone again",
+   "mutations": [
+    {
+     "file": "omni_prod/fact_canon.py",
+     "old": "    text = _HEX_TOKEN.sub(' ', decode_entities(raw))",
+     "new": "    text = decode_entities(raw)"
+    }
+   ],
+   "targets": [
+    "tests/test_a_hash_is_not_a_phone.py"
+   ],
+   "expect_failed": [
+    "test_the_production_fingerprint_reads_no_phone"
+   ]
+  }
+ ]
+}

@@ -52,3 +52,5 @@
 | CHAIN-BOUND | Claude Code | Done | #433 `96958b3` -> `7596591`, released |
 | BRIEF-KEPT | Claude Code | Done | #434 `01e39ab` -> `69a308c`, released |
 | REHEARSAL-POLICY | Claude Code | In review | the rehearsal asks the release policy; NC 5/5 |
+| REHEARSAL-POLICY-DONE | Claude Code | Done | #435 `cdc0bb3` -> `0316cbe` |
+| DOORS-FOLLOWUP | Claude Code | In review | doors palette; measure rule 35rem; no phone from a hash; NC 3/3 + 1/1 (content-only fix withdrawn: DECISIONS 9) |

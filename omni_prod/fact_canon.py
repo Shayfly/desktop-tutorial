@@ -246,12 +246,19 @@ def fact_spans(text: str) -> list[str]:
     return out
 
 
+_HEX_TOKEN = re.compile(r'(?:fingerprint|sha256:?|digest)\s*[0-9a-f]{8,64}\b|\b(?=[0-9a-f]*[a-f])(?=[0-9a-f]*[0-9])[0-9a-f]{12,64}\b',
+                        re.I)
+
+
 def build_canon(request_text: str, *, source: str = 'brief') -> Canon:
     """Every phone, address, e-mail, opening-hours span and declared name in the approved request."""
     # Entities are decoded on BOTH sides before any comparison (Michael 2026-11-10): the request may carry &amp; or
     # &nbsp; just as the page does. source_ref keeps the decoded span; the hash keeps the raw text.
     raw = request_text or ''
-    text = decode_entities(raw)
+    # The approved-brief header carries a hex fingerprint ("fingerprint e029093349ecb315"); its digits are not a
+    # phone. Found 2026-11-17: a brief whose fingerprint held "029093349" read as +97229093349, an invented phone
+    # the truth gate would have defended -- and whether it happened depended on the hash. Hex tokens are blanked.
+    text = _HEX_TOKEN.sub(' ', decode_entities(raw))
     canon = Canon(source_hash=hashlib.sha256(raw.encode('utf-8')).hexdigest()[:16])
     seen: set[tuple[str, str]] = set()
 
