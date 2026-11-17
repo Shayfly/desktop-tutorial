@@ -14,8 +14,15 @@
     Venice picks the cheapest listed model. D10 changed the routed gateway, which production intake does not use, and
     the conversation rehearsal ran on the routed gateway too -- so it never tested the production path. Switching
     needs higher caps (project $0.15, daily $1.00 today): question 2 in DECISIONS, the owner's.
-  - Also seen, not fixed yet: the audience was inferred as "internal team" from the first message; "אז בלי" was read
-    as a message cut short; one turn timed out at the model ("העומס אצל ספק המודל").
+  - Two misread answers, fixed: (1) "רק אני יכול לשנות מחירים" -- who EDITS the site -- was read as audience
+    "internal team" (a deterministic rule, high confidence); an editing verb after "only I" is no longer an audience.
+    (2) "לא אני משנה את האתר דרך כאן בעתיד", the answer to "האם צריך התחברות עם סיסמה?", was not read (a typed answer
+    had to name an option), so the model's guess (roles) stayed and became a blocker; a leading "לא" now answers a
+    yes/no question when the message names no option of its own ("לא, צריך הרשאות למנהל ועובד" stays roles; "לא
+    יודע", "לא בטוח", "לא משנה" are not a no). Tests `tests/test_owner_answers_are_read.py` (the owner's words, the
+    real path); controls 4/4.
+  - Not fixed yet: "אז בלי" was read by the model as a message cut short (it came after the misread login blocker,
+    which no longer arises); one turn timed out at the model ("העומס אצל ספק המודל").
 - **The butcher build (bld_2b5225d1) failed with `model_unavailable`:** the code model answered with an analysis
   before the JSON (gemini-3.8-flash and gemini-3.1-flash-lite), and the OpenAI route is skipped: CREDIT_EXHAUSTED
   since 2026-11-17 07:56 UTC (HTTP 429, "no credits remaining") -- an account balance, the owner's.

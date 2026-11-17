@@ -107,7 +107,11 @@ RULES: tuple[tuple[str, str, str, str], ...] = (
     (_LOGIN_WORDS, 'login', 'simple', MEDIUM),
     (r'(בלי|ללא|לא לשמור)\s+(פרטים אישיים|פרטים מזהים)|no personal (data|details)', 'personal_data', 'no', HIGH),
     (_COLLECT, 'personal_data', 'yes', MEDIUM),
-    (r'(רק (אני|לי|בשבילי)|לשימוש (אישי|פנימי)|for (myself|me only|internal use)|internal tool|just for (me|my team))', 'audience', 'internal', HIGH),
+    # "רק אני יכול לשנות מחירים" (the owner, 2026-11-17) is who EDITS the site, not who reads it: an editing verb after
+    # "only I" is not an audience (it was read as "internal team", and the conversation then asked "which is right?")
+    (r'(רק (אני|לי|בשבילי)(?!\s+(?:יכול|יכולה|אוכל|מותר|יש גישה|מנהל|מנהלת|משנה|מעדכן|מעדכנת|עורך|עורכת|אשנה|'
+     r'אעדכן|אערוך|נוגע|מורשה|שולט|אחליט|מחליט))|לשימוש (אישי|פנימי)|for (myself|me only|internal use)|internal tool|'
+     r'just for (me|my team))', 'audience', 'internal', HIGH),
     (_PUBLIC_WORDS, 'audience', 'public', MEDIUM),
     (_STAFF_WORDS, 'audience', 'internal', MEDIUM),
     (r'(עברית ואנגלית|אנגלית ועברית|דו[- ]?לשוני|hebrew and english|english and hebrew|bilingual)', 'languages', 'he_en', HIGH),

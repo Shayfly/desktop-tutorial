@@ -1,0 +1,74 @@
+{
+ "pr": "owner-answers-are-read",
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "'only I can change' is an internal audience again",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "    (r'(רק (אני|לי|בשבילי)(?!\\s+(?:יכול|",
+     "new": "    (r'(רק (אני|לי|בשבילי)(?!\\s+(?:XYZ|"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_answers_are_read.py"
+   ],
+   "expect_failed": [
+    "test_who_edits_is_not_who_reads"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a leading 'no' does not answer the login question",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "    if not hits and question.id in YES_NO_QUESTIONS and re.search(LEADING_NO, t, re.I):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_answers_are_read.py"
+   ],
+   "expect_failed": [
+    "test_on_the_real_path",
+    "test_the_owners_words"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "'I don't know' answers 'no login'",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "LEADING_NO = r'^\\s*(?:לא(?!\\s+(?:יודע|יודעת|בטוח|בטוחה|הבנתי|ברור|משנה))|no(?!\\s+idea)|nope)(?:\\W|$)'",
+     "new": "LEADING_NO = r'^\\s*(?:לא|no|nope)(?:\\W|$)'"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_answers_are_read.py"
+   ],
+   "expect_failed": [
+    "test_what_is_not_a_no"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a leading 'no' beats the option the message names",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "    if not hits and question.id in YES_NO_QUESTIONS and re.search(LEADING_NO, t, re.I):",
+     "new": "    if question.id in YES_NO_QUESTIONS and re.search(LEADING_NO, t, re.I):"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_answers_are_read.py"
+   ],
+   "expect_failed": [
+    "test_a_no_that_names_an_option_answers_with_that_option"
+   ]
+  }
+ ]
+}
