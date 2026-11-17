@@ -218,7 +218,67 @@ def install_all(engine) -> dict:
     missing = [g for g in WORKER_GATES if g not in DEFAULT_MODE]
     if missing:
         raise ValueError(f'gates with no stated default mode: {missing}')
-    return {g: install(engine, g) for g in WORKER_GATES}
+    installed = {g: install(engine, g) for g in WORKER_GATES}
+    carry_rules(engine, WORKER_GATES)
+    return installed
+
+
+RULES_REQUIREMENT = 'PLATFORM-CHECKS'
+
+
+def rules_text(gates) -> str:
+    """What the installed gates check, as one text for the generator: each unit's own manifest description, in gate
+    order. A gate that is off is left out (it checks nothing). '' when nothing is installed.
+
+    Rehearsal 44043708644 (the butcher, 2026-11-17): the share gate failed a page for a missing og:title, and nothing
+    had ever told the generator a shared link needs one. A check the generator learns about only by failing it costs
+    a repair round once the gate blocks; the manifest already says what the check wants."""
+    lines = []
+    for g in gates:
+        if mode(g) == 'off':
+            continue
+        lines += [f"- {manifest(u)['description']}" for u in gate_units(g)]
+    if not lines:
+        return ''
+    return '\n'.join(['Checks 148AI runs on the finished product. Each line is one check; build so every one passes:']
+                     + lines)
+
+
+def with_rules(spec, text: str):
+    """The spec with the checks in it as written: one quality requirement, added once. Deterministic, no model."""
+    from ..product_spec import ProductSpec
+    data = spec.to_dict()
+    if not text or any(r['id'] == RULES_REQUIREMENT for r in data['requirements']):
+        return spec
+    data['requirements'].append({'id': RULES_REQUIREMENT, 'text': text, 'kind': 'quality', 'mandatory': False})
+    return ProductSpec.from_dict(data)
+
+
+class GateRulesArchitect:
+    """Wraps the engine's architect: every spec it returns says what the installed gates check."""
+
+    def __init__(self, inner, gates):
+        self._inner, self.gates = inner, tuple(gates)
+
+    def __getattr__(self, item):
+        return getattr(self._inner, item)
+
+    def create_spec(self, prompt, *args, **kwargs):
+        return with_rules(self._inner.create_spec(prompt, *args, **kwargs), rules_text(self.gates))
+
+
+def carry_rules(engine, gates) -> bool:
+    """Give the generator the installed gates' checks through the spec. False (and said) with no architect."""
+    core = getattr(engine, 'core', engine)
+    carried = False
+    for holder in (core, engine):
+        architect = getattr(holder, 'architect', None)
+        if architect is not None and not isinstance(architect, GateRulesArchitect):
+            holder.architect = GateRulesArchitect(architect, gates)
+        carried = carried or isinstance(getattr(holder, 'architect', None), GateRulesArchitect)
+    core.gate_rules_carried = carried
+    _LOG.info('GATE_RULES carried=%s gates=%s', carried, ','.join(gates))
+    return carried
 
 
 def _calibration_findings(failure: dict) -> list[dict]:
