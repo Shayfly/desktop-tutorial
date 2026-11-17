@@ -112,6 +112,58 @@
    "expect_failed": [
     "test_a_calibrating_gate_keeps_its_findings_and_a_blocking_one_keeps_codes_only"
    ]
+  },
+  {
+   "id": "NC7",
+   "what": "a templated page is judged from its source again (the two rehearsal false positives)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "    return [(found[0][0] + ' (as served)', page)]",
+     "new": "    return found"
+    }
+   ],
+   "targets": [
+    "tests/test_gates_calibrating.py"
+   ],
+   "expect_failed": [
+    "test_from_the_source_the_template_fields_are_findings_and_from_the_served_page_they_are_not",
+    "test_the_gate_uses_the_served_page_of_this_round_only"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a served page that was cut is read as if it were whole",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "            or len(page) >= SERVED_PAGE_LIMIT or '</html' not in page.lower()):",
+     "new": "            ):"
+    }
+   ],
+   "targets": [
+    "tests/test_gates_calibrating.py"
+   ],
+   "expect_failed": [
+    "test_the_source_is_read_when_the_served_copy_cannot_be_trusted"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a stale served page of an earlier round is used when this round's smoke did not run",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "        rendered = getattr(self._inner, 'last_pages', None) if report.passed else None",
+     "new": "        rendered = getattr(self._inner, 'last_pages', None)"
+    }
+   ],
+   "targets": [
+    "tests/test_gates_calibrating.py"
+   ],
+   "expect_failed": [
+    "test_the_gate_uses_the_served_page_of_this_round_only"
+   ]
   }
  ]
 }

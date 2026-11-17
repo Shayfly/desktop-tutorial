@@ -1,0 +1,79 @@
+{
+ "pr": "rehearsal-brief",
+ "sha256": [
+  "tests/test_rehearsal_brief.py",
+  "omni_prod/rehearsal.py",
+  ".github/workflows/golden-rehearsal.yml"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a question only the customer may answer is delegated in silence",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "            if q.id not in answers:\n                raise ValueError(",
+     "new": "            if q.id not in answers:\n                answers = {**answers, q.id: q.options[0].value}\n            if False:\n                raise ValueError("
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_brief.py"
+   ],
+   "expect_failed": [
+    "test_a_question_only_the_customer_may_answer_is_never_guessed"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the rehearsal builds from the raw request although answers were given (the cafe contracted as an app)",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "        prompt = approved_prompt(argv[0], answers)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_brief.py"
+   ],
+   "expect_failed": [
+    "test_main_builds_from_the_brief_when_answers_are_given_and_from_the_raw_request_when_not"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the brief block is not appended",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "    return (brief.prompt + '\\n' + d.requirements_text(brief))[:12000]",
+     "new": "    return brief.prompt"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_brief.py"
+   ],
+   "expect_failed": [
+    "test_the_prompt_carries_the_brief_block_and_the_customers_decision",
+    "test_with_the_brief_a_cafe_page_is_not_contracted_as_an_app"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the workflow drops the answers",
+   "mutations": [
+    {
+     "file": ".github/workflows/golden-rehearsal.yml",
+     "old": "          ANSWERS: ${{ inputs.answers }}\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_brief.py"
+   ],
+   "expect_failed": [
+    "test_the_workflow_passes_the_answers_and_an_empty_value_is_the_raw_request"
+   ]
+  }
+ ]
+}

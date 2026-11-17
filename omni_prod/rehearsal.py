@@ -20,6 +20,39 @@ import sys
 import time
 
 
+MAX_BRIEF_STEPS = 40
+
+
+def approved_prompt(request: str, answers: dict) -> str:
+    """The prompt a CUSTOMER's build gets: the request plus the approved brief block (discovery.requirements_text),
+    built by the conversation's own functions. Calibration, 2026-11-17 (rehearsals 44025252867, 44025259144): a raw
+    request has no brief, so a cafe's page was contracted as an app ("missing required behavior kinds: auth,
+    data_create, role") and its phone number was called invented -- failures no customer's build has.
+    `answers` are the customer's own answers to the questions that may never be defaulted ({question id: value});
+    every other question is delegated, as "you decide" does. A question that must be answered and is not in
+    `answers` raises: nothing is guessed."""
+    from . import discovery as d
+    brief = d.start(request)
+    for _ in range(MAX_BRIEF_STEPS):                      # bounded: the catalogue is finite
+        must = d.must_ask(brief)
+        if must:
+            q = must[0]
+            if q.id not in answers:
+                raise ValueError(f'the brief needs the customer\'s answer to {q.id!r} '
+                                 f'(one of {[o.value for o in q.options]}); pass it in answers')
+            brief = d.answer(brief, {q.id: answers[q.id]})
+            continue
+        if d.catalog_complete(brief):
+            break
+        _, group = d.next_group(brief)
+        if not group:
+            break
+        brief = d.answer(brief, {q.id: d.DELEGATE for q in group})
+    else:
+        raise ValueError(f'the brief was not complete after {MAX_BRIEF_STEPS} steps')
+    return (brief.prompt + '\n' + d.requirements_text(brief))[:12000]
+
+
 def run(prompt: str) -> dict:
     from .investor_app import _live_components
     from .quality_gate import assess_repository
@@ -161,9 +194,16 @@ def annotations(report: dict) -> list[str]:
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if not argv or not argv[0].strip():
-        print('usage: python -m omni_prod.rehearsal "<prompt>"', file=sys.stderr)
+        print('usage: python -m omni_prod.rehearsal "<prompt>" [\'{"content_only": "yes", ...}\']', file=sys.stderr)
         return 2
-    report = run(argv[0])
+    prompt, brief_mode = argv[0], len(argv) > 1 and bool(argv[1].strip())
+    if brief_mode:                                        # the customer's path: an approved brief, not a raw request
+        answers = json.loads(argv[1])
+        if not isinstance(answers, dict):
+            raise ValueError('answers must be a JSON object of question id -> value')
+        prompt = approved_prompt(argv[0], answers)
+    report = run(prompt)
+    report['brief_mode'] = brief_mode
     print('REHEARSAL ' + json.dumps(report, ensure_ascii=False))
     for line in annotations(report):
         print(line)

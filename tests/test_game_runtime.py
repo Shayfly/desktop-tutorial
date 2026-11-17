@@ -106,6 +106,7 @@ def codes(gate):
 
 
 @unittest.skipUnless(HAVE_BROWSER, 'NOT_RUN: no local Chromium and Playwright')
+@unittest.skipIf(os.environ.get('OMNI_M4_ACCEPTANCE_W_NESTED') == '1', 'real browser: run once in the main suite, not again in the time-bounded nested run')
 class RealGamesInARealBrowser(unittest.TestCase):
     def test_a_game_that_plays_passes_on_the_phone_and_the_desktop(self):
         gate, report = play(GOOD)

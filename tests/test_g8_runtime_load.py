@@ -76,6 +76,10 @@ def run(repo, mode='warn'):
     return gate, gate.execute(repository=repo, spec=None)
 
 
+NESTED = os.environ.get('OMNI_M4_ACCEPTANCE_W_NESTED') == '1'   # tests/test_m4_acceptance.py re-runs the suite in 300 s
+
+
+@unittest.skipIf(NESTED, 'real servers: run once in the main suite, not again in the time-bounded nested run')
 class OnRealServers(unittest.TestCase):
     def test_a_healthy_product_answers_every_request_and_passes(self):
         gate, report = run(GOOD, 'block')
@@ -135,12 +139,14 @@ class TheRulesAndTheBounds(unittest.TestCase):
         for code in R.CODES:
             self.assertIn(code, R._FIX)
 
+    @unittest.skipIf(NESTED, 'real servers: run once in the main suite')
     def test_a_slow_product_is_found_by_the_real_measurement(self):
         gate, report = run(SLOW, 'block')
         codes = {f['code'] for f in gate.last_load['findings']}
         self.assertIn('LOAD_SLOW', codes)
         self.assertGreater(gate.last_load['measured']['p95_ms'], R.P95_LIMIT_MS)
 
+    @unittest.skipIf(NESTED, 'real servers: run once in the main suite')
     def test_a_server_that_answers_one_visitor_at_a_time_is_found_because_six_ask_at_once(self):
         gate, report = run(ONE_AT_A_TIME, 'block')
         m = gate.last_load['measured']

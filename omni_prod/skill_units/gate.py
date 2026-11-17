@@ -103,9 +103,29 @@ def served_of(repository: dict[str, str]) -> list[tuple[str, str]]:
             if isinstance(text, str) and path.lower().endswith(SERVED_EXT)]
 
 
-def check(gate: str, repository: dict[str, str]) -> dict:
-    """{'status': 'pass'|'fail'|'NOT_RUN', 'failures': [{unit, page, code, findings}], 'checked': [...]}."""
-    found = pages(repository)
+SERVED_PAGE_LIMIT = 44_000        # the preview smoke returns at most 45,000 characters of GET /; a longer page is cut
+_TEMPLATE_FIELD = re.compile(r'\{[A-Za-z_][^{}\n]{0,80}\}')
+
+
+def served_copy(found: list[tuple[str, str]], rendered) -> list[tuple[str, str]]:
+    """Calibration, 2026-11-17 (rehearsals 44025252867 and 44025259144): a generated site keeps its page as a Python
+    template -- `<title>{SITE_TITLE}</title>`, `{packages_html}` -- and fills it when it serves. Read from the source,
+    the copy gate called the template fields "placeholders left in the page" and the brand gate said the business
+    name is missing: both wrong, on two builds of two. "The gates judge the page the product SERVES, not its source"
+    (Michael 2026-11-10). When the repository has ONE page, that page is a template, and the preview smoke of THIS
+    round returned the whole page GET / serves, the page units read that served copy. Otherwise they read the source,
+    as before -- never a guess about which page is which, and never a page that was cut."""
+    page = (rendered or {}).get('/') if isinstance(rendered, dict) else None
+    if (len(found) != 1 or not isinstance(page, str) or not _TEMPLATE_FIELD.search(found[0][1])
+            or len(page) >= SERVED_PAGE_LIMIT or '</html' not in page.lower()):
+        return found
+    return [(found[0][0] + ' (as served)', page)]
+
+
+def check(gate: str, repository: dict[str, str], rendered=None) -> dict:
+    """{'status': 'pass'|'fail'|'NOT_RUN', 'failures': [{unit, page, code, findings}], 'checked': [...]}.
+    `rendered`: the preview smoke's {'/': html} of this round, when it passed (see served_copy)."""
+    found = served_copy(pages(repository), rendered)
     sources = sources_of(repository)
     served = served_of(repository)
     members = gate_units(gate)
@@ -148,7 +168,9 @@ class SkillGateExecutor:
     def execute(self, *, repository, spec):
         from ..autonomous_core import AcceptanceFailure
         report = self._inner.execute(repository=repository, spec=spec)
-        result = check(self.gate, self.view(repository))
+        # the served page of THIS round only: the smoke keeps its last page when a later round fails before it runs
+        rendered = getattr(self._inner, 'last_pages', None) if report.passed else None
+        result = check(self.gate, self.view(repository), rendered if isinstance(rendered, dict) else None)
         self.last_gate = {**result, 'mode': self.mode}
         if result['status'] == 'NOT_RUN':
             _LOG.warning('GATE_NOT_RUN gate=%s %s', self.gate, result['reason'])
