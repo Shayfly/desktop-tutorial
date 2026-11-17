@@ -1,3 +1,17 @@
+# 2026-11-17 — the generator is told what the installed gates check (Claude Code)
+
+- **Merged and released:** #429 `7b45e1d` -> `b38b471` (`[release]`). CI green on the exact SHA; full suite on the
+  branch 3760 passed, 0 failed.
+- **What was missing (rehearsal 44043708644):** the share gate failed the butcher's page for a missing og:title, and
+  nothing had ever told the generator a shared link needs one. A check learned only by failing it costs a repair
+  round once the gate blocks.
+- **Fix:** `gate.install_all` now also carries the checks to the generator: one quality requirement
+  (`PLATFORM-CHECKS`) whose text is each installed unit's own manifest description, in gate order. A gate that is
+  off is left out. One source: nothing is written twice. Not mandatory, so no acceptance criterion is added.
+- **Evidence:** `tests/test_gate_rules_reach_the_generator.py` 4 passed (one through the real build loop); controls
+  `gate_rules_reach_generator` 6/6; `test_fast.sh` exit 0.
+- **NOT verified:** that the generator's first page passes more gates with the list than without it.
+
 # 2026-11-17 — G-APPLE ran on a real page for the first time; three roots from that build fixed (Claude Code)
 
 - **Merged:** #428 `8e26a8f` -> `4d9b1fb` (a syntax failure carries the line itself).

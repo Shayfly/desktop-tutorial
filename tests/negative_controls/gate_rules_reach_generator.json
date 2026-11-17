@@ -1,0 +1,112 @@
+{
+ "pr": "gate-rules-reach-generator",
+ "sha256": [
+  "tests/test_gate_rules_reach_the_generator.py",
+  "omni_prod/skill_units/gate.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "installing the gates tells the generator nothing",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "    carry_rules(engine, WORKER_GATES)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_gate_rules_reach_the_generator.py"
+   ],
+   "expect_failed": [
+    "test_through_the_real_build_loop_every_installed_unit_is_named_as_its_manifest_says"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a gate that is off is still announced",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "        if mode(g) == 'off':\n            continue\n        lines +=",
+     "new": "        lines +="
+    }
+   ],
+   "targets": [
+    "tests/test_gate_rules_reach_the_generator.py"
+   ],
+   "expect_failed": [
+    "test_a_gate_that_is_off_is_left_out"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the checks are written twice",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "    if not text or any(r['id'] == RULES_REQUIREMENT for r in data['requirements']):",
+     "new": "    if not text:"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_rules_reach_the_generator.py"
+   ],
+   "expect_failed": [
+    "test_it_is_added_once"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the checks become a mandatory requirement with no criterion",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "'kind': 'quality', 'mandatory': False})",
+     "new": "'kind': 'quality', 'mandatory': True})"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_rules_reach_the_generator.py"
+   ],
+   "expect_failed": [
+    "test_it_is_added_once",
+    "test_through_the_real_build_loop_every_installed_unit_is_named_as_its_manifest_says"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "only the first unit of each gate is named",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "        lines += [f\"- {manifest(u)['description']}\" for u in gate_units(g)]",
+     "new": "        lines += [f\"- {manifest(u)['description']}\" for u in gate_units(g)[:1]]"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_rules_reach_the_generator.py"
+   ],
+   "expect_failed": [
+    "test_through_the_real_build_loop_every_installed_unit_is_named_as_its_manifest_says"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "no architect, and the engine is marked as carried",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "    core.gate_rules_carried = carried\n",
+     "new": "    core.gate_rules_carried = True\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_rules_reach_the_generator.py"
+   ],
+   "expect_failed": [
+    "test_an_engine_with_no_architect_is_said"
+   ]
+  }
+ ]
+}
