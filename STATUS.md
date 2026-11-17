@@ -1,3 +1,19 @@
+# 2026-11-17 — negative controls in parallel; the pg step's limit is not raised again (Claude Code)
+
+- **Root cause (investigated, owner's rule: investigate, do not raise a limit):** the pg job's controls step was raised
+  5 -> 10 -> 14 minutes in two days and still ran over: main took 8:56 to 11:37 today, and #445 (one more spec, about
+  6 seconds) ran over 14 twice. The time is 574 controls, each a pytest start, in a row on a 4-core runner.
+- **Fix:** `NC_JOBS=N` runs N controls at once; each control's lines are buffered and printed in the same order and
+  format as a serial run. On a real database every worker gets its own copy of the migrated database
+  (`CREATE DATABASE nc_<i> TEMPLATE ...`, bounded retry) and its own Redis index; the runner's own settings never reach
+  the tests a control runs. v24-ci: `NC_JOBS=4`; the pg job: `NC_JOBS=3` with `NC_DB_URL`/`NC_REDIS_URL`. No limit
+  raised, no control removed; `NC_JOBS=1` (the default) is the serial run.
+- **Evidence (local, default environment):** all specs in parallel: 532 controls PASS, 0 FAIL, 0 `::error`; 6 specs
+  run only in their own jobs (a2, pg) and say so; 278 s against about 20 minutes serial. Tests
+  `tests/test_negative_controls_parallel.py` 5/5; controls `nc_parallel` 5/5; the existing runner tests pass. Found on
+  the way: with `NC_JOBS` inherited, the runner's own tests ran in parallel mode under their controls -- fixed, and a
+  control proves it. NOT verified locally: the pg mode (no PostgreSQL here) -- this PR's own pg job runs it.
+
 # 2026-11-17 — the owner's human test: the image question looped; the conversation ran on Haiku (Claude Code)
 
 - **Merged and released:** #443 `444d3d4` -> `a3bf297` (the browser check: a visible message rewritten after a save is
