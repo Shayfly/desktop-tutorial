@@ -21,8 +21,7 @@
    ],
    "expect_failed": [
     "test_the_brief_carries_a_palette_and_g_apple_locks_a_contract",
-    "test_the_production_request_is_recognised",
-    "test_the_rule_gives_a_fixed_width_not_a_ch_value"
+    "test_the_production_request_is_recognised"
    ]
   },
   {

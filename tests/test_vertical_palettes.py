@@ -109,8 +109,31 @@ class TheBuildPrompt(unittest.TestCase):
 
     def test_an_unknown_business_is_said_not_defaulted(self):
         line = design('דף לחנות פרחים קטנה')
+        # DECISIONS 7 (the owner 2026-11-17): still said, but no longer left to the model -- the nearest category
         self.assertIn('the business category is not recognised', line)
-        self.assertIsNone(re.search(r'primary colour #', line))
+        self.assertIn('the nearest category, furniture_interior', line)
+        self.assertIn('primary colour ' + V.palette_for('furniture_interior')[1]['primary'], line)
+
+    def test_nearest_category_by_a_related_word(self):
+        self.assertEqual(V.nearest_category('אתר לפיצריה בחיפה')[0], 'restaurants')
+        self.assertEqual(V.nearest_category('אתר למכון יופי')[0], 'cosmetics')
+
+    def test_nearest_category_by_an_inflection(self):
+        self.assertEqual(V.nearest_category('אתר לחשמלאית')[0], 'electrical')
+
+    def test_a_generic_word_is_not_nearness(self):
+        # "מכון" is in "מכון כושר" and "חנות" in "חנות יין": neither makes a gym or a wine shop near
+        self.assertEqual(V.nearest_category('אתר למכון הייטק'), (V.NO_SIGNAL, 0.0))
+
+    def test_no_signal_is_the_declared_palette_not_a_guess(self):
+        self.assertEqual(V.nearest_category('אתר לגננת'), (V.NO_SIGNAL, 0.0))
+
+    def test_near_words_outside_the_catalogue_fail(self):
+        data = json.loads(V.DATA.read_text(encoding='utf-8'))
+        data['near']['tattoo_parlours'] = ['קעקועים']
+        from omni_prod.reference_catalog import CATEGORIES
+        with self.assertRaises(V.PaletteError):
+            V.check(data, CATEGORIES)
 
 
 if __name__ == '__main__':

@@ -21,11 +21,15 @@
    ],
    "expect_failed": [
     "test_a_butcher_without_a_colour_gets_the_butcher_palette",
+    "test_a_generic_word_is_not_nearness",
     "test_a_vertical_without_a_palette_fails",
     "test_all_32_verticals_are_mapped_to_a_palette",
     "test_an_unknown_business_is_said_not_defaulted",
     "test_every_palette_is_readable",
     "test_every_vertical_is_recognised_by_its_own_words",
+    "test_nearest_category_by_a_related_word",
+    "test_nearest_category_by_an_inflection",
+    "test_no_signal_is_the_declared_palette_not_a_guess",
     "test_the_customers_colour_wins",
     "test_two_verticals_get_two_palettes"
    ]

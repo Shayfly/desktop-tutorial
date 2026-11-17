@@ -130,7 +130,9 @@ GOLDEN = {
         # saying "approved without it" (was 8734a337...)
         # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was 0c291947...)
         # 2026-11-16: the contract keeps the approved text's line breaks instead of one long line (was 7ad9ea46...)
-        'sha256:0ccf837a4afbcf49445b21a4d771a65c0fc4f1f8ef6349e6b270ec3f0d4f9971',
+        # 2026-11-17 DECISIONS 7: a florist is not a catalogue category; its colours now come from the nearest one
+        # ("פרחים" is listed near furniture_interior) instead of "choose a palette" (was 0ccf837a...)
+        'sha256:819fa719e42022fb786489e57c6252740e7a88bca72e3594f06c38f3064111e0',
     'אני רוצה מערכת לניהול תורים למספרה שלי, בלי התחברות, הלקוחות ישאירו טלפון':
         # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was d2b57978...)
         # 2026-11-16: the contract keeps the approved text's line breaks instead of one long line (was 99a3ccd7...)
