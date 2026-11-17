@@ -15,10 +15,10 @@
     }
    ],
    "targets": [
-    "tests/test_gate_regression_free_port.py"
+    "tests/test_gate_regression_free_port.py::ThePortIsFree"
    ],
    "expect_failed": [
-    "test_two_runs_at_once_do_not_collide"
+    "test_two_ports_taken_at_once_differ_and_are_free"
    ]
   }
  ]

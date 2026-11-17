@@ -23,5 +23,20 @@ class TwoRunsAtOnce(unittest.TestCase):
         self.assertEqual([r['served'] for r in results], [True, True], [r['smoke'] for r in results])
 
 
+class ThePortIsFree(unittest.TestCase):
+    """The same guarantee without timing (2026-11-17): the test above needs the two runs to overlap in time, and under
+    load (controls in parallel) they may not -- then a fixed port is not caught. Here the first port is HELD while the
+    second is taken: a fixed number gives the same port twice, every time."""
+
+    def test_two_ports_taken_at_once_differ_and_are_free(self):
+        first = free_port()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as held:
+            held.bind(('127.0.0.1', first))                   # the first run is serving on it
+            second = free_port()
+            self.assertNotEqual(first, second)
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as other:
+                other.bind(('127.0.0.1', second))              # and the second one is really free
+
+
 if __name__ == '__main__':
     unittest.main()

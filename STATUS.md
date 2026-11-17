@@ -12,7 +12,12 @@
   run only in their own jobs (a2, pg) and say so; 278 s against about 20 minutes serial. Tests
   `tests/test_negative_controls_parallel.py` 5/5; controls `nc_parallel` 5/5; the existing runner tests pass. Found on
   the way: with `NC_JOBS` inherited, the runner's own tests ran in parallel mode under their controls -- fixed, and a
-  control proves it. NOT verified locally: the pg mode (no PostgreSQL here) -- this PR's own pg job runs it.
+  control proves it.
+- **CI on `d9f26d7`:** the pg job's controls step took 4:38 in parallel on per-worker databases (it ran over 14:00
+  twice before). One control was exposed as timing-dependent: `test_free_port` caught a fixed port only when the two
+  runs happened to overlap, and under parallel load they did not. A test without timing now holds the first port while
+  the second is taken (`ThePortIsFree`), and the control points at it; the real-run test stays. `light` ran over its
+  30 s budget at 30.5 s (the fast suite did not change; it ran in 21.8-29.6 s today).
 
 # 2026-11-17 — the owner's human test: the image question looped; the conversation ran on Haiku (Claude Code)
 
