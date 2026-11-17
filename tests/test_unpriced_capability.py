@@ -129,16 +129,20 @@ GOLDEN = {
         # 2026-11-13 (the cafe fix): no waiver was given, so the spec lists the phone as MISSING instead of
         # saying "approved without it" (was 8734a337...)
         # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was 0c291947...)
-        'sha256:7ad9ea46ba89c4411413f108350ec985e231bf5b557d3e15dfe63dead926ec10',
+        # 2026-11-16: the contract keeps the approved text's line breaks instead of one long line (was 7ad9ea46...)
+        'sha256:0ccf837a4afbcf49445b21a4d771a65c0fc4f1f8ef6349e6b270ec3f0d4f9971',
     'אני רוצה מערכת לניהול תורים למספרה שלי, בלי התחברות, הלקוחות ישאירו טלפון':
         # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was d2b57978...)
-        'sha256:99a3ccd75d2a90bf4c3f66c34520ab1db558f457ade93e925769060d618f5e06',
+        # 2026-11-16: the contract keeps the approved text's line breaks instead of one long line (was 99a3ccd7...)
+        'sha256:25ba347e55f91c566d8d144842710c5e4c4956933c85e114128151c0f75b5b02',
     'Build a team task tracker web app: users sign up and log in, create projects, add tasks with due dates':
         # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was 13cf3807...)
-        'sha256:051707d17377223b8d574b2c167335795288a95ceb4acff620ca435eef383dc7',
+        # 2026-11-16: the contract keeps the approved text's line breaks instead of one long line (was 051707d1...)
+        'sha256:39ae8a91350e10671b66fd074937a51fe7b24d975c58edcb256e1aa63cc1bf5d',
     'דף לבית קפה עם תפריט ותשלום אונליין בכרטיס אשראי':
         # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was 3eb15832...)
-        'sha256:6ab2a7a305f33642ecce95003b154f522896db595f5deb95a561479cc8e84831',
+        # 2026-11-16: the contract keeps the approved text's line breaks instead of one long line (was 6ab2a7a3...)
+        'sha256:903357297987bd003aff0910c2192c5815ffd46f60754e56fb6a42ded0bde2ec',
 }
 
 

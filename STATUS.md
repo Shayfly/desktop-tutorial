@@ -1,3 +1,31 @@
+# 2026-11-17 — the build contract keeps the approved text's line breaks (Claude Code)
+
+- **Merged:** #430 `4b925d1` -> `1da851d` (the generator is told what the installed gates check).
+- **Calibration builds so far (G-APPLE at warn, contract carried):** butcher 44048592665 and cafe 44049242034 --
+  both ready, P0=0 from both reviewers on both. Seen on both: MEASURE on paragraphs at 768/1440, STRING_30/60 at
+  320, the hero pushed into the right half (P1). Not yet acted on: two builds are not three.
+- **Full suite on this change (rebuilt on main `b38b471`):** 3764 passed, 0 failed.
+- **Owner's order:** finish what was listed as open; this was listed in #421 as "proposed, not done".
+- **What was wrong:** `ProductArchitect.compile` stored the contract's prompt as one long line. Every reader on the
+  worker that reads by line lost its line. #421 made three readers read both forms, but two cannot recover a joined
+  line:
+  - a customer review at the end of its line: its author ran into the next line's words;
+  - an image description that ends with its line: it ran on.
+- **The change:** the contract stores one line per approved line (each line's own whitespace collapsed, blank lines
+  dropped). Detection, the spec title and the summary still read the one-line text.
+- **What it changes for a customer:** every NEW contract has a new fingerprint. Contracts stored before today are
+  one line; they stay valid and the worker still reads them (the production row of "148 דלתות" is a test fixture).
+- **Evidence:**
+  - `tests/test_contract_prompt_readers.py`, 20 tests: the photo binding, the windows, the canon and the MISSING
+    line give the same answers on the approved text, on a contract compiled today, and on a one-line contract;
+    the review keeps its author and the image description ends with its line.
+  - The eight pinned contract fingerprints are re-pinned, each with its old value. A new test recomputes each
+    contract's fingerprint with the prompt flattened and gets the fingerprint pinned before: only the line breaks
+    changed.
+  - Negative controls `contract_prompt_readers.json` 10/10; NC10 puts the one-line storage back.
+- **Not checked:** how the model's output changes when the generator reads the request with line breaks instead of
+  one line. The text is the same words; no build was run on a model.
+
 # 2026-11-17 — the generator is told what the installed gates check (Claude Code)
 
 - **Merged and released:** #429 `7b45e1d` -> `b38b471` (`[release]`). CI green on the exact SHA; full suite on the
