@@ -1,0 +1,95 @@
+{
+ "pr": "rehearsal-asks-release-policy",
+ "sha256": [
+  "tests/test_rehearsal_asks_the_release_policy.py",
+  "omni_prod/rehearsal.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a rehearsal is ready whatever the policy says",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "            and (report.get('release_policy') or {}).get('decision') == 'READY')",
+     "new": "            )"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_asks_the_release_policy.py"
+   ],
+   "expect_failed": [
+    "test_a_build_the_policy_blocks_is_not_a_ready_rehearsal"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the run never asks the policy",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "    report['release_policy'] = release_policy(engine, gateway, result)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_asks_the_release_policy.py"
+   ],
+   "expect_failed": [
+    "test_run_asks_it_before_reporting"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a blocked build raises no error notice",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "    if policy.get('decision') not in (None, 'READY', 'NOT_RUN'):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_asks_the_release_policy.py"
+   ],
+   "expect_failed": [
+    "test_the_notice_says_a_customers_build_would_fail"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the policy's decision is replaced by READY",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "    return {'decision': qr.decision, 'blocking': blocking,",
+     "new": "    return {'decision': 'READY', 'blocking': blocking,"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_asks_the_release_policy.py"
+   ],
+   "expect_failed": [
+    "test_the_notice_says_a_customers_build_would_fail",
+    "test_the_production_state_is_a_failed_rehearsal_with_the_same_words"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a build with no result is called READY",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "        return {'decision': 'NOT_RUN', 'reason': 'the build raised before it had a result'}",
+     "new": "        return {'decision': 'READY'}"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_asks_the_release_policy.py"
+   ],
+   "expect_failed": [
+    "test_a_build_with_no_result_is_said_not_judged"
+   ]
+  }
+ ]
+}

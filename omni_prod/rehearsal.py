@@ -128,6 +128,7 @@ def run(prompt: str) -> dict:
             browser_check=getattr(getattr(engine, 'executor', None), 'last_probe', None),
             behavior_acceptance=__import__('omni_prod.worker_tasks', fromlist=['x']).behavior_evidence(engine),
         )
+    report['release_policy'] = release_policy(engine, gateway, result)
     from .skill_units.gate import report as skill_gate_report
     report['skill_gates'] = skill_gate_report(engine)
     from .g_apple import report as apple_gate_report
@@ -142,6 +143,30 @@ def run(prompt: str) -> dict:
     report.update(model_calls=calls, authorized_spend_usd=str(spent), seconds=round(time.monotonic() - started))
     report.update(cost_projection(gateway))
     return report
+
+
+def release_policy(engine, gateway, result) -> dict:
+    """The worker's release policy on the rehearsal's build: the decision a customer's build gets after its checks.
+
+    Production 2026-11-17, bld_a875456f: every build failed `release_policy_failed` for half a day (a chain walk that
+    could not reach three stages) while five rehearsals of the same code reported "ready" -- the rehearsal stopped
+    at the engine's result and never asked the policy. It asks now, with the worker's own function, and a build the
+    policy blocks is not a ready rehearsal.
+    Not the customer's path, said here: the request's rights are not assessed in a rehearsal (no account, no
+    markets), so `rights_clear` is reported NOT_ASSESSED and never counted as the reason for a block."""
+    if result is None:
+        return {'decision': 'NOT_RUN', 'reason': 'the build raised before it had a result'}
+    from types import SimpleNamespace
+    from .quality_gate import assess_repository
+    from .security_testing import hostile_repository_scan
+    from .worker_tasks import release_quality_report
+    quality = assess_repository(spec=result.spec, repository=result.repository)
+    qr = release_quality_report('rehearsal', engine, gateway, result, quality,
+                                hostile_repository_scan(result.repository), SimpleNamespace(publish_allowed=True))
+    if qr is None:
+        return {'decision': 'UNAVAILABLE', 'reason': 'the quality report could not be generated'}
+    blocking = [f'{c.stage}/{c.check}: {c.status}' + (f' ({c.detail})' if c.detail else '') for c in qr.blocking]
+    return {'decision': qr.decision, 'blocking': blocking, 'not_run': qr.not_run, 'rights_clear': 'NOT_ASSESSED'}
 
 
 def cost_projection(gateway) -> dict:
@@ -180,6 +205,13 @@ def annotations(report: dict) -> list[str]:
              note('files', ', '.join(report.get('files') or []) + '\n' + (report.get('manifest') or ''))]
     lines.append(note('taxonomy', f"first_pass={report.get('first_pass')} failures="
                                   + json.dumps(report.get('failure_taxonomy') or [], ensure_ascii=False)))
+    policy = report.get('release_policy') or {}
+    lines.append(note('release policy', json.dumps(
+        {k: policy.get(k) for k in ('decision', 'reason', 'blocking', 'rights_clear')}, ensure_ascii=False)
+        + '\nnot run: ' + json.dumps([f"{n['stage']}/{n['check']}" for n in policy.get('not_run') or []])))
+    if policy.get('decision') not in (None, 'READY', 'NOT_RUN'):
+        lines.append('::error title=release policy::a customer\'s build would FAIL: '
+                     + '; '.join(policy.get('blocking') or [str(policy.get('reason'))]).replace('\n', ' ')[:1500])
     if report.get('skill_gates') or report.get('skill_gates_error'):
         lines.append(note('skill gates', report.get('skill_gates_error') or '\n'.join(
             f"{g} mode={r.get('mode')} status={r.get('status', 'NOT_RUN')} "
@@ -239,7 +271,14 @@ def main(argv=None) -> int:
     print('REHEARSAL ' + json.dumps(report, ensure_ascii=False))
     for line in annotations(report):
         print(line)
-    return 0 if report.get('outcome') == 'ready' and report.get('quality', {}).get('passed') else 1
+    return 0 if ready(report) else 1
+
+
+def ready(report: dict) -> bool:
+    """A rehearsal is ready when a customer's build would be: the engine said ready, the quality gate passed AND the
+    release policy decided READY."""
+    return (report.get('outcome') == 'ready' and bool(report.get('quality', {}).get('passed'))
+            and (report.get('release_policy') or {}).get('decision') == 'READY')
 
 
 if __name__ == '__main__':

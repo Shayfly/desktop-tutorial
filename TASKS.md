@@ -50,4 +50,5 @@
 | CALIB-3 | Claude Code | In review | three calibration builds P0=0; hero rule; notice says what was measured; NC 3/3 |
 | PR-432 | Claude Code | Done | #432 `e49b3c0` -> `a9c97b6` (hero rule; notice says what was measured) |
 | CHAIN-BOUND | Claude Code | Done | #433 `96958b3` -> `7596591`, released |
-| BRIEF-KEPT | Claude Code | In review | the pasted brief reaches the build ("ישיר" is not a song; a kept message is part of the request); NC 5/5; full suite 3779/0 |
+| BRIEF-KEPT | Claude Code | Done | #434 `01e39ab` -> `69a308c`, released |
+| REHEARSAL-POLICY | Claude Code | In review | the rehearsal asks the release policy; NC 5/5 |
