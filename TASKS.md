@@ -68,3 +68,5 @@
 | D7-NEAREST | Claude Code | In review (part 1) | nearest-category palette; part 2 (the colour question) after the owner's human test; NC 5/5 |
 | AGENT-FLAG | Claude Code | Done | #441 `81e24c4` -> `f14b773`; Vercel `OMNI_INTAKE_AGENT=accounts`, owner's account only; redeploy `dpl_6cVPvSHA23juKTo3nQ1LETaGZUBD` |
 | METER-CALL-ID | Claude Code | In review | the meter prices ONE call by its id (owner 2026-11-18): ten turns give ten sums; no id, no ledger or an untagged attempt is loud, never $0; every routed rehearsal cost to date invalid; review fixes (lane, warnings, dropped id, skip event); NC 24/24 (NC1 permanent) |
+| METER-CALL-ID-DONE | Claude Code | Done | #451 `4b3b329` -> `9aee98a` |
+| QUOTA-REPAIR-STOP | Claude Code | In review | a repair call with a no-credit route keeps the verified build (ProviderQuotaUnavailable by type, #448 follow-up); NC 4/4 |
