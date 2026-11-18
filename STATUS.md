@@ -1,3 +1,23 @@
+# 2026-11-18 — the conversation agent's 8-turn cap, and tokens and cost per conversation (Claude Code)
+
+- **What was missing:** the owner's decision for Sonnet set at most 8 turns per conversation and tokens and cost
+  recorded per conversation. No turn cap existed on the production intake path (only the rehearsal had one), and tokens
+  lived only in each reservation's settle event.
+- **Fix (part 2 of 3):** `reserve()` enforces `Caps.project_turns` under the same scope locks as the money check, so two
+  tabs cannot both take the last turn and a retry with the same key returns its reservation. A turn is a paid call the
+  provider received or may have received; a released call and a settled call the provider never received
+  (contacted=false) are not turns, and only reservations made under the cap count (a project's earlier turns never close
+  it on the first day). 'turns' closes the conversation; 'busy' (the cap reached only by calls still in flight) says so
+  and does not. The cap holds for agent accounts only (`conversation_agent.MAX_TURNS = 8`). `conversation_usage(scope)`
+  returns turns, tokens, settled and held amounts and the models; an UNKNOWN or open call makes the total None, never
+  $0, and `counted_usd` equals `counted(scope)`. It is stored with each paid or limited assistant message (server side,
+  never sent to the browser) and logged as `INTAKE_CONVERSATION_USAGE`; a read failure is kept as `usage_error` and never
+  fails the turn. No migration.
+- **Evidence:** `tests/test_conversation_turn_cap_pg.py` 8 passed on real PostgreSQL 16 (local, a fresh database with
+  every migration); `tests/test_conversation_turn_cap.py` 8 passed. Controls `conversation_turn_cap` 8/8 and
+  `conversation_turn_cap_pg` 7/7 (`envs: pg`). The PG file runs in intake-budget-pg's isolated per-file loop
+  (`scripts/ci_test_coverage.py` PASS).
+
 # 2026-11-18 — a conversation that reaches its limit stops gracefully, with the way on (Claude Code)
 
 - **What broke:** when a conversation reached a limit (the $0.15 project cap, the daily cap), the customer read "the
