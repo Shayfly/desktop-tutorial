@@ -1,3 +1,22 @@
+# 2026-11-18 — a repair call where a route answered "no credit" no longer ends the whole build (Claude Code)
+
+- **What broke:** the #448 fix (keep a build's verified work when no route answers the repair) missed one shape of
+  "no route answered". **Root cause (Claude's bug, #448):** the catch matched the text `all model routes failed`. When a
+  route in the call answered "no credit" -- Anthropic's HTTP 400 "credit balance is too low", including the 24-hour
+  half-open trial of a CREDIT_EXHAUSTED route -- the router raises `ProviderQuotaUnavailable` instead
+  (`routed_gateway.py`, depleted routes), whose message lacks that text, so the build still died the old way and threw
+  its verified rounds away. Found by the repair-JSON root-cause analysis (wf_309a64e1-002), confirmed in the code.
+- **Fix:** `autonomous_core.py` matches `ProviderQuotaUnavailable` by type, beside the existing text match. Any other
+  model error still ends the build.
+- **Evidence:** `tests/test_repair_model_unavailable.py` 6 passed; the new test runs the real RoutedModelGateway with
+  one route answering Anthropic's no-credit text and the other prose instead of JSON: the router raises
+  `ProviderQuotaUnavailable`, the build ends `failed / repair_model_unavailable` on round 1's version, and the customer
+  reads `verification_failed`. Controls `repair_model_unavailable` 4/4 (NC1 and NC2 follow the changed line; NC4: the
+  type check removed fails the new test).
+- **Not done here:** the rest of the repair-JSON plan. Its winning proposal (exact edit blocks) was refuted by its own
+  skeptics (the recommended option keeps whole-file answers that are cut at 8,188 tokens; build time budget unchecked;
+  the stored rejected answers in production not read). It is re-planned before anything is built.
+
 # 2026-11-18 — the meter prices one call by its id, not the whole ledger; every routed cost to date is invalid (Claude Code)
 
 - **What broke:** a turn on the routed path was charged for every earlier turn of the run. **Root cause (Claude's
