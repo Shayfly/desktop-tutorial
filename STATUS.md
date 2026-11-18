@@ -4,7 +4,8 @@
   runner; 17 s here) -- the file's own rule says: re-measure when the budget fails, never raise it.
 - **Re-measured by the documented method** on main `8c7dcbf`: 442 test files; 198 touch the environment, 30 need absent
   packages; 214 run alone, 207 pass in under 2 s. **New:** a cap on the total -- the kept files run together, fastest
-  first, under 13 s here. Result: 188 files (was 172), 1478 tests, 11.9-12.3 s in one process (was 17 s).
+  first, under 13 s here. Result: 187 files (was 172), 1476 tests, 11.5-12.3 s in one process (was 17 s). The module listed in
+  `tests/needs_env.txt` (`test_r2_storage_signing.py`) stays out; the full suite caught the first cut keeping it.
 - The `fast_suite` controls anchored on the header line "# Result: 172 files", which changes at every re-measure; they
   now anchor on the stable rule line. Controls 2/2.
 

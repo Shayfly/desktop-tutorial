@@ -3,10 +3,11 @@
 # 172 files took 21.8 to 33.0 s on the runner, 17 s here). Container python 3.13, each of 442 test files checked:
 #   dropped:  the file touches the environment (os.environ|setenv|getenv|subprocess|patch.dict(os...))       -> 198
 #   dropped:  the file names fastapi|psycopg|boto3|botocore|TestClient (needs packages absent here)          -> 30
+#   dropped:  listed in tests/needs_env.txt (needs a configured environment)                                -> 1
 #   run ALONE (own pytest process): kept when wall time < 2000 ms AND exit 0 -> 207 (7 slower or failing)
 #   NEW (2026-11-18): a cap on the TOTAL -- the kept files run together, fastest first, until one pytest process
 #   takes under 13 s here (about 20 s on the CI runner, under its 30 s budget with room for its variance).
-# Result: 188 files; together 1478 passed, 600 subtests passed, 11.9 s (one pytest process).
+# Result: 187 files; together 1476 passed, 600 subtests passed, 11.5 s (one pytest process).
 # A file is added or removed only by re-measuring, never by name.
 # Re-measured by Claude: whenever tests/ grows by 100 test files since this date (441 here), or when
 # scripts/test_fast.sh fails its 30 s budget -- whichever comes first.
@@ -130,7 +131,6 @@ tests/test_qa_plan_parity.py
 tests/test_qstash_scheduler.py
 tests/test_quality_repairable.py
 tests/test_r2_generated_credentials.py
-tests/test_r2_storage_signing.py
 tests/test_reconciler_releases_failed_builds.py
 tests/test_redaction_fail_closed.py
 tests/test_redaction_single_layer.py
