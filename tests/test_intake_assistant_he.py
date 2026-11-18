@@ -154,8 +154,11 @@ class ModelCallBoundsTests(unittest.TestCase):
         self.assertEqual(PROMPT_VERSION, 'intake-prompt/6-semantic-integrations')
 
         class Gateway:
+            accepts_call_id = True          # a double that never contacts a provider: an empty attempt ledger
+
             def __init__(self):
                 self.seen = None
+                self.recorder = type('R', (), {'records': []})()
 
             def complete_json(self, **kw):
                 self.seen = kw

@@ -114,7 +114,7 @@ class GatewayTests(unittest.TestCase):
         # the gateway's own worst case at the same ceiling fits inside the reservation: the call is made
         fake = FakeVenice()
         g = V.VeniceIntakeGateway(q.amount_usd, ceiling=(Decimal('1'), Decimal('4')), env=KEY, transport=fake)
-        g.complete_json(system=SYSTEM, user=MSG, max_tokens=MAX_OUTPUT_TOKENS)
+        g.complete_json(system=SYSTEM, user=MSG, max_tokens=MAX_OUTPUT_TOKENS, call_id='c1')
         self.assertEqual(len(fake.chats), 1)
         for bad in ('', 'x', '1', '0,4', '1,-1', 'nan,1'):
             with self.subTest(ceiling=bad), mock.patch.dict(os.environ, {**VENICE_ENV,
@@ -131,19 +131,19 @@ class GatewayTests(unittest.TestCase):
         fake = FakeVenice()
         g = V.VeniceIntakeGateway(q.amount_usd, env=KEY, transport=fake)
         with self.assertRaises(VeniceBudgetExceeded):
-            g.complete_json(system=SYSTEM, user=MSG, max_tokens=tokens)
+            g.complete_json(system=SYSTEM, user=MSG, max_tokens=tokens, call_id='c1')
         self.assertEqual(fake.chats, [])
 
     def test_models_over_the_ceiling_are_never_selected(self):
         fake = FakeVenice()
         g = V.VeniceIntakeGateway(Decimal('1'), ceiling=(Decimal('0.4'), Decimal('4')), env=KEY, transport=fake)
         with self.assertRaises(Exception):                                   # private model costs 0.5 > 0.4
-            g.complete_json(system='S', user=MSG, max_tokens=100)
+            g.complete_json(system='S', user=MSG, max_tokens=100, call_id='c1')
         self.assertEqual(fake.chats, [])
 
     def test_call_shape_private_model_no_venice_prompt_no_retries(self):
         fake = FakeVenice()
-        out = gateway(fake).complete_json(system='SYS', user=MSG, max_tokens=500, task='conversation')
+        out = gateway(fake).complete_json(system='SYS', user=MSG, max_tokens=500, task='conversation', call_id='c1')
         self.assertEqual(out, ANSWER)
         (_, path, body), = fake.chats
         self.assertEqual(path, '/chat/completions')
@@ -155,37 +155,37 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(body['max_tokens'], 500)
         fake503 = FakeVenice(chat_status=503)
         with self.assertRaises(Exception):
-            gateway(fake503).complete_json(system='S', user=MSG, max_tokens=100)
+            gateway(fake503).complete_json(system='S', user=MSG, max_tokens=100, call_id='c1')
         self.assertEqual(len(fake503.chats), 1)                             # one paid attempt, never a second
 
     def test_metering_states(self):
         g = gateway(FakeVenice())
-        g.complete_json(system='S', user=MSG, max_tokens=500)
-        m = W.meter(g, {'max_tokens': 500})
+        g.complete_json(system='S', user=MSG, max_tokens=500, call_id='c1')
+        m = W.meter(g, {'max_tokens': 500}, call_id='c1')
         self.assertEqual((m['cost_state'], m['actual_usd'], m['provider'], m['model']),
                          (B.CONFIRMED, Decimal('0.0007'), 'venice', 'private-e2ee'))
         g = gateway(FakeVenice(cost=None))                                  # usage but no cost.usd
-        g.complete_json(system='S', user=MSG, max_tokens=500)
-        self.assertEqual(W.meter(g, {'max_tokens': 500})['cost_state'], B.COST_UNKNOWN)
+        g.complete_json(system='S', user=MSG, max_tokens=500, call_id='c1')
+        self.assertEqual(W.meter(g, {'max_tokens': 500}, call_id='c1')['cost_state'], B.COST_UNKNOWN)
         g = gateway(FakeVenice(chat_status=500))                            # contacted, then failed
         with self.assertRaises(Exception):
-            g.complete_json(system='S', user=MSG, max_tokens=500)
-        self.assertEqual(W.meter(g, {'max_tokens': 500})['cost_state'], B.COST_UNKNOWN)   # never "free"
+            g.complete_json(system='S', user=MSG, max_tokens=500, call_id='c1')
+        self.assertEqual(W.meter(g, {'max_tokens': 500}, call_id='c1')['cost_state'], B.COST_UNKNOWN)   # never "free"
 
     def test_quote_too_small_is_refused_before_the_prompt_leaves(self):
         fake = FakeVenice()
         g = gateway(fake, quoted='0.0001')
         with self.assertRaises(VeniceBudgetExceeded):
-            g.complete_json(system='S' * 2000, user=MSG, max_tokens=800)
+            g.complete_json(system='S' * 2000, user=MSG, max_tokens=800, call_id='c1')
         self.assertEqual(fake.chats, [])
-        m = W.meter(g, {'max_tokens': 800})
+        m = W.meter(g, {'max_tokens': 800}, call_id='c1')
         self.assertEqual((m['contacted'], m['cost_state']), (False, B.CONFIRMED_ZERO))
 
     def test_models_list_failure_is_not_a_paid_contact(self):
         g = gateway(FakeVenice(models_status=503))
         with self.assertRaises(Exception):
-            g.complete_json(system='S', user=MSG, max_tokens=100)
-        self.assertFalse(W.meter(g, {'max_tokens': 100})['contacted'])
+            g.complete_json(system='S', user=MSG, max_tokens=100, call_id='c1')
+        self.assertFalse(W.meter(g, {'max_tokens': 100}, call_id='c1')['contacted'])
 
     def test_the_json_object_is_found_and_plain_text_is_kept(self):
         # 2026-11-08: Claude Haiku via Venice put text around the JSON. The object is the answer; text without
@@ -204,10 +204,19 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(caught.exception.text, 'שלום! לכמה מתאמנות יש מקום בכל שיעור?')
 
     def test_each_call_is_metered_alone(self):
+        # 2026-11-18: by its call id, not by emptying the ledger before each call. The ledger keeps all three.
         g = gateway(FakeVenice())
-        for _ in range(3):
-            g.complete_json(system='S', user=MSG, max_tokens=500)
-        self.assertEqual(W.meter(g, {'max_tokens': 500})['actual_usd'], Decimal('0.0007'))
+        for i in range(3):
+            g.complete_json(system='S', user=MSG, max_tokens=500, call_id=f'c{i}')
+        self.assertEqual(len(g.recorder.records), 3)
+        for i in range(3):
+            self.assertEqual(W.meter(g, {'max_tokens': 500}, call_id=f'c{i}')['actual_usd'], Decimal('0.0007'))
+
+    def test_a_call_without_an_id_is_refused_before_contact(self):
+        fake = FakeVenice()
+        with self.assertRaises(ValueError):
+            gateway(fake).complete_json(system='S', user=MSG, max_tokens=500, call_id='')
+        self.assertEqual(fake.chats, [])
 
     def test_worker_executes_a_reservation_on_venice(self):
         """execute_reservation is unchanged; only the factory differs."""

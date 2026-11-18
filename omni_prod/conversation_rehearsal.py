@@ -117,6 +117,8 @@ class ProductionPathGateway:
     per-call amount is the quote's bound recomputed for THIS call's input (the same formula as budget.quote), so a
     longer conversation is not refused by an amount priced for a shorter one. Records the model every call ran on."""
 
+    accepts_call_id = True
+
     def __init__(self, quote: dict):
         self.quote = quote
         self.recorder = None
@@ -134,17 +136,70 @@ class ProductionPathGateway:
         return B.quote(system=system, user=user, max_tokens=max_tokens, task='conversation',
                        models=tuple(q.get('allowed_models') or ()) or None).amount_usd
 
-    def complete_json(self, *, system: str, user: str, max_tokens: int, task: str = 'conversation') -> dict:
+    def complete_json(self, *, system: str, user: str, max_tokens: int, call_id: str,
+                      task: str = 'conversation') -> dict:
+        from types import SimpleNamespace
         from .intake.reservation_worker import build_gateway
         q = self.quote
+        # building never contacts a provider: if it fails, THIS call has an empty ledger (not contacted), never the
+        # previous call's
+        self.recorder = SimpleNamespace(records=[])
         gateway = build_gateway(self.amount(system, user, max_tokens), tuple(q.get('allowed_models') or ()), q)
         self.recorder = getattr(gateway, 'recorder', None)
         try:
-            return gateway.complete_json(system=system, user=user, max_tokens=max_tokens, task=task)
+            return gateway.complete_json(system=system, user=user, max_tokens=max_tokens, task=task, call_id=call_id)
         finally:
             for r in (getattr(self.recorder, 'records', None) or []):
                 if getattr(r, 'model', None):
                     self.models_used.append(str(r.model))
+
+
+class RoutedPathGateway:
+    """The routed gateway under task `conversation`. From the gateway's own route events of each call (by its call id)
+    it records which route answered and which refused, and why: run 44263232985 (2026-11-18) passed on this path with
+    provider_models=None, so it could not say whether Sonnet answered or a fallback did.
+
+    The routed gateway's ledger keeps every attempt of the run; each turn is priced by its own call id
+    (reservation_worker.meter), never by the whole ledger -- which is what made every routed rehearsal cost to
+    2026-11-18 invalid."""
+
+    accepts_call_id = True
+
+    def __init__(self, routed):
+        from .attempt_ledger import TaskTaggedGateway
+        if not isinstance(getattr(routed, 'events', None), list) or \
+                not isinstance(getattr(getattr(routed, 'recorder', None), 'records', None), list) or \
+                not getattr(routed, 'accepts_call_id', False):
+            raise SystemExit('the routed gateway keeps no route events, no attempt ledger or no call ids: the '
+                             'rehearsal could not say which model answered or what a turn cost')
+        self.routed = routed
+        self.tagged = TaskTaggedGateway(routed, 'conversation')
+        self.recorder = routed.recorder
+        self.models_used: list[str] = []
+        self.route_failures: list[str] = []
+
+    @property
+    def task(self) -> str:
+        return self.tagged.task
+
+    @task.setter
+    def task(self, value: str) -> None:
+        # the lane's task (conversation / conversation_complex) reaches the routed gateway: _Supervisor sets it per turn
+        self.tagged.task = value
+
+    def complete_json(self, *, call_id: str, **kwargs):
+        if not call_id:
+            raise ValueError('a rehearsal call without a call id cannot be priced or attributed')
+        try:
+            return self.tagged.complete_json(call_id=call_id, **kwargs)
+        finally:
+            for e in self.routed.events:
+                if getattr(e, 'call_id', '') != call_id:
+                    continue
+                if e.ok:
+                    self.models_used.append(f'{e.provider}:{e.model}' if e.model else e.provider)
+                else:
+                    self.route_failures.append(f'{e.provider}: {e.error}'[:240])
 
 
 def run_scenario(name: str, interpreter) -> dict:
@@ -152,14 +207,19 @@ def run_scenario(name: str, interpreter) -> dict:
     spec = SCENARIOS[name]
     sup = _Supervisor(interpreter)
     lines, turns, cards, cost, models, reached = list(spec['lines']), [], 0, Decimal('0'), set(), False
+    unknown = 0
     message = lines.pop(0)
     for _ in range(MAX_TURNS):
         t = sup.turn(project_id=name, account_id='rehearsal', message=message, lang='he')
         meta = (sup.store.messages_for(name)[-1].get('interpretation') or {})
         cards += len(t.questions)
-        cost += t.cost_usd or Decimal('0')
+        if t.cost_usd is None:           # UNKNOWN / PENDING: never counted as $0
+            unknown += 1
+        else:
+            cost += t.cost_usd
         models.add(str(meta.get('interpreter') or (t.interpretation or {}).get('interpreter') or 'deterministic'))
-        turns.append({'customer': message[:160], 'agent': t.reply[:600], 'asked': meta.get('asked') or []})
+        turns.append({'customer': message[:160], 'agent': t.reply[:600], 'asked': meta.get('asked') or [],
+                      'cost_usd': None if t.cost_usd is None else str(t.cost_usd), 'cost_state': t.cost_state})
         if any(a['type'] == 'approve_spec' for a in t.actions):
             reached = True
             break
@@ -170,8 +230,9 @@ def run_scenario(name: str, interpreter) -> dict:
     missing = [f for f in spec['facts'] if f not in built_from]
     used = getattr(getattr(interpreter, 'gateway', None), 'models_used', None)
     result = {'scenario': name, 'turns': len(turns), 'cards': cards, 'approval': reached, 'facts_missing': missing,
-              'models': sorted(models), 'cost_usd': str(cost), 'transcript': turns,
-              'provider_models': sorted(set(used)) if used is not None else None}
+              'models': sorted(models), 'cost_usd': None if unknown else str(cost), 'cost_unknown_turns': unknown,
+              'transcript': turns, 'provider_models': sorted(set(used)) if used is not None else None,
+              'route_failures': list(getattr(getattr(interpreter, 'gateway', None), 'route_failures', None) or [])[:20]}
     result['passed'] = accepted(cards=cards, reached=reached, missing=missing, models=models)
     return result
 
@@ -205,25 +266,28 @@ def main(argv=None) -> int:
               f"ceiling {q.get('venice_ceiling_usd_per_m')}, max_tokens {q.get('max_tokens')}")
         gateway = ProductionPathGateway(q)
     else:
-        from .attempt_ledger import TaskTaggedGateway
         from .investor_app import _live_components
         _, inner = _live_components()
-        gateway = TaskTaggedGateway(getattr(inner, '_inner', inner), 'conversation')
+        gateway = RoutedPathGateway(getattr(inner, '_inner', inner))
         print('::notice title=conversation path::routed -- NOT the production intake path')
     results = []
     for n in names:
-        if path == 'production':
-            gateway.models_used = []                  # per scenario: which models answered THIS conversation
+        gateway.models_used = []                      # per scenario: which models answered THIS conversation
+        if path == 'routed':
+            gateway.route_failures = []
         results.append(run_scenario(n, ModelInterpreter(gateway)))
     for r in results:
         print('CONVERSATION ' + json.dumps(r, ensure_ascii=False))
         level = 'notice' if r['passed'] else 'error'
         print(f"::{level} title=conversation {r['scenario']}::passed={r['passed']} turns={r['turns']} "
               f"cards={r['cards']} approval={r['approval']} facts_missing={r['facts_missing']} "
-              f"models={r['models']} provider_models={r['provider_models']} cost_usd={r['cost_usd']}")
+              f"models={r['models']} provider_models={r['provider_models']} cost_usd={r['cost_usd']} "
+              f"cost_unknown_turns={r['cost_unknown_turns']}")
+        for f in r['route_failures']:
+            print(f"::warning title=conversation {r['scenario']} route refused::{f}".replace('\n', ' '))
         for i, t in enumerate(r['transcript'], 1):
-            print(f"::notice title=conversation {r['scenario']} turn {i}::customer: {t['customer']} || agent: "
-                  f"{t['agent']}".replace('\n', ' ')[:1800])
+            print(f"::notice title=conversation {r['scenario']} turn {i}::cost_usd={t['cost_usd']} ({t['cost_state']}) "
+                  f"|| customer: {t['customer']} || agent: {t['agent']}".replace('\n', ' ')[:1800])
     return 0 if all(r['passed'] for r in results) else 1
 
 
