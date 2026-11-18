@@ -82,9 +82,7 @@ class NoRouteAnsweredBecauseOfCredit(unittest.TestCase):
 
     def _routed_repairer(self):
         import json as _json
-        import os
         from decimal import Decimal
-        from unittest import mock
         from omni_prod.model_catalog import parse_model_catalog
         from omni_prod.model_gateway import ModelHTTPError
         from omni_prod.model_policy import ModelUsePolicy
@@ -103,9 +101,6 @@ class NoRouteAnsweredBecauseOfCredit(unittest.TestCase):
                     raise ModelHTTPError('model request failed: HTTP 400: Your credit balance is too low to access '
                                          'the Anthropic API.', status=400)
                 raise ModelGatewayError('model did not return valid JSON (content before the JSON value)')
-        env = mock.patch.dict(os.environ, {'OMNI_MODEL_TASK_MIN_QUALITY': '{"repair": 0}'})
-        env.start()
-        self.addCleanup(env.stop)
         gw = RoutedModelGateway(ranked=parse_model_catalog(_json.dumps(catalog), {"KEY_REPAIR": "k"}),
                                 routing_policy=RoutingPolicy(minimum_quality=70),
                                 policy=ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True,
