@@ -1,3 +1,16 @@
+# 2026-11-18 — a stalled Chromium install no longer locks out its own retries (Claude Code)
+
+- **What broke:** `a2-offline` on #449 (run 44259745208) skipped every A2 browser test. **Root cause:** attempt 1 hit
+  its 160 s bound on a slow apt mirror (`Fetched 21.9 MB in 3min 8s (117 kB/s)`); `timeout` stopped playwright but its
+  apt-get child (pid 2634) lived on and held the dpkg lock, so attempts 2 and 3 failed in 0 s on `Could not get lock
+  /var/lib/dpkg/lock-frontend`. The one re-run passed. `browser-tests` in `v24-ci.yml` had the same loop.
+- **Fix:** both install steps set `DPkg::Lock::Timeout "150"` in `/etc/apt/apt.conf.d` before the first attempt, so a
+  retry waits for the stalled install (under one 160 s attempt) instead of dying on its lock.
+- **Evidence (container, apt 2.8.3, a process holding the lock for 6 s):** without the setting apt-get exits after 0 s
+  with the same message as CI; with it apt-get waits and ends `coreutils is already the newest version` after 6 s.
+  `tests/test_ci_playwright_install.py` 5 passed; controls `apt_lock_wait` 3/3 (each workflow without the wait; a wait
+  longer than one attempt).
+
 # 2026-11-18 — the fast suite re-measured (Claude Code)
 
 - **Why:** `light` failed its 30 s budget four times on 2026-11-17 on the same 172 files (21.8 to 33.0 s on the CI
