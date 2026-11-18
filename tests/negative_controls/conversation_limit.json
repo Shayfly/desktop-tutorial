@@ -32,8 +32,8 @@
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
-     "old": "        if carried and interp is not None and not str(getattr(interp, 'interpreter', '')).startswith('model'):\n",
-     "new": "        if False:  # NEGATIVE CONTROL\n"
+     "old": "        if (carried and carried.get('kind') in ('budget', 'turns', 'daily') and interp is not None\n",
+     "new": "        if (False and carried and interp is not None  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
@@ -66,8 +66,8 @@
    "mutations": [
     {
      "file": "omni_prod/intake/worker_route.py",
-     "old": "            base.limit = exc.public()\n",
-     "new": "            pass  # NEGATIVE CONTROL\n"
+     "old": "            base.limit = exc.public()\n            logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s scope=%s",
+     "new": "            pass  # NEGATIVE CONTROL\n            logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s scope=%s"
     }
    ],
    "targets": [
@@ -83,8 +83,8 @@
    "mutations": [
     {
      "file": "omni_prod/intake/worker_route.py",
-     "old": "            base.limit = exc.public()\n",
-     "new": "            base.limit = {**exc.public(), 'cap': str(exc.cap)}  # NEGATIVE CONTROL\n"
+     "old": "            base.limit = exc.public()\n            logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s scope=%s",
+     "new": "            base.limit = {**exc.public(), 'cap': str(exc.cap)}  # NEGATIVE CONTROL\n            logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s scope=%s"
     }
    ],
    "targets": [
