@@ -65,6 +65,8 @@ class CustomerFlowTests(unittest.TestCase):
     def test_model_prompt_receives_current_requirements_without_treating_them_as_new_evidence(self):
         class Gateway:
             last_usage = None
+            accepts_call_id = True          # a double that never contacts a provider: an empty attempt ledger
+            recorder = type('R', (), {'records': []})()
             def complete_json(self, **kw):
                 self.call = kw
                 return {'language': 'he', 'product_family': 'website', 'proposals': [], 'requirements': []}

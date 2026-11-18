@@ -40,8 +40,8 @@ class _Venice:
         self.amount = amount
         self.recorder = SimpleNamespace(records=[])
 
-    def complete_json(self, **kw):
-        self.recorder.records.append(SimpleNamespace(model='claude-haiku-5-5', kind='provider_call'))
+    def complete_json(self, *, call_id, **kw):
+        self.recorder.records.append(SimpleNamespace(model='claude-haiku-5-5', kind='provider_call', call_id=call_id))
         return {'reply': 'שלום'}
 
 
@@ -65,8 +65,9 @@ class TheProductionPath(unittest.TestCase):
             return _Venice(amount)
         g = R.ProductionPathGateway(QUOTE)
         with mock.patch('omni_prod.intake.reservation_worker.build_gateway', build):
-            g.complete_json(system='s' * 1000, user='u' * 936, max_tokens=2400)
+            g.complete_json(system='s' * 1000, user='u' * 936, max_tokens=2400, call_id='c1')
         amount, models, quote = built[0]
+        self.assertEqual(g.recorder.records[0].call_id, 'c1')             # the worker's gateway got THIS call's id
         self.assertIs(quote, QUOTE)
         self.assertEqual(models, tuple(QUOTE['allowed_models']))
         # (1936 bytes + 64) = 2000 input tokens at $0.18/M + 2400 output at $0.90/M -- the same bound as budget.quote

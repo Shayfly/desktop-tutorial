@@ -66,10 +66,28 @@ def build_gateway(quoted_usd: Decimal, models: tuple[str, ...], quote: dict | No
                               policy=policy, transient_retries=0)
 
 
-def meter(gateway, quote: dict) -> dict:
-    """Cost state of everything this gateway sent, from its write-ahead attempt ledger."""
-    records = [r for r in (getattr(getattr(gateway, 'recorder', None), 'records', None) or [])
-               if getattr(r, 'kind', 'provider_call') == 'provider_call']
+class MeterError(ValueError):
+    """The cost of a call cannot be attributed to it. Raised, never priced as $0."""
+
+
+def meter(gateway, quote: dict, *, call_id: str) -> dict:
+    """Cost state of ONE call: the attempts in the gateway's write-ahead ledger that carry `call_id`, and no other.
+
+    Owner 2026-11-18: the routed gateway's ledger keeps every attempt of its life (a build, a whole rehearsal), and
+    this used to sum all of it, so on a gateway shared by many turns turn k paid for turns 1..k (the routed rehearsal
+    runs 44126201300, 44141955553 and 44263232985; their costs are invalid). Loud, never $0: no id, no ledger, or a
+    provider attempt that carries no call id (its cost could belong to any call)."""
+    if not call_id or not isinstance(call_id, str):
+        raise MeterError('meter() needs the id of the call it prices')
+    ledger = getattr(getattr(gateway, 'recorder', None), 'records', None)
+    if not isinstance(ledger, list):
+        raise MeterError(f'{type(gateway).__name__} keeps no attempt ledger: the cost of call {call_id} is unknowable')
+    calls = [r for r in ledger if getattr(r, 'kind', 'provider_call') == 'provider_call']
+    untagged = [r for r in calls if not getattr(r, 'call_id', None)]
+    if untagged:
+        raise MeterError(f'{len(untagged)} provider attempt(s) in the ledger carry no call id '
+                         f'({untagged[0].provider}/{untagged[0].model}): they cannot be attributed to a call')
+    records = [r for r in calls if r.call_id == call_id]
     if not records:
         return {'contacted': False, 'cost_state': B.CONFIRMED_ZERO, 'actual_usd': Decimal('0'),
                 'reason': 'provider not contacted (no write-ahead attempt)'}
@@ -90,7 +108,8 @@ def meter(gateway, quote: dict) -> dict:
                        + (f' ({r.failure_reason[:200]})' if r.failure_reason else ''))
         if r.output_tokens is not None and bound and r.output_tokens > bound:
             overrun = True
-    info = {'contacted': True, 'attempts': len(records), 'provider': last.provider, 'model': last.model,
+    info = {'contacted': True, 'call_id': call_id, 'attempts': len(records), 'provider': last.provider,
+            'model': last.model,
             'provider_request_id': last.provider_request_id, 'input_tokens': last.input_tokens,
             'output_tokens': last.output_tokens, 'output_overrun': overrun}
     if B.COST_UNKNOWN in states:
@@ -133,7 +152,7 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
     try:   # no database transaction is open here
         raw = gateway.complete_json(system=payload['system'], user=payload['user'],
                                     max_tokens=int(payload['max_tokens']),
-                                    task=task)
+                                    task=task, call_id=r.id)   # the reservation IS the call
     except Exception as exc:
         error = f'{type(exc).__name__}: {str(exc)[:300]}'
         # CEO 2026-11-08: the model always answers. If it wrote plain text instead of the JSON envelope, its text
@@ -147,7 +166,11 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
             salvaged = salvage_reply(prose)
             if salvaged:
                 raw, error = {'reply': salvaged, 'proposals': [], 'requirements': []}, None
-    m = meter(gateway, r.quote)
+    try:
+        m = meter(gateway, r.quote, call_id=r.id)
+    except MeterError as exc:   # unattributable cost: held at the quote as UNKNOWN, never settled as $0
+        m = {'contacted': True, 'call_id': r.id, 'cost_state': B.COST_UNKNOWN, 'actual_usd': None,
+             'reason': f'meter: {exc}'[:300]}
     if m['cost_state'] == B.COST_UNKNOWN:
         reason = m.get('reason') or error or 'usage not reported'
     else:

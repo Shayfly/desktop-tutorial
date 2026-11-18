@@ -1,0 +1,160 @@
+{
+ "pr": "meter-by-call-id",
+ "sha256": [
+  "tests/test_meter_by_call_id.py",
+  "tests/test_rehearsal_routed_path.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "PERMANENT (owner 2026-11-18): the meter sums the whole ledger instead of the call -- the bug that made every routed rehearsal cost invalid",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/reservation_worker.py",
+     "old": "    records = [r for r in calls if r.call_id == call_id]\n",
+     "new": "    records = calls  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_call_that_fell_back_counts_both_its_attempts_and_nothing_else",
+    "test_a_call_with_no_attempt_is_not_contacted",
+    "test_each_call_is_metered_alone",
+    "test_ten_turns_on_one_gateway_give_ten_sums_each_its_own_call",
+    "test_the_worker_prices_the_reservation_by_its_own_id",
+    "test_three_turns_of_a_rehearsal_are_three_sums"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "an attempt without a call id is skipped silently, so its cost becomes $0",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/reservation_worker.py",
+     "old": "    if untagged:\n        raise MeterError(",
+     "new": "    if False:  # NEGATIVE CONTROL\n        raise MeterError("
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_an_attempt_without_a_call_id_is_refused_never_priced_as_zero",
+    "test_an_unattributable_cost_is_settled_unknown_never_zero",
+    "test_an_unattributable_turn_is_unknown_and_says_why_not_zero"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the routed gateway does not stamp its attempts with the call id",
+   "mutations": [
+    {
+     "file": "omni_prod/routed_gateway.py",
+     "old": "            fallback_rank=rank, authorized_cost_usd=route.max_estimated_cost_usd, call_id=call_id)\n",
+     "new": "            fallback_rank=rank, authorized_cost_usd=route.max_estimated_cost_usd)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_call_that_fell_back_counts_both_its_attempts_and_nothing_else",
+    "test_a_call_with_no_attempt_is_not_contacted",
+    "test_a_call_without_an_id_still_gets_its_own_one",
+    "test_ten_turns_on_one_gateway_give_ten_sums_each_its_own_call",
+    "test_the_routed_gateway_stamps_every_attempt_and_event_of_a_call",
+    "test_the_worker_prices_the_reservation_by_its_own_id",
+    "test_three_turns_of_a_rehearsal_are_three_sums"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the interpreter gives every turn the same call id: the turns are summed together again",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "        call_id = new_call_id()          # THIS turn: the meter sums only the attempts carrying it\n",
+     "new": "        call_id = 'call_one_for_all'  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_ten_turns_on_one_gateway_give_ten_sums_each_its_own_call",
+    "test_three_turns_of_a_rehearsal_are_three_sums"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "Venice writes its records without the call id",
+   "mutations": [
+    {
+     "file": "omni_prod/providers/venice_gateway.py",
+     "old": "            usage.get('prompt_tokens'), usage.get('completion_tokens'), None, 'ok', None, request_id,\n            call_id=call_id))\n",
+     "new": "            usage.get('prompt_tokens'), usage.get('completion_tokens'), None, 'ok', None, request_id))  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_each_call_is_metered_alone",
+    "test_metering_states",
+    "test_venice_answer_is_derived_from_the_customer_words",
+    "test_worker_executes_a_reservation_on_venice"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the reservation worker sends the call under one id and meters another",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/reservation_worker.py",
+     "old": "                                    task=task, call_id=r.id)   # the reservation IS the call\n",
+     "new": "                                    task=task, call_id='call_other')   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_prices_the_reservation_by_its_own_id",
+    "test_worker_executes_a_reservation_on_venice"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the routed rehearsal reads every route event of the run, not this call's: turn 1 is counted again in turn 2",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "                if getattr(e, 'call_id', '') != call_id:\n                    continue\n",
+     "new": "                pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_each_turn_names_only_its_own_routes"
+   ]
+  }
+ ]
+}

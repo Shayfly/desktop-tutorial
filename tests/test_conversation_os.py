@@ -74,7 +74,8 @@ class InterpreterTests(unittest.TestCase):
     def test_model_interpreter_with_test_double_merges_and_falls_back(self):
         class Double:
             last_usage = None
-            def __init__(self, out): self.out, self.calls = out, []
+            accepts_call_id = True          # a double that never contacts a provider: an empty attempt ledger
+            def __init__(self, out): self.out, self.calls, self.recorder = out, [], type('R', (), {'records': []})()
             def complete_json(self, **kw):
                 self.calls.append(kw['task'])
                 if isinstance(self.out, Exception):
