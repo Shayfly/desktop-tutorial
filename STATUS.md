@@ -1,3 +1,40 @@
+# 2026-11-18 — the meter prices one call by its id, not the whole ledger; every routed cost to date is invalid (Claude Code)
+
+- **What broke:** a turn on the routed path was charged for every earlier turn of the run. **Root cause (Claude's
+  bug):** `reservation_worker.meter(gateway, quote)` summed every provider attempt in `gateway.recorder.records`. The
+  routed gateway's ledger keeps every attempt of its life, so when one gateway served many turns (the routed rehearsal,
+  `intake/benchmark.py --model`) turn k paid for turns 1..k. **Invalid (owner 2026-11-18):** every routed cost to date
+  -- runs 44126201300, 44141955553 and 44263232985, the figures DECISIONS question 2 stood on, and decision 10's
+  numbers. The real cost of the conversation agent has not been measured; the next production-path rehearsal is the
+  measurement, and no cost is reported before it. **Not hit:** production billing -- each turn there is one
+  reservation on a fresh gateway (`ReservedWorkerInterpreter`); Venice emptied its ledger per call, which hid the same
+  trap.
+- **Fix (one mechanism everywhere):** the caller that meters a call creates its id (`attempt_ledger.new_call_id`) and
+  passes it to the gateway and to `meter(..., call_id=)`. The routed gateway stamps every attempt and every route event
+  of the call with it (a build that names none gets a fresh id per call); Venice stamps its records and no longer
+  empties its ledger; the reservation worker uses the reservation id; `ModelInterpreter` makes one id per turn and
+  refuses a gateway that cannot carry one. Loud, never $0: no id, no ledger, or an attempt without an id raises
+  `MeterError`; the worker and the interpreter record that as UNKNOWN with the reason. `call_id` is not persisted (no
+  column, no migration). The routed rehearsal names, per turn, the route that answered and each route that refused and
+  why (from that call's route events), prints each turn's cost and state, and counts an UNKNOWN turn as unknown, not
+  $0.
+- **Adversarial review of the change (3 reviewers, 2 skeptics per finding), fixed before the PR:** the routed rehearsal
+  lost the lane (`gateway.task = conversation_complex` set an unused attribute, so escalated turns ran as plain
+  `conversation`); the workflow's grep dropped the `::warning` lines that name each refused route; a production-path
+  call whose gateway could not be built was metered on no ledger or the previous call's; a call id dropped by a layer
+  on the way would let the gateway invent one and the meter read "not contacted", $0 (no such layer exists today --
+  guarded anyway: `meter(before=ledger_mark(...))` requires every attempt written during the call to carry its id);
+  a route closed earlier in the run was skipped with no route event, so later turns could not say why it did not
+  answer (it now records `skipped: ...` with the call id); and untested stamps and paths got tests and controls.
+- **Evidence:** `tests/test_meter_by_call_id.py` 17 passed -- ten turns on one real RoutedModelGateway, each answer
+  costing a different amount (n/1000), give `0.001 .. 0.010`, ten sums (the old meter gave `0.001, 0.003, 0.006, ...`);
+  a call with a fallback counts both its attempts and nothing else. `tests/test_rehearsal_routed_path.py` 12 passed.
+  Related tests 610 passed. Controls `meter_by_call_id` 24/24: NC1 (permanent) the meter sums the whole ledger; NC2 an
+  untagged attempt skipped as $0; NC3 the routed gateway does not stamp; NC4 one id for every turn; NC5 Venice
+  untagged; NC6 the worker meters another id; NC7 the rehearsal reads the run's events; NC8 a dropped id reads $0;
+  NC9 the lane lost; NC10 the warnings filtered; NC11 a stale ledger; NC12 the gateway ignores the caller's id;
+  NC13-NC24 each remaining guard, stamp and catch. The 8 existing controls on these files pass.
+
 # 2026-11-18 — a stalled Chromium install no longer locks out its own retries (Claude Code)
 
 - **What broke:** `a2-offline` on #449 (run 44259745208) skipped every A2 browser test. **Root cause:** attempt 1 hit

@@ -67,3 +67,4 @@
 | D8-TEST-EDITS | Claude Code | In review | `omni_prod/test_edit_guard.py`: expected values only, customer facts frozen, counted, twice escalates; NC 7/7 |
 | D7-NEAREST | Claude Code | In review (part 1) | nearest-category palette; part 2 (the colour question) after the owner's human test; NC 5/5 |
 | AGENT-FLAG | Claude Code | Done | #441 `81e24c4` -> `f14b773`; Vercel `OMNI_INTAKE_AGENT=accounts`, owner's account only; redeploy `dpl_6cVPvSHA23juKTo3nQ1LETaGZUBD` |
+| METER-CALL-ID | Claude Code | In review | the meter prices ONE call by its id (owner 2026-11-18): ten turns give ten sums; no id, no ledger or an untagged attempt is loud, never $0; every routed rehearsal cost to date invalid; review fixes (lane, warnings, dropped id, skip event); NC 24/24 (NC1 permanent) |

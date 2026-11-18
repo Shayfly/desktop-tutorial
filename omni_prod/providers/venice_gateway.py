@@ -1,8 +1,8 @@
 """Venice behind the intake conversation (C3, 2026-10-27).
 
 `VeniceIntakeGateway` gives the reservation worker and `ModelInterpreter` the same surface the routed gateway gives
-them -- `complete_json(system=, user=, max_tokens=, task=)` plus a `recorder.records` write-ahead ledger that
-`reservation_worker.meter()` reads -- so the paid conversation path can run on Venice without touching the
+them -- `complete_json(system=, user=, max_tokens=, task=, call_id=)` plus a `recorder.records` write-ahead ledger,
+each record carrying its call's id, that `reservation_worker.meter()` reads -- so the paid conversation path can run on Venice without touching the
 reservation, budget or validation code:
 
   * selected only by `OMNI_INTAKE_PROVIDER=venice` on the worker; anything else keeps the routed gateway;
@@ -67,6 +67,7 @@ class Record:
     failure_reason: str | None
     provider_request_id: str
     kind: str = 'provider_call'
+    call_id: str | None = None      # the logical call (meter() sums only the records carrying the id it is given)
 
 
 class Recorder:
@@ -109,6 +110,7 @@ def parse_json_object(text: str) -> dict:
 
 class VeniceIntakeGateway:
     provider = 'venice'
+    accepts_call_id = True
 
     def __init__(self, quoted_usd: Decimal, *, ceiling: tuple[Decimal, Decimal] | None = None, env=None,
                  transport=None, conversation: str | None = None, allowed: tuple[str, ...] | None = None):
@@ -144,8 +146,13 @@ class VeniceIntakeGateway:
     def __repr__(self):
         return f'VeniceIntakeGateway(key_env={VENICE_CONFIG["key_env"]!r})'
 
-    def complete_json(self, *, system: str, user: str, max_tokens: int, task: str = 'conversation') -> dict:
-        self.recorder.records = []          # meter() prices THIS call only, also when one gateway serves many turns
+    def complete_json(self, *, system: str, user: str, max_tokens: int, call_id: str,
+                      task: str = 'conversation') -> dict:
+        # The ledger keeps every call of this gateway's life; meter() prices ONE call by its id (owner 2026-11-18).
+        # It used to be emptied here instead, which priced the call correctly only as long as nothing read it between
+        # two calls -- the same cumulative-ledger trap the routed gateway fell into, hidden.
+        if not call_id:
+            raise ValueError('a Venice call without a call id cannot be priced per call')
         request_id = 'venice-' + uuid.uuid4().hex
         self._chat_sent = False
         try:
@@ -163,14 +170,16 @@ class VeniceIntakeGateway:
             if not self._chat_sent:          # model list / key / budget failure: Venice never saw the prompt
                 raise
             self.recorder.records.append(Record('venice', None, None, None, None, None, 'error',
-                                                f'{type(exc).__name__}: {str(exc)[:200]}', request_id))
+                                                f'{type(exc).__name__}: {str(exc)[:200]}', request_id,
+                                                call_id=call_id))
             raise
         usage = out.get('usage') or {}
         cost = out.get('cost_usd')
         self.last_usage = usage
         self.recorder.records.append(Record(
             'venice', out.get('model'), None if cost is None else Decimal(str(cost)),
-            usage.get('prompt_tokens'), usage.get('completion_tokens'), None, 'ok', None, request_id))
+            usage.get('prompt_tokens'), usage.get('completion_tokens'), None, 'ok', None, request_id,
+            call_id=call_id))
         return parse_json_object(out['text'])
 
 

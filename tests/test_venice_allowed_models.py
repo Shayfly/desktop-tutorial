@@ -98,14 +98,14 @@ class ThePricing(unittest.TestCase):
     def test_the_call_goes_to_the_listed_gemini(self):
         fake = Fake()
         g = self.gw(fake=fake)
-        g.complete_json(system='S', user='U', max_tokens=100)
+        g.complete_json(system='S', user='U', max_tokens=100, call_id='c1')
         self.assertEqual([c[2]['model'] for c in fake.chats], [GEMINI])
 
     def test_a_ceiling_below_the_listed_model_fails_closed_without_contact(self):
         fake = Fake()
         g = self.gw(ceiling=('0.5', '3.5'), fake=fake)                  # Qwen fits, Gemini does not
         with self.assertRaises(V.NoAllowedModel):
-            g.complete_json(system='S', user='U', max_tokens=100)
+            g.complete_json(system='S', user='U', max_tokens=100, call_id='c1')
         self.assertEqual(fake.chats, [])
 
     def test_no_list_refuses_to_build(self):

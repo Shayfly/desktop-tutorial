@@ -40,8 +40,8 @@ class _Venice:
         self.amount = amount
         self.recorder = SimpleNamespace(records=[])
 
-    def complete_json(self, **kw):
-        self.recorder.records.append(SimpleNamespace(model='claude-haiku-5-5', kind='provider_call'))
+    def complete_json(self, *, call_id, **kw):
+        self.recorder.records.append(SimpleNamespace(model='claude-haiku-5-5', kind='provider_call', call_id=call_id))
         return {'reply': 'שלום'}
 
 
@@ -65,13 +65,27 @@ class TheProductionPath(unittest.TestCase):
             return _Venice(amount)
         g = R.ProductionPathGateway(QUOTE)
         with mock.patch('omni_prod.intake.reservation_worker.build_gateway', build):
-            g.complete_json(system='s' * 1000, user='u' * 936, max_tokens=2400)
+            g.complete_json(system='s' * 1000, user='u' * 936, max_tokens=2400, call_id='c1')
         amount, models, quote = built[0]
+        self.assertEqual(g.recorder.records[0].call_id, 'c1')             # the worker's gateway got THIS call's id
         self.assertIs(quote, QUOTE)
         self.assertEqual(models, tuple(QUOTE['allowed_models']))
         # (1936 bytes + 64) = 2000 input tokens at $0.18/M + 2400 output at $0.90/M -- the same bound as budget.quote
         self.assertEqual(amount, Decimal('0.00252000'))
         self.assertEqual(g.models_used, ['claude-haiku-5-5'])
+
+    def test_a_gateway_that_could_not_be_built_is_not_contacted_on_any_turn(self):
+        # review 2026-11-18: the first such turn read UNKNOWN (no ledger) and a later one the previous turn's ledger
+        from omni_prod.intake.reservation_worker import meter
+        g = R.ProductionPathGateway(QUOTE)
+
+        def refuse(amount, models, quote):
+            raise RuntimeError('external spend disabled')
+        for turn in ('c1', 'c2'):
+            with mock.patch('omni_prod.intake.reservation_worker.build_gateway', refuse), self.assertRaises(RuntimeError):
+                g.complete_json(system='s', user='u', max_tokens=100, call_id=turn)
+            m = meter(g, {'max_tokens': 100}, call_id=turn)
+            self.assertEqual((m['contacted'], m['actual_usd']), (False, Decimal('0')))
 
     def test_the_default_path_is_production_and_an_unknown_one_is_refused(self):
         with mock.patch.dict(os.environ, {R.PATH_ENV: 'staging'}):
