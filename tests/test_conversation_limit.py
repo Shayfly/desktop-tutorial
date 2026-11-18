@@ -71,7 +71,9 @@ class TheConversationStopsGracefully(unittest.TestCase):
         t = sup.turn(project_id='p', account_id='a', message='יש לנו גם תצוגה בחנות', lang='he')
         self.assertTrue(t.reply.startswith(HE['limit_budget']), t.reply)
         self.assertNotIn(HE['model_unavailable'], t.reply)
-        self.assertEqual((t.questions, getattr(t, 'asked_in_words', [])), ([], []))
+        self.assertEqual(t.questions, [])                 # no card: one open question, in words
+        self.assertEqual(len(getattr(t, 'asked_in_words', [])), 1)
+        self.assertIn(HE['limit_ask'], t.reply)
         self.assertIn('edit_requirements', [a['type'] for a in t.actions])
         self.assertNotIn('approve_spec', [a['type'] for a in t.actions])
         self.assertEqual(t.interpretation['limit'], {'kind': 'budget', 'source': 'reserve'})
@@ -135,12 +137,24 @@ class TheConversationStopsGracefully(unittest.TestCase):
         self.assertEqual(t.interpretation['limit'], {'kind': 'budget', 'source': 'closed'})
         self.assertNotIn(HE['model_unavailable'], t.reply)
 
-    def test_the_missing_items_are_named_not_asked(self):
-        sup = R._Supervisor(LimitFrom(start=1))
+    def test_the_missing_items_are_named_and_one_is_asked_and_answered_by_words_for_free(self):
+        # D10 review (confirmed): naming the gaps alone was a dead end -- the spec tab edits only answered fields and a
+        # typed answer is read only against an asked question. Now one open choice question is asked in words, and
+        # the next typed message records it with no model call and no reservation.
+        lf = LimitFrom(start=1)
+        sup = R._Supervisor(lf)
         t = sup.turn(project_id='m', account_id='a', message='אתר לחנות פרחים בחיפה', lang='he')
         self.assertTrue(t.reply.startswith(HE['limit_budget']), t.reply)
-        self.assertIn(HE['limit_incomplete'].split('(')[0].strip(), t.reply)
-        self.assertNotIn('?', t.reply)                   # names of what is missing, never the questions themselves
+        self.assertEqual(t.reply.count('?'), 1, t.reply)                 # exactly one question, never a list
+        (qid,) = t.asked_in_words
+        stored = [m for m in sup.store.messages_for('m') if m['role'] == 'assistant'][-1]
+        self.assertIn(qid, stored['interpretation']['asked'])
+        self.assertIn(qid, sup.briefs.latest('m').brief.open_material)
+        calls = lf.calls
+        nxt = sup.turn(project_id='m', account_id='a', message='כן', lang='he')
+        self.assertEqual(lf.calls, calls)                                 # closed: no model was asked
+        self.assertNotIn(qid, sup.briefs.latest('m').brief.open_material or ())
+        self.assertNotIn(HE['model_unavailable'], nxt.reply)
 
     def test_the_daily_limit_says_later_not_closed(self):
         sup = R._Supervisor(LimitFrom(start=1, kind='daily'))

@@ -166,13 +166,14 @@ _TXT = {
            'ready': 'יש לי תמונה מלאה. הכנתי תוכנית עבודה — אפשר לעבור עליה ולאשר. שום בנייה ושום חיוב לא מתחילים לפני אישור.',
            'blocked': 'יש דרישה שאי אפשר לבנות כרגע', 'nothing': 'לא זיהיתי פרטים חדשים. ספרו לי עוד על מה שתרצו, או שאלו "מה חסר?".',
            # owner 2026-11-18: an overrun stops the conversation and does not crash it -- said as it is, with the way on
-           'limit_budget': 'הגענו לתקרת העלות של השיחה עם הסוכן, ולכן הוא לא ממשיך לשאול. מה שכתבתם נשמר.',
-           'limit_turns': 'הגענו למספר התורות המרבי של השיחה עם הסוכן, ולכן הוא לא ממשיך לשאול. מה שכתבתם נשמר.',
+           'limit_budget': 'הגענו לתקרת העלות של השיחה עם הסוכן, ולכן הוא לא ממשיך בשיחה החופשית. מה שכתבתם נשמר.',
+           'limit_turns': 'הגענו למספר התורות המרבי של השיחה עם הסוכן, ולכן הוא לא ממשיך בשיחה החופשית. מה שכתבתם נשמר.',
            'limit_daily': 'הסוכן הגיע לתקרת השימוש היומית ויחזור לענות בהמשך. מה שכתבתם נשמר.',
            'limit_busy': 'הסוכן עדיין עונה על ההודעה הקודמת. מה שכתבתם נשמר — שלחו שוב בעוד רגע.',
            'limit_ready': 'הנה הסיכום — אפשר לאשר אותו או לתקן:',
-           'limit_incomplete': 'כדי להתקדם, השלימו בלשונית המפרט את מה שעוד חסר ({missing}) ואשרו משם.',
+           'limit_incomplete': 'עוד חסר: {missing}.',
            'limit_incomplete_any': 'כדי להתקדם, השלימו את המפרט בלשונית המפרט ואשרו משם.',
+           'limit_ask': 'ענו כאן במילים שלכם, בלי עלות:',
            'limit_still': 'השיחה עם הסוכן הסתיימה. מה שכתבתם נשמר.',
            'limit_still_alt': 'הסוכן כבר לא עונה בשיחה הזאת, אבל ההודעה נשמרה.',
            'model_unavailable': 'הסוכן לא הספיק לענות הפעם (העומס אצל ספק המודל). מה שכתבתם נשמר — שלחו שוב בעוד רגע, או כתבו עוד פרט על המוצר.',
@@ -225,13 +226,14 @@ _TXT = {
            'ready_again': 'The plan is up to date. To start, press "Approve and start build"; nothing is charged before you approve.',
            'ready': 'I have the full picture and prepared a work plan you can review and approve. Nothing is built or charged before you approve.',
            'blocked': 'Something you asked for cannot be built right now', 'nothing': 'I did not spot new details. Tell me more, or ask "what is missing?".',
-           'limit_budget': 'This conversation reached its cost limit, so the assistant stops asking here. What you wrote is saved.',
-           'limit_turns': 'This conversation reached its maximum number of turns, so the assistant stops asking here. What you wrote is saved.',
+           'limit_budget': 'This conversation reached its cost limit, so the assistant stops the open conversation here. What you wrote is saved.',
+           'limit_turns': 'This conversation reached its maximum number of turns, so the assistant stops the open conversation here. What you wrote is saved.',
            'limit_daily': 'The assistant reached its daily usage limit and will answer again later. What you wrote is saved.',
            'limit_busy': 'The assistant is still answering your previous message. What you wrote is saved; send it again in a moment.',
            'limit_ready': 'Here is the summary; you can approve it or correct it:',
-           'limit_incomplete': 'To go on, complete what is still missing ({missing}) in the specification tab and approve it there.',
+           'limit_incomplete': 'Still missing: {missing}.',
            'limit_incomplete_any': 'To go on, complete the specification in the specification tab and approve it there.',
+           'limit_ask': 'Answer here in your own words, at no cost:',
            'limit_still': 'The conversation with the assistant has ended. What you wrote is saved.',
            'limit_still_alt': 'The assistant no longer answers in this conversation, but your message is saved.',
            'model_unavailable': 'The assistant could not answer in time (the model provider is busy). What you wrote is saved; send it again in a moment, or add another detail about the product.',
@@ -1324,6 +1326,16 @@ class ConversationSupervisor:
             got = [x for x in parts if x.startswith((T['got'], T['blocked']))]   # what was recorded, what blocks
             lines = [intro, *got, T['limit_incomplete'].format(missing=', '.join(names[:4])) if names
                      else T['limit_incomplete_any']]
+            # D10 review (confirmed): the spec tab edits only answered fields and, with no card, a typed answer is
+            # read only against a question that was asked -- so naming the gaps alone was a dead end. One open
+            # question the words can answer is asked here and recorded as asked; the next typed message is read
+            # against it by words, with no model and no cost.
+            ask = self._free_question(row)
+            if ask is not None:
+                lines += [T['limit_ask'], agent.asked_in_words(ask, lang)]
+                turn.asked_in_words = [ask.id]
+            elif names:
+                lines.append(T['limit_incomplete_any'])
             if row is not None and not any(a.get('type') == 'edit_requirements' for a in turn.actions):
                 turn.actions.append({'type': 'edit_requirements', 'brief_revision': row.revision})
         turn.reply = re.sub(r'\n +', '\n', ' '.join(x for x in lines if x)).strip()
@@ -1332,6 +1344,20 @@ class ConversationSupervisor:
         logging.getLogger(__name__).info('INTAKE_CONVERSATION_STOPPED project=%s kind=%s source=%s ready=%s',
                                          project_id, kind, limit.get('source'), ready)
         return turn
+
+    @staticmethod
+    def _free_question(row):
+        """The first open field whose answer a typed message can give without a model (a choice question with words),
+        or None."""
+        from ..intake import conversation_agent as agent
+        if row is None:
+            return None
+        images = {x.id for x in d.IMAGE_QUESTIONS}
+        for f in row.brief.open_material or ():
+            q = d.BY_ID.get(f)
+            if q is not None and q.kind == 'choice' and q.id not in images and agent.WORDS.get(q.id):
+                return q
+        return None
 
     def _not_repeated(self, project_id, turn, T) -> str:
         """Warehouse 113: the assistant never sends the same message twice in a row. When nothing moved, it says so in

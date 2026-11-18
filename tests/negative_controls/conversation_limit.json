@@ -26,7 +26,7 @@
     "test_a_spent_project_is_closed_at_the_precheck",
     "test_an_incomplete_spec_closes_with_the_way_on_not_provider_busy",
     "test_the_daily_limit_says_later_not_closed",
-    "test_the_missing_items_are_named_not_asked",
+    "test_the_missing_items_are_named_and_one_is_asked_and_answered_by_words_for_free",
     "test_the_stored_message_says_limit_and_carries_no_amounts"
    ]
   },
@@ -180,7 +180,7 @@
     "tests/test_conversation_limit.py"
    ],
    "expect_failed": [
-    "test_the_missing_items_are_named_not_asked"
+    "test_the_missing_items_are_named_and_one_is_asked_and_answered_by_words_for_free"
    ]
   },
   {
@@ -198,7 +198,8 @@
    ],
    "expect_failed": [
     "test_a_closed_conversation_never_pays_a_model_again",
-    "test_a_greeting_after_the_stop_is_not_provider_busy_and_never_repeats"
+    "test_a_greeting_after_the_stop_is_not_provider_busy_and_never_repeats",
+    "test_the_missing_items_are_named_and_one_is_asked_and_answered_by_words_for_free"
    ]
   },
   {
@@ -233,6 +234,42 @@
    ],
    "expect_failed": [
     "test_a_refusal_caused_only_by_calls_in_flight_is_busy_not_closed"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the incomplete closing only names the gaps: no question is asked, so a typed answer is never read (the dead end the D10 review confirmed)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            ask = self._free_question(row)\n",
+     "new": "            ask = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_the_missing_items_are_named_and_one_is_asked_and_answered_by_words_for_free",
+    "test_an_incomplete_spec_closes_with_the_way_on_not_provider_busy"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "the question is said but not recorded as asked: the next typed answer is not read",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                turn.asked_in_words = [ask.id]\n",
+     "new": "                pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_the_missing_items_are_named_and_one_is_asked_and_answered_by_words_for_free",
+    "test_an_incomplete_spec_closes_with_the_way_on_not_provider_busy"
    ]
   }
  ]
