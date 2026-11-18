@@ -113,7 +113,8 @@ class VeniceIntakeGateway:
     accepts_call_id = True
 
     def __init__(self, quoted_usd: Decimal, *, ceiling: tuple[Decimal, Decimal] | None = None, env=None,
-                 transport=None, conversation: str | None = None, allowed: tuple[str, ...] | None = None):
+                 transport=None, conversation: str | None = None, allowed: tuple[str, ...] | None = None,
+                 prefer_order: bool = False):
         quoted = Decimal(str(quoted_usd))
         budget = VeniceBudget(per_conversation_usd=quoted, total_usd=quoted)
         from .venice import _urllib_transport
@@ -133,6 +134,7 @@ class VeniceIntakeGateway:
         if not self.allowed:
             raise NoAllowedModel(f'{ALLOWED_ENV} is not set: the intake conversation has no allowed Venice model')
         self.client.allowed = self.allowed                       # the selection (venice.select_model) filters ...
+        self.client.prefer_order = bool(prefer_order)            # the agent profile: list order is the preference
         listed = self.client.models
         cin, cout = (None, None) if ceiling is None else (Decimal(str(x)) for x in ceiling)
         # ... and so does the pricing here: only listed models the reservation's quote can pay for are even seen

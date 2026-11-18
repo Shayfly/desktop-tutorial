@@ -1,0 +1,165 @@
+{
+ "pr": "conversation-agent-sonnet",
+ "sha256": [
+  "tests/test_conversation_agent_sonnet.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the cheapest listed model always wins: Sonnet never runs (the state before 2026-11-18)",
+   "mutations": [
+    {
+     "file": "omni_prod/providers/venice.py",
+     "old": "        if prefer_order:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_sonnet.py"
+   ],
+   "expect_failed": [
+    "test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits",
+    "test_sonnet_answers_when_venice_offers_it"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the agent quote does not tell the worker to choose by order",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/reservation_worker.py",
+     "old": "                                                  prefer_order=select == 'order')",
+     "new": "                                                  prefer_order=False)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_sonnet.py"
+   ],
+   "expect_failed": [
+    "test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits",
+    "test_sonnet_answers_when_venice_offers_it"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the gateway drops the order preference on its way to the Venice client",
+   "mutations": [
+    {
+     "file": "omni_prod/providers/venice_gateway.py",
+     "old": "        self.client.prefer_order = bool(prefer_order)            # the agent profile: list order is the preference",
+     "new": "        self.client.prefer_order = False  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_sonnet.py"
+   ],
+   "expect_failed": [
+    "test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits",
+    "test_sonnet_answers_when_venice_offers_it"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "every account gets the Sonnet profile, not only the agent",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            profile = agent.venice_profile() if VG.selected() else None\n",
+     "new": "            profile = agent.venice_profile() if VG.selected() else None\n        profile = profile or agent.venice_profile()  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_sonnet.py"
+   ],
+   "expect_failed": [
+    "test_off_venice_the_agent_gets_no_venice_profile",
+    "test_the_agent_account_gets_the_sonnet_profile_and_no_one_else"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the agent profile is silently priced on another catalog when Venice is not the provider",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "    if venice_profile is not None and not VG.selected():\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_sonnet.py"
+   ],
+   "expect_failed": [
+    "test_the_profile_is_never_priced_off_venice"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "an unknown selection rule in a quote is guessed as cheapest",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/reservation_worker.py",
+     "old": "        if select not in ('cheapest', 'order'):          # a quote the worker does not understand is never guessed\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_sonnet.py"
+   ],
+   "expect_failed": [
+    "test_a_quote_the_worker_does_not_understand_is_refused"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the rehearsal guesses a cap when the quote carries none",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "    if len(found) != 1 or found[0] in (None, ''):\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_sonnet.py"
+   ],
+   "expect_failed": [
+    "test_a_cap_is_never_guessed"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the rehearsal does not hold a conversation to its turns",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "        if self.max_turns is not None and self.turns >= self.max_turns:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_sonnet.py"
+   ],
+   "expect_failed": [
+    "test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a refusal before contact reaches the supervisor as \"model unavailable\", not as the limit",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "        if isinstance(error, LimitReached):         # refused before any provider contact: the conversation's limit\n            base.limit = error.public()\n",
+     "new": "        pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_sonnet.py"
+   ],
+   "expect_failed": [
+    "test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits"
+   ]
+  }
+ ]
+}

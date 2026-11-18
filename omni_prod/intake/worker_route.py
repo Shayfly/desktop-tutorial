@@ -43,8 +43,9 @@ class ReservedWorkerInterpreter:
     def __init__(self, service: B.ReservationService, enqueue, *, account_id: str, project_id: str,
                  request_key: str | None, caps: B.Caps, lane: str = B.PRODUCTION, campaign_id: str | None = None,
                  wait_seconds: float | None = None, sleep=time.sleep, clock=time.monotonic,
-                 task: str = 'conversation'):
+                 task: str = 'conversation', venice_profile: dict | None = None):
         self.svc, self.enqueue = service, enqueue
+        self.venice_profile = venice_profile   # the conversation agent's Sonnet profile (owner 2026-11-18), or None
         self.task = task          # 'conversation' or the escalated 'conversation_complex' (lanes.choose)
         self.account_id, self.project_id, self.request_key = account_id, project_id, request_key
         self.caps, self.lane, self.campaign_id = caps, lane, campaign_id
@@ -61,7 +62,8 @@ class ReservedWorkerInterpreter:
         base = self.fallback.interpret(message, brief)
         user = contextual_user(message, brief, getattr(self, 'history', ()))
         try:
-            quote = B.quote(system=SYSTEM, user=user, max_tokens=MAX_OUTPUT_TOKENS, task=self.task)
+            quote = B.quote(system=SYSTEM, user=user, max_tokens=MAX_OUTPUT_TOKENS, task=self.task,
+                            venice_profile=self.venice_profile)
         except B.QuoteUnavailable as exc:
             base.dropped.append(f'model not used: {exc}')
             return base

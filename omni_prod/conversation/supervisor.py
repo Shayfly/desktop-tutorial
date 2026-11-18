@@ -478,12 +478,17 @@ class ConversationSupervisor:
             return DeterministicInterpreter()
         from ..intake.worker_route import ReservedWorkerInterpreter
         from ..intake import conversation_agent as agent
-        caps = B.caps_from_env()
+        caps, profile = B.caps_from_env(), None
         if agent.enabled():                     # the agent's turn cap (owner 2026-11-18); every other account: no cap
             import dataclasses
+            from ..providers import venice_gateway as VG
             caps = dataclasses.replace(caps, project_turns=agent.MAX_TURNS)
+            # Sonnet for the conversation agent only, on Venice (owner 2026-11-18): every other account keeps the
+            # global list and ceiling, quoted exactly as before
+            profile = agent.venice_profile() if VG.selected() else None
         return ReservedWorkerInterpreter(self.reservations, self.enqueue, account_id=account_id,
-                                         project_id=project_id, request_key=request_key, caps=caps, task=task)
+                                         project_id=project_id, request_key=request_key, caps=caps, task=task,
+                                         venice_profile=profile)
 
     def _feasibility(self, row) -> dict:
         """What can be built from the spec, WITHOUT a plan (gate 1 has not been passed yet)."""

@@ -439,6 +439,9 @@ class ModelInterpreter:
             m = {'contacted': True, 'cost_state': COST_UNKNOWN, 'actual_usd': None, 'reason': unmetered}
             base.dropped.append(unmetered)
         cost = m['actual_usd']
+        from .budget import LimitReached
+        if isinstance(error, LimitReached):         # refused before any provider contact: the conversation's limit
+            base.limit = error.public()
         if error is not None or not isinstance(raw, dict):
             base.dropped.append(f'model unavailable: {type(error).__name__}' if error else 'model output malformed')
             base.cost_usd, base.cost_state = (None if cost is None else str(cost)), m['cost_state']
