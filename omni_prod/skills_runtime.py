@@ -488,11 +488,13 @@ def _unlabelled_inputs(repository: dict, context: dict) -> list[StaticFinding]:
 # ---------------------------------------------------------------- the skill pack
 
 REQUEST_FIDELITY = Skill(
-    key='skill.request_fidelity', version='1',
+    key='skill.request_fidelity', version='2',
     purpose='What the user stated explicitly decides scope; defaults never override it.',
     boundaries='Scope and requirements only; does not choose libraries or layout.',
-    roles=(ROLE_ARCHITECT, ROLE_GENERATOR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    roles=(ROLE_ARCHITECT, ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
     guidance=(
+        'Carry customer wording, confirmed exclusions and approved acceptance ids across each handoff. '
+        'Reference examples supply layout ideas only. Prices, business facts and testimonials need an approved source. '
         'Request fidelity: an explicit statement in the request overrides every platform default. If the request says '
         'there is no login / no users ("בלי התחברות"), do not add sign-up, login, sessions, roles or permissions anywhere '
         '(requirements, acceptance, code, tests, web_saas_acceptance kinds). Do not add features the user did not ask for, '

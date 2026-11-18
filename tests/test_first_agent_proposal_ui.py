@@ -34,10 +34,11 @@ class ThePriceLine(unittest.TestCase):
 class TheWiring(unittest.TestCase):
     def test_one_button_approves_the_spec_by_fingerprint_and_starts_the_build(self):
         fn = re.search(r'async function approveAndBuild\(.*?\n\}', SRC, re.S).group()
-        self.assertIn('specApprovalPath()', fn)
+        self.assertIn('approveFromChat(', fn)
         self.assertIn('brief_fingerprint: pr.brief_fingerprint', fn)
-        self.assertIn('await startBuild()', fn)
-        self.assertLess(fn.index('specApprovalPath()'), fn.index('await startBuild()'))
+        shared = re.search(r'async function approveFromChat\(.*?\n\}', SRC, re.S).group()
+        self.assertLess(shared.index('/spec-approval'), shared.index('await startBuild('))
+        self.assertIn('plan.brief_revision !== brief.revision', shared)
 
     def test_edits_and_undo_go_through_the_proposal_api_and_refresh_the_plan(self):
         for name, path in (('proposalEdit', '/edit'), ('proposalUndo', '/undo')):

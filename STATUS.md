@@ -3908,3 +3908,7 @@ and an instrumented OpenAI-compatible HTTP boundary. A positive canary permits a
 call and observes both counters reach one (HTTP is intercepted, no paid call).
 The PG balance/replay test now executes that worker path twice for the same ID.
 Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
+
+## 2026-11-19 — Web/SaaS role routing (PARTIAL)
+
+Draft code scopes candidate models by task and introduces specification review and role skills. Focused local checks: 114 passed, 14 skipped. No live enrollment or independent sign-off yet.

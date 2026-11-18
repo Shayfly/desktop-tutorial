@@ -132,6 +132,7 @@ def quote(*, system: str, user: str, max_tokens: int, task: str = 'conversation'
         return Quote(amount, {'task': task, 'max_calls': 1, 'transient_retries': 0, 'fallback_calls': 0,
                               'provider': 'venice', 'allowed_models': ['venice:' + m for m in listed],
                               'venice_allowed_models': list(listed),
+                              'venice_private_only': VG.private_only(os.environ),
                               'venice_ceiling_usd_per_m': [str(cin), str(cout)],
                               'models': [{'model': 'venice:' + ','.join(listed), 'input_tokens_bound': input_tokens,
                                           'output_tokens_bound': max_tokens, 'input_per_million': str(cin),

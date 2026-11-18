@@ -14,7 +14,7 @@ from omni_prod.model_discovery import discover_provider
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = json.loads((ROOT / 'infra/worker-host/model-catalog.json').read_text())
-ADDITIONS = [row for row in CATALOG if row.get('_activation_status') == 'PENDING_LIVE_VERIFICATION']
+ADDITIONS = [row for row in CATALOG if row['provider'] != 'venice' and row.get('_activation_status') == 'PENDING_LIVE_VERIFICATION']
 KEYS = {key: 'secret-test-value' for key in ('OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY')}
 
 

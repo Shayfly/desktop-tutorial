@@ -139,6 +139,21 @@ SCHEDULE: tuple[PriceRow, ...] = (
              'https://aistudio.google.com/docs/pricing#gemini-4-hydrogen', '2026-11-18',
              input_per_million=_d('1.50'), cached_input_per_million=_d('0.075'), output_per_million=_d('7.50')),
 
+    *tuple(PriceRow('venice', model, date(2026, 11, 18), None,
+                    'https://docs.venice.ai/models/overview.md', '2026-11-18',
+                    input_per_million=_d(inp), output_per_million=_d(out))
+           for model, inp, out in (
+               ('openai-gpt-oss-120b', '0.07', '0.30'),
+               ('google-gemma-4-31b-it', '0.12', '0.36'),
+               ('deepseek-v4-flash-0731', '0.13', '0.26'),
+               ('z-ai-glm-5-3-flash', '0.15', '0.50'),
+               ('e2ee-glm-5-3-flash', '0.16', '0.54'),
+               ('qwen3-coder-480b-a35b-instruct-turbo', '0.35', '1.50'),
+               ('grok-build-0-1', '1.00', '2.00'),
+               ('grok-4-20', '1.42', '2.83'),
+               ('kimi-k3-1-pro', '2.00', '10.00'),
+           )),
+
 )
 
 

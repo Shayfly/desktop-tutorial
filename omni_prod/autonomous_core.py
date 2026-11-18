@@ -54,6 +54,7 @@ class AutonomousProductEngine:
         self.generator = generator
         self.repairer = repairer
         self.executor = executor
+        self.spec_review = None
         # J3/T05: initial build + at most three repair candidates, each verified.
         # Clamp even stale environment overrides; never spend on a fourth repair.
         # 2026-10-19 seam: a caller that knows the plan may pass repair_ceiling (pricing.repair_rounds_for_plan, up to
@@ -250,6 +251,8 @@ class AutonomousProductEngine:
         `stop_reason` records why the loop ended.
         """
         spec = self.architect.create_spec(prompt)
+        if self.spec_review is not None:
+            self.spec_review.check(spec)
         initial = self.generator.generate(spec)
         repo = apply_patch({}, initial)
         if getattr(self,'repository_transform',None):

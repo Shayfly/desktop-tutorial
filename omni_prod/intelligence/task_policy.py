@@ -43,6 +43,7 @@ class TaskClass:
 
 CODE_WRITING_DENY = ('gpt-6-luna',)
 CODE_STATION = ('anthropic-claude-sonnet-5-5', 'gemini-3-8-flash')
+REPAIR_STATION = ('anthropic-claude-sonnet-5-5', 'openai-gpt-6-1-sol')
 QA_STATION = ('openai-gpt-6-1-sol', 'gemini-3-8-flash')
 CONVERSATION_STATION = ('anthropic-claude-sonnet-5-5',)
 ARCHITECT_STATION = ('anthropic-claude-sonnet-5-5', 'openai-gpt-6-1-sol')
@@ -67,8 +68,12 @@ TASK_CLASSES: dict[str, TaskClass] = {t.key: t for t in (
     # router picked it only because it is the cheapest model the light class admits. Small calls (architecture,
     # review, a narrow pre-flight fix) answered correctly 6 of 6 and stay allowed.
     # Codegen defaults to 85. The explicit LIGHT exception is applied by task_class using the bound build class.
+    TaskClass('spec_review', 'compare the authored specification with the approved request', 85, 85,
+              require_independent_of=('architecture',), prefer_models=QA_STATION),
     TaskClass('codegen', 'write the product code', 85, 85, deny_models=CODE_WRITING_DENY, prefer_models=CODE_STATION),
-    TaskClass('repair', 'fix failing checks', 85, 70, deny_models=CODE_WRITING_DENY, prefer_models=CODE_STATION),
+    TaskClass('repair', 'fix failing checks', 85, 70,
+              deny_models=CODE_WRITING_DENY + ('gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'),
+              prefer_models=REPAIR_STATION),
     TaskClass('modification', 'change an existing product', 85, 70, deny_models=CODE_WRITING_DENY,
               prefer_models=CODE_STATION),
     TaskClass('review', 'QA review of generated code', 85, 70, require_independent_of=('codegen', 'repair', 'modification'),

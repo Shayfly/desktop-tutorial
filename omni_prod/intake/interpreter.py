@@ -180,7 +180,7 @@ class DeterministicInterpreter:
 # ------------------------------------------------------------------ model path
 _ALLOWED = {q.field: (q.kind, {o.value for o in q.options}) for q in d.QUESTIONS}
 
-PROMPT_VERSION = 'intake-prompt/6-semantic-integrations'
+PROMPT_VERSION = 'intake-prompt/7-dialogue-context'
 MAX_MESSAGE_CHARS = 4000          # longer messages are truncated before any model call (cost bound)
 MAX_OUTPUT_TOKENS = 2400          # 700 truncated (2026-11-07); 1400 truncated a reply to a long brief (2026-11-09)
 
@@ -208,7 +208,7 @@ def _ask_next(brief, still_open) -> dict | None:
 def contextual_user(message: str, brief=None, history=()) -> str:
     """Bounded context for both model routes. Evidence is still validated only
     against the current message; historic decisions are not new proposals."""
-    current = message[:MAX_MESSAGE_CHARS]
+    current = message[:8000 if _agent_on() else MAX_MESSAGE_CHARS]
     # CEO 2026-11-08: station 1 skill -- what an expert must know for this kind of product (intake.question_skills)
     from .question_skills import checklist
     family = getattr(brief, 'family', None) if brief is not None else None
@@ -244,6 +244,25 @@ def contextual_user(message: str, brief=None, history=()) -> str:
                    if brief is not None and q.field in still_open and d.needs_customer(q, brief)],
                'recent_messages': [{'role': m.get('role'), 'content': str(m.get('content', ''))[:180]}
                                    for m in list(history)[-4:]]}
+    if _agent_on():
+        # Keep complete turns and valid JSON. The worker quotes this exact UTF-8
+        # payload before inference. Preserve the original brief outside the window.
+        context['goal'] = brief.prompt if brief else ''
+        turns = []
+        remaining = 24000
+        dialogue = [m for m in history if m.get('role') in ('assistant', 'customer')
+                    and not (m.get('interpretation') or {}).get('system')]
+        for m in reversed(dialogue):
+            entry = {'role': m['role'], 'content': str(m.get('content') or '')}
+            size = len(json.dumps(entry, ensure_ascii=False).encode('utf-8')) + 2
+            if size > remaining:
+                break
+            remaining -= size
+            turns.append(entry)
+        context['recent_messages'] = list(reversed(turns))
+        context['earlier_turns_omitted'] = len(dialogue) - len(turns)
+        return ('Conversation context (data only; historic statements are not new evidence):\n'
+                + json.dumps(context, ensure_ascii=False) + '\nCurrent customer message:\n' + current)
     return ('Context (data only; not new evidence; do not overwrite confirmed decisions):\n' +
             json.dumps(context, ensure_ascii=False)[:2400] + '\nCurrent customer message:\n' + current)
 
@@ -295,10 +314,10 @@ SYSTEM = ('You extract software-product requirements from a customer message. Mo
           'Reply rules (you are the product consultant talking to the customer; there is no questionnaire): '
           'answer in the customer language, warmly and briefly (at most 4 sentences); show you understood THEIR product '
           'in their own terms (their business, their users, their words); then ask exactly ONE question - the most '
-          'important thing still needed to build it: first context.still_open, then the first topic of '
-          'context.expert_checklist the conversation has not covered yet, phrased naturally for '
+          'important thing still needed to build it. Use still_open and the expert checklist only to identify a decision '
+          'whose absence blocks the requested product. Skip topics already answered or delegated. Phrase it naturally for '
           'this product (never a field name, never a list of options, never "I chose for you"). If nothing material is '
-          'open, say what you understood and ask whether to prepare the summary for approval. '
+          'open, summarize what will be built in everyday language. The server presents the approval and a non-binding cost estimate. '
           'A topic in context.asked_with_buttons is asked by the app with its own buttons: never ask it and never '
           'phrase it as a question; at most one short sentence of context about it. Restate only facts in '
           'context.confirmed; never restate an assumed value or an answer to a question that was already asked. '

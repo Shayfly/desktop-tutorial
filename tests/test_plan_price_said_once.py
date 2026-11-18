@@ -24,7 +24,7 @@ class PlanPriceSaidOnce(unittest.TestCase):
         heavy = M5_CLASS_BUILD_CREDITS[CostClass.HEAVY]
         self.make_plan_known(heavy)
         t = self.to_gate1()
-        self.assertIn(f'This build costs {heavy} credits on your plan.', t.reply)
+        self.assertIn(f'Estimated build cost on your plan: {heavy} credits.', t.reply)
         self.assertNotIn('Cost estimate', t.reply)
         self.assertNotIn('45', t.reply)
         self.assertEqual(t.venice['cost_range_credits'], [heavy, heavy])
@@ -34,7 +34,7 @@ class PlanPriceSaidOnce(unittest.TestCase):
         self.make_plan_known(heavy)
         r = self.approve(self.to_gate1())
         self.assertEqual(r.plan['spec_gate']['cost'], {'range': [heavy, heavy], 'exact': heavy, 'outside_range': None})
-        self.assertIn(f'The cost is {heavy} credits, as said.', r.reply)
+        self.assertIn(f'The current estimate is {heavy} credits.', r.reply)
         self.assertNotIn('above the range', r.reply)
         self.assertNotIn('the range I gave', r.reply)
 
@@ -42,13 +42,13 @@ class PlanPriceSaidOnce(unittest.TestCase):
         self.make_plan_known(500)
         self.to_gate1()
         r = self.say('how much will it cost?')
-        self.assertIn('This build costs 500 credits on your plan.', r.reply)
+        self.assertIn('Estimated build cost on your plan: 500 credits.', r.reply)
         self.assertNotIn('45–200', r.reply)
 
     def test_hebrew_says_the_plan_number(self):
         self.make_plan_known(500)
         t = self.to_gate1('אני צריך כלי פנימי פשוט לצוות למעקב אחרי השאלת ציוד, בלי התחברות ובלי מידע אישי', lang='he')
-        self.assertIn('עלות הבנייה במסלול שלך: 500 קרדיטים.', t.reply)
+        self.assertIn('עלות בנייה משוערת במסלול שלך: 500 קרדיטים.', t.reply)
         self.assertNotIn('הערכת עלות', t.reply)
 
     def test_a_default_is_not_a_price_and_keeps_the_estimate(self):

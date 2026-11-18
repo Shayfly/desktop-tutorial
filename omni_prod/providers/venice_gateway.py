@@ -37,6 +37,13 @@ PROVIDER_ENV = 'OMNI_INTAKE_PROVIDER'
 CEILING_ENV = 'OMNI_VENICE_PRICE_CEILING_USD_PER_M'
 
 
+def private_only(env):
+    value = env.get('OMNI_VENICE_PRIVATE_ONLY', '0')
+    if value not in ('0', '1'):
+        raise ValueError('OMNI_VENICE_PRIVATE_ONLY must be 0 or 1')
+    return value == '1'
+
+
 def price_ceiling(env=None) -> tuple[Decimal, Decimal]:
     raw = ((env if env is not None else os.environ).get(CEILING_ENV) or '').strip()
     try:
@@ -113,7 +120,7 @@ class VeniceIntakeGateway:
     accepts_call_id = True
 
     def __init__(self, quoted_usd: Decimal, *, ceiling: tuple[Decimal, Decimal] | None = None, env=None,
-                 transport=None, conversation: str | None = None, allowed: tuple[str, ...] | None = None):
+                 transport=None, conversation: str | None = None, allowed: tuple[str, ...] | None = None, require_private: bool = False):
         quoted = Decimal(str(quoted_usd))
         budget = VeniceBudget(per_conversation_usd=quoted, total_usd=quoted)
         from .venice import _urllib_transport
@@ -125,6 +132,7 @@ class VeniceIntakeGateway:
                 self._chat_sent = True       # from here on money may have been spent
             return inner(method, url, headers, body, timeout)
         source = env if env is not None else os.environ
+        require_private = require_private or private_only(source)
         self.client = VeniceClient(source, budget=budget, transport=tracked, retries=0)   # a missing key raises first
         # Fail closed (owner 2026-10-28): the intake conversation runs ONLY on a listed model -- the reservation's
         # own list, else OMNI_VENICE_ALLOWED_MODELS. No list -> refused when BUILT (the worker releases the
@@ -136,9 +144,20 @@ class VeniceIntakeGateway:
         listed = self.client.models
         cin, cout = (None, None) if ceiling is None else (Decimal(str(x)) for x in ceiling)
         # ... and so does the pricing here: only listed models the reservation's quote can pay for are even seen
-        self.client.models = lambda: [m for m in listed() if m.id in self.allowed
-                                      and m.input_usd_per_m is not None and m.output_usd_per_m is not None
-                                      and (cin is None or (m.input_usd_per_m <= cin and m.output_usd_per_m <= cout))]
+        def intake_models():
+            offered = [m for m in listed() if m.id in self.allowed and (not require_private or m.privacy == 'private')]
+            # A listed Sonnet gets first choice. If it is offered but cannot be
+            # priced within the reservation, stop before sending customer data.
+            for model_id in ('claude-sonnet-5-5', 'claude-haiku-5-5'):
+                if any(m.id == model_id for m in offered):
+                    offered = [m for m in offered if m.id == model_id]
+                    break
+            return [m for m in offered
+                    if all(p is not None and p.is_finite() and p >= 0
+                           for p in (m.input_usd_per_m, m.output_usd_per_m))
+                    and (cin is None or (m.input_usd_per_m <= cin and m.output_usd_per_m <= cout))]
+
+        self.client.models = intake_models
         self.conversation = conversation or 'intake:' + uuid.uuid4().hex
         self.recorder = Recorder()
         self.last_usage = None

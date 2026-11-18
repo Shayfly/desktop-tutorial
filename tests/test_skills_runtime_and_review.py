@@ -74,7 +74,7 @@ class Guidance(unittest.TestCase):
     def test_agents_receive_their_skills(self):
         from omni_prod.autonomous_agents import _ARCHITECT_SYSTEM, _GENERATOR_SYSTEM, _REPAIR_SYSTEM
         from omni_prod.product_evolution import _EVOLUTION_SYSTEM
-        self.assertIn('skill.request_fidelity@1', _ARCHITECT_SYSTEM)
+        self.assertIn('skill.request_fidelity@2', _ARCHITECT_SYSTEM)
         for prompt in (_GENERATOR_SYSTEM, _REPAIR_SYSTEM, _EVOLUTION_SYSTEM):
             self.assertIn('skill.form_validation@1', prompt)
             self.assertIn('never with alert()', prompt)
