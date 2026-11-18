@@ -1,3 +1,23 @@
+# 2026-11-18 — Sonnet for the conversation agent only, with the regular model when Venice does not offer it (Claude Code)
+
+- **What was missing:** on Venice the cheapest listed model always won (`venice.select_model`), and one global list and
+  ceiling served every account: listing Sonnet beside Haiku never ran Sonnet, listing it alone moved every account onto
+  it. Environment variables alone could not give the owner's "Sonnet for the conversation agent only" (D10 analysis).
+- **Fix (part 3 of 3):** agent accounts are quoted with the agent's own Venice profile (`conversation_agent`:
+  `claude-sonnet-5-5` then `claude-haiku-5-5`, ceiling 2,10 = Sonnet's live list price, Venice pricing page read
+  2026-11-18; both tagged anonymized, IRON_LAWS א.1 covered by the owner's decision). The quote says `mode: agent`,
+  `venice_select: order`; the worker picks the first listed model Venice offers within the ceiling -- Sonnet, and Haiku
+  only when Sonnet is not offered (decision 10), before any request, so never a second paid call. Every other account is
+  quoted and served exactly as before (`mode: plain`, cheapest). The profile is in code, not an environment variable:
+  the quote (Vercel) and the rehearsal (the worker) read one source. The builder never reads it (guard test). The
+  rehearsal has an agent path (`REHEARSAL_PATH=agent`): production's newest quote with the agent profile, each
+  conversation held to 8 turns and to production's project cap from the quote's own snapshot, as typed limits.
+- **Evidence:** `tests/test_conversation_agent_sonnet.py` 12 passed on the real quote, build_gateway, VeniceIntakeGateway
+  and select_model (Venice HTTP faked): Sonnet sent when offered, Haiku when not, the plain quote unchanged. Controls
+  `conversation_agent_sonnet` 9/9.
+- **Next:** release (Vercel and the worker), then the agent-path rehearsal: the first real measurement of the
+  conversation agent's cost. No cost is reported before it.
+
 # 2026-11-18 — the conversation agent's 8-turn cap, and tokens and cost per conversation (Claude Code)
 
 - **What was missing:** the owner's decision for Sonnet set at most 8 turns per conversation and tokens and cost

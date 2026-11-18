@@ -73,3 +73,4 @@
 | QUOTA-REPAIR-STOP-DONE | Claude Code | Done | #452 `f961661` -> `9bc130e` |
 | D10-LIMIT | Claude Code | In review | a conversation at its limit stops gracefully: typed limit, closing reply with the summary or the spec tab, no 'provider busy'; NC 10/10 |
 | D10-TURNS | Claude Code | In review | the agent's 8-turn cap in reserve() (contacted calls only, under the locks) and tokens and cost per conversation; NC 8/8 + pg 7/7 |
+| D10-SONNET | Claude Code | In review | Sonnet for the conversation agent only (ordered Venice profile, Haiku when Sonnet is not offered); rehearsal agent path; NC 9/9 |
