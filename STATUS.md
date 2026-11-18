@@ -1,3 +1,12 @@
+# 2026-11-18 — Direct-provider model enrollment (Codex; PARTIAL)
+
+- Implemented, local verification only: ten disabled text routes in the existing catalog and source-backed effective-dated prices; direct Google Nano Banana adapter through the existing image factory and capability executor; read-only account discovery.
+- Local evidence: focused provider/routing/capability suite 109 passed, 1 skipped, 9 subtests; dialect/probe/reliability suite 93 passed, 3 subtests; fast suite 1481 passed, 604 subtests, 15.1 s under the 30 s limit; enrollment/image/document checks 29 passed, 2 subtests. Matrix --check and compileall passed. No independent approval or live provider proof is claimed.
+- Awaiting external verification: account model visibility, request canaries, task quality, real durable-journal recovery and generated-image storage, then exact-SHA CI and independent review before activation.
+- Blocked here by runtime access: OPENAI_API_KEY, ANTHROPIC_API_KEY and GEMINI_API_KEY are absent in this execution environment; discovery returned NOT_CONFIGURED for each. Worker secrets were not read. New routes remain disabled with unknown quality.
+- Not implemented by this change: Google video/music/voice generation and image editing.
+- Details and official sources: docs/DIRECT_MODEL_ENROLLMENT_HE.md.
+
 # 2026-11-18 — a repair call where a route answered "no credit" no longer ends the whole build (Claude Code)
 
 - **What broke:** the #448 fix (keep a build's verified work when no route answers the repair) missed one shape of

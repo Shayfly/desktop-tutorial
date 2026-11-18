@@ -1,31 +1,32 @@
 {
  "schema": "provider-matrix/1",
- "as_of": "2026-10-11",
+ "as_of": "2026-11-18",
  "summary": {
   "credential_state": {
-   "CREDENTIAL_PRESENT": 14
+   "CREDENTIAL_PRESENT": 13,
+   "CREDENTIAL_UNKNOWN": 10
   },
   "connection_state": {
    "CONNECTION_TESTED": 7,
-   "NOT_CONNECTED": 7
+   "NOT_CONNECTED": 16
   },
   "verification_state": {
    "REAL_EXECUTION_VERIFIED": 4,
-   "UNVERIFIED": 10
+   "UNVERIFIED": 19
   },
   "availability": {
    "AVAILABLE": 3,
    "DEPRECATED": 1,
    "INSUFFICIENT_CREDIT": 2,
-   "NOT_ROUTED": 8
+   "NOT_ROUTED": 17
   },
   "implementation_status": {
    "BLOCKED": 2,
-   "IMPLEMENTED": 4,
+   "IMPLEMENTED": 13,
    "NOT_IMPLEMENTED": 4,
    "REAL_SERVER_VERIFIED": 4
   },
-  "models": 14
+  "models": 23
  },
  "models": [
   {
@@ -722,18 +723,15 @@
    "provider_key": "anthropic",
    "model_key": "anthropic-claude-haiku-5-5",
    "provider_model_id": "claude-haiku-5-5",
-   "id_source": "Anthropic published model string",
-   "model_family": "Claude Haiku",
+   "id_source": "https://platform.claude.com/docs/en/models/overview (read 2026-11-18; standard short-context pricing)",
+   "model_family": "claude-haiku-5-5",
    "provider_type": "llm",
    "capability_types": [
     "text.generate",
     "json.structured"
    ],
-   "intended_task_types": [
-    "conversation",
-    "intake_extraction"
-   ],
-   "execution_adapter": "routed_gateway (Anthropic Messages API)",
+   "intended_task_types": [],
+   "execution_adapter": "routed_gateway (anthropic)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
    "supported_modalities": [
     "text",
@@ -744,7 +742,7 @@
     "en"
    ],
    "context_window": null,
-   "maximum_output_tokens": null,
+   "maximum_output_tokens": 16384,
    "supports_tool_calls": false,
    "supports_structured_output": true,
    "supports_streaming": false,
@@ -755,16 +753,14 @@
     "ANTHROPIC_API_KEY"
    ],
    "credential_scope": "worker",
-   "credential_state": "CREDENTIAL_PRESENT",
+   "credential_state": "CREDENTIAL_UNKNOWN",
    "connection_state": "NOT_CONNECTED",
    "verification_state": "UNVERIFIED",
    "implementation_status": "IMPLEMENTED",
    "health": "UNKNOWN",
    "availability": "NOT_ROUTED",
-   "last_verified_at": "2026-10-10T20:17Z",
-   "evidence_reference": [
-    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets"
-   ],
+   "last_verified_at": null,
+   "evidence_reference": [],
    "price_schedule_reference": {
     "effective_from": "2026-10-01",
     "effective_until": null,
@@ -791,14 +787,14 @@
    "deprecation_warning": null,
    "commercial_status": "COMMERCIAL_APPROVED",
    "commercial_plan": "Anthropic API (commercial terms)",
-   "commercial_usage_constraints": "Anthropic commercial terms",
+   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
-   "known_limitations": "not in the catalog; same account as Sonnet (balance too low)",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
    "fallback_eligibility": "none",
-   "in_worker_catalog": false,
-   "catalog_quality": null,
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
    "eligible_tasks": [],
-   "current_operational_status": "candidate: not routed (not in the worker catalog)",
+   "current_operational_status": "disabled: pending live verification",
    "blocker": ""
   },
   {
@@ -1280,6 +1276,739 @@
    "catalog_quality": null,
    "eligible_tasks": [],
    "current_operational_status": "candidate: not routed (not in the worker catalog)",
+   "blocker": ""
+  },
+  {
+   "provider_key": "openai",
+   "model_key": "openai-gpt-6-2-astra",
+   "provider_model_id": "gpt-6.2-astra",
+   "id_source": "https://developers.openai.com/api/docs/models/gpt-6.2-astra (read 2026-11-18; standard short-context pricing)",
+   "model_family": "gpt-6.2-astra",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [],
+   "execution_adapter": "routed_gateway (openai_reasoning)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "OPENAI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://developers.openai.com/api/docs/models/gpt-6.2-astra",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "openai",
+    "model": "gpt-6.2-astra",
+    "effective_from": "2026-11-18",
+    "source_url": "https://developers.openai.com/api/docs/models/gpt-6.2-astra",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "8",
+    "cached_input_per_million": "0.40",
+    "output_per_million": "40",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "OpenAI API (pay-as-you-go)",
+   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "openai",
+   "model_key": "openai-gpt-6-2-sol",
+   "provider_model_id": "gpt-6.2-sol",
+   "id_source": "https://developers.openai.com/api/docs/models/gpt-6.2-sol (read 2026-11-18; standard short-context pricing)",
+   "model_family": "gpt-6.2-sol",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [],
+   "execution_adapter": "routed_gateway (openai_reasoning)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "OPENAI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://developers.openai.com/api/docs/models/gpt-6.2-sol",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "openai",
+    "model": "gpt-6.2-sol",
+    "effective_from": "2026-11-18",
+    "source_url": "https://developers.openai.com/api/docs/models/gpt-6.2-sol",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "2",
+    "cached_input_per_million": "0.10",
+    "output_per_million": "10",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "OpenAI API (pay-as-you-go)",
+   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "openai",
+   "model_key": "openai-gpt-6-1-terra",
+   "provider_model_id": "gpt-6.1-terra",
+   "id_source": "https://developers.openai.com/api/docs/models/gpt-6.1-terra (read 2026-11-18; standard short-context pricing)",
+   "model_family": "gpt-6.1-terra",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [],
+   "execution_adapter": "routed_gateway (openai_reasoning)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "OPENAI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://developers.openai.com/api/docs/models/gpt-6.1-terra",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "openai",
+    "model": "gpt-6.1-terra",
+    "effective_from": "2026-11-18",
+    "source_url": "https://developers.openai.com/api/docs/models/gpt-6.1-terra",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "1",
+    "cached_input_per_million": "0.05",
+    "output_per_million": "5",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "OpenAI API (pay-as-you-go)",
+   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "anthropic",
+   "model_key": "anthropic-claude-opus-5-5",
+   "provider_model_id": "claude-opus-5-5",
+   "id_source": "https://platform.claude.com/docs/en/models/overview (read 2026-11-18; standard short-context pricing)",
+   "model_family": "claude-opus-5-5",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [],
+   "execution_adapter": "routed_gateway (anthropic)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "ANTHROPIC_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "anthropic",
+    "model": "claude-opus-5-5",
+    "effective_from": "2026-10-01",
+    "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "4.00",
+    "cached_input_per_million": "0.20",
+    "output_per_million": "20.00",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Anthropic API (commercial terms)",
+   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "anthropic",
+   "model_key": "anthropic-claude-fable-5-2",
+   "provider_model_id": "claude-fable-5-2",
+   "id_source": "https://platform.claude.com/docs/en/models/overview (read 2026-11-18; standard short-context pricing)",
+   "model_family": "claude-fable-5-2",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [],
+   "execution_adapter": "routed_gateway (anthropic)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "ANTHROPIC_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://platform.claude.com/docs/en/models/overview",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "anthropic",
+    "model": "claude-fable-5-2",
+    "effective_from": "2026-11-18",
+    "source_url": "https://platform.claude.com/docs/en/models/overview",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "8",
+    "output_per_million": "40",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Anthropic API (commercial terms)",
+   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-4-carbon",
+   "provider_model_id": "gemini-4-carbon",
+   "id_source": "https://aistudio.google.com/docs/pricing#gemini-4-carbon (read 2026-11-18; standard short-context pricing)",
+   "model_family": "gemini-4-carbon",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": "2026-12-01",
+    "source_url": "https://aistudio.google.com/docs/pricing#gemini-4-carbon",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-4-carbon",
+    "effective_from": "2026-11-18",
+    "effective_until": "2026-12-01",
+    "source_url": "https://aistudio.google.com/docs/pricing#gemini-4-carbon",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "2",
+    "cached_input_per_million": "0.10",
+    "output_per_million": "10",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [
+    {
+     "provider": "gemini",
+     "model": "gemini-4-carbon",
+     "effective_from": "2026-12-01",
+     "source_url": "https://aistudio.google.com/docs/pricing#gemini-4-carbon",
+     "verified_at": "2026-11-18",
+     "applicable_tier": "paid standard",
+     "currency": "USD",
+     "input_per_million": "4",
+     "cached_input_per_million": "0.20",
+     "output_per_million": "20",
+     "reasoning_accounting": "billed as output tokens",
+     "units_note": ""
+    }
+   ],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-4-argon",
+   "provider_model_id": "gemini-4-argon",
+   "id_source": "https://aistudio.google.com/docs/pricing#gemini-4-argon (read 2026-11-18; standard short-context pricing)",
+   "model_family": "gemini-4-argon",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": "2026-12-01",
+    "source_url": "https://aistudio.google.com/docs/pricing#gemini-4-argon",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-4-argon",
+    "effective_from": "2026-11-18",
+    "effective_until": "2026-12-01",
+    "source_url": "https://aistudio.google.com/docs/pricing#gemini-4-argon",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "2",
+    "cached_input_per_million": "0.10",
+    "output_per_million": "10",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [
+    {
+     "provider": "gemini",
+     "model": "gemini-4-argon",
+     "effective_from": "2026-12-01",
+     "source_url": "https://aistudio.google.com/docs/pricing#gemini-4-argon",
+     "verified_at": "2026-11-18",
+     "applicable_tier": "paid standard",
+     "currency": "USD",
+     "input_per_million": "4",
+     "cached_input_per_million": "0.20",
+     "output_per_million": "20",
+     "reasoning_accounting": "billed as output tokens",
+     "units_note": ""
+    }
+   ],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-4-neon",
+   "provider_model_id": "gemini-4-neon",
+   "id_source": "https://aistudio.google.com/docs/pricing#gemini-4-neon (read 2026-11-18; standard short-context pricing)",
+   "model_family": "gemini-4-neon",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://aistudio.google.com/docs/pricing#gemini-4-neon",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-4-neon",
+    "effective_from": "2026-11-18",
+    "source_url": "https://aistudio.google.com/docs/pricing#gemini-4-neon",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "3",
+    "cached_input_per_million": "0.15",
+    "output_per_million": "15",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-4-hydrogen",
+   "provider_model_id": "gemini-4-hydrogen",
+   "id_source": "https://aistudio.google.com/docs/pricing#gemini-4-hydrogen (read 2026-11-18; standard short-context pricing)",
+   "model_family": "gemini-4-hydrogen",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://aistudio.google.com/docs/pricing#gemini-4-hydrogen",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-4-hydrogen",
+    "effective_from": "2026-11-18",
+    "source_url": "https://aistudio.google.com/docs/pricing#gemini-4-hydrogen",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "1.50",
+    "cached_input_per_million": "0.075",
+    "output_per_million": "7.50",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
    "blocker": ""
   }
  ],

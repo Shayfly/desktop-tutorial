@@ -70,3 +70,5 @@
 | METER-CALL-ID | Claude Code | In review | the meter prices ONE call by its id (owner 2026-11-18): ten turns give ten sums; no id, no ledger or an untagged attempt is loud, never $0; every routed rehearsal cost to date invalid; review fixes (lane, warnings, dropped id, skip event); NC 24/24 (NC1 permanent) |
 | METER-CALL-ID-DONE | Claude Code | Done | #451 `4b3b329` -> `9aee98a` |
 | QUOTA-REPAIR-STOP | Claude Code | In review | a repair call with a no-credit route keeps the verified build (ProviderQuotaUnavailable by type, #448 follow-up); NC 4/4 |
+
+| DIRECT-MODELS | Codex | PARTIAL; independent review and runtime canaries pending | Branch codex/add-provider-models-20261118; 109 passed, 1 skipped, 9 subtests; docs/DIRECT_MODEL_ENROLLMENT_HE.md |

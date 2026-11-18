@@ -243,3 +243,30 @@ GAPS = (
     {'capability': 'review.independent_provider', 'state': 'BLOCKED',
      'note': 'needs a second provider with credit (OpenAI or Anthropic); same-model review is not independent'},
 )
+
+
+# Direct-provider enrollment requested on 2026-11-18. Metadata is derived from
+# the reviewed catalog; no deploy, key-presence or execution evidence is implied.
+def _pending_direct_routes():
+    import json
+    from pathlib import Path
+
+    catalog = json.loads((Path(__file__).resolve().parents[2] /
+                          'infra/worker-host/model-catalog.json').read_text(encoding='utf-8'))
+    entries = {entry.model_key: entry for entry in INVENTORY}
+    for row in catalog:
+        if row.get('_activation_status') != 'PENDING_LIVE_VERIFICATION':
+            continue
+        entries[row['name']] = _llm(
+            row['provider'], row['name'], row['model'], row['model'],
+            quality_tasks=(), key_env=row['api_key_env'], cred=S.CREDENTIAL_UNKNOWN,
+            conn=S.NOT_CONNECTED, ver=S.UNVERIFIED, ev=(), ctx=None,
+            max_out=row['max_output_tokens'], fallback='none', in_catalog=True,
+            limits='Disabled; account access, generation, billing and task quality unverified',
+            commercial='Existing direct-provider paid API policy; account access unverified',
+            id_source=row['_price_source'],
+            adapter='routed_gateway (' + row['api'] + ')')
+    return tuple(entries.values())
+
+
+INVENTORY = _pending_direct_routes()

@@ -35,7 +35,7 @@ MD_OUT = ROOT / 'docs' / 'PROVIDER_MATRIX.md'
 SCHEMA = 'provider-matrix/1'
 # The matrix is a dated statement: lifecycle/price "now" is this day, so a
 # regenerated file is reproducible and changes only when the date is bumped.
-AS_OF = date(2026, 10, 11)
+AS_OF = date(2026, 11, 18)
 
 CREDENTIAL_EVIDENCE = {DEPLOY_NOTICE.ref, VERCEL_ENV_NAMES.ref}
 CONNECTION_EVIDENCE = {PROBE.ref, REPLICATE_ACCOUNT.ref}
@@ -93,7 +93,7 @@ def build(catalog: list[dict] | None = None, as_of: date = AS_OF) -> dict:
             'verification_state': e.verification_state, 'implementation_status': _implementation(e),
             'health': health,
             'availability': S.availability_of(credential_state=e.credential_state, health=health, lifecycle=life)
-            if e.in_catalog else 'NOT_ROUTED',
+            if e.in_catalog and cat and cat.get('enabled', True) else 'NOT_ROUTED',
             'last_verified_at': e.last_verified_at,
             'evidence_reference': [f'{x.ref} @ {x.at}' + (f' (commit {x.commit})' if x.commit else '') + f': {x.observed}'
                                    for x in e.evidence],
@@ -111,8 +111,9 @@ def build(catalog: list[dict] | None = None, as_of: date = AS_OF) -> dict:
             'fallback_eligibility': e.fallback_eligibility, 'in_worker_catalog': e.in_catalog,
             'catalog_quality': cat.get('quality') if cat else None,
             'eligible_tasks': [t.key for t in task_policy.TASK_CLASSES.values()
-                               if cat and task_policy.eligible(t.key, model_id=e.provider_model_id, quality=int(cat['quality']))],
-            'current_operational_status': _operational(e, health, life),
+                               if cat and cat.get('enabled', True) and task_policy.eligible(t.key, model_id=e.provider_model_id, quality=int(cat['quality']))],
+            'current_operational_status': (_operational(e, health, life) if not cat or cat.get('enabled', True)
+                                           else 'disabled: pending live verification'),
             'blocker': e.health_note,
         })
     return {

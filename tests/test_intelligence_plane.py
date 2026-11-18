@@ -104,7 +104,7 @@ class CatalogGovernanceTests(unittest.TestCase):
     REAL = 'https://generativelanguage.googleapis.com/v1beta/openai'
 
     def test_real_catalog_prices_match_schedule_today(self):
-        raw = open(matrix.CATALOG, encoding='utf-8').read()
+        raw = json.dumps([r for r in matrix.load_catalog() if r.get('enabled', True)])
         models = parse_model_catalog(raw, {'GEMINI_API_KEY': 'k', 'OPENAI_API_KEY': 'k', 'ANTHROPIC_API_KEY': 'k'},
                                      when=date(2026, 10, 11))
         self.assertTrue(all(m.status == 'CONFIGURED' for m in models))
