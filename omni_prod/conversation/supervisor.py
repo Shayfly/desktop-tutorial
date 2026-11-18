@@ -169,6 +169,7 @@ _TXT = {
            'limit_budget': 'הגענו לתקרת העלות של השיחה עם הסוכן, ולכן הוא לא ממשיך לשאול. מה שכתבתם נשמר.',
            'limit_turns': 'הגענו למספר התורות המרבי של השיחה עם הסוכן, ולכן הוא לא ממשיך לשאול. מה שכתבתם נשמר.',
            'limit_daily': 'הסוכן הגיע לתקרת השימוש היומית ויחזור לענות בהמשך. מה שכתבתם נשמר.',
+           'limit_busy': 'הסוכן עדיין עונה על ההודעה הקודמת. מה שכתבתם נשמר — שלחו שוב בעוד רגע.',
            'limit_ready': 'הנה הסיכום — אפשר לאשר אותו או לתקן:',
            'limit_incomplete': 'כדי להתקדם, השלימו בלשונית המפרט את מה שעוד חסר ({missing}) ואשרו משם.',
            'limit_incomplete_any': 'כדי להתקדם, השלימו את המפרט בלשונית המפרט ואשרו משם.',
@@ -227,6 +228,7 @@ _TXT = {
            'limit_budget': 'This conversation reached its cost limit, so the assistant stops asking here. What you wrote is saved.',
            'limit_turns': 'This conversation reached its maximum number of turns, so the assistant stops asking here. What you wrote is saved.',
            'limit_daily': 'The assistant reached its daily usage limit and will answer again later. What you wrote is saved.',
+           'limit_busy': 'The assistant is still answering your previous message. What you wrote is saved; send it again in a moment.',
            'limit_ready': 'Here is the summary; you can approve it or correct it:',
            'limit_incomplete': 'To go on, complete what is still missing ({missing}) in the specification tab and approve it there.',
            'limit_incomplete_any': 'To go on, complete the specification in the specification tab and approve it there.',
@@ -475,9 +477,13 @@ class ConversationSupervisor:
         if self.reservations is None or self.enqueue is None or not account_id:
             return DeterministicInterpreter()
         from ..intake.worker_route import ReservedWorkerInterpreter
+        from ..intake import conversation_agent as agent
+        caps = B.caps_from_env()
+        if agent.enabled():                     # the agent's turn cap (owner 2026-11-18); every other account: no cap
+            import dataclasses
+            caps = dataclasses.replace(caps, project_turns=agent.MAX_TURNS)
         return ReservedWorkerInterpreter(self.reservations, self.enqueue, account_id=account_id,
-                                         project_id=project_id, request_key=request_key, caps=B.caps_from_env(),
-                                         task=task)
+                                         project_id=project_id, request_key=request_key, caps=caps, task=task)
 
     def _feasibility(self, row) -> dict:
         """What can be built from the spec, WITHOUT a plan (gate 1 has not been passed yet)."""
@@ -713,6 +719,8 @@ class ConversationSupervisor:
         self._label_carries_its_question(turn, lang)
         turn.reply = self._not_repeated(project_id, turn, T)
         paid = turn.reservation_id is not None
+        usage = (self._conversation_usage(project_id, account_id)
+                 if paid or (turn.interpretation or {}).get('limit') else None)
         self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
                                interpretation={'intent': turn.intent, **(turn.interpretation or {}),
@@ -732,7 +740,10 @@ class ConversationSupervisor:
                                                **({'gate': turn.gate} if getattr(turn, 'gate', None) else {}),
                                                **({'blocked': turn.blocked} if getattr(turn, 'blocked', None) else {}),
                                                **({'unsupported': turn.unsupported} if turn.unsupported else {}),
-                                               **({'venice': turn.venice} if getattr(turn, 'venice', None) else {})},
+                                               **({'venice': turn.venice} if getattr(turn, 'venice', None) else {}),
+                                               # owner 2026-11-18: tokens and cost per conversation, stored with the
+                                               # message (server side; Turn.to_dict does not send it to the browser)
+                                               **({'usage': usage} if usage else {})},
                                interpreter=(turn.interpretation or {}).get('interpreter', 'deterministic'),
                                cost_usd=turn.cost_usd, request_key=request_key,
                                cost_state=turn.cost_state if paid else None, reservation_id=turn.reservation_id)
@@ -1215,6 +1226,26 @@ class ConversationSupervisor:
             turn.questions = []
         return turn
 
+    def _conversation_usage(self, project_id, account_id) -> dict | None:
+        """The conversation's tokens and cost so far, as reported per call (owner 2026-11-18). The reservations are the
+        source of truth: a recount by SQL equals this. Never fails the turn: an error is kept as `usage_error`."""
+        svc = self.reservations
+        if svc is None or not account_id or not hasattr(svc, 'conversation_usage'):
+            return None
+        from ..intake import conversation_agent as agent
+        try:
+            u = svc.conversation_usage(f'project:{account_id}:{project_id}')
+        except Exception as exc:
+            logging.getLogger(__name__).error('INTAKE_CONVERSATION_USAGE_FAILED project=%s: %s: %s', project_id,
+                                              type(exc).__name__, str(exc)[:200])
+            return {'usage_error': type(exc).__name__}
+        u = {**u, 'max_turns': agent.MAX_TURNS if agent.enabled() else None}
+        logging.getLogger(__name__).info(
+            'INTAKE_CONVERSATION_USAGE project=%s turns=%s input_tokens=%s output_tokens=%s settled_usd=%s held_usd=%s '
+            'unknown=%s open=%s models=%s', project_id, u['turns'], u['input_tokens'], u['output_tokens'],
+            u['settled_usd'], u['held_usd'], u['unknown_calls'], u['open_calls'], ','.join(u['models']))
+        return u
+
     def _turn_limit(self, project_id, interp, answers) -> dict | None:
         """The conversation limit this turn runs into, or None. The paid call was refused (interp.limit) -- or the message
         took the free lane (a greeting, "תודה") after the conversation had stopped: it never reaches the model, and
@@ -1226,7 +1257,8 @@ class ConversationSupervisor:
             return None
         prev = self._last_assistant(project_id)
         carried = ((prev or {}).get('interpretation') or {}).get('limit')
-        if carried and interp is not None and not str(getattr(interp, 'interpreter', '')).startswith('model'):
+        if (carried and carried.get('kind') in ('budget', 'turns', 'daily') and interp is not None
+                and not str(getattr(interp, 'interpreter', '')).startswith('model')):     # 'busy' passes by itself
             return {'kind': carried.get('kind', 'budget'), 'source': 'carried'}
         return None
 
@@ -1241,7 +1273,15 @@ class ConversationSupervisor:
         """Owner 2026-11-18: an overrun stops the conversation and does not crash it. No question and no card: the reply
         says why the assistant stopped, keeps what this message recorded, and leads to the way on -- the summary with
         its approval when the spec is ready (gate 1, built above at no model cost), else the specification tab."""
-        kind = limit.get('kind') if limit.get('kind') in ('budget', 'turns', 'daily') else 'budget'
+        kind = limit.get('kind') if limit.get('kind') in ('budget', 'turns', 'daily', 'busy') else 'budget'
+        if kind == 'busy':
+            # the turn cap is reached only by calls still in flight: not a closing, the next message may go through
+            turn.questions, turn.asked_in_words = [], []
+            got = [x for x in parts if x.startswith(T['got'])]
+            turn.reply = ' '.join([T['limit_busy'], *got]).strip()
+            turn.interpretation = {**(turn.interpretation or {}), 'limit': {'kind': 'busy',
+                                                                           'source': limit.get('source', 'reserve')}}
+            return turn
         prev = self._last_assistant(project_id)
         prev_limit = ((prev or {}).get('interpretation') or {}).get('limit')
         if prev_limit:

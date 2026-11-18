@@ -80,6 +80,12 @@ class ReservedWorkerInterpreter:
             logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s scope=%s counted=%s quote=%s cap=%s', exc.kind,
                                              exc.scope.split(':')[0], exc.counted, exc.quote, exc.cap)
             return base
+        except B.TurnCapReached as exc:         # the agent's turn cap (owner 2026-11-18)
+            base.dropped.append(f'model not used: {exc.kind} (turn cap {exc.max_turns})')
+            base.limit = exc.public()
+            logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s used=%s inflight=%s max_turns=%s', exc.kind,
+                                             exc.used, exc.inflight, exc.max_turns)
+            return base
         except Exception as exc:   # BudgetError, ValueError, schema/DB errors: fail closed, no paid call
             base.dropped.append(f'model not used: {type(exc).__name__}')
             return base

@@ -22,6 +22,9 @@ import re
 FLAG = 'OMNI_INTAKE_AGENT'
 ACCOUNTS = 'OMNI_INTAKE_AGENT_ACCOUNTS'
 MAX_QUESTION_CHARS = 400
+# The owner, 2026-11-18 (Sonnet for the conversation agent): at most 8 turns per conversation. A turn is a paid model
+# call the provider received or may have received (budget.TurnCapReached); the cap holds for agent accounts only.
+MAX_TURNS = 8
 # The owner, 2026-11-17: the flag is per account -- the agent runs for the listed accounts only, everyone else keeps
 # the conversation as it was, one environment change away. Production is not the laboratory.
 _ACCOUNT: contextvars.ContextVar = contextvars.ContextVar('conversation_agent_account', default=None)

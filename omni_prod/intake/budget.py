@@ -84,6 +84,20 @@ class BudgetExceeded(LimitReached):
         return 'daily' if self.scope == DAILY_SCOPE else 'budget'
 
 
+class TurnCapReached(LimitReached):
+    """The conversation's turn cap (owner 2026-11-18: 8 turns for the Sonnet agent). `used` counts paid calls the
+    provider received or may have received; `inflight` the reserved calls not yet sent. 'turns' closes the conversation;
+    'busy' means the cap is reached only by calls still in flight (one may still be released)."""
+
+    def __init__(self, scope: str, max_turns: int, used: int, inflight: int):
+        super().__init__(f'{scope}: {used} used + {inflight} in flight >= {max_turns} turns')
+        self.scope, self.max_turns, self.used, self.inflight = scope, max_turns, used, inflight
+
+    @property
+    def kind(self) -> str:
+        return 'turns' if self.used >= self.max_turns else 'busy'
+
+
 class IdempotencyConflict(BudgetError):
     pass
 
@@ -195,11 +209,15 @@ class Caps:
     project_usd: Decimal
     daily_usd: Decimal | None = None             # production lane
     campaign_usd: Decimal | None = None          # campaign lane
+    project_turns: int | None = None             # owner 2026-11-18: the conversation agent's turn cap (None = no cap)
 
     def __post_init__(self):
         for v in (self.project_usd, self.daily_usd, self.campaign_usd):
             if v is not None and (not isinstance(v, Decimal) or not v.is_finite() or v < 0):
                 raise ValueError('caps must be finite non-negative Decimals')
+        t = self.project_turns
+        if t is not None and (isinstance(t, bool) or not isinstance(t, int) or t < 1):
+            raise ValueError('project_turns must be an int of at least 1, or None')
 
 
 @dataclass
@@ -259,6 +277,42 @@ def scopes_for(account_id: str, project_id: str, lane: str, campaign_id: str | N
     return sorted(out)
 
 
+# The turn cap counts only reservations made under it (quote.turn_cap): a project's earlier turns (before the cap
+# existed) never close it on the first day. A SETTLED call the provider never received (contacted=false in the settle
+# event: a model list or price refusal before the request) and a RELEASED one are not turns.
+_TURNS = """
+SELECT count(*) FILTER (WHERE r.state IN ('EXECUTING', 'UNKNOWN')
+                           OR (r.state = 'SETTLED' AND COALESCE(e.contacted, 'true') <> 'false')),
+       count(*) FILTER (WHERE r.state IN ('RESERVED', 'CLAIMED'))
+FROM intake_reservation_scopes s JOIN intake_reservations r ON r.id = s.reservation_id
+LEFT JOIN LATERAL (SELECT ev.detail->>'contacted' AS contacted FROM intake_reservation_events ev
+                   WHERE ev.reservation_id = r.id AND ev.from_state = 'EXECUTING' ORDER BY ev.id DESC LIMIT 1) e ON true
+WHERE s.scope = %s AND r.quote->'turn_cap' IS NOT NULL
+"""
+
+# One conversation's usage (owner 2026-11-18: tokens and cost recorded per conversation), from the reservations and
+# their settle events. UNKNOWN or still-open calls make the total unknown, never $0.
+_USAGE = """
+SELECT count(*) FILTER (WHERE r.state <> 'RELEASED' AND NOT (r.state = 'SETTLED' AND e.contacted = 'false')),
+       COALESCE(SUM(r.actual_usd) FILTER (WHERE r.state = 'SETTLED'), 0),
+       COALESCE(SUM(r.quoted_usd) FILTER (WHERE r.state IN ('RESERVED', 'CLAIMED', 'EXECUTING', 'UNKNOWN')), 0),
+       count(*) FILTER (WHERE r.state = 'UNKNOWN'),
+       count(*) FILTER (WHERE r.state IN ('RESERVED', 'CLAIMED', 'EXECUTING')),
+       COALESCE(SUM(e.input_tokens), 0), COALESCE(SUM(e.output_tokens), 0),
+       count(*) FILTER (WHERE r.state IN ('SETTLED', 'UNKNOWN') AND COALESCE(e.contacted, 'true') <> 'false'
+                          AND (e.input_tokens IS NULL OR e.output_tokens IS NULL)),
+       COALESCE(array_agg(DISTINCT r.model) FILTER (WHERE r.model IS NOT NULL), '{}')
+FROM intake_reservation_scopes s JOIN intake_reservations r ON r.id = s.reservation_id
+LEFT JOIN LATERAL (SELECT ev.detail->>'contacted' AS contacted,
+                          CASE WHEN jsonb_typeof(ev.detail->'input_tokens') = 'number'
+                               THEN (ev.detail->>'input_tokens')::bigint END AS input_tokens,
+                          CASE WHEN jsonb_typeof(ev.detail->'output_tokens') = 'number'
+                               THEN (ev.detail->>'output_tokens')::bigint END AS output_tokens
+                   FROM intake_reservation_events ev
+                   WHERE ev.reservation_id = r.id AND ev.from_state = 'EXECUTING' ORDER BY ev.id DESC LIMIT 1) e ON true
+WHERE s.scope = %s
+"""
+
 _COUNTED = """
 SELECT COALESCE(SUM(CASE r.state WHEN 'RELEASED' THEN 0 WHEN 'SETTLED' THEN r.actual_usd ELSE r.quoted_usd END), 0)
 FROM intake_reservation_scopes s JOIN intake_reservations r ON r.id = s.reservation_id
@@ -285,6 +339,19 @@ class ReservationService:
             cur.execute('SELECT scope FROM intake_budget_scopes WHERE scope = %s FOR UPDATE', (scope,))
             if cur.fetchone() is None:
                 raise BudgetError(f'scope {scope} missing')
+
+    def conversation_usage(self, scope: str) -> dict:
+        """Tokens and cost of one conversation (its project scope), as reported per call. UNKNOWN or open calls make the
+        total None (never summed as $0); `counted_usd` equals counted(scope) for the scope."""
+        with self.pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(_USAGE, (scope,))
+            turns, settled, held, unknown, open_, tin, tout, untokened, models = cur.fetchone()
+        settled, held = Decimal(settled), Decimal(held)
+        return {'turns': int(turns), 'settled_usd': str(settled), 'held_usd': str(held),
+                'counted_usd': str(settled + held), 'unknown_calls': int(unknown), 'open_calls': int(open_),
+                'actual_total_usd': str(settled) if not unknown and not open_ else None,
+                'input_tokens': int(tin), 'output_tokens': int(tout), 'calls_without_tokens': int(untokened),
+                'models': sorted(models or ())}
 
     def counted(self, scope: str, cur=None) -> Decimal:
         def run(c):
@@ -327,6 +394,16 @@ class ReservationService:
                             (account_id, project_id, lane, campaign_id):
                         raise IdempotencyConflict('idempotency key already used for another request')
                     return existing                         # duplicate request: the original reservation
+                turn_cap = None
+                if caps.project_turns is not None:
+                    # under the scope locks taken above, so two tabs cannot both take the last turn; a retry with the
+                    # same key returned its reservation before this check
+                    pscope = next(s for s, kind, _ in scopes if kind == 'project')
+                    cur.execute(_TURNS, (pscope,))
+                    used, inflight = (int(x) for x in cur.fetchone())
+                    if used + inflight >= caps.project_turns:
+                        raise TurnCapReached(pscope, caps.project_turns, used, inflight)
+                    turn_cap = {'max_turns': caps.project_turns, 'used_before': used, 'inflight_before': inflight}
                 amount = quote_.amount_usd.quantize(Q, rounding=ROUND_CEILING)
                 snapshot = {}
                 for scope, _, cap in scopes:
@@ -335,7 +412,7 @@ class ReservationService:
                     if used + amount > cap:
                         raise BudgetExceeded(scope, cap, used, amount)
                 rid = f'irs_{uuid.uuid4().hex[:24]}'
-                q = {**quote_.to_dict(), 'caps': snapshot}
+                q = {**quote_.to_dict(), 'caps': snapshot, **({'turn_cap': turn_cap} if turn_cap else {})}
                 cur.execute(
                     'INSERT INTO intake_reservations (id, idempotency_key, account_id, project_id, lane, campaign_id, '
                     'quoted_usd, quote, state) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)',
