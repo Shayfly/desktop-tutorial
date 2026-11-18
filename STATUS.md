@@ -1,3 +1,14 @@
+# 2026-11-18 — the fast suite re-measured (Claude Code)
+
+- **Why:** `light` failed its 30 s budget four times on 2026-11-17 on the same 172 files (21.8 to 33.0 s on the CI
+  runner; 17 s here) -- the file's own rule says: re-measure when the budget fails, never raise it.
+- **Re-measured by the documented method** on main `8c7dcbf`: 442 test files; 198 touch the environment, 30 need absent
+  packages; 214 run alone, 207 pass in under 2 s. **New:** a cap on the total -- the kept files run together, fastest
+  first, under 13 s here. Result: 187 files (was 172), 1476 tests, 11.5-12.3 s in one process (was 17 s). The module listed in
+  `tests/needs_env.txt` (`test_r2_storage_signing.py`) stays out; the full suite caught the first cut keeping it.
+- The `fast_suite` controls anchored on the header line "# Result: 172 files", which changes at every re-measure; they
+  now anchor on the stable rule line. Controls 2/2.
+
 # 2026-11-17 — a repair no model answered no longer throws away the build (Claude Code)
 
 - **The owner's butcher project (prj_9GM6q4KQX-tu9A), read from build_jobs and build_events:** bld_2b5225d1 (19:56),
