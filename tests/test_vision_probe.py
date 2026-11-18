@@ -82,6 +82,11 @@ class VisionProbe(unittest.TestCase):
         self.assertIn('::error title=vision probe calibration::blind is routed for images', out.getvalue())
         self.assertIn('::notice title=vision probe blind::FAIL (not routed for images)', out.getvalue())
 
+    def test_pending_entries_do_not_consume_the_probe_bound(self):
+        pending = [SimpleNamespace(endpoint=None)] * vp.MAX_MODELS
+        result = vp.run(pending + catalog("seer"), lambda ep: Seeing())
+        self.assertEqual([r["model"] for r in result], ["seer"])
+
     def test_the_run_is_bounded_and_never_empty(self):
         with self.assertRaises(SystemExit):
             vp.run([], lambda ep: Seeing())
