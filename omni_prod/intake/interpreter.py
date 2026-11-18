@@ -416,11 +416,12 @@ class ModelInterpreter:
         self.max_tokens = max_tokens
 
     def interpret(self, message: str, brief: d.Brief | None = None) -> Interpretation:
-        from .reservation_worker import MeterError, meter
+        from .reservation_worker import MeterError, ledger_mark, meter
         from ..attempt_ledger import new_call_id
         base = self.fallback.interpret(message, brief)
         raw, error = None, None
         call_id = new_call_id()          # THIS turn: the meter sums only the attempts carrying it
+        mark = ledger_mark(self.gateway)
         try:
             raw = self.gateway.complete_json(system=SYSTEM, user=contextual_user(message, brief, getattr(self, 'history', ())),
                                              max_tokens=self.max_tokens, task='conversation', call_id=call_id)
@@ -428,7 +429,7 @@ class ModelInterpreter:
             error = exc
         unmetered = None
         try:
-            m = meter(self.gateway, {'max_tokens': self.max_tokens}, call_id=call_id)
+            m = meter(self.gateway, {'max_tokens': self.max_tokens}, call_id=call_id, before=mark)
         except MeterError as exc:        # the turn goes on; its cost is UNKNOWN and says why, never $0
             from .budget import COST_UNKNOWN
             unmetered = f'cost unknown: {exc}'[:300]

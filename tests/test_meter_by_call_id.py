@@ -177,6 +177,50 @@ class TheInterpreterPricesEachTurnAlone(unittest.TestCase):
         self.assertTrue(any(x.startswith('cost unknown:') for x in it.dropped), it.dropped)
 
 
+class ALostCallIdIsLoud(unittest.TestCase):
+    """Review of the change (2026-11-18): a layer that drops the id makes the gateway invent one; the paid attempt then
+    carries an id the meter was not given, and without this check the call read as 'not contacted', $0."""
+
+    class _Dropper:
+        accepts_call_id = True             # claims it, through __getattr__, like any delegating wrapper
+
+        def __init__(self, inner):
+            self._inner = inner
+
+        def __getattr__(self, item):
+            return getattr(self._inner, item)
+
+        def complete_json(self, *, system, user, max_tokens, task='general', **_ignored):
+            return self._inner.complete_json(system=system, user=user, max_tokens=max_tokens, task=task)
+
+    def test_a_turn_whose_id_was_dropped_is_unknown_not_free(self):
+        it = ModelInterpreter(self._Dropper(_routed())).interpret('אתר לחנות פרחים')
+        self.assertEqual((it.cost_usd, it.cost_state), (None, B.COST_UNKNOWN))
+        self.assertTrue(any('lost on the way' in x for x in it.dropped), it.dropped)
+
+    def test_the_worker_settles_a_dropped_id_as_unknown(self):
+        settled = TheReservationIsTheCall._execute(self, self._Dropper(_routed()))
+        self.assertEqual((settled['cost_state'], settled['actual_usd']), (B.COST_UNKNOWN, None))
+        self.assertIn('lost on the way', settled['failure_reason'])
+
+
+class TheFallbackPathSaysWhyToo(unittest.TestCase):
+    def test_a_failed_call_whose_cost_cannot_be_attributed_is_unknown_and_says_why(self):
+        class BrokenThenDown:
+            accepts_call_id = True
+
+            def __init__(self):
+                self.recorder = SimpleNamespace(records=[])
+
+            def complete_json(self, **kw):
+                self.recorder.records.append(SimpleNamespace(kind='provider_call', provider='p', model='m'))
+                raise ModelGatewayError('model request failed: HTTP 500')
+        it = ModelInterpreter(BrokenThenDown()).interpret('אתר לחנות פרחים')
+        self.assertEqual((it.cost_usd, it.cost_state), (None, B.COST_UNKNOWN))
+        self.assertTrue(any(x.startswith('cost unknown:') for x in it.dropped), it.dropped)
+        self.assertTrue(any(x.startswith('model unavailable') for x in it.dropped), it.dropped)
+
+
 class TheReservationIsTheCall(unittest.TestCase):
     def _execute(self, gateway):
         settled = {}

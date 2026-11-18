@@ -102,6 +102,53 @@ class TheRoutedPathSaysWhoAnswered(unittest.TestCase):
         with self.assertRaises(SystemExit):
             R.RoutedPathGateway(object())
 
+    def test_the_lane_task_reaches_the_routed_gateway(self):
+        routed = _routed()
+        gw = R.RoutedPathGateway(routed)
+        gw.task = 'conversation_complex'           # _Supervisor sets the lane's task on the interpreter's gateway
+        _call(gw, 'call-1')
+        self.assertEqual([r.task_type for r in routed.recorder.records], ['conversation_complex'])
+
+    def test_the_workflow_shows_the_refused_routes(self):
+        from pathlib import Path
+        wf = (Path(__file__).resolve().parents[1] / '.github/workflows/conversation-rehearsal.yml').read_text()
+        (line,) = [x for x in wf.splitlines() if 'conversation.out' in x and x.strip().startswith('grep')]
+        self.assertIn('::warning', line)           # "route refused" is printed as ::warning
+
+    def test_a_route_refused_before_contact_is_named_in_its_turn(self):
+        from omni_prod.model_gateway import ModelEndpoint
+        from omni_prod.routed_gateway import ProviderRoute
+        _Transport.refuse, _Transport.answered = set(), 0
+        routed = RoutedModelGateway(
+            ranked=parse_model_catalog(json.dumps(CATALOG), {'KEY_ONE': 'a', 'KEY_TWO': 'b'}),
+            fallback=(ProviderRoute(ModelEndpoint('configured', 'https://c.example/v1', 'm-unknown', api_key='k',
+                                                  external=True),
+                                    Decimal('0.01')),),        # no declared quality: never used, recorded as refused
+            routing_policy=RoutingPolicy(minimum_quality=70), policy=POLICY, gateway_factory=_Transport,
+            transient_retries=0)
+        gw = R.RoutedPathGateway(routed)
+        _call(gw, 'call-1')
+        _call(gw, 'call-2')
+        refused = [f for f in gw.route_failures if f.startswith('configured: not contacted')]
+        self.assertEqual(len(refused), 2, gw.route_failures)  # once per turn, each from its own call
+
+    def test_an_open_circuit_is_named_in_every_turn_it_blocks(self):
+        from omni_prod.model_gateway import ModelHTTPError
+        routed = _routed()
+        for name in ('first', 'second'):
+            routed.health.record_failure(name, ModelHTTPError(CREDIT, status=400))
+        gw = R.RoutedPathGateway(routed)
+        for turn in ('call-1', 'call-2'):
+            with self.assertRaises(ModelGatewayError):
+                _call(gw, turn)
+        skipped = [f for f in gw.route_failures if ': skipped: CREDIT_EXHAUSTED' in f]
+        self.assertEqual(len(skipped), 4, gw.route_failures)  # both routes, in both turns
+
+    def test_a_routed_gateway_without_call_ids_is_loud(self):
+        from types import SimpleNamespace
+        with self.assertRaises(SystemExit):           # events and a ledger, but its attempts carry no call id
+            R.RoutedPathGateway(SimpleNamespace(events=[], recorder=SimpleNamespace(records=[])))
+
     def test_a_call_without_an_id_is_refused(self):
         gw = R.RoutedPathGateway(_routed())
         with self.assertRaises(ValueError):
@@ -115,6 +162,34 @@ class EachTurnCostsOnlyItsOwnCall(unittest.TestCase):
         costs = [interp.interpret(f'אתר לחנות פרחים, תור {i}').cost_usd for i in range(1, 4)]
         self.assertEqual(costs, ['0.001', '0.002', '0.003'])     # the summed ledger gave 0.001, 0.003, 0.006
         self.assertEqual(len(gw.routed.recorder.records), 3)      # the run's ledger still keeps all three
+
+
+class AnUnknownTurnIsNotFree(unittest.TestCase):
+    """run_scenario adds up a conversation's cost: a turn whose cost is UNKNOWN makes the total unknown, never $0."""
+
+    def test_one_unknown_turn_makes_the_conversation_cost_unknown(self):
+        from omni_prod.intake.interpreter import DeterministicInterpreter
+
+        class Priced:
+            name = 'model'
+
+            def __init__(self):
+                self.gateway = type('G', (), {'task': 'conversation'})()
+                self.inner, self.n = DeterministicInterpreter(), 0
+
+            def interpret(self, message, brief=None):
+                out = self.inner.interpret(message, brief)
+                self.n += 1
+                out.interpreter = 'model:priced'
+                out.cost_usd, out.cost_state = (None, 'UNKNOWN') if self.n == 2 else ('0.002', 'CONFIRMED')
+                return out
+        with mock.patch.dict(os.environ, {'OMNI_INTAKE_AGENT': '1'}):
+            r = R.run_scenario('doors', Priced())
+        self.assertGreaterEqual(r['turns'], 2)
+        self.assertIsNone(r['cost_usd'])
+        self.assertEqual(r['cost_unknown_turns'], 1)
+        self.assertEqual([t['cost_state'] for t in r['transcript']][:2], ['CONFIRMED', 'UNKNOWN'])
+        self.assertEqual(r['transcript'][1]['cost_usd'], None)
 
 
 if __name__ == '__main__':

@@ -18,13 +18,22 @@
   column, no migration). The routed rehearsal names, per turn, the route that answered and each route that refused and
   why (from that call's route events), prints each turn's cost and state, and counts an UNKNOWN turn as unknown, not
   $0.
-- **Evidence:** `tests/test_meter_by_call_id.py` 12 passed -- ten turns on one real RoutedModelGateway, each answer
+- **Adversarial review of the change (3 reviewers, 2 skeptics per finding), fixed before the PR:** the routed rehearsal
+  lost the lane (`gateway.task = conversation_complex` set an unused attribute, so escalated turns ran as plain
+  `conversation`); the workflow's grep dropped the `::warning` lines that name each refused route; a production-path
+  call whose gateway could not be built was metered on no ledger or the previous call's; a call id dropped by a layer
+  on the way would let the gateway invent one and the meter read "not contacted", $0 (no such layer exists today --
+  guarded anyway: `meter(before=ledger_mark(...))` requires every attempt written during the call to carry its id);
+  a route closed earlier in the run was skipped with no route event, so later turns could not say why it did not
+  answer (it now records `skipped: ...` with the call id); and untested stamps and paths got tests and controls.
+- **Evidence:** `tests/test_meter_by_call_id.py` 17 passed -- ten turns on one real RoutedModelGateway, each answer
   costing a different amount (n/1000), give `0.001 .. 0.010`, ten sums (the old meter gave `0.001, 0.003, 0.006, ...`);
-  a call with a fallback counts both its attempts and nothing else. `tests/test_rehearsal_routed_path.py` 6 passed.
-  Related tests 530 passed. Controls `meter_by_call_id` 7/7: NC1 (permanent) the meter sums the whole ledger; NC2 an
+  a call with a fallback counts both its attempts and nothing else. `tests/test_rehearsal_routed_path.py` 12 passed.
+  Related tests 610 passed. Controls `meter_by_call_id` 24/24: NC1 (permanent) the meter sums the whole ledger; NC2 an
   untagged attempt skipped as $0; NC3 the routed gateway does not stamp; NC4 one id for every turn; NC5 Venice
-  untagged; NC6 the worker meters another id; NC7 the rehearsal reads the run's events. The 8 existing controls on
-  these files pass.
+  untagged; NC6 the worker meters another id; NC7 the rehearsal reads the run's events; NC8 a dropped id reads $0;
+  NC9 the lane lost; NC10 the warnings filtered; NC11 a stale ledger; NC12 the gateway ignores the caller's id;
+  NC13-NC24 each remaining guard, stamp and catch. The 8 existing controls on these files pass.
 
 # 2026-11-18 — a stalled Chromium install no longer locks out its own retries (Claude Code)
 

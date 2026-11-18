@@ -2,7 +2,8 @@
  "pr": "meter-by-call-id",
  "sha256": [
   "tests/test_meter_by_call_id.py",
-  "tests/test_rehearsal_routed_path.py"
+  "tests/test_rehearsal_routed_path.py",
+  "tests/test_rehearsal_production_path.py"
  ],
  "controls": [
   {
@@ -18,6 +19,7 @@
    "targets": [
     "tests/test_meter_by_call_id.py",
     "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
     "tests/test_venice_in_conversation.py"
    ],
    "expect_failed": [
@@ -31,7 +33,7 @@
   },
   {
    "id": "NC2",
-   "what": "an attempt without a call id is skipped silently, so its cost becomes $0",
+   "what": "an attempt without a call id is skipped silently, so its cost becomes $0 (the interpreter and the worker are also guarded by the lost-id check, NC8)",
    "mutations": [
     {
      "file": "omni_prod/intake/reservation_worker.py",
@@ -42,12 +44,11 @@
    "targets": [
     "tests/test_meter_by_call_id.py",
     "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
     "tests/test_venice_in_conversation.py"
    ],
    "expect_failed": [
-    "test_an_attempt_without_a_call_id_is_refused_never_priced_as_zero",
-    "test_an_unattributable_cost_is_settled_unknown_never_zero",
-    "test_an_unattributable_turn_is_unknown_and_says_why_not_zero"
+    "test_an_attempt_without_a_call_id_is_refused_never_priced_as_zero"
    ]
   },
   {
@@ -63,15 +64,18 @@
    "targets": [
     "tests/test_meter_by_call_id.py",
     "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
     "tests/test_venice_in_conversation.py"
    ],
    "expect_failed": [
     "test_a_call_that_fell_back_counts_both_its_attempts_and_nothing_else",
     "test_a_call_with_no_attempt_is_not_contacted",
     "test_a_call_without_an_id_still_gets_its_own_one",
+    "test_a_turn_whose_id_was_dropped_is_unknown_not_free",
     "test_ten_turns_on_one_gateway_give_ten_sums_each_its_own_call",
     "test_the_routed_gateway_stamps_every_attempt_and_event_of_a_call",
     "test_the_worker_prices_the_reservation_by_its_own_id",
+    "test_the_worker_settles_a_dropped_id_as_unknown",
     "test_three_turns_of_a_rehearsal_are_three_sums"
    ]
   },
@@ -88,6 +92,7 @@
    "targets": [
     "tests/test_meter_by_call_id.py",
     "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
     "tests/test_venice_in_conversation.py"
    ],
    "expect_failed": [
@@ -108,6 +113,7 @@
    "targets": [
     "tests/test_meter_by_call_id.py",
     "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
     "tests/test_venice_in_conversation.py"
    ],
    "expect_failed": [
@@ -130,6 +136,7 @@
    "targets": [
     "tests/test_meter_by_call_id.py",
     "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
     "tests/test_venice_in_conversation.py"
    ],
    "expect_failed": [
@@ -150,10 +157,369 @@
    "targets": [
     "tests/test_meter_by_call_id.py",
     "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
     "tests/test_venice_in_conversation.py"
    ],
    "expect_failed": [
+    "test_a_route_refused_before_contact_is_named_in_its_turn",
+    "test_an_open_circuit_is_named_in_every_turn_it_blocks",
     "test_each_turn_names_only_its_own_routes"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a call id dropped on the way to the gateway reads as \"not contacted\", $0 (review 2026-11-18)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/reservation_worker.py",
+     "old": "        if foreign:\n            raise MeterError(",
+     "new": "        if False:  # NEGATIVE CONTROL\n            raise MeterError("
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_turn_whose_id_was_dropped_is_unknown_not_free",
+    "test_the_worker_settles_a_dropped_id_as_unknown"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the routed rehearsal ignores the lane: an escalated turn is routed as plain conversation",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "        self.tagged.task = value\n",
+     "new": "        pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_the_lane_task_reaches_the_routed_gateway"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the workflow filters out the ::warning lines that name each refused route",
+   "mutations": [
+    {
+     "file": ".github/workflows/conversation-rehearsal.yml",
+     "old": "grep -E '^(::notice|::warning|::error|",
+     "new": "grep -E '^(::notice|::error|"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_the_workflow_shows_the_refused_routes"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a production-path call whose gateway could not be built is metered on the previous call's ledger (or none)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "        self.recorder = SimpleNamespace(records=[])\n        gateway = build_gateway(",
+     "new": "        gateway = build_gateway("
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_gateway_that_could_not_be_built_is_not_contacted_on_any_turn"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the routed gateway ignores the caller's id and makes up its own: a paid call reads as \"not contacted\", $0",
+   "mutations": [
+    {
+     "file": "omni_prod/routed_gateway.py",
+     "old": "        call_id = call_id or new_call_id()\n",
+     "new": "        call_id = new_call_id()  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_call_that_fell_back_counts_both_its_attempts_and_nothing_else",
+    "test_a_route_refused_before_contact_is_named_in_its_turn",
+    "test_a_route_that_refused_is_named_with_its_reason_and_the_fallback_that_answered",
+    "test_an_open_circuit_is_named_in_every_turn_it_blocks",
+    "test_each_turn_names_only_its_own_routes",
+    "test_ten_turns_on_one_gateway_give_ten_sums_each_its_own_call",
+    "test_the_route_that_answered_is_recorded",
+    "test_the_routed_gateway_stamps_every_attempt_and_event_of_a_call",
+    "test_the_worker_prices_the_reservation_by_its_own_id",
+    "test_three_turns_of_a_rehearsal_are_three_sums"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "ModelInterpreter accepts a gateway that cannot carry a call id",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "        if not getattr(gateway, 'accepts_call_id', False):\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_gateway_that_cannot_carry_a_call_id_is_refused_when_built"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the success route event carries no call id: the rehearsal cannot say which route answered",
+   "mutations": [
+    {
+     "file": "omni_prod/routed_gateway.py",
+     "old": "        self._record(RouteEvent(route.endpoint.name, route.endpoint.external, True, elapsed,\n                                request_id=getattr(usage, 'request_id', None), call_id=call_id,\n",
+     "new": "        self._record(RouteEvent(route.endpoint.name, route.endpoint.external, True, elapsed,\n                                request_id=getattr(usage, 'request_id', None),  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_route_that_refused_is_named_with_its_reason_and_the_fallback_that_answered",
+    "test_each_turn_names_only_its_own_routes",
+    "test_the_route_that_answered_is_recorded"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "the failed-attempt route event carries no call id: a refusal (the credit error) is not named",
+   "mutations": [
+    {
+     "file": "omni_prod/routed_gateway.py",
+     "old": "            self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, elapsed, str(exc)[:300],\n                                    request_id=getattr(usage, 'request_id', None), call_id=call_id,\n",
+     "new": "            self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, elapsed, str(exc)[:300],\n                                    request_id=getattr(usage, 'request_id', None),  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_route_that_refused_is_named_with_its_reason_and_the_fallback_that_answered",
+    "test_the_routed_gateway_stamps_every_attempt_and_event_of_a_call"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "a route refused before contact (no known quality) is recorded without the call id",
+   "mutations": [
+    {
+     "file": "omni_prod/routed_gateway.py",
+     "old": "                                    f'not contacted: {why_not}'[:300], call_id=call_id,\n",
+     "new": "                                    f'not contacted: {why_not}'[:300],  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_route_refused_before_contact_is_named_in_its_turn"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "a route skipped by an open circuit is recorded without the call id",
+   "mutations": [
+    {
+     "file": "omni_prod/routed_gateway.py",
+     "old": "                    self._record(RouteEvent(name, True, False, 0, f'skipped: {why_not}'[:300], call_id=call_id,\n",
+     "new": "                    self._record(RouteEvent(name, True, False, 0, f'skipped: {why_not}'[:300],  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_an_open_circuit_is_named_in_every_turn_it_blocks"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "a route closed earlier in the run is skipped with no event: later turns cannot say why it did not answer",
+   "mutations": [
+    {
+     "file": "omni_prod/routed_gateway.py",
+     "old": "                self._record(RouteEvent(name, route.endpoint.external, False, 0,\n                                        f'skipped: {self.unavailable[name]}'[:300], call_id=call_id,\n                                        **self._decision(route, method, 'unavailable earlier in this run')))\n",
+     "new": "                pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_an_open_circuit_is_named_in_every_turn_it_blocks"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "the production-path rehearsal does not pass the call id to the worker's gateway",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "            return gateway.complete_json(system=system, user=user, max_tokens=max_tokens, task=task, call_id=call_id)\n",
+     "new": "            return gateway.complete_json(system=system, user=user, max_tokens=max_tokens, task=task)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_gateway_is_built_from_the_quote_and_the_real_model_is_recorded"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "the worker does not catch MeterError: an unattributable cost crashes the settle",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/reservation_worker.py",
+     "old": "    except MeterError as exc:   # unattributable cost: held at the quote as UNKNOWN, never settled as $0\n",
+     "new": "    except ZeroDivisionError as exc:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_an_unattributable_cost_is_settled_unknown_never_zero",
+    "test_the_worker_settles_a_dropped_id_as_unknown"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "the interpreter does not catch MeterError: an unattributable cost crashes the turn",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "        except MeterError as exc:        # the turn goes on; its cost is UNKNOWN and says why, never $0\n",
+     "new": "        except ZeroDivisionError as exc:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_failed_call_whose_cost_cannot_be_attributed_is_unknown_and_says_why",
+    "test_a_turn_whose_id_was_dropped_is_unknown_not_free",
+    "test_an_unattributable_turn_is_unknown_and_says_why_not_zero"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "the rehearsal counts an UNKNOWN turn as $0 (the old `cost += t.cost_usd or 0`)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "        if t.cost_usd is None:           # UNKNOWN / PENDING: never counted as $0\n            unknown += 1\n        else:\n            cost += t.cost_usd\n",
+     "new": "        cost += t.cost_usd or Decimal('0')  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_one_unknown_turn_makes_the_conversation_cost_unknown"
+   ]
+  },
+  {
+   "id": "NC23",
+   "what": "a failed turn whose cost cannot be attributed does not say why",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "            base.dropped.append(unmetered)\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_failed_call_whose_cost_cannot_be_attributed_is_unknown_and_says_why"
+   ]
+  },
+  {
+   "id": "NC24",
+   "what": "the routed rehearsal accepts a gateway whose attempts carry no call id",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": " or \\\n                not getattr(routed, 'accepts_call_id', False):\n",
+     "new": ":  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_meter_by_call_id.py",
+    "tests/test_rehearsal_routed_path.py",
+    "tests/test_rehearsal_production_path.py",
+    "tests/test_venice_in_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_routed_gateway_without_call_ids_is_loud"
    ]
   }
  ]

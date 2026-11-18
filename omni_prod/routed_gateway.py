@@ -551,6 +551,11 @@ class RoutedModelGateway:
             name = route.endpoint.name
             if name in self.unavailable:
                 failures.append(f'{route.endpoint.model}: skipped ({self.unavailable[name]})')
+                # an event too (2026-11-18): a route closed by an earlier call of this gateway was skipped without one,
+                # so every later turn of a rehearsal could not say why the preferred model did not answer
+                self._record(RouteEvent(name, route.endpoint.external, False, 0,
+                                        f'skipped: {self.unavailable[name]}'[:300], call_id=call_id,
+                                        **self._decision(route, method, 'unavailable earlier in this run')))
                 continue
             if route.endpoint.external:
                 admitted, why_not = self.health.admit(name)

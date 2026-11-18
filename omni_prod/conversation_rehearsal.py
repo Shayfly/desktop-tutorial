@@ -138,8 +138,12 @@ class ProductionPathGateway:
 
     def complete_json(self, *, system: str, user: str, max_tokens: int, call_id: str,
                       task: str = 'conversation') -> dict:
+        from types import SimpleNamespace
         from .intake.reservation_worker import build_gateway
         q = self.quote
+        # building never contacts a provider: if it fails, THIS call has an empty ledger (not contacted), never the
+        # previous call's
+        self.recorder = SimpleNamespace(records=[])
         gateway = build_gateway(self.amount(system, user, max_tokens), tuple(q.get('allowed_models') or ()), q)
         self.recorder = getattr(gateway, 'recorder', None)
         try:
@@ -173,6 +177,15 @@ class RoutedPathGateway:
         self.recorder = routed.recorder
         self.models_used: list[str] = []
         self.route_failures: list[str] = []
+
+    @property
+    def task(self) -> str:
+        return self.tagged.task
+
+    @task.setter
+    def task(self, value: str) -> None:
+        # the lane's task (conversation / conversation_complex) reaches the routed gateway: _Supervisor sets it per turn
+        self.tagged.task = value
 
     def complete_json(self, *, call_id: str, **kwargs):
         if not call_id:

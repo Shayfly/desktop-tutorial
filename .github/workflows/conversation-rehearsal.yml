@@ -40,5 +40,6 @@ jobs:
           rc=${PIPESTATUS[0]}
           readonly rc
           echo "conversation rehearsal exit code: $rc"
-          grep -E '^(::notice|::error|Traceback|  File|[A-Za-z]+Error)' "$RUNNER_TEMP/conversation.out" | tail -80
+          # ::warning carries each route that refused and why (the routed path); it was filtered out (review, 2026-11-18)
+          grep -E '^(::notice|::warning|::error|Traceback|  File|[A-Za-z]+Error)' "$RUNNER_TEMP/conversation.out" | tail -80
           exit $rc

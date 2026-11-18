@@ -70,7 +70,16 @@ class MeterError(ValueError):
     """The cost of a call cannot be attributed to it. Raised, never priced as $0."""
 
 
-def meter(gateway, quote: dict, *, call_id: str) -> dict:
+def ledger_mark(gateway):
+    """Where the gateway's attempt ledger stands before a call: (the ledger, its length). Passed to meter(before=), it
+    makes every attempt written during the call prove it carries the call's id -- a layer that dropped the id on the
+    way would otherwise leave the paid attempt under an id the gateway made up, and the call would read as 'not
+    contacted', $0 (review of #451, 2026-11-18)."""
+    ledger = getattr(getattr(gateway, 'recorder', None), 'records', None)
+    return (ledger, len(ledger)) if isinstance(ledger, list) else (None, 0)
+
+
+def meter(gateway, quote: dict, *, call_id: str, before=None) -> dict:
     """Cost state of ONE call: the attempts in the gateway's write-ahead ledger that carry `call_id`, and no other.
 
     Owner 2026-11-18: the routed gateway's ledger keeps every attempt of its life (a build, a whole rehearsal), and
@@ -87,6 +96,14 @@ def meter(gateway, quote: dict, *, call_id: str) -> dict:
     if untagged:
         raise MeterError(f'{len(untagged)} provider attempt(s) in the ledger carry no call id '
                          f'({untagged[0].provider}/{untagged[0].model}): they cannot be attributed to a call')
+    if before is not None:
+        old, start = before
+        fresh = ledger[start:] if ledger is old else ledger     # a gateway built for the call has a new ledger
+        foreign = [r for r in fresh if getattr(r, 'kind', 'provider_call') == 'provider_call'
+                   and getattr(r, 'call_id', None) != call_id]
+        if foreign:
+            raise MeterError(f'{len(foreign)} attempt(s) written during call {call_id} carry another id '
+                             f'({getattr(foreign[0], "call_id", None)}): the id was lost on the way to the gateway')
     records = [r for r in calls if r.call_id == call_id]
     if not records:
         return {'contacted': False, 'cost_state': B.CONFIRMED_ZERO, 'actual_usd': Decimal('0'),
@@ -149,6 +166,7 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
     if not svc.mark_executing(r, lease_seconds=lease_seconds):
         return {'ok': False, 'error': 'lease lost before execution'}
     raw, error = None, None
+    mark = ledger_mark(gateway)
     try:   # no database transaction is open here
         raw = gateway.complete_json(system=payload['system'], user=payload['user'],
                                     max_tokens=int(payload['max_tokens']),
@@ -167,7 +185,7 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
             if salvaged:
                 raw, error = {'reply': salvaged, 'proposals': [], 'requirements': []}, None
     try:
-        m = meter(gateway, r.quote, call_id=r.id)
+        m = meter(gateway, r.quote, call_id=r.id, before=mark)
     except MeterError as exc:   # unattributable cost: held at the quote as UNKNOWN, never settled as $0
         m = {'contacted': True, 'call_id': r.id, 'cost_state': B.COST_UNKNOWN, 'actual_usd': None,
              'reason': f'meter: {exc}'[:300]}
