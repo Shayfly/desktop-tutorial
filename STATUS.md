@@ -1,3 +1,27 @@
+# 2026-11-17 — a repair no model answered no longer throws away the build (Claude Code)
+
+- **The owner's butcher project (prj_9GM6q4KQX-tu9A), read from build_jobs and build_events:** bld_2b5225d1 (19:56),
+  bld_6323468a (22:12) and bld_c0b2b43b (22:37) failed with `model_unavailable`; bld_b0de74d5 (22:46) is READY (2 repair
+  rounds, $0.278). In the failed ones the tests had run (up to 3 rounds); then no model route answered the repair with
+  valid JSON -- gemini-3.8-flash wrote an analysis before the JSON (rejected by T3's no-leading-prose rule, kept),
+  gemini-3.5-flash-lite was cut at its length (`finish_reason=length`), gpt-6.1-sol skipped (CREDIT_EXHAUSTED since
+  07:56 UTC). The exception ended the whole build and the screen said "אף בדיקה לא רצה" -- false.
+- **Fix:** a repair that no route answered ("all model routes failed") stops the repair (`repair_model_unavailable`);
+  the build ends on its best verified version with its real checks (`verification_failed`, "stopped repairing: no model
+  returned a valid repair"), and the screen says why in Hebrew and English. Any other error ends the build as before.
+  Tests `tests/test_repair_model_unavailable.py` 4/4 (the real loop and the real release verdict); controls 3/3.
+- **Cost of the three failed builds:** $0.42 + $0.47 + $0.22 provider spend (company loss; the owner's credits returned).
+- **The OpenAI route reopened (CLAUDE.md section 5, 2026-11-17 23:44 UTC):** the owner topped up the account ("הטענתי
+  עכשיו"); the circuit (`provider_health`) would have kept the route closed until its 24-hour trial (2026-11-18 07:56).
+  Backup branch `backup-before-openai-route-reset-2026-11-17` (br-tiny-hat-b9nclt9c); dry read: 6 rows, two
+  CREDIT_EXHAUSTED; one transaction guarded on the old value (a first try matched 0 rows -- the stored time has
+  microseconds -- and changed nothing); old: `openai-gpt-6-1-sol` CREDIT_EXHAUSTED since 2026-11-17 07:56:42.188853,
+  failures 1, recheck 2026-11-18 07:56; new: UNKNOWN, `reset_by` "claude-code for the owner: OpenAI credit topped up
+  2026-11-17" -- the same row `omni_prod.intelligence.health reset` writes; verified by a separate query (1 row
+  changed, the other 5 as they were). Not reset: `anthropic-claude-sonnet-5-5`, CREDIT_EXHAUSTED since 2026-11-16 (the
+  owner named OpenAI only).
+- **Open:** the code models' answers that fail JSON (leading prose, truncation) are not fixed here.
+
 # 2026-11-17 — the conversation rehearsal runs on the production intake path (Claude Code)
 
 - **Merged and released:** #444 `721f560` -> `0ce8cde` (the owner's conversation: the image question is not a loop;

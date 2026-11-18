@@ -865,9 +865,11 @@ def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, 
         last = '; '.join(f'{getattr(f, "acceptance_id", "?")}: {getattr(f, "message", "")}'[:240]
                          for f in report_failures[:4])
         out_of_time = getattr(result, 'stop_reason', '') == 'time_budget'
+        no_repair_model = getattr(result, 'stop_reason', '') == 'repair_model_unavailable'
         return False, 'verification_failed', (
             f'build did not pass sandbox verification after {getattr(result, "repair_rounds", "?")} repair round(s)'
             + (' (stopped repairing: the build was out of time)' if out_of_time else '')
+            + (' (stopped repairing: no model returned a valid repair)' if no_repair_model else '')
             + (f'; still failing: {last}' if last else ''))[:2000]
     if not quality.passed:
         blockers = '; '.join(getattr(quality, 'blockers', ()) or ()) or 'no blocker detail'
