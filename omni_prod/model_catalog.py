@@ -142,6 +142,12 @@ def parse_model_catalog(raw: str, env: Mapping[str, str], *, when=None) -> tuple
         if not isinstance(extra, dict) or any(not isinstance(k, str) or k in reserved for k in extra):
             raise ModelCatalogError(f'{name}: extra_body must be an object without core request fields')
         extra_body = tuple(sorted((k, json.dumps(v)) for k, v in extra.items()))
+        from .intelligence.task_policy import TASK_CLASSES
+        tasks = item.get('allowed_tasks', [])
+        if not isinstance(tasks, list) or any(not isinstance(t, str) or t not in TASK_CLASSES for t in tasks):
+            raise ModelCatalogError(f'{name}: invalid allowed_tasks')
+        if provider == 'venice' and base_url != 'https://api.venice.ai/api/v1':
+            raise ModelCatalogError(f'{name}: invalid Venice origin')
         enabled = bool(item.get('enabled', True))
         from .intelligence.governance import govern
         gov = govern(model=model, base_url=base_url, input_per_million=input_price,
@@ -156,7 +162,8 @@ def parse_model_catalog(raw: str, env: Mapping[str, str], *, when=None) -> tuple
         if key and enabled:
             endpoint = ModelEndpoint(name=name, base_url=base_url, model=model, api_key=key,
                                      timeout_seconds=timeout, external=True, api_style=api_style,
-                                     extra_body=extra_body)
+                                     extra_body=extra_body, allowed_tasks=tuple(tasks),
+                                     private_venice_rates=(input_price, output_price) if provider == 'venice' else ())
         out.append(CatalogModel(option=option, endpoint=endpoint, max_output_tokens=max_out,
                                 api_key_env=key_env, lifecycle=gov.lifecycle, price_source=gov.price_source,
                                 governance_notes=gov.notes,

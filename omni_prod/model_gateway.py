@@ -159,6 +159,8 @@ class ModelEndpoint:
     # Extra top-level request fields from the catalog (e.g. reasoning effort),
     # as a tuple of (key, json-text) pairs so the endpoint stays hashable.
     extra_body: tuple = ()
+    allowed_tasks: tuple[str, ...] = ()
+    private_venice_rates: tuple = ()
 
     def __post_init__(self):
         if not self.name or not self.base_url or not self.model:
@@ -173,7 +175,13 @@ class ModelEndpoint:
 class OpenAICompatibleGateway:
     def __init__(self, endpoint: ModelEndpoint, *, urlopen: Callable[..., Any] | None = None):
         self.endpoint = endpoint
-        self._urlopen = urlopen or request.urlopen
+        if endpoint.private_venice_rates:
+            from .model_discovery import NoRedirect
+            if endpoint.base_url != 'https://api.venice.ai/api/v1':
+                raise ValueError('private Venice route requires the Venice API origin')
+            self._urlopen = urlopen or request.build_opener(NoRedirect()).open
+        else:
+            self._urlopen = urlopen or request.urlopen
         # M5 Task 8: provider-reported usage of the most recent call (None until a
         # response body is received). Captured before content validation, because
         # a call that returns an unusable body is still a billed call.
@@ -235,6 +243,19 @@ class OpenAICompatibleGateway:
             # spent the whole 16,384-token cap thinking and returned no text. Holds even when the deployed catalog
             # (OMNI_MODEL_CATALOG_JSON) predates the catalog's extra_body.
             body.setdefault('thinking', {'type': 'between_tools'})
+        if self.endpoint.private_venice_rates:
+            from .model_discovery import _get
+            from .providers.venice import VeniceModel
+            listing = _get(self.endpoint.base_url + '/models?type=text', headers, self._urlopen)
+            matches = [VeniceModel.from_api(row) for row in listing.get('data', [])
+                       if row.get('id') == self.endpoint.model]
+            if len(matches) != 1 or matches[0].privacy != 'private':
+                raise ModelGatewayError('private Venice route could not verify current privacy')
+            prices = (matches[0].input_usd_per_m, matches[0].output_usd_per_m)
+            if any(p is None or not p.is_finite() or p < 0 or p > bound
+                   for p, bound in zip(prices, self.endpoint.private_venice_rates)):
+                raise ModelGatewayError('private Venice route exceeds its price envelope')
+            body['venice_parameters'] = {'include_venice_system_prompt': False}
         req = request.Request(url, data=json.dumps(body).encode('utf-8'), headers=headers, method='POST')
         self.last_usage = None
         self.last_finish_reason = None

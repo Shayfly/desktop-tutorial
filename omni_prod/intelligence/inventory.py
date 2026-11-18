@@ -259,11 +259,11 @@ def _pending_direct_routes():
             continue
         entries[row['name']] = _llm(
             row['provider'], row['name'], row['model'], row['model'],
-            quality_tasks=(), key_env=row['api_key_env'], cred=S.CREDENTIAL_UNKNOWN,
+            quality_tasks=tuple(row.get('allowed_tasks', ())), key_env=row['api_key_env'], cred=S.CREDENTIAL_UNKNOWN,
             conn=S.NOT_CONNECTED, ver=S.UNVERIFIED, ev=(), ctx=None,
             max_out=row['max_output_tokens'], fallback='none', in_catalog=True,
             limits='Disabled; account access, generation, billing and task quality unverified',
-            commercial='Existing direct-provider paid API policy; account access unverified',
+            commercial='Provider terms and account access require verification before activation',
             id_source=row['_price_source'],
             adapter='routed_gateway (' + row['api'] + ')')
     return tuple(entries.values())

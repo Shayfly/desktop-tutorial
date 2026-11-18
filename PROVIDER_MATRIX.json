@@ -4,29 +4,29 @@
  "summary": {
   "credential_state": {
    "CREDENTIAL_PRESENT": 13,
-   "CREDENTIAL_UNKNOWN": 10
+   "CREDENTIAL_UNKNOWN": 19
   },
   "connection_state": {
    "CONNECTION_TESTED": 7,
-   "NOT_CONNECTED": 16
+   "NOT_CONNECTED": 25
   },
   "verification_state": {
    "REAL_EXECUTION_VERIFIED": 4,
-   "UNVERIFIED": 19
+   "UNVERIFIED": 28
   },
   "availability": {
    "AVAILABLE": 3,
    "DEPRECATED": 1,
    "INSUFFICIENT_CREDIT": 2,
-   "NOT_ROUTED": 17
+   "NOT_ROUTED": 26
   },
   "implementation_status": {
    "BLOCKED": 2,
-   "IMPLEMENTED": 13,
+   "IMPLEMENTED": 22,
    "NOT_IMPLEMENTED": 4,
    "REAL_SERVER_VERIFIED": 4
   },
-  "models": 23
+  "models": 32
  },
  "models": [
   {
@@ -137,6 +137,7 @@
     "conversation_complex",
     "intake_extraction",
     "architecture",
+    "spec_review",
     "codegen",
     "repair",
     "modification",
@@ -236,7 +237,6 @@
     "conversation_complex",
     "intake_extraction",
     "architecture",
-    "repair",
     "modification",
     "review"
    ],
@@ -333,7 +333,6 @@
     "conversation_complex",
     "intake_extraction",
     "architecture",
-    "repair",
     "modification",
     "review"
    ],
@@ -528,6 +527,7 @@
     "conversation_complex",
     "intake_extraction",
     "architecture",
+    "spec_review",
     "codegen",
     "repair",
     "modification",
@@ -628,6 +628,7 @@
     "conversation_complex",
     "intake_extraction",
     "architecture",
+    "spec_review",
     "codegen",
     "repair",
     "modification",
@@ -730,7 +731,11 @@
     "text.generate",
     "json.structured"
    ],
-   "intended_task_types": [],
+   "intended_task_types": [
+    "conversation",
+    "conversation_complex",
+    "intake_extraction"
+   ],
    "execution_adapter": "routed_gateway (anthropic)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
    "supported_modalities": [
@@ -787,7 +792,7 @@
    "deprecation_warning": null,
    "commercial_status": "COMMERCIAL_APPROVED",
    "commercial_plan": "Anthropic API (commercial terms)",
-   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
    "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
    "fallback_eligibility": "none",
@@ -1289,7 +1294,11 @@
     "text.generate",
     "json.structured"
    ],
-   "intended_task_types": [],
+   "intended_task_types": [
+    "architecture",
+    "spec_review",
+    "review"
+   ],
    "execution_adapter": "routed_gateway (openai_reasoning)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
    "supported_modalities": [
@@ -1346,7 +1355,7 @@
    "deprecation_warning": null,
    "commercial_status": "COMMERCIAL_APPROVED",
    "commercial_plan": "OpenAI API (pay-as-you-go)",
-   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
    "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
    "fallback_eligibility": "none",
@@ -1367,7 +1376,11 @@
     "text.generate",
     "json.structured"
    ],
-   "intended_task_types": [],
+   "intended_task_types": [
+    "repair",
+    "spec_review",
+    "review"
+   ],
    "execution_adapter": "routed_gateway (openai_reasoning)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
    "supported_modalities": [
@@ -1424,7 +1437,7 @@
    "deprecation_warning": null,
    "commercial_status": "COMMERCIAL_APPROVED",
    "commercial_plan": "OpenAI API (pay-as-you-go)",
-   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
    "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
    "fallback_eligibility": "none",
@@ -1445,7 +1458,9 @@
     "text.generate",
     "json.structured"
    ],
-   "intended_task_types": [],
+   "intended_task_types": [
+    "review"
+   ],
    "execution_adapter": "routed_gateway (openai_reasoning)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
    "supported_modalities": [
@@ -1502,7 +1517,7 @@
    "deprecation_warning": null,
    "commercial_status": "COMMERCIAL_APPROVED",
    "commercial_plan": "OpenAI API (pay-as-you-go)",
-   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
    "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
    "fallback_eligibility": "none",
@@ -1523,7 +1538,10 @@
     "text.generate",
     "json.structured"
    ],
-   "intended_task_types": [],
+   "intended_task_types": [
+    "architecture",
+    "spec_review"
+   ],
    "execution_adapter": "routed_gateway (anthropic)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
    "supported_modalities": [
@@ -1580,7 +1598,7 @@
    "deprecation_warning": null,
    "commercial_status": "COMMERCIAL_APPROVED",
    "commercial_plan": "Anthropic API (commercial terms)",
-   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
    "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
    "fallback_eligibility": "none",
@@ -1601,7 +1619,10 @@
     "text.generate",
     "json.structured"
    ],
-   "intended_task_types": [],
+   "intended_task_types": [
+    "architecture",
+    "repair"
+   ],
    "execution_adapter": "routed_gateway (anthropic)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
    "supported_modalities": [
@@ -1657,7 +1678,7 @@
    "deprecation_warning": null,
    "commercial_status": "COMMERCIAL_APPROVED",
    "commercial_plan": "Anthropic API (commercial terms)",
-   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
    "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
    "fallback_eligibility": "none",
@@ -1678,7 +1699,10 @@
     "text.generate",
     "json.structured"
    ],
-   "intended_task_types": [],
+   "intended_task_types": [
+    "architecture",
+    "repair"
+   ],
    "execution_adapter": "routed_gateway (openai)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
    "supported_modalities": [
@@ -1751,7 +1775,7 @@
    "deprecation_warning": null,
    "commercial_status": "COMMERCIAL_APPROVED",
    "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
-   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
    "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
    "fallback_eligibility": "none",
@@ -1772,7 +1796,10 @@
     "text.generate",
     "json.structured"
    ],
-   "intended_task_types": [],
+   "intended_task_types": [
+    "architecture",
+    "codegen"
+   ],
    "execution_adapter": "routed_gateway (openai)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
    "supported_modalities": [
@@ -1845,7 +1872,7 @@
    "deprecation_warning": null,
    "commercial_status": "COMMERCIAL_APPROVED",
    "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
-   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
    "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
    "fallback_eligibility": "none",
@@ -1866,7 +1893,10 @@
     "text.generate",
     "json.structured"
    ],
-   "intended_task_types": [],
+   "intended_task_types": [
+    "review",
+    "spec_review"
+   ],
    "execution_adapter": "routed_gateway (openai)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
    "supported_modalities": [
@@ -1923,7 +1953,7 @@
    "deprecation_warning": null,
    "commercial_status": "COMMERCIAL_APPROVED",
    "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
-   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
    "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
    "fallback_eligibility": "none",
@@ -1944,7 +1974,10 @@
     "text.generate",
     "json.structured"
    ],
-   "intended_task_types": [],
+   "intended_task_types": [
+    "classification",
+    "intake_extraction"
+   ],
    "execution_adapter": "routed_gateway (openai)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
    "supported_modalities": [
@@ -2001,7 +2034,731 @@
    "deprecation_warning": null,
    "commercial_status": "COMMERCIAL_APPROVED",
    "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
-   "commercial_usage_constraints": "Existing direct-provider paid API policy; account access unverified",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "venice",
+   "model_key": "venice-openai-gpt-oss-120b",
+   "provider_model_id": "openai-gpt-oss-120b",
+   "id_source": "https://docs.venice.ai/models/overview.md",
+   "model_family": "openai-gpt-oss-120b",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "intake_extraction",
+    "spec_review"
+   ],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "VENICE_API_KEY1"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "venice",
+    "model": "openai-gpt-oss-120b",
+    "effective_from": "2026-11-18",
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.07",
+    "output_per_million": "0.30",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "unknown plan",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "venice",
+   "model_key": "venice-google-gemma-4-31b-it",
+   "provider_model_id": "google-gemma-4-31b-it",
+   "id_source": "https://docs.venice.ai/models/overview.md",
+   "model_family": "google-gemma-4-31b-it",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "conversation",
+    "review"
+   ],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "VENICE_API_KEY1"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "venice",
+    "model": "google-gemma-4-31b-it",
+    "effective_from": "2026-11-18",
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.12",
+    "output_per_million": "0.36",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "unknown plan",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "venice",
+   "model_key": "venice-deepseek-v4-flash-0731",
+   "provider_model_id": "deepseek-v4-flash-0731",
+   "id_source": "https://docs.venice.ai/models/overview.md",
+   "model_family": "deepseek-v4-flash-0731",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "architecture",
+    "repair"
+   ],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "VENICE_API_KEY1"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "venice",
+    "model": "deepseek-v4-flash-0731",
+    "effective_from": "2026-11-18",
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.13",
+    "output_per_million": "0.26",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "unknown plan",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "venice",
+   "model_key": "venice-z-ai-glm-5-3-flash",
+   "provider_model_id": "z-ai-glm-5-3-flash",
+   "id_source": "https://docs.venice.ai/models/overview.md",
+   "model_family": "z-ai-glm-5-3-flash",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "architecture",
+    "conversation",
+    "conversation_complex",
+    "spec_review"
+   ],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "VENICE_API_KEY1"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "venice",
+    "model": "z-ai-glm-5-3-flash",
+    "effective_from": "2026-11-18",
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.15",
+    "output_per_million": "0.50",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "unknown plan",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "venice",
+   "model_key": "venice-e2ee-glm-5-3-flash",
+   "provider_model_id": "e2ee-glm-5-3-flash",
+   "id_source": "https://docs.venice.ai/models/overview.md",
+   "model_family": "e2ee-glm-5-3-flash",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "architecture",
+    "conversation",
+    "conversation_complex",
+    "spec_review"
+   ],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "VENICE_API_KEY1"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "venice",
+    "model": "e2ee-glm-5-3-flash",
+    "effective_from": "2026-11-18",
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.16",
+    "output_per_million": "0.54",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "unknown plan",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "venice",
+   "model_key": "venice-qwen3-coder-480b-a35b-instruct-turbo",
+   "provider_model_id": "qwen3-coder-480b-a35b-instruct-turbo",
+   "id_source": "https://docs.venice.ai/models/overview.md",
+   "model_family": "qwen3-coder-480b-a35b-instruct-turbo",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "codegen",
+    "repair"
+   ],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "VENICE_API_KEY1"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "venice",
+    "model": "qwen3-coder-480b-a35b-instruct-turbo",
+    "effective_from": "2026-11-18",
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.35",
+    "output_per_million": "1.50",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "unknown plan",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "venice",
+   "model_key": "venice-grok-build-0-1",
+   "provider_model_id": "grok-build-0-1",
+   "id_source": "https://docs.venice.ai/models/overview.md",
+   "model_family": "grok-build-0-1",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "codegen",
+    "repair"
+   ],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "VENICE_API_KEY1"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "venice",
+    "model": "grok-build-0-1",
+    "effective_from": "2026-11-18",
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "1.00",
+    "output_per_million": "2.00",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "unknown plan",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "venice",
+   "model_key": "venice-grok-4-20",
+   "provider_model_id": "grok-4-20",
+   "id_source": "https://docs.venice.ai/models/overview.md",
+   "model_family": "grok-4-20",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "spec_review",
+    "review"
+   ],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "VENICE_API_KEY1"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "venice",
+    "model": "grok-4-20",
+    "effective_from": "2026-11-18",
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "1.42",
+    "output_per_million": "2.83",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "unknown plan",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 0,
+   "eligible_tasks": [],
+   "current_operational_status": "disabled: pending live verification",
+   "blocker": ""
+  },
+  {
+   "provider_key": "venice",
+   "model_key": "venice-kimi-k3-1-pro",
+   "provider_model_id": "kimi-k3-1-pro",
+   "id_source": "https://docs.venice.ai/models/overview.md",
+   "model_family": "kimi-k3-1-pro",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "spec_review",
+    "review"
+   ],
+   "execution_adapter": "routed_gateway (openai)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "VENICE_API_KEY1"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_UNKNOWN",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-11-18",
+    "effective_until": null,
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18"
+   },
+   "price_in_force": {
+    "provider": "venice",
+    "model": "kimi-k3-1-pro",
+    "effective_from": "2026-11-18",
+    "source_url": "https://docs.venice.ai/models/overview.md",
+    "verified_at": "2026-11-18",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "2.00",
+    "output_per_million": "10.00",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "unknown plan",
+   "commercial_usage_constraints": "Provider terms and account access require verification before activation",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
    "known_limitations": "Disabled; account access, generation, billing and task quality unverified",
    "fallback_eligibility": "none",
@@ -2087,6 +2844,22 @@
    ]
   },
   {
+   "task": "spec_review",
+   "description": "compare the authored specification with the approved request",
+   "preferred_floor": 85,
+   "mandatory_floor": 85,
+   "allow_models": [],
+   "deny_models": [],
+   "independent_of": [
+    "architecture"
+   ],
+   "deterministic_first": false,
+   "prefer_models": [
+    "openai-gpt-6-1-sol",
+    "gemini-3-8-flash"
+   ]
+  },
+  {
    "task": "codegen",
    "description": "write the product code",
    "preferred_floor": 85,
@@ -2109,13 +2882,15 @@
    "mandatory_floor": 70,
    "allow_models": [],
    "deny_models": [
-    "gpt-6-luna"
+    "gpt-6-luna",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite"
    ],
    "independent_of": [],
    "deterministic_first": false,
    "prefer_models": [
     "anthropic-claude-sonnet-5-5",
-    "gemini-3-8-flash"
+    "openai-gpt-6-1-sol"
    ]
   },
   {

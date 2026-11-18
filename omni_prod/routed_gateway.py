@@ -123,6 +123,7 @@ class RoutedModelGateway:
         # Which catalog routes served which task in this build, so the QA
         # reviewer can prefer a model other than the one that wrote the code.
         self.models_by_task: dict[str, set[str]] = {}
+        self.model_ids_by_task: dict[str, set[str]] = {}
         # T3: every rejected JSON answer, raw and diagnosed (bounded: the last 10, each up to 200k characters).
         self.rejected_json: list[dict] = []
         self.rejected_json_manifest: list[dict] = []   # every rejection of the build (no raw text): the evidence row
@@ -301,6 +302,7 @@ class RoutedModelGateway:
         if route.endpoint.external:
             self.health.record_success(route.endpoint.name)
         self.models_by_task.setdefault(task or 'general', set()).add(route.endpoint.name)
+        self.model_ids_by_task.setdefault(task or 'general', set()).add(route.endpoint.model)
         self._record(RouteEvent(route.endpoint.name, route.endpoint.external, True, elapsed,
                                 request_id=getattr(usage, 'request_id', None), call_id=call_id,
                                 **self._decision(route, method, reason)))
@@ -388,6 +390,8 @@ class RoutedModelGateway:
     def _configured_refusal(self, route: ProviderRoute, task: str) -> str | None:
         """Why a configured primary/fallback may not serve this task, or None when it may."""
         from .intelligence.task_policy import eligible, task_class
+        if route.endpoint.allowed_tasks and task not in route.endpoint.allowed_tasks:
+            return f'route is not assigned to {task}'
         known = self.configured_quality(route)
         floor = task_class(task, cost_class=self.cost_class).mandatory_floor
         if known is None:
@@ -418,6 +422,8 @@ class RoutedModelGateway:
         candidates = []
         for model in self.ranked:
             option = model.option
+            if model.endpoint.allowed_tasks and task not in model.endpoint.allowed_tasks:
+                continue
             if not option.enabled or option.quality < policy.minimum_quality:
                 continue
             only = getattr(self, 'task_only', {}).get(model.endpoint.name)
@@ -527,6 +533,17 @@ class RoutedModelGateway:
             self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, 0,
                                     f'not contacted: {why_not}'[:300], call_id=call_id,
                                     **self._decision(route, method, 'below the task quality floor')))
+        from .intelligence.task_policy import task_class
+        sources = task_class(task).require_independent_of
+        if sources:
+            author_names = set().union(*(self.models_by_task.get(t, set()) for t in sources))
+            author_ids = set().union(*(self.model_ids_by_task.get(t, set()) for t in sources))
+            if task == 'spec_review' and not author_ids:
+                raise ModelGatewayError('spec review requires a recorded specification author')
+            routes = [r for r in routes if r[0].endpoint.name not in author_names
+                      and r[0].endpoint.model not in author_ids]
+            if not routes:
+                raise ModelGatewayError(f'no independent eligible model for {task}')
         if kwargs.get('images'):
             # 2026-11-15: a call with images goes only to a model with evidence that it reads them (vision_models).
             from .vision_models import accepts_images
@@ -592,11 +609,14 @@ class RoutedModelGateway:
                                 # Same model, smaller output allowance that fits: one attempt.
                                 f_route, f_kwargs = fitted
                                 try:
-                                    return self._attempt(f_route, method, f_kwargs,
+                                    fitted_result = self._attempt(f_route, method, f_kwargs,
                                                          f'{why}; output allowance cut to {f_kwargs["max_tokens"]} tokens '
                                                          'to fit the remaining budget',
                                                          task=task, option=option, rank=rank, candidate_set=candidate_set,
                                                          call_id=call_id)
+                                    if validate is not None:
+                                        validate(fitted_result)
+                                    return fitted_result
                                 except Exception as fitted_exc:
                                     last_error = fitted_exc
                                     if isinstance(fitted_exc, AttemptLedgerUnavailable):

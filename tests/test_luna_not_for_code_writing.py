@@ -36,7 +36,7 @@ class LunaOutOfCodeWritingTests(unittest.TestCase):
         self.assertEqual(models(self.light, 'codegen'), ['claude-sonnet-5-5', 'gemini-3.1-flash-lite'])
         self.assertEqual(models(self.light, 'modification'), ['gemini-3.1-flash-lite'])
         # CEO 2026-11-08 (b): a strong model may repair in LIGHT (task-only; the class hard cap still binds)
-        self.assertEqual(models(self.light, 'repair'), ['claude-sonnet-5-5', 'gemini-3.1-flash-lite'])
+        self.assertEqual(models(self.light, 'repair'), ['claude-sonnet-5-5', 'gpt-6.1-sol'])
 
     def test_luna_is_never_offered_for_code_writing_in_any_class(self):
         for cc in CostClass:
@@ -48,11 +48,12 @@ class LunaOutOfCodeWritingTests(unittest.TestCase):
     def test_small_tasks_keep_luna_where_it_answered_correctly(self):
         for task in ('architecture', 'review', 'conversation'):
             self.assertIn('gpt-6-luna', models(self.light, task), task)
-        self.assertEqual(first_model(self.light, 'architecture'), 'gpt-6-luna')   # still the cheapest there
+        self.assertEqual(first_model(self.light, 'architecture'), 'claude-sonnet-5-5')   # still the cheapest there
 
     def test_the_policy_records_why(self):
         rows = {r['task']: r for r in task_policy.describe()}
-        for task in ('codegen', 'repair', 'modification'):
+        self.assertEqual(set(rows['repair']['deny_models']), {'gpt-6-luna', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'})
+        for task in ('codegen', 'modification'):
             self.assertEqual(rows[task]['deny_models'], ['gpt-6-luna'])
         self.assertEqual(rows['review']['deny_models'], [])
         self.assertFalse(task_policy.eligible('codegen', model_id='gpt-6-luna', quality=100))

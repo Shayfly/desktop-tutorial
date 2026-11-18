@@ -144,7 +144,7 @@ __all__ = ['BuildAgentRecorder', 'PlanAdmittedExecutor', 'PlanBoundRecorder', 'P
 # ---------------------------------------------------------------------------
 # Wave A: the approved execution plan drives the task graph.
 # ---------------------------------------------------------------------------
-MODEL_TASK_STAGE = {'architecture': 'architecture', 'codegen': 'codegen', 'repair': 'repair', 'review': 'review'}
+MODEL_TASK_STAGE = {'architecture': 'architecture', 'spec_review': 'architecture', 'codegen': 'codegen', 'repair': 'repair', 'review': 'review'}
 # Release-policy check that decides each verification stage (platform-owned).
 STAGE_CHECK = {'preview': 'preview_starts', 'behavior': 'behavioural_acceptance', 'browser': 'browser_flow',
                'visual': 'visual_layout_desktop_mobile', 'security': 'static_security_scan',
@@ -253,13 +253,13 @@ class PlanBoundRecorder(BuildAgentRecorder):
             tid = self.by_stage.get(stage)
             if tid is None:
                 self._violation(f'model spend for {task_type!r}, which the plan does not contain')
-            delta = spent - self.charged.get(tid, Decimal('0'))
+            delta = spent - self.charged.get(task_type, Decimal('0'))
             if delta > 0:
                 try:
                     self.rt.charge(tid, delta, evidence={'charged_task_type': task_type})
                 except RuntimeViolation as exc:
                     self._violation(f'{stage}: {exc}')
-                self.charged[tid] = spent
+                self.charged[task_type] = spent
 
     def _admit(self, stage: str) -> str:
         """The task of `stage` must be RUNNING, or move to RUNNING now (the runtime

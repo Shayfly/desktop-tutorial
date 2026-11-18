@@ -23,6 +23,7 @@ from urllib.parse import urlsplit
 from . import lifecycle, prices
 
 MANAGED_HOSTS = {
+    'api.venice.ai': 'venice',
     'generativelanguage.googleapis.com': 'gemini',
     'api.openai.com': 'openai',
     'api.anthropic.com': 'anthropic',

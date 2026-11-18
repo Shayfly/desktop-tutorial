@@ -1132,6 +1132,18 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         from .fact_canon import needs_customer_input
         getattr(engine, 'core', engine).missing_input = (                    # #335 (d)
             lambda messages: needs_customer_input(messages, build_prompt))
+        spec_review = None
+        if os.environ.get('OMNI_SPEC_REVIEW') == '1':
+            from .spec_review import SpecificationReview, reference_examples
+            from .reference_store import PostgresReferenceStore
+            reference_store = PostgresReferenceStore(attempt_pool) if attempt_pool is not None else None
+            examples = reference_examples(reference_store, prompt, str(request.get('public_project_id') or internal_project_id))
+            spec_review = SpecificationReview(gateway, build_prompt, examples)
+            getattr(engine, 'core', engine).spec_review = spec_review
+            if examples:
+                build_prompt += ('\nApproved examples for layout inspiration only. Preserve the customer scope, '
+                                 'facts and prices. Never copy content.\n' + json.dumps(
+                                     [r['layout'] for r in examples], ensure_ascii=False))
         result = engine.build(build_prompt)
         if agent_recorder is not None and hasattr(agent_recorder, 'raise_if_violated'):
             agent_recorder.raise_if_violated()   # plan-governed: a swallowed violation still fails closed
@@ -1250,6 +1262,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
             'provider_usage': provider_usage_evidence(gateway),
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
+            **({'spec_review': spec_review.evidence} if spec_review else {}),
             'model_budget_binding': model_budget_binding,
             'design_review': {'enabled': bool(design_review_on), 'reviews': _design_reviews(engine)},
             'agentic_repair': {'enabled': bool(agentic_repair),

@@ -95,7 +95,7 @@ class TwoGates(unittest.TestCase):
         self.assertTrue(gate['verification']['accepted'])
         self.assertFalse(gate['verification']['corrected'])
         self.assertEqual(gate['cost'], {'range': [45, 200], 'exact': 200, 'outside_range': None})
-        self.assertIn('Exact cost: 200 credits (the range I gave: 45–200)', r.reply)
+        self.assertIn('Updated estimate: 200 credits (the range I gave: 45–200)', r.reply)
         self.assertNotIn('above the range', r.reply)
         self.assertEqual(self.store.plan_for('p', r.brief_row.fingerprint)['plan']['spec_gate'], gate)
 
@@ -148,7 +148,7 @@ class TwoGates(unittest.TestCase):
         self.make(credits=None)
         r = self.approve(self.to_gate1())
         self.assertIsNone(r.plan['spec_gate']['cost']['exact'])
-        self.assertIn('I will calculate the exact cost when you approve the budget', r.reply)
+        self.assertIn('The current estimated range is', r.reply)
 
     # --- a change after approval goes back to step 1
     def test_a_change_after_approval_needs_a_new_spec_approval(self):

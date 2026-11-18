@@ -157,9 +157,9 @@ _TXT = {
            'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
            'confirm_sensitive_words': 'זה נושא רגיש ({field}), אז אני צריך תשובה מפורשת שלכם, במילים.',
            'corrected': 'עדכנתי',
-           'cost': 'עלות הבנייה: {credits} קרדיטים. תקרת ההוצאה על מודלים לבנייה הזו: עד ${cap} (מוחזק לפני תחילת העבודה; מחויבת העלות בפועל).',
+           'cost': 'עלות בנייה משוערת: {credits} קרדיטים. תקרת ההוצאה על מודלים לבנייה הזו: עד ${cap} (מוחזק לפני תחילת העבודה; מחויבת העלות בפועל).',
            'canon_ack': 'לפני האישור: כתבו בהודעה את הפרטים החסרים שלמטה, או סמנו את התיבה שמאשרת בנייה בלעדיהם.',
-           'cost_unknown': 'את העלות המדויקת אחשב אחרי שהמפרט יאושר.', 'approve': 'כדי להתחיל, אשרו את הסיכום והעלות בכפתור "אישור והתחלת בנייה".',
+           'cost_unknown': 'אעדכן את אומדן העלות אחרי אישור המפרט.', 'approve': 'כדי להתחיל, אשרו את הסיכום והעלות בכפתור "אישור והתחלת בנייה".',
            'approve_not_ready': 'עדיין אי אפשר לאשר:', 'status_none': 'עדיין לא התחילה בנייה בפרויקט הזה.',
            'status': 'הבנייה האחרונה: {status}{phase}. משימות: {done} הושלמו, {running} בתהליך, {pending} ממתינות, {failed} נכשלו.',
            'modify': 'הבנתי שתרצו לשנות את המוצר הקיים. אשרו ואשלח את השינוי לצנרת השינויים (תוצג עלות לפני ביצוע).',
@@ -208,9 +208,9 @@ _TXT = {
            'confirm_sensitive': 'This is sensitive ({field}), so I need your explicit confirmation with the button.',
            'confirm_sensitive_words': 'This is sensitive ({field}), so I need your explicit answer, in words.',
            'corrected': 'Updated',
-           'cost': 'This build costs {credits} credits. Model spending for it is capped at ${cap} (reserved before work starts; you are charged actual usage).',
+           'cost': 'Estimated build cost: {credits} credits. Model spending for it is capped at ${cap} (reserved before work starts; you are charged actual usage).',
            'canon_ack': 'Before approving: send the missing details below in a message, or tick the box to build without them.',
-           'cost_unknown': 'I will calculate the exact cost once the spec is approved.',
+           'cost_unknown': 'I will update the estimate once the spec is approved.',
            'approve': 'To start, approve the summary and cost with "Approve and start building".',
            'approve_not_ready': 'It cannot be approved yet:', 'status_none': 'No build has started in this project yet.',
            'status': 'Latest build: {status}{phase}. Tasks: {done} done, {running} running, {pending} waiting, {failed} failed.',
@@ -558,6 +558,20 @@ class ConversationSupervisor:
         excluded = [(f'{R.display_name(k, lang)} עדיין לא זמין, ולכן ייבנה בלעדיו.' if lang == 'he' else
                      f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
                     for k in d.customer_exclusions(row.brief)]      # 77: said in the spec the customer approves
+        from ..intake.conversation_agent import enabled
+        if enabled() and lang in ('he', 'en'):
+            action = turn.actions[-1]
+            action['approve_and_build'] = True
+            decisions = [_label(k, v['value'], lang) for k, v in items
+                         if v.get('source') in ('answer', 'message') and 'value' in v and k != 'goal']
+            goal = row.brief.values().get('goal') or row.brief.prompt
+            scope = (['הבקשה שלך', goal, 'ההחלטות שנכנסות לבנייה'] if lang == 'he'
+                     else ['Your request', goal, 'Decisions included in the build'])
+            if not decisions:
+                scope.pop()
+            return [*scope, *decisions, *excluded, *canon['lines'],
+                    ('אפשר לכתוב שינוי כאן או לאשר ולהתחיל לבנות.' if lang == 'he'
+                     else 'Send a change here, or approve and start the build.')]
         return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *excluded, *canon['lines'],
                 AF.range_line(lang, lo, hi), t['gate1']]
 
@@ -938,14 +952,14 @@ class ConversationSupervisor:
         if refused is not None:
             return refused
         cls, lane = (self._classify(project_id, row, message) if message else (None, None))
+        from ..intake import conversation_agent as agent
         interp = None
         if message:
             source = (self._interpreter(project_id, account_id, request_key, task=lane['task'])
                       if lane['lane'] in lanes.MODEL_LANES else DeterministicInterpreter())
-            source.history = [m for m in self.store.messages_for(project_id, limit=6)[:-1]
-                              if not (m.get('interpretation') or {}).get('system')][-4:]   # never the flow mark
+            source.history = [m for m in self.store.messages_for(project_id, limit=201 if agent.enabled() else 6)[:-1]
+                              if not (m.get('interpretation') or {}).get('system')]   # never the flow mark
             interp = source.interpret(message, row.brief if row else None)
-        from ..intake import conversation_agent as agent
         if agent.enabled() and row is not None and message and not answers:
             # phase 1 of the conversation agent (the owner, 2026-11-17): no cards, so the customer answers a question
             # by typing. It counts only for the question asked in the previous turn, and only when the words name
@@ -1105,7 +1119,11 @@ class ConversationSupervisor:
                     turn.actions.append({'type': 'show_plan', 'brief_revision': row.revision})
                 else:                                      # gate 1: the spec and the range; no plan yet
                     unpriced = self._unpriced_gate(project_id, account_id, row, lang, turn)   # 77
-                    parts.extend(unpriced if unpriced else self._gate1(turn, row, lang))
+                    summary = unpriced if unpriced else self._gate1(turn, row, lang)
+                    if any('build_credits' in a for a in turn.actions):
+                        parts = summary
+                    else:
+                        parts.extend(summary)
             else:
                 blocked = [f for f in feas.get('findings', []) if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
                 turn.blocked = [f['item'] for f in blocked]

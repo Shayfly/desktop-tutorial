@@ -276,8 +276,8 @@ def m5_class_llm_cap(cost_class) -> Decimal:
 # rescue a first draft that thin. The LIGHT cap rose 0.35 -> 0.60 to pay for it; the 60% margin floor still clips
 # paid plans (Amateur lands near $0.50), so no ceiling is bypassed.
 _M5_TASK_ONLY_DEFAULT: dict[CostClass, str] = {
-    CostClass.LIGHT: 'anthropic-claude-sonnet-5-5:codegen+repair+review',
-    CostClass.STANDARD: 'anthropic-claude-sonnet-5-5:codegen+repair+review',
+    CostClass.LIGHT: 'anthropic-claude-sonnet-5-5:codegen+architecture+repair+review,openai-gpt-6-1-sol:spec_review+repair+review',
+    CostClass.STANDARD: 'anthropic-claude-sonnet-5-5:codegen+architecture+repair+review,openai-gpt-6-1-sol:spec_review+repair+review',
 }
 
 

@@ -33,11 +33,11 @@ const T = {
     manageProject:'ניהול פרויקט', rename:'שינוי שם', saveName:'שמירת השם', archive:'העברה לארכיון',
     newProject:'פרויקט חדש', close:'סגירה',
     promptPlaceholder:'לדוגמה: מערכת לניהול תורים למספרה, עם יומן לספרים, הזמנה עצמית ללקוחות ותזכורות במייל.',
-    propTitle:'ההצעה שלכם', propLooks:'ככה זה ייראה', propGeneric:'הצעה כללית', propEstimate:'הערכה', propPrice:'מחיר לבנייה', propIncluded:'כלול', propExcluded:'לא כלול', propFacts:'הפרטים שלכם, כמו שכתבתם', propApprove:'אשר ובנה', propChange:'שנה משהו', propEdit:'שנה', propUp:'הזז למעלה', propDown:'הזז למטה', propRemove:'הסר', propSave:'שמור', propUndo:'בטל את השינוי האחרון', propApproving:'מאשרים ומתחילים לבנות…', propNotYet:'ההצעה עוד לא מוכנה: נשלים את הפרטים בשיחה.',
+    propTitle:'ההצעה שלכם', propLooks:'ככה זה ייראה', propGeneric:'הצעה כללית', propEstimate:'הערכה', propPrice:'עלות בנייה משוערת', propIncluded:'כלול', propExcluded:'לא כלול', propFacts:'הפרטים שלכם, כמו שכתבתם', propApprove:'אשר ובנה', propChange:'שנה משהו', propEdit:'שנה', propUp:'הזז למעלה', propDown:'הזז למטה', propRemove:'הסר', propSave:'שמור', propUndo:'בטל את השינוי האחרון', propApproving:'מאשרים ומתחילים לבנות…', propNotYet:'ההצעה עוד לא מוכנה: נשלים את הפרטים בשיחה.',
     planTitle:'התוכנית', understood:'מה הבנו', roles:'משתמשים', data:'נתונים', integrations:'חיבורים',
     capabilities:'יכולות שהבנייה צריכה', infrastructure:'תשתית לאפליקציה', cost:'עלות',
     estimated:'הערכה', maximum:'מקסימום מאושר', questions:'שאלות לפני שמתחילים', blockersTitle:'מה חוסם כרגע',
-    creditsRequired:'קרדיטים לבנייה', creditsRemaining:'קרדיטים שנותרו', quoteStatus:'תמחור',
+    creditsRequired:'עלות משוערת בקרדיטים', creditsRemaining:'קרדיטים שנותרו', quoteStatus:'תמחור',
     confirm:'אשרו והתחילו בנייה', editRequest:'עריכת הבקשה', costUnknown:'לא ניתן לחשב',
     byPipeline:'בתוך הבנייה', byProvider:'ספק חיצוני', required:'נדרש', optional:'רשות',
     st_LIVE:'פעיל', st_PARTIAL:'מוגדר, לא נבדק', st_NOT_CONFIGURED:'לא מוגדר', st_BLOCKED:'חסום',
@@ -162,11 +162,11 @@ const T = {
     manageProject:'Manage project', rename:'Rename', saveName:'Save name', archive:'Archive',
     newProject:'New project', close:'Close',
     promptPlaceholder:'For example: an appointment system for a barbershop, with a calendar for barbers, self-booking for customers and email reminders.',
-    propTitle:'Your proposal', propLooks:'This is how it will look', propGeneric:'General suggestion', propEstimate:'estimate', propPrice:'Build price', propIncluded:'Included', propExcluded:'Not included', propFacts:'Your details, as you wrote them', propApprove:'Approve and build', propChange:'Change something', propEdit:'Change', propUp:'Move up', propDown:'Move down', propRemove:'Remove', propSave:'Save', propUndo:'Undo the last change', propApproving:'Approving and starting the build…', propNotYet:'The proposal is not ready yet: we will complete the details in the conversation.',
+    propTitle:'Your proposal', propLooks:'This is how it will look', propGeneric:'General suggestion', propEstimate:'estimate', propPrice:'Estimated build cost', propIncluded:'Included', propExcluded:'Not included', propFacts:'Your details, as you wrote them', propApprove:'Approve and build', propChange:'Change something', propEdit:'Change', propUp:'Move up', propDown:'Move down', propRemove:'Remove', propSave:'Save', propUndo:'Undo the last change', propApproving:'Approving and starting the build…', propNotYet:'The proposal is not ready yet: we will complete the details in the conversation.',
     planTitle:'The plan', understood:'What we understood', roles:'Users', data:'Data', integrations:'Integrations',
     capabilities:'Capabilities the build needs', infrastructure:'App infrastructure', cost:'Cost',
     estimated:'Estimate', maximum:'Approved maximum', questions:'Questions before we start', blockersTitle:'What is blocking right now',
-    creditsRequired:'Credits for this build', creditsRemaining:'Credits remaining', quoteStatus:'Pricing',
+    creditsRequired:'Estimated build credits', creditsRemaining:'Credits remaining', quoteStatus:'Pricing',
     confirm:'Approve and start build', editRequest:'Edit request', costUnknown:'Cannot be calculated',
     byPipeline:'in the build', byProvider:'external provider', required:'required', optional:'optional',
     st_LIVE:'Live', st_PARTIAL:'Configured, not verified', st_NOT_CONFIGURED:'Not configured', st_BLOCKED:'Blocked',
@@ -763,17 +763,16 @@ async function proposalUndo() {
   } catch (e) { const m = $('propMsg'); if (m) m.textContent = explain(e); }
 }
 // One button: approve THIS spec (its fingerprint) and start the build -- not two approvals on the same thing.
-async function approveAndBuild() {
-  const pr = S.proposal; if (!pr || !pr.ok) return;
-  const m = $('propMsg'); if (m) m.textContent = t('propApproving');
-  try {
-    applyConversation(await api(specApprovalPath(), { method: 'POST',
-      body: { brief_fingerprint: pr.brief_fingerprint, canon_ack: true, request_key: newKey(),
-              windows: S.proposalWindows ? S.proposalWindows.read() : undefined } }));
-    await requestBriefPlan(false);
-    if (S.plan && S.plan.can_build) await startBuild();
-    else if (m) m.textContent = (S.plan && S.plan.blocked_reason) ? S.plan.blocked_reason.message : t('readinessBlocked');
-  } catch (e) { if (m) m.textContent = explain(e); }
+async function approveAndBuild(event) {
+  const pr = S.proposal;
+  const plan = S.plan;
+  if (!pr?.ok || plan?.brief_fingerprint !== pr.brief_fingerprint ||
+      !Number.isSafeInteger(plan.credits_required)) return;
+  const ack = $('proposalCanonAck');
+  await approveFromChat({
+    brief_fingerprint: pr.brief_fingerprint, canon_ack: Boolean(ack?.checked),
+    windows: S.proposalWindows?.read()
+  }, event.currentTarget);
 }
 function proposalCard() {
   const pr = S.proposal;
@@ -810,9 +809,11 @@ function proposalCard() {
       h('div', {}, h('h3', {}, t('propIncluded')), h('ul', {}, pr.included.map(x => h('li', {}, x)))),
       h('div', {}, h('h3', {}, t('propExcluded')), h('ul', {}, pr.excluded.map(x => h('li', {}, x))))),
     S.proposalWindows.node,
+    pr.canon_ack_required ? h('label', {}, h('input', { id: 'proposalCanonAck', type: 'checkbox',
+      onchange: e => { $('approveAndBuildBtn').disabled = !e.target.checked; } }), t('canonAck')) : null,
     h('div', { class: 'row propActions' },
       h('button', { type: 'button', class: 'primary', id: 'approveAndBuildBtn',
-                    disabled: Boolean(S.build && !isTerminal(S.build.status)), onclick: approveAndBuild }, t('propApprove')),
+                    disabled: Boolean(pr.canon_ack_required || (S.build && !isTerminal(S.build.status))), onclick: approveAndBuild }, t('propApprove')),
       h('button', { type: 'button', class: 'secondary', onclick: beginBriefEdit }, t('propChange')),
       S.proposalUndo ? h('button', { type: 'button', class: 'ghost', onclick: proposalUndo }, t('propUndo')) : null),
     h('p', { class: 'msg', id: 'propMsg', role: 'alert' }))];
@@ -931,10 +932,10 @@ function renderPlan() {
 /* ---------- build ---------- */
 const isTerminal = s => ['ready', 'failed', 'cancelled', 'READY', 'FAILED', 'CANCELLED'].includes(s);
 let buildStarting = false;
-async function startBuild() {
-  if (!S.plan || !S.plan.can_build || buildStarting) return;
+async function startBuild(event, acceptedPlan = S.plan) {
+  if (!acceptedPlan || !acceptedPlan.can_build || buildStarting) return;
   const buildProjectId = pid();
-  const plan = S.plan;
+  const plan = acceptedPlan;
   const prompt = (S.disc && S.disc.prompt) || 'build';
   const idempotencyStorageKey = `148ai_build_idempotency:${buildProjectId}:${plan.build_contract_id}`;
   // One click = one request; the server also returns the existing build for
@@ -1499,7 +1500,7 @@ const APPROVAL_STATE_BLOCKERS = ['spec_not_approved', 'plan_not_verified', 'appr
 function planWaitsOnApproval(p) {
   return Boolean(p) && (p.blockers || []).some(b => APPROVAL_STATE_BLOCKERS.includes(b.code));
 }
-function applyConversation(view) {
+function applyConversation(view, fetchPlan = true) {
   if (view.discovery && S.disc && view.discovery.brief.revision !== S.disc.brief.revision) S.plan = null;
   const moved = (view.plan_id || null) !== ((S.chat && S.chat.plan_id) || null)
     || ((view.turn && view.turn.actions) || []).some(a => a.type === 'approve_build');
@@ -1510,7 +1511,7 @@ function applyConversation(view) {
   renderChat(); renderDiscovery(); renderArch(); renderTabs();
   const acts = (view.turn && view.turn.actions) || [];
   // A complete, buildable brief: fetch the real quote (free; nothing is reserved).
-  if (S.disc && S.disc.complete && !S.plan && !S.updatingAnswers) requestBriefPlan(false);
+  if (fetchPlan && S.disc && S.disc.complete && !S.plan && !S.updatingAnswers) requestBriefPlan(false);
 }
 // Only a server that does not have the conversation (503 conversation_not_ready: migration pending) switches to
 // the guided questionnaire. Anything else -- a network blip, a timeout, a 500 -- is shown with a retry, and the
@@ -1629,6 +1630,37 @@ function windowsChoice(offer) {
       h('span', { class: 'wtext' }, h('b', {}, w.label), h('span', { class: 'benefit' }, w.benefit)))));
   return { node, read: () => Object.fromEntries(offer.map((w, i) => [w.id, Boolean(boxes[i].checked)])) };
 }
+// The customer approves the displayed scope with one click.
+let combinedInFlight = false;
+async function approveFromChat(choices, button) {
+  const project = pid();
+  if (combinedInFlight || buildStarting || (S.build && !isTerminal(S.build.status))) return;
+  combinedInFlight = true;
+  button.disabled = true;
+  try {
+    const view = await api(`/api/v28/projects/${project}/spec-approval?lang=${S.lang}`, {
+      method: 'POST', body: { ...choices, request_key: newKey() }
+    });
+    if (pid() !== project) return;
+    applyConversation(view, false);
+    const approval = view.turn?.actions?.find(a => a.type === 'approve_build');
+    const brief = view.discovery?.brief;
+    if (!approval || !brief || approval.brief_revision !== brief.revision ||
+        view.turn.plan?.spec_gate?.approved_fingerprint !== brief.fingerprint ||
+        choices.brief_fingerprint !== brief.fingerprint) { openTab(null); return; }
+    const plan = await api(`/api/v28/projects/${project}/build-contracts?lang=${S.lang}`, {
+      method: 'POST', body: { prompt: view.discovery.prompt, brief_revision: brief.revision }
+    });
+    if (pid() !== project) return;
+    if (!plan.can_build || plan.brief_fingerprint !== brief.fingerprint ||
+        plan.brief_revision !== brief.revision || S.disc?.brief?.fingerprint !== brief.fingerprint) {
+      S.plan = plan; renderPlan(); openTab('plan'); return;
+    }
+    await startBuild(null, plan);
+  } catch (error) {
+    if (pid() === project) $('composerMsg').textContent = explain(error);
+  } finally { combinedInFlight = false; button.disabled = false; }
+}
 function actionButtons(actions) {
   const out = [];
   for (const a of actions || []) {
@@ -1640,10 +1672,13 @@ function actionButtons(actions) {
       const incomplete = a.canon && a.canon.status === 'CANON_INCOMPLETE';
       const wins = windowsChoice(a.windows);
       if (wins.node) out.push(wins.node);
-      const btn = h('button', { type: 'button', disabled: incomplete, onclick: () => sendChat(
-        { brief_fingerprint: a.brief_fingerprint, canon_ack: incomplete ? Boolean(box && box.checked) : false,
-          windows: wins.read() },
-        t('actApproveSpec'), specApprovalPath) }, t('actApproveSpec'));
+      const combined = a.approve_and_build === true;
+      const btn = h('button', { type: 'button', disabled: incomplete, onclick: () => {
+        const choices = { brief_fingerprint: a.brief_fingerprint,
+          canon_ack: incomplete ? Boolean(box && box.checked) : false, windows: wins.read() };
+        if (combined) return approveFromChat(choices, btn);
+        return sendChat(choices, t('actApproveSpec'), specApprovalPath);
+      } }, combined ? t('approveBuild') : t('actApproveSpec'));
       const box = incomplete ? h('input', { type: 'checkbox', id: 'canonAck', onchange: (e) => { btn.disabled = !e.target.checked; } }) : null;
       if (incomplete) out.push(h('label', { class: 'canonAck', for: 'canonAck' }, box, ' ', t('canonAck')));
       out.push(btn);
