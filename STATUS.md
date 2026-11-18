@@ -38,6 +38,22 @@
   `conversation_turn_cap_pg` 7/7 (`envs: pg`). The PG file runs in intake-budget-pg's isolated per-file loop
   (`scripts/ci_test_coverage.py` PASS).
 
+# 2026-11-18 — the agent's closing of an incomplete spec is no longer a dead end (Claude Code, D10 review)
+
+- **What broke:** at the limit, an agent conversation whose spec was incomplete only named the gaps and pointed at the
+  specification tab. The tab edits only answered fields (`app.js` `beginBriefEdit`), and with no card a typed answer
+  is read only against an asked question (`_awaiting`), so the summary was unreachable. **Root cause:** the closing
+  cleared `asked_in_words`. Found by the adversarial review wf_8c2f9499-486 (confirmed, high).
+- **Fix:** the closing asks ONE open choice question in words (`_free_question`) and records it as asked; the next
+  typed message is read by words (`typed_choice`) with no model call and no reservation. The intro no longer says
+  "stops asking". A missing free-text field still has only the spec tab (open, below).
+- **Evidence:** `tests/test_conversation_limit.py` 13 passed (the new test asserts one question, the answer recorded,
+  and no model call); `conversation_limit` NC 15/15 (NC14 no question asked, NC15 not recorded as asked);
+  `test_fast.sh` 187 files, 1480 passed; PG turn cap 9 passed, NC 8/8 pg.
+- **Status:** implemented, verified locally; not yet in production (ships with the D10 PR and its release).
+- **Open:** a missing free-text field at the closing; the review's unverified findings ("Updated:" lines dropped at
+  the closing, an image-only message after the stop, an EXECUTING call counted as a turn).
+
 # 2026-11-18 — a conversation that reaches its limit stops gracefully, with the way on (Claude Code)
 
 - **What broke:** when a conversation reached a limit (the $0.15 project cap, the daily cap), the customer read "the
