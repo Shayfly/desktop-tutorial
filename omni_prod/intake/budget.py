@@ -62,10 +62,26 @@ class QuoteUnavailable(BudgetError):
     """No reliable price or execution ceiling: fail closed (no model call)."""
 
 
-class BudgetExceeded(BudgetError):
+class LimitReached(BudgetError):
+    """A conversation limit stopped this paid call before any provider contact (owner 2026-11-18: an overrun stops the
+    conversation, it does not crash it). `kind` is what the customer is told; the amounts stay on the server."""
+    kind = 'budget'
+
+    def public(self) -> dict:
+        """What may reach the browser: the kind of limit and where it was decided, never caps or totals (a daily scope
+        is shared by every account)."""
+        return {'kind': self.kind, 'source': 'reserve'}
+
+
+class BudgetExceeded(LimitReached):
     def __init__(self, scope: str, cap: Decimal, counted: Decimal, quote: Decimal):
         super().__init__(f'{scope}: {counted} + {quote} > {cap}')
         self.scope, self.cap, self.counted, self.quote = scope, cap, counted, quote
+
+    @property
+    def kind(self) -> str:
+        # the daily scope is shared by every conversation and frees itself over 24 h; any other scope is this one's
+        return 'daily' if self.scope == DAILY_SCOPE else 'budget'
 
 
 class IdempotencyConflict(BudgetError):

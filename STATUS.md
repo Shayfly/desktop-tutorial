@@ -1,3 +1,23 @@
+# 2026-11-18 — a conversation that reaches its limit stops gracefully, with the way on (Claude Code)
+
+- **What broke:** when a conversation reached a limit (the $0.15 project cap, the daily cap), the customer read "the
+  model provider is busy, send again in a moment" -- false -- every question was cleared and the summary could never
+  be reached: a dead end. **Root cause:** the limit was only a free-text `dropped` string (`worker_route.py`), the
+  pre-check kept no reason at all (`supervisor._interpreter`), and the supervisor then took the "model did not answer"
+  branch. Found by the D10 design analysis (wf_c308510a-631, 3 readers, 2 skeptics), confirmed in the code.
+- **Fix (the owner's 2026-11-18 decision, part 1 of 3):** the limit is a typed outcome (`budget.LimitReached`,
+  `Interpretation.limit` = {kind, source}; never caps or totals, the daily scope is every account's). The supervisor
+  closes the conversation: why it stopped, what this message recorded, and the way on -- the summary with its approval
+  when the spec is ready (gate 1, no model cost), else the specification tab (`edit_requirements`, the missing items by
+  name). A message that takes the free lane after the stop gets the same closing, not "provider busy"; two closing
+  messages in a row alternate (warehouse 113). The stored message is labelled `limit`, not "built from fixed rules".
+- **Evidence:** `tests/test_conversation_limit.py` 9 passed on the real supervisor (as the rehearsal runs it) and the
+  real ReservedWorkerInterpreter with a refusing reservation service. Controls `conversation_limit` 10/10; the 25
+  existing controls on the changed files pass. Related tests 376 passed; `test_fast.sh` 1478.
+- **Next (same decision):** the 8-turn cap and tokens and cost per conversation; then Sonnet for the agent profile
+  (ordered preference, Haiku when Venice does not offer Sonnet, decision 10), the release, and the production-path
+  rehearsal that is the first real cost measurement. No cost is reported before it.
+
 # 2026-11-18 — a repair call where a route answered "no credit" no longer ends the whole build (Claude Code)
 
 - **What broke:** the #448 fix (keep a build's verified work when no route answers the repair) missed one shape of

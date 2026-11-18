@@ -74,6 +74,11 @@ class ReservedWorkerInterpreter:
                                           'prompt_version': PROMPT_VERSION})
         except B.BudgetExceeded as exc:
             base.dropped.append(f'model not used: budget {exc.scope.split(":")[0]} exhausted')
+            # a typed outcome, not only a string: the supervisor ends the conversation gracefully on it (owner
+            # 2026-11-18). The amounts are logged here and never sent to the browser.
+            base.limit = exc.public()
+            logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s scope=%s counted=%s quote=%s cap=%s', exc.kind,
+                                             exc.scope.split(':')[0], exc.counted, exc.quote, exc.cap)
             return base
         except Exception as exc:   # BudgetError, ValueError, schema/DB errors: fail closed, no paid call
             base.dropped.append(f'model not used: {type(exc).__name__}')

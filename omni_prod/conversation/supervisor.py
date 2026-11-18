@@ -35,6 +35,20 @@ from .. import discovery as d
 from ..intake import agent as intake_agent
 from ..intake import contract as C
 from ..intake.interpreter import DeterministicInterpreter, interpreter_from_env, language_of
+
+
+class _AtLimit(DeterministicInterpreter):
+    """The pre-check refused the paid call because a conversation limit is reached: the free interpreter answers, and
+    the limit is carried as a typed outcome (owner 2026-11-18), never as the "provider is busy" text."""
+
+    def __init__(self, kind: str, reason: str):
+        self.kind, self.reason = kind, reason
+
+    def interpret(self, message, brief=None):
+        out = super().interpret(message, brief)
+        out.limit = {'kind': self.kind, 'source': 'precheck'}
+        out.dropped.append(f'model not used: {self.reason}')
+        return out
 from ..planning import feasibility as F
 from ..planning.architect import ChiefArchitect
 
@@ -151,6 +165,15 @@ _TXT = {
            'ready_again': 'התוכנית מעודכנת ומוכנה. כדי להתחיל לבנות לחצו על "אישור והתחלת בנייה" — שום חיוב לא מתחיל לפני האישור.',
            'ready': 'יש לי תמונה מלאה. הכנתי תוכנית עבודה — אפשר לעבור עליה ולאשר. שום בנייה ושום חיוב לא מתחילים לפני אישור.',
            'blocked': 'יש דרישה שאי אפשר לבנות כרגע', 'nothing': 'לא זיהיתי פרטים חדשים. ספרו לי עוד על מה שתרצו, או שאלו "מה חסר?".',
+           # owner 2026-11-18: an overrun stops the conversation and does not crash it -- said as it is, with the way on
+           'limit_budget': 'הגענו לתקרת העלות של השיחה עם הסוכן, ולכן הוא לא ממשיך לשאול. מה שכתבתם נשמר.',
+           'limit_turns': 'הגענו למספר התורות המרבי של השיחה עם הסוכן, ולכן הוא לא ממשיך לשאול. מה שכתבתם נשמר.',
+           'limit_daily': 'הסוכן הגיע לתקרת השימוש היומית ויחזור לענות בהמשך. מה שכתבתם נשמר.',
+           'limit_ready': 'הנה הסיכום — אפשר לאשר אותו או לתקן:',
+           'limit_incomplete': 'כדי להתקדם, השלימו בלשונית המפרט את מה שעוד חסר ({missing}) ואשרו משם.',
+           'limit_incomplete_any': 'כדי להתקדם, השלימו את המפרט בלשונית המפרט ואשרו משם.',
+           'limit_still': 'השיחה עם הסוכן הסתיימה. מה שכתבתם נשמר.',
+           'limit_still_alt': 'הסוכן כבר לא עונה בשיחה הזאת, אבל ההודעה נשמרה.',
            'model_unavailable': 'הסוכן לא הספיק לענות הפעם (העומס אצל ספק המודל). מה שכתבתם נשמר — שלחו שוב בעוד רגע, או כתבו עוד פרט על המוצר.',
            'missing_none': 'לא חסר כלום — אפשר לעבור לסיכום ולאשר.', 'missing': 'חסר לי:', 'contra': 'יש סתירה שצריך להחליט עליה:',
            'conflict': 'קודם נקבע: {current}. עכשיו הבנתי: {proposed}. לא שיניתי — מה נכון?',
@@ -201,6 +224,14 @@ _TXT = {
            'ready_again': 'The plan is up to date. To start, press "Approve and start build"; nothing is charged before you approve.',
            'ready': 'I have the full picture and prepared a work plan you can review and approve. Nothing is built or charged before you approve.',
            'blocked': 'Something you asked for cannot be built right now', 'nothing': 'I did not spot new details. Tell me more, or ask "what is missing?".',
+           'limit_budget': 'This conversation reached its cost limit, so the assistant stops asking here. What you wrote is saved.',
+           'limit_turns': 'This conversation reached its maximum number of turns, so the assistant stops asking here. What you wrote is saved.',
+           'limit_daily': 'The assistant reached its daily usage limit and will answer again later. What you wrote is saved.',
+           'limit_ready': 'Here is the summary; you can approve it or correct it:',
+           'limit_incomplete': 'To go on, complete what is still missing ({missing}) in the specification tab and approve it there.',
+           'limit_incomplete_any': 'To go on, complete the specification in the specification tab and approve it there.',
+           'limit_still': 'The conversation with the assistant has ended. What you wrote is saved.',
+           'limit_still_alt': 'The assistant no longer answers in this conversation, but your message is saved.',
            'model_unavailable': 'The assistant could not answer in time (the model provider is busy). What you wrote is saved; send it again in a moment, or add another detail about the product.',
            'missing_none': 'Nothing is missing: you can review the summary and approve.', 'missing': 'Still missing:',
            'contra': 'There is a contradiction to decide:',
@@ -435,7 +466,8 @@ class ConversationSupervisor:
         from ..intake import mode as intake_mode
         m = self.intake_mode(project_id, account_id)
         if m.mode != intake_mode.MODEL_WORKER:
-            return DeterministicInterpreter()
+            # a reached limit is said as such (owner 2026-11-18), never the "provider is busy" text
+            return _AtLimit(m.limit, m.reason) if m.limit else DeterministicInterpreter()
         if self.worker_interpreter is not None:
             if hasattr(self.worker_interpreter, 'task'):
                 self.worker_interpreter.task = task
@@ -1134,6 +1166,9 @@ class ConversationSupervisor:
                 explain = unsure or repeated
                 parts.extend(self._ask_line(res, row, lang, T, unsure=explain))
                 turn.explained = explain and not self._last_reply_was_why
+        limit = self._turn_limit(project_id, interp, answers)
+        if limit is not None:
+            return self._closing_turn(project_id, turn, row, limit, parts, lang, T)
         if not parts:
             parts.append(T['nothing'])
         turn.reply = re.sub(r'\n +', '\n', ' '.join(parts)).strip()
@@ -1178,6 +1213,59 @@ class ConversationSupervisor:
                 turn.reply = (base + ' ' + agent.asked_in_words(q, lang)).strip()
             turn.asked_in_words = [x.id for x in turn.questions]
             turn.questions = []
+        return turn
+
+    def _turn_limit(self, project_id, interp, answers) -> dict | None:
+        """The conversation limit this turn runs into, or None. The paid call was refused (interp.limit) -- or the message
+        took the free lane (a greeting, "תודה") after the conversation had stopped: it never reaches the model, and
+        must not read "the provider is busy" (skeptic of the D10 plan, 2026-11-18). A button answer is free and goes on."""
+        limit = getattr(interp, 'limit', None) if interp is not None else None
+        if limit:
+            return dict(limit)
+        if answers:
+            return None
+        prev = self._last_assistant(project_id)
+        carried = ((prev or {}).get('interpretation') or {}).get('limit')
+        if carried and interp is not None and not str(getattr(interp, 'interpreter', '')).startswith('model'):
+            return {'kind': carried.get('kind', 'budget'), 'source': 'carried'}
+        return None
+
+    def _last_assistant(self, project_id) -> dict | None:
+        try:
+            msgs = self.store.messages_for(project_id, limit=6)
+        except Exception:
+            return None
+        return next((m for m in reversed(msgs) if m.get('role') == 'assistant'), None)
+
+    def _closing_turn(self, project_id, turn, row, limit, parts, lang, T):
+        """Owner 2026-11-18: an overrun stops the conversation and does not crash it. No question and no card: the reply
+        says why the assistant stopped, keeps what this message recorded, and leads to the way on -- the summary with
+        its approval when the spec is ready (gate 1, built above at no model cost), else the specification tab."""
+        kind = limit.get('kind') if limit.get('kind') in ('budget', 'turns', 'daily') else 'budget'
+        prev = self._last_assistant(project_id)
+        prev_limit = ((prev or {}).get('interpretation') or {}).get('limit')
+        if prev_limit:
+            # warehouse 113: never the same message twice in a row -- the follow-up wording alternates
+            intro = T['limit_still_alt'] if (prev.get('content') or '').startswith(T['limit_still']) else T['limit_still']
+        else:
+            intro = T[f'limit_{kind}']
+        turn.questions, turn.asked_in_words = [], []
+        ready = any(a.get('type') in ('approve_spec', 'show_plan') for a in turn.actions)
+        if ready:
+            lines = [intro, T['limit_ready'], *parts]
+        else:
+            turn.actions = [a for a in turn.actions if a.get('type') != 'approve_spec']
+            names = [_short(f, lang) for f in (row.brief.open_material or ()) if f in d.BY_ID] if row is not None else []
+            got = [x for x in parts if x.startswith((T['got'], T['blocked']))]   # what was recorded, what blocks
+            lines = [intro, *got, T['limit_incomplete'].format(missing=', '.join(names[:4])) if names
+                     else T['limit_incomplete_any']]
+            if row is not None and not any(a.get('type') == 'edit_requirements' for a in turn.actions):
+                turn.actions.append({'type': 'edit_requirements', 'brief_revision': row.revision})
+        turn.reply = re.sub(r'\n +', '\n', ' '.join(x for x in lines if x)).strip()
+        turn.interpretation = {**(turn.interpretation or {}), 'limit': {'kind': kind,
+                                                                       'source': limit.get('source', 'reserve')}}
+        logging.getLogger(__name__).info('INTAKE_CONVERSATION_STOPPED project=%s kind=%s source=%s ready=%s',
+                                         project_id, kind, limit.get('source'), ready)
         return turn
 
     def _not_repeated(self, project_id, turn, T) -> str:
