@@ -63,6 +63,16 @@ class TheCapIsTheAgents(unittest.TestCase):
         self.assertEqual(self.interpreter_caps('owner').project_turns, agent.MAX_TURNS)
         self.assertEqual(agent.MAX_TURNS, 8)
 
+    def test_the_agent_cost_cap_never_follows_a_raised_global_cap(self):
+        global AUTH
+        saved = AUTH
+        try:
+            AUTH = {**saved, 'OMNI_INTAKE_MODEL_BUDGET_USD': '0.50'}
+            self.assertEqual(self.interpreter_caps('owner').project_usd, Decimal('0.15'))
+            self.assertEqual(self.interpreter_caps('someone-else').project_usd, Decimal('0.50'))
+        finally:
+            AUTH = saved
+
     def test_every_other_account_has_no_turn_cap(self):
         self.assertIsNone(self.interpreter_caps('someone-else').project_turns)
 

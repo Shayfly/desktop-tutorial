@@ -139,6 +139,10 @@ class TheRehearsalMeasuresTheAgent(unittest.TestCase):
                          ('agent', 'order', 'claude-sonnet-5-5'))
         self.assertEqual(R.project_cap(self.PROD['quote']), Decimal('0.15'))
 
+    def test_the_production_path_never_measures_an_agent_quote_by_chance(self):
+        import inspect
+        self.assertIn("COALESCE(quote->>'mode', 'plain') = 'plain'", inspect.getsource(R.production_quote))
+
     def test_a_cap_is_never_guessed(self):
         with self.assertRaises(SystemExit):
             R.project_cap({'caps': {'daily:global': {'cap': '1.00'}}})

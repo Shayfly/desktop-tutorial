@@ -74,14 +74,18 @@ class LimitReached(BudgetError):
 
 
 class BudgetExceeded(LimitReached):
-    def __init__(self, scope: str, cap: Decimal, counted: Decimal, quote: Decimal):
+    def __init__(self, scope: str, cap: Decimal, counted: Decimal, quote: Decimal, open_usd: Decimal = Decimal('0')):
         super().__init__(f'{scope}: {counted} + {quote} > {cap}')
         self.scope, self.cap, self.counted, self.quote = scope, cap, counted, quote
+        self.open_usd = open_usd     # the part of `counted` held by calls still in flight (they may settle lower)
 
     @property
     def kind(self) -> str:
-        # the daily scope is shared by every conversation and frees itself over 24 h; any other scope is this one's
-        return 'daily' if self.scope == DAILY_SCOPE else 'budget'
+        # the daily scope is shared by every conversation and frees itself over 24 h; any other scope is this one's.
+        # A refusal that only calls still in flight cause is not a closed conversation: 'busy' (D10 review)
+        if self.scope == DAILY_SCOPE:
+            return 'daily'
+        return 'busy' if (self.counted - self.open_usd) + self.quote <= self.cap else 'budget'
 
 
 class TurnCapReached(LimitReached):
@@ -323,6 +327,12 @@ LEFT JOIN LATERAL (SELECT ev.detail->>'contacted' AS contacted,
 WHERE s.scope = %s
 """
 
+_OPEN_HELD = """
+SELECT COALESCE(SUM(r.quoted_usd), 0)
+FROM intake_reservation_scopes s JOIN intake_reservations r ON r.id = s.reservation_id
+WHERE s.scope = %s AND r.state IN ('RESERVED', 'CLAIMED', 'EXECUTING')
+"""
+
 _COUNTED = """
 SELECT COALESCE(SUM(CASE r.state WHEN 'RELEASED' THEN 0 WHEN 'SETTLED' THEN r.actual_usd ELSE r.quoted_usd END), 0)
 FROM intake_reservation_scopes s JOIN intake_reservations r ON r.id = s.reservation_id
@@ -420,7 +430,8 @@ class ReservationService:
                     used = self.counted(scope, cur)
                     snapshot[scope] = {'cap': str(cap), 'counted_before': str(used)}
                     if used + amount > cap:
-                        raise BudgetExceeded(scope, cap, used, amount)
+                        cur.execute(_OPEN_HELD, (scope,))
+                        raise BudgetExceeded(scope, cap, used, amount, Decimal(cur.fetchone()[0]))
                 rid = f'irs_{uuid.uuid4().hex[:24]}'
                 q = {**quote_.to_dict(), 'caps': snapshot, **({'turn_cap': turn_cap} if turn_cap else {})}
                 cur.execute(

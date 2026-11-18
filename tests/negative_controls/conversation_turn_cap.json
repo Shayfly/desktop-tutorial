@@ -10,7 +10,7 @@
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
-     "old": "            caps = dataclasses.replace(caps, project_turns=agent.MAX_TURNS)\n",
+     "old": "            caps = dataclasses.replace(caps, project_turns=agent.MAX_TURNS,\n                                       project_usd=min(caps.project_usd, agent.MAX_COST_USD))\n",
      "new": "            pass  # NEGATIVE CONTROL\n"
     }
    ],
@@ -18,7 +18,8 @@
     "tests/test_conversation_turn_cap.py"
    ],
    "expect_failed": [
-    "test_the_agent_account_reserves_under_the_8_turn_cap"
+    "test_the_agent_account_reserves_under_the_8_turn_cap",
+    "test_the_agent_cost_cap_never_follows_a_raised_global_cap"
    ]
   },
   {
@@ -35,7 +36,8 @@
     "tests/test_conversation_turn_cap.py"
    ],
    "expect_failed": [
-    "test_every_other_account_has_no_turn_cap"
+    "test_every_other_account_has_no_turn_cap",
+    "test_the_agent_cost_cap_never_follows_a_raised_global_cap"
    ]
   },
   {
@@ -141,6 +143,23 @@
    ],
    "expect_failed": [
     "test_a_usage_failure_never_fails_the_turn"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the agent's cost cap follows a raised global cap",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                                       project_usd=min(caps.project_usd, agent.MAX_COST_USD))",
+     "new": "                                       project_usd=caps.project_usd)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap.py"
+   ],
+   "expect_failed": [
+    "test_the_agent_cost_cap_never_follows_a_raised_global_cap"
    ]
   }
  ]

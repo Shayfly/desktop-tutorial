@@ -89,6 +89,26 @@ class TheTurnCap(PG):
         self.assertNotIn('turn_cap', self.take(p, caps=B.Caps(Decimal('1'), Decimal('10'))).quote)
 
 
+class TheBudgetHeldInFlight(PG):
+    """D10 review: a refusal that only a call still executing causes is 'busy', not a closed conversation."""
+    pool_size = 8
+    take = TheTurnCap.take
+    settle = TheTurnCap.settle
+
+    def test_a_held_quote_refuses_as_busy_and_a_settled_spend_as_budget(self):
+        caps = B.Caps(Decimal('0.010'), Decimal('10'))
+        self.settle(self.take('held', caps=caps, amount=Decimal('0.004')), actual=Decimal('0.001'))
+        self.take('held', caps=caps, amount=Decimal('0.006'))          # in flight: 0.001 settled + 0.006 held
+        with self.assertRaises(B.BudgetExceeded) as caught:
+            self.take('held', caps=caps, amount=Decimal('0.004'))
+        self.assertEqual(caught.exception.kind, 'busy')
+        caps2 = B.Caps(Decimal('0.006'), Decimal('10'))
+        self.settle(self.take('spent', caps=caps2, amount=Decimal('0.004')), actual=Decimal('0.004'))
+        with self.assertRaises(B.BudgetExceeded) as caught:
+            self.take('spent', caps=caps2, amount=Decimal('0.004'))
+        self.assertEqual(caught.exception.kind, 'budget')
+
+
 class TheConversationUsage(PG):
     pool_size = 8
     take = TheTurnCap.take

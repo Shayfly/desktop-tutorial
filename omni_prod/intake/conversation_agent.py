@@ -25,6 +25,10 @@ MAX_QUESTION_CHARS = 400
 # The owner, 2026-11-18 (Sonnet for the conversation agent): at most 8 turns per conversation. A turn is a paid model
 # call the provider received or may have received (budget.TurnCapReached); the cap holds for agent accounts only.
 MAX_TURNS = 8
+# ... and at most $0.15 per conversation: the agent's own cap, never above the global OMNI_INTAKE_MODEL_BUDGET_USD (it is
+# the smaller of the two), so raising the global cap for other accounts never raises the agent's (D10 review).
+from decimal import Decimal as _D
+MAX_COST_USD = _D('0.15')
 # The owner, 2026-11-18: Sonnet for the conversation agent in production only; decision 10 (2026-11-17): when it is not
 # available, the regular model, never below 70. On Venice that is an ordered list -- the first model Venice offers
 # within the ceiling wins, chosen before any request (a reservation is one call, so this is not a second call). Both are

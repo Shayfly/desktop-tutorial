@@ -103,8 +103,11 @@ PATHS = ('production', 'routed', 'agent')
 def production_quote(pool) -> dict:
     """The newest settled production intake reservation's quote, with its id and per-call amount. Loud when none."""
     with pool.connection() as conn:
+        # the plain profile only: after the agent's release the newest quote may be an agent (Sonnet) one, and the
+        # production path must not measure that by chance (D10 review); the agent path adds its profile itself
         row = conn.execute("SELECT id, quoted_usd, quote FROM intake_reservations WHERE state = 'SETTLED' "
-                           "AND quote IS NOT NULL ORDER BY settled_at DESC NULLS LAST, updated_at DESC LIMIT 1").fetchone()
+                           "AND quote IS NOT NULL AND COALESCE(quote->>'mode', 'plain') = 'plain' "
+                           "ORDER BY settled_at DESC NULLS LAST, updated_at DESC LIMIT 1").fetchone()
     if row is None:
         raise SystemExit('no settled production intake reservation: the production path cannot be rehearsed')
     rid, quoted, quote = row[0], row[1], row[2]
@@ -316,7 +319,8 @@ def main(argv=None) -> int:
               f"max_tokens {q.get('max_tokens')}")
         if path == 'agent':                           # the production limits, per conversation (owner 2026-11-18)
             from .intake import conversation_agent as agent
-            gateway = ProductionPathGateway(q, cap_usd=project_cap(prod['quote']), max_turns=agent.MAX_TURNS)
+            gateway = ProductionPathGateway(q, cap_usd=min(project_cap(prod['quote']), agent.MAX_COST_USD),
+                                            max_turns=agent.MAX_TURNS)
             print(f"::notice title=conversation limits::per conversation: {agent.MAX_TURNS} turns, "
                   f"${gateway.cap_usd} (worst case checked before each call, as reserve() does)")
         else:

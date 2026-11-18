@@ -145,6 +145,26 @@
    "expect_failed": [
     "test_tokens_and_cost_per_conversation_and_counted_agrees"
    ]
+  },
+  {
+   "id": "NC8",
+   "what": "the money refusal does not know what is still in flight: a busy turn reads as closed",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "                        raise BudgetExceeded(scope, cap, used, amount, Decimal(cur.fetchone()[0]))",
+     "new": "                        raise BudgetExceeded(scope, cap, used, amount)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_held_quote_refuses_as_busy_and_a_settled_spend_as_budget"
+   ]
   }
  ]
 }

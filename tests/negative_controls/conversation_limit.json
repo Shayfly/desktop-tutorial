@@ -18,17 +18,21 @@
     "tests/test_conversation_limit.py"
    ],
    "expect_failed": [
+    "test_a_closed_conversation_never_pays_a_model_again",
+    "test_a_greeting_after_a_daily_pause_says_paused_not_provider_busy",
     "test_a_greeting_after_the_stop_is_not_provider_busy_and_never_repeats",
+    "test_a_questionnaire_account_keeps_its_cards_at_the_limit",
     "test_a_ready_spec_closes_with_the_summary_and_its_approval",
     "test_a_spent_project_is_closed_at_the_precheck",
     "test_an_incomplete_spec_closes_with_the_way_on_not_provider_busy",
     "test_the_daily_limit_says_later_not_closed",
+    "test_the_missing_items_are_named_not_asked",
     "test_the_stored_message_says_limit_and_carries_no_amounts"
    ]
   },
   {
    "id": "NC2",
-   "what": "a greeting after the stop takes the free lane and reads \"the provider is busy\"",
+   "what": "a free-lane message after a daily pause reads \"the provider is busy\"",
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
@@ -40,7 +44,7 @@
     "tests/test_conversation_limit.py"
    ],
    "expect_failed": [
-    "test_a_greeting_after_the_stop_is_not_provider_busy_and_never_repeats"
+    "test_a_greeting_after_a_daily_pause_says_paused_not_provider_busy"
    ]
   },
   {
@@ -100,8 +104,8 @@
    "mutations": [
     {
      "file": "omni_prod/intake/budget.py",
-     "old": "        return 'daily' if self.scope == DAILY_SCOPE else 'budget'\n",
-     "new": "        return 'budget'  # NEGATIVE CONTROL\n"
+     "old": "        if self.scope == DAILY_SCOPE:\n            return 'daily'\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n            return 'daily'\n"
     }
    ],
    "targets": [
@@ -177,6 +181,58 @@
    ],
    "expect_failed": [
     "test_the_missing_items_are_named_not_asked"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a closed conversation pays a model again for a shorter message (the stop is not sticky)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        closed = self._closed(project_id)\n",
+     "new": "        closed = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_a_closed_conversation_never_pays_a_model_again",
+    "test_a_greeting_after_the_stop_is_not_provider_busy_and_never_repeats"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "a questionnaire account loses its cards at the limit",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if not agent.enabled():\n            # the questionnaire accounts (no agent)",
+     "new": "        if False:  # NEGATIVE CONTROL\n            # the questionnaire accounts (no agent)"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_a_questionnaire_account_keeps_its_cards_at_the_limit"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "a refusal caused only by calls in flight is told as a closed conversation",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "        return 'busy' if (self.counted - self.open_usd) + self.quote <= self.cap else 'budget'\n",
+     "new": "        return 'budget'  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_a_refusal_caused_only_by_calls_in_flight_is_busy_not_closed"
    ]
   }
  ]

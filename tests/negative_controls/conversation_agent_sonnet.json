@@ -160,6 +160,23 @@
    "expect_failed": [
     "test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits"
    ]
+  },
+  {
+   "id": "NC10",
+   "what": "the production path may measure an agent (Sonnet) quote by chance",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "\"AND quote IS NOT NULL AND COALESCE(quote->>'mode', 'plain') = 'plain' \"",
+     "new": "\"AND quote IS NOT NULL \"  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_sonnet.py"
+   ],
+   "expect_failed": [
+    "test_the_production_path_never_measures_an_agent_quote_by_chance"
+   ]
   }
  ]
 }

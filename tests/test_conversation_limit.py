@@ -101,14 +101,45 @@ class TheConversationStopsGracefully(unittest.TestCase):
         for t in (first, second):
             self.assertNotIn(HE['model_unavailable'], t.reply)
             self.assertNotIn(HE['rephrase'], t.reply)
-            self.assertEqual(t.interpretation['limit'], {'kind': 'budget', 'source': 'carried'})
+            self.assertEqual(t.interpretation['limit'], {'kind': 'budget', 'source': 'closed'})
         # the opening alternates, so no two closing messages in a row are the same (warehouse 113)
         self.assertEqual([t.reply.split('.')[0] for t in (stop, first, second)],
                          [HE[k].split('.')[0] for k in ('limit_budget', 'limit_still', 'limit_still_alt')])
 
+    def test_a_greeting_after_a_daily_pause_says_paused_not_provider_busy(self):
+        # the daily limit closes nothing (the next paid message tries again), but a free-lane message in between
+        # still says it, not "provider busy"
+        from omni_prod.intake import lanes
+        sup = R._Supervisor(LimitFrom(start=2, kind='daily'))
+        sup.turn(project_id='dg', account_id='a', message=R.SCENARIOS['doors']['lines'][0], lang='he')
+        sup.turn(project_id='dg', account_id='a', message='יש לנו גם תצוגה בחנות', lang='he')
+        with mock.patch.object(sup, '_classify', return_value=(None, lanes.choose(lanes.LOW))):
+            t = sup.turn(project_id='dg', account_id='a', message='תודה', lang='he')
+        self.assertEqual(t.interpretation['limit'], {'kind': 'daily', 'source': 'carried'})
+        self.assertNotIn(HE['model_unavailable'], t.reply)
+
+    def test_a_closed_conversation_never_pays_a_model_again(self):
+        # D10 review: after a long message was refused, a short one would fit under the cap and run after the closing
+        class OnlyTheSecond(LimitFrom):
+            def interpret(self, message, brief=None):
+                out = super().interpret(message, brief)
+                if self.calls != 2:
+                    out.limit, out.interpreter = None, 'model:scripted'
+                return out
+        source = OnlyTheSecond(start=2)
+        sup = R._Supervisor(source)
+        sup.turn(project_id='c', account_id='a', message=R.SCENARIOS['doors']['lines'][0], lang='he')
+        sup.turn(project_id='c', account_id='a', message='יש לנו גם תצוגה בחנות', lang='he')
+        t = sup.turn(project_id='c', account_id='a', message='כן', lang='he')
+        self.assertEqual(source.calls, 2)                        # the paid interpreter was not asked again
+        self.assertEqual(t.interpretation['limit'], {'kind': 'budget', 'source': 'closed'})
+        self.assertNotIn(HE['model_unavailable'], t.reply)
+
     def test_the_missing_items_are_named_not_asked(self):
         sup = R._Supervisor(LimitFrom(start=1))
         t = sup.turn(project_id='m', account_id='a', message='אתר לחנות פרחים בחיפה', lang='he')
+        self.assertTrue(t.reply.startswith(HE['limit_budget']), t.reply)
+        self.assertIn(HE['limit_incomplete'].split('(')[0].strip(), t.reply)
         self.assertNotIn('?', t.reply)                   # names of what is missing, never the questions themselves
 
     def test_the_daily_limit_says_later_not_closed(self):
@@ -135,6 +166,19 @@ def _limited(sup, kind):
     return One()
 
 
+class TheQuestionnaireKeepsItsCards(unittest.TestCase):
+    """D10 review: an account without the agent answers by buttons, which are free -- at the limit the model stops and
+    the cards go on; the conversation is not closed on them."""
+
+    def test_a_questionnaire_account_keeps_its_cards_at_the_limit(self):
+        with mock.patch.dict(os.environ, {'OMNI_INTAKE_AGENT': '0', 'OMNI_INTAKE_MODEL': '1'}):
+            sup = R._Supervisor(LimitFrom(start=1))
+            t = sup.turn(project_id='k', account_id='a', message='אתר לחנות פרחים בחיפה', lang='he')
+        self.assertTrue(t.reply.startswith(HE['limit_budget']), t.reply)
+        self.assertTrue(t.questions, 'the questionnaire cards are gone')
+        self.assertEqual(t.interpretation['limit']['kind'], 'budget')
+
+
 class TheLimitIsTyped(unittest.TestCase):
     """The real ReservedWorkerInterpreter: a refused reservation is a typed limit, and only {kind, source} leaves."""
 
@@ -145,6 +189,13 @@ class TheLimitIsTyped(unittest.TestCase):
             self.assertEqual(it.limit, {'kind': kind, 'source': 'reserve'})
             self.assertNotIn('0.15', str(it.to_dict()['limit']))
             self.assertIn('limit', it.to_dict())
+
+    def test_a_refusal_caused_only_by_calls_in_flight_is_busy_not_closed(self):
+        # D10 review: 0.14 counted, of which 0.10 is a turn still executing; the next quote fits once it settles
+        exc = B.BudgetExceeded('project:acct:p', Decimal('0.15'), Decimal('0.14'), Decimal('0.035'), Decimal('0.10'))
+        self.assertEqual(exc.kind, 'busy')
+        self.assertEqual(B.BudgetExceeded('project:acct:p', Decimal('0.15'), Decimal('0.14'), Decimal('0.035')).kind,
+                         'budget')
 
     def test_no_limit_no_key(self):
         it = worker_interp(FakeService(reserve_exc=B.QuoteUnavailable('no price'))).interpret('אתר לחנות פרחים')

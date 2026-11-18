@@ -41,12 +41,12 @@ class _AtLimit(DeterministicInterpreter):
     """The pre-check refused the paid call because a conversation limit is reached: the free interpreter answers, and
     the limit is carried as a typed outcome (owner 2026-11-18), never as the "provider is busy" text."""
 
-    def __init__(self, kind: str, reason: str):
-        self.kind, self.reason = kind, reason
+    def __init__(self, kind: str, reason: str, source: str = 'precheck'):
+        self.kind, self.reason, self.source = kind, reason, source
 
     def interpret(self, message, brief=None):
         out = super().interpret(message, brief)
-        out.limit = {'kind': self.kind, 'source': 'precheck'}
+        out.limit = {'kind': self.kind, 'source': self.source}
         out.dropped.append(f'model not used: {self.reason}')
         return out
 from ..planning import feasibility as F
@@ -482,7 +482,8 @@ class ConversationSupervisor:
         if agent.enabled():                     # the agent's turn cap (owner 2026-11-18); every other account: no cap
             import dataclasses
             from ..providers import venice_gateway as VG
-            caps = dataclasses.replace(caps, project_turns=agent.MAX_TURNS)
+            caps = dataclasses.replace(caps, project_turns=agent.MAX_TURNS,
+                                       project_usd=min(caps.project_usd, agent.MAX_COST_USD))
             # Sonnet for the conversation agent only, on Venice (owner 2026-11-18): every other account keeps the
             # global list and ceiling, quoted exactly as before
             profile = agent.venice_profile() if VG.selected() else None
@@ -987,8 +988,13 @@ class ConversationSupervisor:
             return refused
         cls, lane = (self._classify(project_id, row, message) if message else (None, None))
         interp = None
+        closed = self._closed(project_id)
         if message:
-            source = (self._interpreter(project_id, account_id, request_key, task=lane['task'])
+            # owner 2026-11-18: an overrun stops the conversation. Once it was closed at its budget or its turns, no
+            # message pays a model again -- a shorter message would otherwise fit under the cap and run after the
+            # closing reply (D10 review). Decided before the lane and the quote.
+            source = (_AtLimit(closed, 'the conversation was closed at its limit', source='closed') if closed else
+                      self._interpreter(project_id, account_id, request_key, task=lane['task'])
                       if lane['lane'] in lanes.MODEL_LANES else DeterministicInterpreter())
             source.history = [m for m in self.store.messages_for(project_id, limit=6)[:-1]
                               if not (m.get('interpretation') or {}).get('system')][-4:]   # never the flow mark
@@ -1267,6 +1273,13 @@ class ConversationSupervisor:
             return {'kind': carried.get('kind', 'budget'), 'source': 'carried'}
         return None
 
+    def _closed(self, project_id) -> str | None:
+        """'budget' or 'turns' when the conversation was closed at that limit (the last closing reply says so); 'daily'
+        and 'busy' pass by themselves and close nothing."""
+        prev = self._last_assistant(project_id)
+        kind = (((prev or {}).get('interpretation') or {}).get('limit') or {}).get('kind')
+        return kind if kind in ('budget', 'turns') else None
+
     def _last_assistant(self, project_id) -> dict | None:
         try:
             msgs = self.store.messages_for(project_id, limit=6)
@@ -1294,6 +1307,13 @@ class ConversationSupervisor:
             intro = T['limit_still_alt'] if (prev.get('content') or '').startswith(T['limit_still']) else T['limit_still']
         else:
             intro = T[f'limit_{kind}']
+        from ..intake import conversation_agent as agent
+        if not agent.enabled():
+            # the questionnaire accounts (no agent): the model stops, the cards go on -- a button answer is free
+            turn.reply = re.sub(r'\n +', '\n', ' '.join(x for x in [intro, *parts] if x)).strip()
+            turn.interpretation = {**(turn.interpretation or {}), 'limit': {'kind': kind,
+                                                                           'source': limit.get('source', 'reserve')}}
+            return turn
         turn.questions, turn.asked_in_words = [], []
         ready = any(a.get('type') in ('approve_spec', 'show_plan') for a in turn.actions)
         if ready:
