@@ -341,8 +341,13 @@ class AutonomousProductEngine:
                 # account with no credit). The exception ended the whole build: the verified work was thrown away and
                 # the customer was told no check ran. Now the repair stops and the build ends on its best version with
                 # its real checks. Only "no route answered"; any other error still ends the build as before.
-                from .model_gateway import ModelGatewayError
-                if not (isinstance(exc, ModelGatewayError) and 'all model routes failed' in str(exc)):
+                from .model_gateway import ModelGatewayError, ProviderQuotaUnavailable
+                # 2026-11-18 (analysis of the same builds): when a route in the call had answered "no credit", the
+                # router raises ProviderQuotaUnavailable instead -- also "no route answered", but its message lacks
+                # the phrase, so this catch missed it and the build died the old way. Matched by type, not by text.
+                no_route = isinstance(exc, ProviderQuotaUnavailable) or (
+                    isinstance(exc, ModelGatewayError) and 'all model routes failed' in str(exc))
+                if not no_route:
                     raise
                 self.repair_model_error = str(exc)[:1200]
                 self.trace.append({'round': rounds, 'repair_model_unavailable': str(exc)[:400]})
