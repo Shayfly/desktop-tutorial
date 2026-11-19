@@ -12,13 +12,16 @@ class ANewGateWarnsUntilItIsCalibrated(unittest.TestCase):
         import os
         from unittest import mock
         from omni_prod.skill_units import gate as G
-        self.assertEqual(set(G.CALIBRATING), {'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE', 'G5', 'A4', 'G8', 'GAME', 'APPLE'})
+        self.assertEqual(set(G.CALIBRATING), {'HE', 'G11', 'BRAND', 'SHARE', 'A4', 'G8', 'GAME', 'APPLE'})
+        self.assertEqual(set(G.CALIBRATED), {'G1', 'G10', 'G5'})                  # calibrated 2026-11-19: they block
         with mock.patch.dict(os.environ, {}, clear=False):
-            for gate in (*G.CALIBRATING, 'G3', 'G4', 'G6'):
+            for gate in (*G.CALIBRATING, *G.CALIBRATED, 'G3', 'G4', 'G6'):
                 os.environ.pop(f'OMNI_GATE_{gate}', None)
             for gate in G.CALIBRATING:
                 self.assertEqual(G.mode(gate), 'warn', gate)
             self.assertEqual((G.mode('G3'), G.mode('G6'), G.mode('G4')), ('block', 'block', 'warn'))
+            for gate in G.CALIBRATED:
+                self.assertEqual(G.mode(gate), 'block', gate)
 
     def test_every_gate_the_worker_installs_has_a_stated_default(self):
         import re
@@ -49,20 +52,20 @@ class ANewGateWarnsUntilItIsCalibrated(unittest.TestCase):
         from unittest import mock
         from omni_prod.autonomous_core import AutonomousProductEngine
         from omni_prod.skill_units import gate as G
-        page = BUTCHER['page'].replace('</body>', '<p>ברוכים הבאים לאתר שלנו</p><img src="x.png"></body>')
+        page = BUTCHER['page'].replace('</body>', '<p>מנה טעים</p><img src="x.png"></body>')
         e = AutonomousProductEngine(architect=_Arch(), generator=_Files({'app.py': as_app_py(page)}),
                                     repairer=_Files({'app.py': as_app_py(page)}), executor=_Sandbox(), max_repair_rounds=0)
         with mock.patch.dict(os.environ, {'OMNI_GATE_G3': 'warn'}):
-            os.environ.pop('OMNI_GATE_G10', None)
+            os.environ.pop('OMNI_GATE_HE', None)
             G.install(e, 'G3')
-            G.install(e, 'G10')
+            G.install(e, 'HE')
         e.build('a page')
         rep = G.report(e)
-        g10 = rep['G10']
-        self.assertEqual((g10['mode'], g10['status']), ('warn', 'fail'))
-        finding = g10['failures'][0]['findings'][0]
-        self.assertIn('ברוכים הבאים', finding['where'] + finding['why'])
-        self.assertLessEqual(len(g10['failures'][0]['findings']), G.MAX_CALIBRATION_FINDINGS)
+        he = rep['HE']
+        self.assertEqual((he['mode'], he['status']), ('warn', 'fail'))
+        finding = he['failures'][0]['findings'][0]
+        self.assertIn('מנה טעים', finding['where'] + finding['why'])
+        self.assertLessEqual(len(he['failures'][0]['findings']), G.MAX_CALIBRATION_FINDINGS)
         self.assertEqual(rep['G3']['status'], 'fail')
         self.assertTrue(all('findings' not in f for f in rep['G3']['failures']))     # proven gate: codes only
         self.assertNotIn('G6', G.CALIBRATING)                                        # a secret is never copied

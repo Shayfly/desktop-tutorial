@@ -63,18 +63,20 @@ from ..behavior_acceptance import MAX_CHAIN      # one bound for every chain wal
 # must keep matching; tests/test_negative_controls_apply.py).
 CALIBRATING = (
     'HE',        # Hebrew: grammar, gender, translationese
-    'G10',       # copy: filler and placeholders
     'G11',       # links: tel, anchors, address
-    'G1',        # empty blocks
     'BRAND',     # brand name
     'SHARE',     # share preview
-    'G5',        # rights: the source of every font, image and media file
     'A4',        # the asset plan's placement check (omni_prod/a4)
     'G8',        # runtime and load (omni_prod/runtime_load)
     'GAME',      # a game plays (omni_prod/game_runtime)
     'APPLE',     # the design gate: contract, refusal list, render, two reviewers (omni_prod/g_apple)
 )
-DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block', **{g: 'warn' for g in CALIBRATING}}
+# Calibrated 2026-11-19 on the five builds that carry gate evidence (bld_a875456f, bld_77899122, bld_a9643012,
+# bld_d36b3b4e, bld_b0de74d5): G1, G10 and G5 passed all five, and each unit's broken fixture proves the fall on a
+# broken page -- they left CALIBRATING and block (STATUS.md, 2026-11-19).
+CALIBRATED = ('G1', 'G10', 'G5')
+DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block', **{g: 'block' for g in CALIBRATED},
+                **{g: 'warn' for g in CALIBRATING}}
 # Gates that read the page AS WRITTEN: the platform's own assets as their 148ai-asset:// placeholders, not as the
 # bytes the engine's transform put in before the sandbox. G5 judges where an asset comes from, and the placeholder is
 # the record of that; a raster data: URI left after the transform is put back is bytes the platform did not supply.

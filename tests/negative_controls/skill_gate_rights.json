@@ -71,12 +71,12 @@
   },
   {
    "id": "NC4",
-   "what": "G5 blocks from its first day (rule 4: a new gate enters at warn until it is calibrated)",
+   "what": "G5, calibrated on five builds (2026-11-19), goes back to warning without evidence",
    "mutations": [
     {
      "file": "omni_prod/skill_units/gate.py",
-     "old": "    'G5',        # rights: the source of every font, image and media file\n",
-     "new": ""
+     "old": "**{g: 'block' for g in CALIBRATED}",
+     "new": "**{g: 'warn' for g in CALIBRATED}"
     }
    ],
    "targets": [

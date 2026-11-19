@@ -27,6 +27,18 @@
   browser; controls `game_start_screen` 4/4 with `NC_ENV=browser` (NC1-NC2 need Chromium; NC3-NC4 run in every CI job),
   `game_runtime` 9/9. NOT run in CI: the real-browser half (no CI job has Python Playwright with Chromium -- open).
 
+# 2026-11-19 — G1, G10 and G5 block: calibrated on five builds (Claude Code)
+
+- **Rule 4 (owner 2026-11-16):** a new gate warns until three builds, calibration and a proven fall on a broken page.
+- **Evidence:** on the five builds that carry `evidence.skill_gates` (bld_a875456f, bld_77899122, bld_a9643012,
+  bld_d36b3b4e, bld_b0de74d5; SELECT on build_jobs) G1, G10 and G5 passed all five; each unit's `fixtures/broken`
+  page fails (the unit tests run it). They move from `CALIBRATING` to `CALIBRATED` and default to block.
+- **Not moved:** HE and G11 (their false findings were fixed today: new builds first), BRAND (one finding, the served
+  page not read), SHARE (fails every build: the generator never writes share tags -- a fix before any block).
+- **Tests and controls:** the tests that pinned warn for these gates now state block; `gates_calibrating` 9/9,
+  `skill_gate_copy` 5/5, `skill_gate_rights` 20/20, `skill_gate_blocks_brand_share` 4/4 (each NC4 now mutates a
+  calibrated gate back to warn).
+- **What changes for a build:** a G1/G10/G5 finding now fails the round and goes to repair instead of a warning.
 # 2026-11-19 — gate calibration on the five builds with gate evidence; two false findings fixed (Claude Code)
 
 - **Data (SELECT on build_jobs.evidence_json.skill_gates, the five builds of 2026-11-17 that carry it):**
