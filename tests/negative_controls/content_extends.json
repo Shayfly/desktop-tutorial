@@ -1,0 +1,44 @@
+{
+ "pr": "content-extends",
+ "sha256": [
+  "tests/test_content_extension_is_not_a_conflict.py",
+  "omni_prod/intake/agent.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "an extended text is a conflict again (the WhatsApp loop)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/agent.py",
+     "old": "    return bool(a) and len(b) > len(a) and a in b",
+     "new": "    return False  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_content_extension_is_not_a_conflict.py"
+   ],
+   "expect_failed": [
+    "test_the_whatsapp_line_extends_the_content",
+    "test_the_same_text_with_other_separators_and_one_more_fact_extends_it"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "any longer text counts as an extension, a changed fact included",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/agent.py",
+     "old": "    return bool(a) and len(b) > len(a) and a in b",
+     "new": "    return bool(a) and len(b) >= len(a)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_content_extension_is_not_a_conflict.py"
+   ],
+   "expect_failed": [
+    "test_a_changed_fact_is_a_conflict"
+   ]
+  }
+ ]
+}

@@ -122,9 +122,13 @@ WORDS: dict[str, dict[str, str]] = {
 # (conversation rehearsal 2026-11-17: "כן, רק להציג מידע ומחירים, לא שומרים כלום" named yes AND no, so nothing was
 # set and the doors conversation dead-ended).
 DECIDING: dict[str, tuple[tuple[str, str], ...]] = {
-    'content_only': (('yes', r'תוכן בלבד|רק (?:להציג|מידע)|לא (?:שומר|שומרים|נשמר|נשמרים) כלום|לא שומר(?:ים)? (?:נתונים|פרטים)'),
+    'content_only': (('yes', r'תוכן בלבד|רק (?:להציג|מידע)|(?:לא|בלי) (?:ל)?(?:שמור|שומר|שומרים|נשמר|נשמרים) כלום|לא שומר(?:ים)? (?:נתונים|פרטים)'),
                      ('no', r'(?:יש|צריך|עם) (?:טופס|הרשמה|הזמנות)|שומר(?:ים)? (?:פרטים|נתונים|הזמנות)')),
-    'personal_data': (('no', r'רק (?:הטלפון|הכתובת|פרטי העסק)|לא (?:שומר|שומרים|נשמר)'),),
+    # Production 2026-11-19 (the owner's law-firm site): "כן, 03-5551234 נכון. לא לשמור פרטים" and "כן, אתר תוכן
+    # בלבד ... בלי לשמור כלום" were not read -- "כן" confirmed the phone, "לא/בלי לשמור" answered this question --
+    # and the agent asked the same question a third time. A negated "store" decides on its own.
+    'personal_data': (('no', r'רק (?:הטלפון|הכתובת|פרטי העסק)|(?:לא|בלי|אל)\s+(?:ל|ת|י)?(?:שמור|שומר|שומרים|נשמר|נשמרים|שמרו|ישמרו|תשמרו)'
+                             r'|שלא (?:נשמר|נשמרים|ישמרו|יישמרו|נשמור)'),),
 }
 
 

@@ -102,8 +102,12 @@ def served_of(repository: dict[str, str]) -> list[tuple[str, str]]:
     is not only its <html> document -- a stylesheet, a script file and a fragment in a Python constant load assets
     too (an independent review, 2026-11-16: the rights units read whole documents only and passed the rest)."""
     from ..rights_sources import SERVED_EXT
+    from ..repair_contracts import _TEST_FILE
+    # Production 2026-11-19 (bld_59236dc6, the owner's law-firm site): G5, blocking since #468, failed the build on
+    # tests/test_cohen_law.py -- a test the builder wrote, never served -- and no repair could clear it (three rounds,
+    # no_progress_repository_unchanged, $0.90). A test file is not loaded by a browser or served.
     return [(path, text) for path, text in sorted(repository.items())
-            if isinstance(text, str) and path.lower().endswith(SERVED_EXT)]
+            if isinstance(text, str) and path.lower().endswith(SERVED_EXT) and not _TEST_FILE.search(path)]
 
 
 SERVED_PAGE_LIMIT = 44_000        # the preview smoke returns at most 45,000 characters of GET /; a longer page is cut

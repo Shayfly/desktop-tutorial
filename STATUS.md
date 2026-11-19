@@ -1,3 +1,25 @@
+# 2026-11-19 — G5 never judges a test file; the owner's first build failed on one (Claude Code)
+
+- **What broke (production, bld_59236dc6, the owner's law-firm site):** verification_failed after 3 repair rounds,
+  `no_progress_repository_unchanged`, $0.904569. G5 (blocking since #468 today) failed IMAGE_SOURCE_UNKNOWN on
+  `tests/test_cohen_law.py`, a test the builder wrote; no repair of the site could clear it. Claude's bug in #468: the
+  five calibration builds had no test file with an image, and `served_of` read every .py file.
+- **Fix:** `served_of` leaves out test files (the repair contracts' `_TEST_FILE` pattern: tests/, test_*.py, *.test.*).
+- **Evidence:** `tests/test_served_files_exclude_tests.py` 3 passed with the unit's own broken fixture (2 fail without;
+  the same fixture in app.py still fails G5); control `served_not_tests` 1/1.
+- **Also from this build (warn gates):** the spec carried PLATFORM-CHECKS with og:title (#467 works) and the page still
+  had no og tags -- telling the model is not enough; BRAND flagged a template fragment of app.py.
+
+# 2026-11-19 — a long request is a request, even with "כמה עולה" inside it (Claude Code)
+
+- **What broke (production, the owner, 19:14):** a 14-line law-firm brief got "לא זיהיתי פרטים חדשים". intake_messages:
+  interpretation `{"intent": "cost"}`, no reservation, a 0.7 s reply -- the model never read it.
+- **Root cause:** `classify_intent` searched the whole message for question phrases; the FAQ line "כמה עולה ייעוץ
+  ראשון (250 ₪)" matched the cost question.
+- **Fix:** a question intent is a short question (at most 2 lines and 200 characters); anything longer is a request
+  (a modification once a version exists).
+- **Evidence:** `tests/test_long_request_is_not_a_question.py` 4 passed on the production message, through the real
+  supervisor (the interpreter is called once); 3 fail without the fix; controls `intent_long` 2/2.
 # 2026-11-19 — the rehearsal measures one cheap Venice model at a time (Claude Code)
 
 - **Why (the owner, 2026-11-19):** choose the conversation agent's model by measurement, among cheap Venice models, with
@@ -9,6 +31,25 @@
 - **Evidence:** `tests/test_conversation_model_candidates.py` 11 passed on the real build_gateway / VeniceIntakeGateway /
   select_model (Venice HTTP faked), 5 failed without the change; controls `model_candidates` 3/3.
 - **Not yet measured:** nothing about quality or cost -- that is the rehearsal runs, after the release.
+# 2026-11-19 — a restated text that only adds is an extension, not "what is right?" (Claude Code)
+
+- **What broke (production, the owner's law-firm site, 21:29-21:30):** after the WhatsApp number was given, every turn
+  answered "קודם נקבע: ... עכשיו הבנתי: ... לא שיניתי — מה נכון?", and answering did not end it.
+- **Root cause:** the model restates the `content` field whole; the restatement differed from the confirmed text (one
+  fact added), and `intake.agent.apply` treats any difference from a confirmed value as a conflict.
+- **Fix:** for a text field, a HIGH proposal that keeps the confirmed text whole (spacing and ; | , aside) and adds to
+  it is applied as the customer's own value. A changed or dropped fact, or a MEDIUM guess, is still asked.
+- **Evidence:** `tests/test_content_extension_is_not_a_conflict.py` 5 passed on the production values (2 fail without
+  the fix); `test_intake_requirements_preservation` unchanged; controls `content_extends` 2/2.
+# 2026-11-19 — "לא לשמור פרטים" answers the personal-data question, next to a "כן" (Claude Code)
+
+- **What broke (production, the owner's law-firm site, 21:23-21:33):** the agent asked "האם יישמרו פרטים אישיים?"
+  three times. The answers "כן, 03-5551234 נכון. לא לשמור פרטים..." and "כן, אתר תוכן בלבד ... בלי לשמור כלום" named
+  yes and no, so `typed_choice` read neither.
+- **Fix:** a negated store ("לא/בלי לשמור", "שלא יישמרו") decides personal_data = no on its own, as "לא שומרים" already
+  did; "בלי לשמור כלום" decides content_only = yes.
+- **Evidence:** `tests/test_no_store_answer_is_read.py` 3 passed on the owner's two messages (1 fails without);
+  `test_conversation_agent_no_cards` unchanged; control `no_store_words` 1/1.
 
 # 2026-11-19 — the concurrent daily-cap test counted calls, not dollars (Claude Code)
 
