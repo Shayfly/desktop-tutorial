@@ -4027,3 +4027,8 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 - The read-only query in [scripts/observed_model_costs.sql](scripts/observed_model_costs.sql) returns build and intake run IDs, phases, routes, evidence bases, recorded subtotals and run totals. A missing price leaves the full total null. Budget reservations and prospective prices do not enter these figures.
 - Exercised the SELECT on both operational ledger databases. The export is rerunnable via psql and has no write or runtime hooks. Claude Code independently verified the unchanged SQL against the production ledger on 2026-11-19 (PR #454, review of 71ec345). The report contains operational data and is kept outside this public repository.
+
+## 2026-11-19 — Remove the duplicate AcceptanceW invocation in Overlay CI (Codex)
+
+- The #463 Overlay run 44479691814 ran 3911 unittest cases and failed only because the nested AcceptanceW subprocess exceeded 300 seconds. Overlay discovery now skips the wrapper only. Standalone and v24 invocations retain the 300-second check.
+- Local targeted checks: 8 tests and 19 subtests passed, and the duplicate-invocation mutation was caught. Exact-head CI and independent review pending.
