@@ -1,3 +1,13 @@
+# 2026-11-19 — "לא לשמור פרטים" answers the personal-data question, next to a "כן" (Claude Code)
+
+- **What broke (production, the owner's law-firm site, 21:23-21:33):** the agent asked "האם יישמרו פרטים אישיים?"
+  three times. The answers "כן, 03-5551234 נכון. לא לשמור פרטים..." and "כן, אתר תוכן בלבד ... בלי לשמור כלום" named
+  yes and no, so `typed_choice` read neither.
+- **Fix:** a negated store ("לא/בלי לשמור", "שלא יישמרו") decides personal_data = no on its own, as "לא שומרים" already
+  did; "בלי לשמור כלום" decides content_only = yes.
+- **Evidence:** `tests/test_no_store_answer_is_read.py` 3 passed on the owner's two messages (1 fails without);
+  `test_conversation_agent_no_cards` unchanged; control `no_store_words` 1/1.
+
 # 2026-11-19 — the concurrent daily-cap test counted calls, not dollars (Claude Code)
 
 - **What broke:** intake-budget-pg on #463 (run 44484532008): `test_50_concurrent_turns_never_exceed_the_daily_cap`
