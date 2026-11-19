@@ -1,3 +1,15 @@
+# 2026-11-19 — the owner's page structure: "עיצוב:" is not a section, "פתיח" needs no heading (Claude Code)
+
+- **What broke (production, bld_7da07ab0, 6 rounds, $1.52):** the QA review failed CUSTOMER-PAGE-STRUCTURE -- no
+  "פתיח" heading, no "עיצוב" section after "צור קשר". Reproduced: with the request's blank lines lost, `outline` read
+  "עיצוב: נקי ורציני..." as section 7; and "1. פתיח: ..." names the opening's role, not a heading to show.
+- **Fix:** a numbered list ends at its first unnumbered line; an opening role (פתיח/פתיחה/הירו/hero/intro) keeps its
+  place and content but is not a required visible heading.
+- **Evidence:** `tests/test_outline_roles_and_numbered_end.py` 3 passed on the owner's brief (2 fail without);
+  existing outline tests pass; controls `outline_roles` 2/2, `page_outline` unchanged.
+- **The same build's other blockers:** G5 on tests/test_site.py (fixed in #471, released 22:21 IL); two real QA findings
+  (phone validation, CTA repeated at the end) the repair never reached.
+
 # 2026-11-19 — G5 never judges a test file; the owner's first build failed on one (Claude Code)
 
 - **What broke (production, bld_59236dc6, the owner's law-firm site):** verification_failed after 3 repair rounds,

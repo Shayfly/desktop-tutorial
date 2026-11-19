@@ -25,6 +25,11 @@ MAX_BODY = 400
 _HEADING = re.compile(r'^\s*(?:מבנה\s+(?:הדף|האתר|העמוד)|סדר\s+(?:הדף|העמוד)|page\s+structure|sections)\s*:\s*$', re.I)
 # "הירו — ...", "שאלות נפוצות - ...", "צור קשר: ..." -- a short title, a dash or colon, then what the section holds
 _SECTION = re.compile(r'^\s*(?:\d+[.)]\s*)?(?P<title>[^—:\-–\n]{2,%d}?)\s*(?:—|–|-|:)\s*(?P<body>.+)$' % MAX_TITLE)
+_NUMBERED = re.compile(r'^\s*\d+[.)]\s*')
+# Production 2026-11-19 (bld_7da07ab0, the owner's law-firm site): "1. פתיח: ..." names the section's role, not a
+# heading the page must show -- the QA review failed the page for having no "פתיח" heading. An opening section keeps its
+# place and its content; it needs no visible heading of that name.
+_ROLE_ONLY = re.compile(r'^(?:פתיח|פתיחה|הירו|באנר|באנר ראשי|hero|intro|introduction|opening)$', re.I)
 _LOG = logging.getLogger(__name__)
 
 
@@ -32,6 +37,7 @@ def outline(text: str) -> list[tuple[str, str]]:
     """[(title, what the customer wrote for it)] in order; [] when the request lists no structure."""
     lines = (text or '').split('--- Approved project brief')[0].splitlines()
     out: list[tuple[str, str]] = []
+    numbered_list = False
     for i, line in enumerate(lines):
         if not _HEADING.match(line):
             continue
@@ -43,6 +49,10 @@ def outline(text: str) -> list[tuple[str, str]]:
             m = _SECTION.match(following)
             if not m:
                 break                           # the first line that is not "title — body" ends the structure
+            numbered = bool(_NUMBERED.match(following))
+            if out and numbered_list and not numbered:
+                break                           # a numbered list ends at its first unnumbered line ("עיצוב: ...")
+            numbered_list = numbered_list or (not out and numbered)
             out.append((m['title'].strip(' "\''), m['body'].strip()[:MAX_BODY]))
             if len(out) >= MAX_SECTIONS:
                 _LOG.warning('PAGE_OUTLINE_CUT at %d sections', MAX_SECTIONS)
@@ -57,14 +67,18 @@ def with_outline(spec, sections: list[tuple[str, str]]):
     if not sections or any(r['id'] == REQUIREMENT for r in data['requirements']):
         return spec
     listed = ' | '.join(f'{n}. "{t}": {b}' for n, (t, b) in enumerate(sections, start=1))
+    named = [t for t, _ in sections if not _ROLE_ONLY.match(t.strip())]
+    roles = [t for t, _ in sections if _ROLE_ONLY.match(t.strip())]
     data['requirements'].append({
         'id': REQUIREMENT, 'kind': 'functional', 'mandatory': True,
-        'text': ('The page has the sections the customer listed, in this order, each with a visible heading that uses '
-                 'the customer\'s name for it, and with the content the customer wrote for it: ' + listed)})
+        'text': ('The page has the sections the customer listed, in this order, each with the content the customer '
+                 'wrote for it; each has a visible heading that uses the customer\'s name for it'
+                 + (f" -- except {', '.join(repr(r) for r in roles)}, which names the section's role (the opening "
+                    'of the page) and needs no heading of that name' if roles else '') + ': ' + listed)})
     data['acceptance'].append({
         'id': REQUIREMENT, 'requirement_id': REQUIREMENT,
         'text': ('GET / returns 200 and its HTML text contains these section names in this order: '
-                 + ', '.join(f'"{t}"' for t, _ in sections))})
+                 + ', '.join(f'"{t}"' for t in named))})
     return ProductSpec.from_dict(data)
 
 
