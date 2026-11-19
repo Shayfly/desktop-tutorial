@@ -50,7 +50,7 @@ class TheRightsGate(unittest.TestCase):
         self.assertEqual(G.gate_units('G5'), RIGHTS)
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop('OMNI_GATE_G5', None)
-            self.assertEqual(G.mode('G5'), 'warn')    # owner 2026-11-16, rule 4: warn until calibrated on three builds
+            self.assertEqual(G.mode('G5'), 'block')   # calibrated 2026-11-19 on five builds (rule 4): it blocks
 
     def test_the_recorded_page_is_the_production_page_as_written(self):
         self.assertIn('bld_83529c132a864075945080e9390484cb', BUTCHER['_source'])

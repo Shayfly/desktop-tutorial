@@ -60,12 +60,12 @@
   },
   {
    "id": "NC4",
-   "what": "the gate blocks from its first day (the owner's rule 4: G10 warns until it is calibrated on three builds)",
+   "what": "G10, calibrated on five builds (2026-11-19), goes back to warning without evidence",
    "mutations": [
     {
      "file": "omni_prod/skill_units/gate.py",
-     "old": "    'G10',       # copy: filler and placeholders\n",
-     "new": ""
+     "old": "**{g: 'block' for g in CALIBRATED}",
+     "new": "**{g: 'warn' for g in CALIBRATED}"
     }
    ],
    "targets": [
