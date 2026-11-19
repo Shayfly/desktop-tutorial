@@ -134,3 +134,32 @@ class TheConversationUsage(PG):
         self.assertIsNone(u['actual_total_usd'])
         self.assertEqual((u['open_calls'], u['held_usd']), (1, '0.00400000'))
         self.assertEqual(Decimal(u['counted_usd']), self.svc.counted(SCOPE.format(p)))
+
+
+class TheReviewFollowUp(PG):
+    """D10 review: a call still EXECUTING is in flight (it may settle as not contacted), so the next message reads
+    'busy', never 'turns'; a contacted call without reported tokens makes the token totals unknown, never 0; the usage
+    states the count the cap itself enforces."""
+    pool_size = 8
+    take = TheTurnCap.take
+    settle = TheTurnCap.settle
+
+    def test_an_executing_eighth_call_is_busy_not_turns(self):
+        p = 'exec'
+        for _ in range(7):
+            self.settle(self.take(p))
+        claimed = self.svc.claim(self.take(p).id, worker_id='w', lease_seconds=90, max_age_seconds=600)
+        self.assertTrue(self.svc.mark_executing(claimed, lease_seconds=90))
+        with self.assertRaises(B.TurnCapReached) as caught:
+            self.take(p)
+        self.assertEqual((caught.exception.kind, caught.exception.used, caught.exception.inflight), ('busy', 7, 1))
+
+    def test_unreported_tokens_make_the_totals_unknown_and_the_cap_count_is_stated(self):
+        p = 'notok'
+        self.settle(self.take(p), tokens=(1000, 200))
+        self.settle(self.take(p), tokens=(None, None))
+        self.take(p)                                                     # in flight
+        u = self.svc.conversation_usage(SCOPE.format(p))
+        self.assertEqual((u['input_tokens'], u['output_tokens'], u['calls_without_tokens']), (None, None, 1))
+        self.assertEqual((u['cap_turns_used'], u['cap_turns_in_flight']), (2, 1))
+        self.assertEqual(self.svc.open_held(SCOPE.format(p)), Decimal('0.00400000'))

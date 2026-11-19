@@ -165,6 +165,46 @@
    "expect_failed": [
     "test_a_held_quote_refuses_as_busy_and_a_settled_spend_as_budget"
    ]
+  },
+  {
+   "id": "NC9",
+   "what": "an EXECUTING call counts as a used turn: a message sent while the 8th executes is closed as turns",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "SELECT count(*) FILTER (WHERE r.state = 'UNKNOWN'\n",
+     "new": "SELECT count(*) FILTER (WHERE r.state IN ('UNKNOWN', 'EXECUTING')  -- NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap_pg.py"
+   ],
+   "expect_failed": [
+    "test_an_executing_eighth_call_is_busy_not_turns"
+   ],
+   "envs": [
+    "pg"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a contacted call without reported tokens is summed as 0 tokens",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "                'input_tokens': None if untokened else int(tin), 'output_tokens': None if untokened else int(tout),\n",
+     "new": "                'input_tokens': int(tin), 'output_tokens': int(tout),  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap_pg.py"
+   ],
+   "expect_failed": [
+    "test_unreported_tokens_make_the_totals_unknown_and_the_cap_count_is_stated"
+   ],
+   "envs": [
+    "pg"
+   ]
   }
  ]
 }

@@ -30,6 +30,20 @@
 - **Next:** release (Vercel and the worker), then the agent-path rehearsal: the first real measurement of the
   conversation agent's cost. No cost is reported before it.
 
+# 2026-11-19 — the first real Sonnet measurement: 1 of 10 agent calls answered (Claude Code)
+
+- **What ran:** conversation-rehearsal, path `agent`, run 44445874611 on the worker, at code `063e4a5` (#456), quote
+  `irs_35e9ed263ca84a86b575abcb` with the agent profile (Sonnet then Haiku, ceiling 2,10, order).
+- **Result:** red, 1 of 3 scenarios passed (doors). One Sonnet call answered: **$0.018109 CONFIRMED** for the first doors
+  turn (`provider_models=['claude-sonnet-5-5']`). The other 9 calls reached Venice and failed fast (17 s for the whole
+  run), so their cost is UNKNOWN; each held its worst case, and butcher and bare hit the $0.15 conversation cap after
+  about 4 failed calls -- the closing worked as designed (the stop, the free question, the summary).
+- **Root cause:** not known yet. The rehearsal printed only "model call failed" (the interpreter keeps the exception
+  type alone). A rate limit or a low Venice balance fits the timing; neither is shown. #457 makes the rehearsal print
+  each failed call's reason; the next run says which.
+- **What this is not:** a cost per conversation. One confirmed turn is not a measurement of the agent; no cost is
+  reported until a run where the calls answer.
+
 # 2026-11-18 — the conversation agent's 8-turn cap, and tokens and cost per conversation (Claude Code)
 
 - **What was missing:** the owner's decision for Sonnet set at most 8 turns per conversation and tokens and cost
@@ -49,6 +63,24 @@
   every migration); `tests/test_conversation_turn_cap.py` 8 passed. Controls `conversation_turn_cap` 8/8 and
   `conversation_turn_cap_pg` 7/7 (`envs: pg`). The PG file runs in intake-budget-pg's isolated per-file loop
   (`scripts/ci_test_coverage.py` PASS).
+
+# 2026-11-19 — D10 review follow-up: the stop holds, says the right thing, and counts honestly (Claude Code)
+
+- **What broke (the adversarial review wf_8c2f9499-486, findings that survived its skeptics):** the pre-check closed a
+  conversation for good on a quote only HELD by a call in flight; the closed state lived in the last assistant message
+  only, so a button answer or intent reply in between reopened the paid path; after 'daily' the conversation "had
+  ended", after 'busy' a real stop never said why, two 'busy' replies became "no change"; 'busy' on the turn that
+  completed the spec dropped the summary; an 'Updated:' line at the limit was dropped; a late paid reply after a daily
+  pause was closed as 'daily'; an image-only message read "provider busy"; an EXECUTING call counted as a used turn;
+  unreported tokens were summed as 0; Venice's fallback from Sonnet to Haiku was silent.
+- **Fix:** each of the above, in `supervisor.py`, `budget.py` (`open_held`, `_TURNS`, `conversation_usage`) and
+  `venice.py` (a `VENICE_PREFERRED_MODEL_UNAVAILABLE` warning with the reason).
+- **Evidence:** `tests/test_conversation_limit_followup.py` 12 passed, 10 of them fail on the unfixed code (the other two
+  are controls); `tests/test_conversation_turn_cap_pg.py` 11 passed on PostgreSQL 16, the 2 new ones fail on the
+  unfixed code; negative controls `conversation_limit_followup` 10/10, `conversation_turn_cap_pg` 10/10 (pg).
+- **Status:** implemented and verified locally; ships with its PR's release. The #456 release itself: the worker was
+  deployed by a manual run (the merge title did not END with `[release]` -- Claude's error); Vercel production ships
+  with this PR's release.
 
 # 2026-11-18 — the agent's closing of an incomplete spec is no longer a dead end (Claude Code, D10 review)
 
