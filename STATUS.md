@@ -10,10 +10,6 @@
   browser; controls `game_start_screen` 4/4 with `NC_ENV=browser` (NC1-NC2 need Chromium; NC3-NC4 run in every CI job),
   `game_runtime` 9/9. NOT run in CI: the real-browser half (no CI job has Python Playwright with Chromium -- open).
 
-# 2026-11-17 — negative controls in parallel; the pg step's limit is not raised again (Claude Code)
-
-- **Root cause (investigated, owner's rule: investigate, do not raise a limit):** the pg job's controls step was raised
-  5 -> 10 -> 14 minutes in two days and still ran over: main took 8:56 to 11:37 today, and #445 (one more spec, about
 # 2026-11-18 — Sonnet for the conversation agent only, with the regular model when Venice does not offer it (Claude Code)
 
 - **What was missing:** on Venice the cheapest listed model always won (`venice.select_model`), and one global list and
