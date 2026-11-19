@@ -1,3 +1,15 @@
+# 2026-11-19 — G5 never judges a test file; the owner's first build failed on one (Claude Code)
+
+- **What broke (production, bld_59236dc6, the owner's law-firm site):** verification_failed after 3 repair rounds,
+  `no_progress_repository_unchanged`, $0.904569. G5 (blocking since #468 today) failed IMAGE_SOURCE_UNKNOWN on
+  `tests/test_cohen_law.py`, a test the builder wrote; no repair of the site could clear it. Claude's bug in #468: the
+  five calibration builds had no test file with an image, and `served_of` read every .py file.
+- **Fix:** `served_of` leaves out test files (the repair contracts' `_TEST_FILE` pattern: tests/, test_*.py, *.test.*).
+- **Evidence:** `tests/test_served_files_exclude_tests.py` 3 passed with the unit's own broken fixture (2 fail without;
+  the same fixture in app.py still fails G5); control `served_not_tests` 1/1.
+- **Also from this build (warn gates):** the spec carried PLATFORM-CHECKS with og:title (#467 works) and the page still
+  had no og tags -- telling the model is not enough; BRAND flagged a template fragment of app.py.
+
 # 2026-11-19 — a long request is a request, even with "כמה עולה" inside it (Claude Code)
 
 - **What broke (production, the owner, 19:14):** a 14-line law-firm brief got "לא זיהיתי פרטים חדשים". intake_messages:
