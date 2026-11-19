@@ -32,7 +32,7 @@ class TheCopyGate(unittest.TestCase):
         self.assertEqual(G.gate_units('G10'), COPY)
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop('OMNI_GATE_G10', None)
-            self.assertEqual(G.mode('G10'), 'warn')    # owner 2026-11-16, rule 4: warn until calibrated on three builds
+            self.assertEqual(G.mode('G10'), 'block')   # calibrated 2026-11-19 on five builds (rule 4): it blocks
 
     def test_each_unit_falls_on_the_real_page_changed_in_one_place(self):
         for unit in COPY:

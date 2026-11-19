@@ -6,6 +6,37 @@
 - Blocked here by runtime access: OPENAI_API_KEY, ANTHROPIC_API_KEY and GEMINI_API_KEY are absent in this execution environment; discovery returned NOT_CONFIGURED for each. Worker secrets were not read. New routes remain disabled with unknown quality.
 - Not implemented by this change: Google video/music/voice generation and image editing.
 - Details and official sources: docs/DIRECT_MODEL_ENROLLMENT_HE.md.
+# 2026-11-19 — the concurrent daily-cap test counted calls, not dollars (Claude Code)
+
+- **What broke:** intake-budget-pg on #463 (run 44484532008): `test_50_concurrent_turns_never_exceed_the_daily_cap`
+  "6 not less than or equal to 5", while `counted(daily) <= cap` passed. Not the PR's diff (a CI script).
+- **Root cause (the test's, not the cap's):** the cap is dollars. A call settles at its actual cost, far below its quote
+  ($0.000525 vs $0.007374), and frees the difference; a turn that reserves after one settlement fits a 6th call under
+  the same cap. Proof on local PostgreSQL 16: the 50 turns run one at a time reserved 50, counted $0.02625 of a $0.03687
+  cap. The count bound held only when no call settled before the last reserve -- a timing condition.
+- **Fix:** the test's provider reports each call's cost as exactly its quote, so no settlement frees headroom and at most
+  five calls fit; the dollar assertion is unchanged. Same experiment one at a time: 4 reserved.
+- **Evidence:** the test 25 of 25 passed concurrently; `test_intake_budget_pg.py` + `test_conversation_turn_cap_pg.py`
+  35 passed on local PostgreSQL (1 skipped: it needs Redis, not here); control `daily_cap_test` 1/1 (envs pg: reserve() without the daily scope's cap -> the
+  test fails).
+
+# 2026-11-19 — the worker tells the generator what the gates check; it never did (Claude Code)
+
+- **What broke:** SHARE failed all five production builds of 2026-11-17 (no og:title / og:description). **Root cause,
+  Claude's bug (#430):** the gates' checks reach the spec through `carry_rules`, which only `install_all` called; only
+  the rehearsal calls `install_all`, while the worker installs each gate on its own line. **Evidence:** SELECT on
+  `project_version_specs` since 2026-11-17: 0 of 5 stored specs carry the `PLATFORM-CHECKS` requirement.
+- **Fix:** the worker calls `carry_rules(engine, WORKER_GATES)` after its last gate and before the build -- the same list
+  the rehearsal uses (`test_gates_calibrating` already holds the worker's gates equal to it).
+- **Evidence:** `tests/test_worker_carries_gate_rules.py` 3 passed, on the real `_run_live_build_job` (BuildHarness):
+  the spec the build starts from names og:title and every installed unit; 3 failed without the fix. Controls
+  `worker_carries_gate_rules` 3/3.
+- **One test double changed:** `test_first_pass_requires_a_passed_build`'s architect returned a SimpleNamespace, a spec
+  no production architect makes; the wrapped worker path reads `spec.to_dict()` (as the facts, outline and contract
+  wrappers do), so it returns a ProductSpec. Its assertion is unchanged (declared deletion).
+- **Not proven yet:** that a model told about og tags writes them. After the release: the next production build's
+  stored spec has `PLATFORM-CHECKS` (SQL), and its SHARE result in `evidence_json.skill_gates`. SHARE stays at warn.
+
 # 2026-11-17 — the game check presses "start" the way a player does (Claude Code)
 
 - **Root cause (rehearsal 44079074182, the stars game):** a working game waited on its start screen; the probe tapped the
@@ -17,6 +48,47 @@
 - **Evidence:** `tests/test_game_runtime.py` + `tests/test_game_runtime_rules.py` 22/22 locally, 13 of them in a real
   browser; controls `game_start_screen` 4/4 with `NC_ENV=browser` (NC1-NC2 need Chromium; NC3-NC4 run in every CI job),
   `game_runtime` 9/9. NOT run in CI: the real-browser half (no CI job has Python Playwright with Chromium -- open).
+
+# 2026-11-19 — G1, G10 and G5 block: calibrated on five builds (Claude Code)
+
+- **Rule 4 (owner 2026-11-16):** a new gate warns until three builds, calibration and a proven fall on a broken page.
+- **Evidence:** on the five builds that carry `evidence.skill_gates` (bld_a875456f, bld_77899122, bld_a9643012,
+  bld_d36b3b4e, bld_b0de74d5; SELECT on build_jobs) G1, G10 and G5 passed all five; each unit's `fixtures/broken`
+  page fails (the unit tests run it). They move from `CALIBRATING` to `CALIBRATED` and default to block.
+- **Not moved:** HE and G11 (their false findings were fixed today: new builds first), BRAND (one finding, the served
+  page not read), SHARE (fails every build: the generator never writes share tags -- a fix before any block).
+- **Tests and controls:** the tests that pinned warn for these gates now state block; `gates_calibrating` 9/9,
+  `skill_gate_copy` 5/5, `skill_gate_rights` 20/20, `skill_gate_blocks_brand_share` 4/4 (each NC4 now mutates a
+  calibrated gate back to warn).
+- **What changes for a build:** a G1/G10/G5 finding now fails the round and goes to repair instead of a warning.
+# 2026-11-19 — gate calibration on the five builds with gate evidence; two false findings fixed (Claude Code)
+
+- **Data (SELECT on build_jobs.evidence_json.skill_gates, the five builds of 2026-11-17 that carry it):**
+
+  | Gate | Mode | Pass | Fail | Not run | Finding codes |
+  |---|---|---|---|---|---|
+  | G1 | warn | 5 | 0 | 0 | -- |
+  | G3 | block | 5 | 0 | 0 | -- |
+  | G4 | warn | 4 | 1 | 0 | SCRIPT_BLOCKING |
+  | G5 | warn | 5 | 0 | 0 | -- |
+  | G6 | block | 5 | 0 | 0 | -- |
+  | G10 | warn | 5 | 0 | 0 | -- |
+  | G11 | warn | 4 | 1 | 0 | ADDRESS_INCOMPLETE (false) |
+  | HE | warn | 4 | 1 | 0 | HE_GENDER (false) |
+  | BRAND | warn | 4 | 1 | 0 | BRAND_MISSING (not judged: the served page was not read) |
+  | SHARE | warn | 0 | 5 | 0 | SHARE_META_MISSING (true: no og:title/og:description on any build) |
+  | A4, APPLE, G8 | warn | 0 | 0 | 5 | -- (not judged on these builds) |
+
+- **Fixed (both false, both on bld_d36b3b4e):** HE_GENDER on "פתיחת פניית שירות חדשה" -- a construct phrase whose
+  head agrees with the adjective is ambiguous and not judged; pairs are matched overlapping, so a real error after a
+  construct ("מחיר שירות חדשה") is now found. ADDRESS_INCOMPLETE on "תאריך שירות" -- a bare "כתובת" inside `<label>`
+  is a form field, not an address.
+- **Evidence:** `tests/test_gate_calibration_false_positives.py` 7 passed (3 fail on the old probes); the unit
+  fixtures unchanged (broken fails, ok passes); negative controls `gate_calibration_false_positives` 5/5,
+  `skill_gate_he` 6/6, `skill_gate_links` 5/5, `skill_gates` 10/10.
+- **Not done here (one matter per PR):** moving G1/G10/G5 to block (5 clean builds each; the broken fixtures prove
+  they fail); SHARE fails every build because the generator never writes share tags -- a generator fix before any
+  block; BRAND needs the served page of bld_d36b3b4e to judge.
 
 # 2026-11-18 — Sonnet for the conversation agent only, with the regular model when Venice does not offer it (Claude Code)
 
@@ -38,6 +110,23 @@
 - **Next:** release (Vercel and the worker), then the agent-path rehearsal: the first real measurement of the
   conversation agent's cost. No cost is reported before it.
 
+# 2026-11-19 — agentic repair edits with exact blocks (Claude Code)
+
+- **What broke (wf_309a64e1-002, three founder builds of 2026-11-17):** with Sonnet and gpt-6.1-sol out of credit and
+  gemini-3.8-flash answering the agentic prompt with a function call, the edit step fell to the two 8,192-token
+  Flash-Lite routes. The only edit offered was a whole file; a whole app.py needs ~9.4-9.8K output tokens (estimate),
+  and all 14 answers were cut at 8,188 tokens. **Root cause:** whole-file edits, not the model.
+- **Fix:** `omni_prod/repair_edits.py` -- `{path, old, new}` applied exactly once (overlaps counted), all or nothing,
+  misses reported back with a hint that is never applied. `agentic_repair`: edit and submit take `edits`; an existing
+  file over 12,000 characters is refused whole (`WHOLE_FILE_TOO_LARGE`); a submit whose edits missed does not end the
+  round; the prompt asks for blocks and forbids function calls; `BuildDeadline`/`BuildCancelled` are re-raised
+  instead of swallowed (found by the plan's skeptic).
+- **Evidence:** `tests/test_repair_edit_blocks.py` 13 passed on a SYNTHETIC 20K-character app.py (the round zips were
+  not read); repair tests 121 passed; negative controls `repair_edit_blocks` 9/9.
+- **Not shown:** that a Flash-Lite route produces correct blocks on a real round, or that a build is saved -- only
+  that an answer no longer has to fit a whole file. Credit is back on Sonnet and gpt-6.1-sol, so the strong routes
+  answer first again. The trade-off the skeptic named stands: a block from a quality-70 route can now end a round
+  that the classic fallback (gemini-3.8-flash) used to repair.
 # 2026-11-19 — the first real Sonnet measurement: 1 of 10 agent calls answered (Claude Code)
 
 - **What ran:** conversation-rehearsal, path `agent`, run 44445874611 on the worker, at code `063e4a5` (#456), quote
@@ -4032,6 +4121,13 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 - PR #453 adds seven missing assertions. The requested 11 controls plus a provider-switch control exercise the real execution paths.
 - A pending image operation retains its identity across changes to price and cannot be submitted to a different provider after a lost response. Production activation and independent review of the new head are pending.
+## 2026-11-19 — Finding attribution check (Codex)
+
+- Added CI verification of the declared Found-by and Co-Authored-By commit trailers. The check flags a shared named agent and does not infer authorship on commits without attribution. The comparison also recognizes the versioned Claude signatures used in main. Three focused tests and two mutation controls passed locally. Repository rollout and independent review pending.
+## 2026-11-19 — Critical production path freshness (Codex)
+
+- The proposed daily workflow reads action run, step and artifact metadata. It reports success from the relevant main-branch step within seven days, BROKEN when no qualifying evidence exists, and UNVERIFIED when the API cannot be read. Scope: deployment, golden rehearsal, Golden E2E, verify-replay and restoration.
+- The replay source positively verifies a nonempty completed batch with at least one passing version. Freshness counts successful old runs rerun within seven days and labels the displayed revision as the workflow trigger SHA. Local evidence: eight tests, three mutation controls, and workflow validation. Scheduled activation and independent review are pending.
 ## 2026-11-19 — Model costs of recorded runs (Codex, internal reporting)
 
 - The read-only query in [scripts/observed_model_costs.sql](scripts/observed_model_costs.sql) returns build and intake run IDs, phases, routes, evidence bases, recorded subtotals and run totals. A missing price leaves the full total null. Budget reservations and prospective prices do not enter these figures.
@@ -4041,3 +4137,9 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 - The #463 Overlay run 44479691814 ran 3911 unittest cases and failed only because the nested AcceptanceW subprocess exceeded 300 seconds. Overlay discovery now skips the wrapper only. Standalone and v24 invocations retain the 300-second check.
 - Local targeted checks: 8 tests and 19 subtests passed, and the duplicate-invocation mutation was caught. Exact-head CI and independent review pending.
+
+## 2026-11-19 — Direct model enrollment remains disabled (#453, Codex)
+
+- Synced with main `0ed3d0e`. The deletion registry contains every main declaration plus ten pending independent review: 251 + 10 = 261. The exact-deletion check found a matching digest for every changed file with deleted lines.
+- All ten added text routes remain `enabled: false`. The catalog requires explicit opt-in, an integer quality score from 1 to 100, a provider key and valid governed pricing before routing a staged entry. The four direct Google image model choices remain unavailable without explicit configuration and credentials. No paid calls or configuration changes were made.
+- Full local `pytest tests` with production and test dependencies at main `0ed3d0e` and branch code `bab6b57`: 3,979 and 4,025 passed respectively, both with 291 skips, one xfail and zero failures or collection errors. AcceptanceW passed in both reports. Focused checks: 61 passed. `direct_model_enrollment` negative controls: 14/14, including unmeasured quality and implicit opt-in. GitHub CI and review are pending.

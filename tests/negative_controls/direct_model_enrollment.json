@@ -195,6 +195,58 @@
       ]
     },
     {
+      "id": "M14",
+      "what": "A staged route can activate with its default unmeasured quality score.",
+      "mutations": [
+        {
+          "file": "omni_prod/model_catalog.py",
+          "old": "        if staged_enrollment and enabled and (type(item['quality']) is not int or quality == 0):",
+          "new": "        if staged_enrollment and enabled and type(item['quality']) is not int:"
+        }
+      ],
+      "targets": [
+        "tests/test_direct_model_enrollment.py::test_enabled_enrollment_rejects_unmeasured_quality"
+      ],
+      "expect_failed": [
+        "test_enabled_enrollment_rejects_unmeasured_quality[claude-fable-5-2]",
+        "test_enabled_enrollment_rejects_unmeasured_quality[claude-haiku-5-5]",
+        "test_enabled_enrollment_rejects_unmeasured_quality[claude-opus-5-5]",
+        "test_enabled_enrollment_rejects_unmeasured_quality[gemini-4-argon]",
+        "test_enabled_enrollment_rejects_unmeasured_quality[gemini-4-carbon]",
+        "test_enabled_enrollment_rejects_unmeasured_quality[gemini-4-hydrogen]",
+        "test_enabled_enrollment_rejects_unmeasured_quality[gemini-4-neon]",
+        "test_enabled_enrollment_rejects_unmeasured_quality[gpt-6.1-terra]",
+        "test_enabled_enrollment_rejects_unmeasured_quality[gpt-6.2-astra]",
+        "test_enabled_enrollment_rejects_unmeasured_quality[gpt-6.2-sol]"
+      ]
+    },
+    {
+      "id": "M15",
+      "what": "A staged route with a measured score defaults to enabled.",
+      "mutations": [
+        {
+          "file": "omni_prod/model_catalog.py",
+          "old": "        enabled = item.get('enabled') is True if staged_enrollment else bool(item.get('enabled', True))",
+          "new": "        enabled = bool(item.get('enabled', True))"
+        }
+      ],
+      "targets": [
+        "tests/test_direct_model_enrollment.py::test_explicit_enrollment_uses_existing_key_dialect_and_price_governance"
+      ],
+      "expect_failed": [
+        "test_explicit_enrollment_uses_existing_key_dialect_and_price_governance[claude-fable-5-2]",
+        "test_explicit_enrollment_uses_existing_key_dialect_and_price_governance[claude-haiku-5-5]",
+        "test_explicit_enrollment_uses_existing_key_dialect_and_price_governance[claude-opus-5-5]",
+        "test_explicit_enrollment_uses_existing_key_dialect_and_price_governance[gemini-4-argon]",
+        "test_explicit_enrollment_uses_existing_key_dialect_and_price_governance[gemini-4-carbon]",
+        "test_explicit_enrollment_uses_existing_key_dialect_and_price_governance[gemini-4-hydrogen]",
+        "test_explicit_enrollment_uses_existing_key_dialect_and_price_governance[gemini-4-neon]",
+        "test_explicit_enrollment_uses_existing_key_dialect_and_price_governance[gpt-6.1-terra]",
+        "test_explicit_enrollment_uses_existing_key_dialect_and_price_governance[gpt-6.2-astra]",
+        "test_explicit_enrollment_uses_existing_key_dialect_and_price_governance[gpt-6.2-sol]"
+      ]
+    },
+    {
       "id": "M13",
       "what": "An in-flight image operation can switch providers and submit twice.",
       "mutations": [

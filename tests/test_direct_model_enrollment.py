@@ -11,7 +11,7 @@ from urllib.response import addinfourl
 
 import pytest
 
-from omni_prod.model_catalog import parse_model_catalog
+from omni_prod.model_catalog import ModelCatalogError, parse_model_catalog
 from omni_prod.intelligence.prices import price_at, validate
 from omni_prod.model_discovery import MAX_PAGES, discover_provider
 
@@ -44,12 +44,21 @@ def test_explicit_enrollment_uses_existing_key_dialect_and_price_governance(row)
     assert model.endpoint.api_style == row['api']
     assert model.price_source.startswith('schedule ')
     assert 'secret-test-value' not in json.dumps(model.to_public_dict())
+    assert parse_model_catalog(json.dumps([activated]), {}, when=date(2026, 11, 18))[0].endpoint is None
+    del activated['enabled']
+    assert parse_model_catalog(json.dumps([activated]), KEYS, when=date(2026, 11, 18))[0].endpoint is None
+
+
+@pytest.mark.parametrize('row', ADDITIONS, ids=lambda row: row['model'])
+def test_enabled_enrollment_rejects_unmeasured_quality(row):
+    with pytest.raises(ModelCatalogError, match=r'explicit quality score 1\.\.100'):
+        parse_model_catalog(json.dumps([{**row, 'enabled': True}]), KEYS, when=date(2026, 11, 18))
 
 
 @pytest.mark.parametrize('model', ['gemini-4-carbon', 'gemini-4-argon'])
 def test_announced_price_change_is_applied_by_the_real_catalog(model):
     row = next(r for r in ADDITIONS if r['model'] == model)
-    activated = json.dumps([{**row, 'enabled': True}])
+    activated = json.dumps([{**row, 'enabled': True, 'quality': 85}])
     november = parse_model_catalog(activated, KEYS, when=date(2026, 11, 30))[0]
     december = parse_model_catalog(activated, KEYS, when=date(2026, 12, 1))[0]
     assert december.option.output_per_million == november.option.output_per_million * 2

@@ -562,8 +562,11 @@ class EndToEndTests(PG):
         from unittest import mock
         self.sql("DELETE FROM intake_reservation_scopes WHERE scope = 'daily:global'")
         Transport.calls = 0
-        sup = self.supervisor(Transport(sleep=0.05))
         q = real_quote('מערכת לניהול מלאי מספר 00')
+        # Each call costs exactly its quote. A call that settled below its quote freed headroom, and a turn reserving
+        # after that fitted a 6th call under the same dollar cap (CI run 44484532008: "6 not <= 5", counted <= cap
+        # held): the count bound is exact only when no settlement frees headroom (2026-11-19).
+        sup = self.supervisor(Transport(sleep=0.05, reported=q.amount_usd))
         cap = (q.amount_usd * 5).quantize(Decimal('0.00000001'))
         env = {**self.AUTH, 'OMNI_INTAKE_DAILY_BUDGET_USD': str(cap)}
 

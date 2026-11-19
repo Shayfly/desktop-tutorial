@@ -7,7 +7,8 @@ a private working copy, with tools:
 
   read    {"action": "read",   "paths": ["api.py", ...]}             -> full text of those files
   search  {"action": "search", "pattern": "<regex>"}                 -> matching lines (path:line: text)
-  edit    {"action": "edit",   "files": [{"path", "content"}]}       -> applied to the working copy, then CHECKED:
+  edit    {"action": "edit",   "edits": [{"path", "old", "new"}],
+                               "files": [{"path", "content"}]}       -> applied to the working copy, then CHECKED:
                                                                         syntax, imports, routes, static files and
                                                                         the project manifest (consistency scan)
   submit  {"action": "submit", "files": [...optional last edits...]} -> ends the round; every changed file is the patch
@@ -26,11 +27,16 @@ import json
 import os
 import re
 
+from .build_control import BuildCancelled, BuildDeadline
 from .repository_patch import parse_patch
 
 _MAX_READ_CHARS = 60_000
 _MAX_SEARCH_LINES = 80
 _HISTORY_CHARS = 120_000
+# wf_309a64e1-002 (2026-11-17): a whole app.py (~9.4-9.8K output tokens, estimate) was cut at 8,188 tokens 14 of 14
+# times on the 8,192-token routes. An existing file larger than this is changed with edit blocks, never rewritten
+# whole; 12,000 characters stays far below an 8K-token answer (production cuts came at ~24K characters).
+WHOLE_FILE_MAX_CHARS = 12_000
 
 _SYSTEM = (
     'You are the senior engineer repairing a generated product inside its repository. You work in steps; each '
@@ -38,11 +44,15 @@ _SYSTEM = (
     '{"action": "read", "paths": ["<file>", ...]}  -- read whole files (you see only their names and sizes until '
     'you read them)\n'
     '{"action": "search", "pattern": "<python regex>"}  -- find where something is defined or used\n'
-    '{"action": "edit", "files": [{"path": "<file>", "content": "<the whole new file>"}]}  -- change files in the '
-    'working copy; the answer tells you whether the code still compiles, imports resolve, routes and static files '
-    'exist\n'
+    '{"action": "edit", "edits": [{"path": "<file>", "old": "<exact text now in the file>", "new": "<its '
+    'replacement>"}]}  -- change existing files with exact edit blocks: "old" is copied exactly (every space and '
+    'newline) and occurs exactly once in the file -- include a few surrounding lines to make it unique; all edits of '
+    'one answer apply together or not at all. A NEW file is sent whole: "files": [{"path": "<file>", "content": '
+    '"<the whole file>"}]; an existing file over 12000 characters is never sent whole. The answer tells you whether '
+    'the code still compiles, imports resolve, routes and static files exist\n'
     '{"action": "submit", "note": "<one line: the cause you fixed>"}  -- finish; every file you edited becomes the '
     'repair\n'
+    'Answer with the JSON object only: never a function call, never text before or after it.\n'
     'Method: read the failures, read the code they point at, find the root cause, edit the file that owns it, '
     'check that the edit is clean, then submit. Keep every behaviour that already passes. Never weaken a test or an '
     'acceptance step to make it pass unless it contradicts the approved acceptance text. In a test file you may only '
@@ -96,13 +106,34 @@ class AgenticRepairAgent:
         return {'matches': hits}
 
     @staticmethod
-    def _apply(work: dict, files) -> list[str]:
-        changed = []
-        for f in files or []:
-            if isinstance(f, dict) and isinstance(f.get('path'), str) and isinstance(f.get('content'), str):
-                work[f['path']] = f['content']
-                changed.append(f['path'])
-        return changed
+    def _proposed(work: dict, data: dict) -> tuple[dict, list[dict]]:
+        """The new text of every file this answer changes ('files' first, then 'edits' on top), or ({}, misses).
+        Both _apply and the result the model reads use it, so they cannot disagree."""
+        from .repair_edits import resolve_edits
+        texts, misses = {}, []
+        for f in data.get('files') or []:
+            if not (isinstance(f, dict) and isinstance(f.get('path'), str) and isinstance(f.get('content'), str)):
+                continue
+            current = work.get(f['path'])
+            if current is not None and len(current) > WHOLE_FILE_MAX_CHARS:
+                misses.append({'path': f['path'], 'code': 'WHOLE_FILE_TOO_LARGE',
+                               'message': f'{f["path"]} has {len(current)} characters: change it with "edits", '
+                                          'not a whole new file'})
+                continue
+            texts[f['path']] = f['content']
+        edited, edit_misses = resolve_edits({**work, **texts}, data.get('edits'))
+        misses += edit_misses
+        if misses:
+            return {}, misses
+        return {**texts, **edited}, []
+
+    @classmethod
+    def _apply(cls, work: dict, data) -> dict:
+        texts, misses = cls._proposed(work, data if isinstance(data, dict) else {})
+        if misses:
+            return {'applied': [], 'edit_misses': misses}          # nothing applied: all or nothing
+        work.update(texts)
+        return {'applied': sorted(texts)}
 
     @staticmethod
     def _check(work: dict) -> dict:
@@ -135,6 +166,8 @@ class AgenticRepairAgent:
                     from .autonomous_agents import _code_shape_guard
                     kwargs['validate'] = lambda d: _code_shape_guard({'files': d.get('files')} if isinstance(d, dict) else {})
                 data = self.gateway.complete_json(**kwargs)
+            except (BuildCancelled, BuildDeadline):
+                raise                       # the owner's stop and the build's time limit are never swallowed
             except Exception as exc:
                 self.trace.append({'step': step, 'error': f'{type(exc).__name__}: {exc}'[:200]})
                 break
@@ -144,12 +177,14 @@ class AgenticRepairAgent:
             elif action == 'search':
                 result = self._search(work, data.get('pattern'))
             elif action == 'edit':
-                result = {'applied': self._apply(work, data.get('files')), **self._check(work)}
+                result = {**self._apply(work, data), **self._check(work)}
             elif action == 'submit':
-                self._apply(work, data.get('files'))
-                self.trace.append({'step': step, 'action': 'submit', 'note': str(data.get('note', ''))[:300]})
-                submitted = True
-                break
+                result = self._apply(work, data)
+                if not result.get('edit_misses'):
+                    self.trace.append({'step': step, 'action': 'submit', 'note': str(data.get('note', ''))[:300]})
+                    submitted = True
+                    break
+                # the last edits did not apply: the model reads why and may fix them (still bounded by max_steps)
             else:
                 result = {'error': 'unknown action; use read, search, edit or submit'}
             self.trace.append({'step': step, 'action': action or '?'})
@@ -163,9 +198,11 @@ class AgenticRepairAgent:
 
 
 def _short(data: dict) -> dict:
-    out = {k: v for k, v in data.items() if k != 'files'}
+    out = {k: v for k, v in data.items() if k not in ('files', 'edits')}
     if isinstance(data.get('files'), list):
         out['files'] = [str(f.get('path')) for f in data['files'] if isinstance(f, dict)]
+    if isinstance(data.get('edits'), list):
+        out['edits'] = [str(e.get('path')) for e in data['edits'] if isinstance(e, dict)]
     return out
 
 
