@@ -19,6 +19,16 @@
 - **Evidence:** `tests/test_conversation_model_candidates.py` 11 passed on the real build_gateway / VeniceIntakeGateway /
   select_model (Venice HTTP faked), 5 failed without the change; controls `model_candidates` 3/3.
 - **Not yet measured:** nothing about quality or cost -- that is the rehearsal runs, after the release.
+# 2026-11-19 — a restated text that only adds is an extension, not "what is right?" (Claude Code)
+
+- **What broke (production, the owner's law-firm site, 21:29-21:30):** after the WhatsApp number was given, every turn
+  answered "קודם נקבע: ... עכשיו הבנתי: ... לא שיניתי — מה נכון?", and answering did not end it.
+- **Root cause:** the model restates the `content` field whole; the restatement differed from the confirmed text (one
+  fact added), and `intake.agent.apply` treats any difference from a confirmed value as a conflict.
+- **Fix:** for a text field, a HIGH proposal that keeps the confirmed text whole (spacing and ; | , aside) and adds to
+  it is applied as the customer's own value. A changed or dropped fact, or a MEDIUM guess, is still asked.
+- **Evidence:** `tests/test_content_extension_is_not_a_conflict.py` 5 passed on the production values (2 fail without
+  the fix); `test_intake_requirements_preservation` unchanged; controls `content_extends` 2/2.
 
 # 2026-11-19 — the concurrent daily-cap test counted calls, not dollars (Claude Code)
 
