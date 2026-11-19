@@ -10,12 +10,15 @@ from omni_prod.autonomous_core import AcceptanceFailure, AutonomousProductEngine
 from omni_prod.repository_patch import FilePatch
 from omni_prod.worker_tasks import taxonomy_evidence
 from tests.m5_worker_harness import ContractBuildHarness
-from tests.policy_fixtures import ACCEPTED_SPEC
+from omni_prod.product_spec import ProductSpec
 
 
 class Architect:
     def create_spec(self, prompt):
-        return ACCEPTED_SPEC
+        # a ProductSpec, as every production architect returns: the worker's spec wrappers read spec.to_dict()
+        return ProductSpec.from_dict({'title': 'T', 'summary': 'S', 'stack': ['python'],
+                                      'requirements': [{'id': 'R1', 'text': 'works', 'kind': 'functional', 'mandatory': True}],
+                                      'acceptance': [{'id': 'A1', 'requirement_id': 'R1', 'text': 'works'}]})
 
 
 class Generator:
