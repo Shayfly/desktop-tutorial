@@ -4023,4 +4023,4 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 ## 2026-11-19 — Critical production path freshness (Codex)
 
 - The proposed daily workflow reads action run, step and artifact metadata. It reports success from the relevant main-branch step within seven days, BROKEN when no qualifying evidence exists, and UNVERIFIED when the API cannot be read. Scope: deployment, golden rehearsal, Golden E2E, verify-replay and restoration.
-- Local evidence: two targeted tests, the skipped-step mutation, and workflow validation. Scheduled activation and independent review are pending.
+- The replay source positively verifies a nonempty completed batch with at least one passing version. Freshness counts successful old runs rerun within seven days and labels the displayed revision as the workflow trigger SHA. Local evidence: eight tests, three mutation controls, and workflow validation. Scheduled activation and independent review are pending.

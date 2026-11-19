@@ -20,6 +20,43 @@
       "expect_failed": [
         "test_successful_workflow_does_not_count_a_skipped_critical_step"
       ]
+    },
+    {
+      "id": "M2",
+      "what": "A recently successful rerun of an older workflow is overlooked.",
+      "mutations": [
+        {
+          "file": "scripts/check_critical_path_freshness.py",
+          "old": "    lookback = cutoff - timedelta(days=31)",
+          "new": "    lookback = cutoff - timedelta(days=1)"
+        }
+      ],
+      "targets": [
+        "tests/test_critical_path_freshness.py::test_rerun_of_older_workflow_counts_by_step_completion"
+      ],
+      "expect_failed": [
+        "test_rerun_of_older_workflow_counts_by_step_completion"
+      ]
+    },
+    {
+      "id": "M3",
+      "what": "The replay step counts an empty or failed verification report as success.",
+      "mutations": [
+        {
+          "file": ".github/workflows/postdeploy-checks.yml",
+          "old": "if (not results or not any(row['status'] == 'PASS' for row in results)\n                  or any(row['status'] not in ('PASS', 'FAIL') for row in results)):",
+          "new": "if False:  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_critical_path_freshness.py::test_verify_replay_evidence_step_requires_positive_completed_versions"
+      ],
+      "expect_failed": [
+        "test_verify_replay_evidence_step_requires_positive_completed_versions[statuses0-False]",
+        "test_verify_replay_evidence_step_requires_positive_completed_versions[statuses1-False]",
+        "test_verify_replay_evidence_step_requires_positive_completed_versions[statuses2-False]",
+        "test_verify_replay_evidence_step_requires_positive_completed_versions[statuses3-False]"
+      ]
     }
   ]
 }

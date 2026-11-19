@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 STEPS = {
     'Worker deployment': ('deploy-worker.yml', 'Prove the worker executes a job from the build queue'),
     'Golden rehearsal': ('golden-rehearsal.yml', 'Rehearse one build'),
-    'Post-deploy verify-replay': ('postdeploy-checks.yml', 'Re-verify stored versions through the production chain (no model calls)'),
+    'Post-deploy verify-replay': ('postdeploy-checks.yml', 'Confirm replay completed with successful version evidence'),
     'Backup restore': ('backup-restore.yml', 'Restore the stored copy and verify'),
 }
 GOLDEN_STEP = 'Enforce all four Golden E2E requirements'
@@ -25,6 +25,8 @@ def latest_proof(runs, jobs_for_run, step_name, cutoff, now):
     for run in runs:
         if (run['conclusion'] != 'success' or run['head_branch'] != 'main'
                 or run['event'] not in TRUSTED_EVENTS):
+            continue
+        if run.get('updated_at') and timestamp(run['updated_at']) < cutoff:
             continue
         for job in jobs_for_run(run['id']):
             if job['conclusion'] != 'success':
@@ -78,7 +80,9 @@ class Actions:
 
 def report(api, now):
     cutoff = now - timedelta(days=7)
-    lookback = cutoff - timedelta(days=1)
+    # GitHub allows reruns for 30 days. The API's created filter uses the
+    # original run time; eligibility uses when the successful step completed.
+    lookback = cutoff - timedelta(days=31)
     paths = [(name, lambda filename=filename: api.workflow_runs(filename, lookback), step)
              for name, (filename, step) in STEPS.items()]
     paths.append(('Golden E2E', lambda: api.golden_runs(cutoff), GOLDEN_STEP))
@@ -94,7 +98,7 @@ def report(api, now):
 def main():
     repo = os.environ['GITHUB_REPOSITORY']
     results = list(report(Actions(repo, os.environ['GH_TOKEN']), datetime.now(timezone.utc)))
-    lines = ['| Critical path | Status | Evidence from the past 7 days (UTC) |', '|---|---|---|']
+    lines = ['| Critical path | Status | Evidence from the past 7 days (UTC; workflow trigger SHA) |', '|---|---|---|']
     for name, status, evidence in results:
         if status == 'PASS':
             when, run_id, sha = evidence
