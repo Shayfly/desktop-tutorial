@@ -1,0 +1,11 @@
+{
+ "name": "skill.design.minimum",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "PRO",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "A business site looks professional, not like a bare page: exactly one <h1>; at least 4 <section> blocks with content; at least one image or visual (<img>, <svg>, <picture>, <video> or a CSS background-image); and the main contact action (phone, WhatsApp, e-mail or #contact link) appears at least twice -- near the top and again near the end."
+}
