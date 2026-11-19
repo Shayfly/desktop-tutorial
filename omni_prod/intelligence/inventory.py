@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ..model_discovery import DIRECT_IMAGE_MODELS
 from . import states as S
 
 
@@ -197,11 +198,14 @@ INVENTORY: tuple[ModelEntry, ...] = (
                (VERCEL_ENV_NAMES, REPLICATE_ACCOUNT), 'per-model licence: FLUX Schnell is Apache-2.0 (check per model)',
                _NO_SECRETS, 'no image ever generated; the worker has no OMNI_IMAGE_PROVIDER_* configuration',
                'none'),
-    ModelEntry('gemini', 'gemini-3-1-flash-lite-image', 'gemini-3.1-flash-lite-image', 'Gemini pricing page (2026-10-11)',
-               'Nano Banana', 'image', ('media.image.generate',), ('image_asset',), 'none (adapter not written)', '',
-               ('text', 'image'), LANG_HE_EN, None, None, False, False, False, False, True, False,
-               ('GEMINI_API_KEY',), 'worker', S.CREDENTIAL_PRESENT, S.NOT_CONNECTED, S.UNVERIFIED, (DEPLOY_NOTICE,),
-               _GEM_COMMERCIAL, _NO_SECRETS, 'no adapter; no free tier', 'none'),
+    *(ModelEntry('gemini', model.replace('.', '-'), model, 'Direct Google image adapter allowlist',
+                 'Nano Banana', 'image', ('media.image.generate',), ('image_asset',),
+                 'Google generateContent (direct image)', 'omni_prod/providers/google_image.py',
+                 ('text', 'image'), LANG_HE_EN, None, 8192, False, False, False, False, False, False,
+                 ('GEMINI_API_KEY',), 'worker', S.CREDENTIAL_PRESENT, S.NOT_CONNECTED, S.UNVERIFIED,
+                 (DEPLOY_NOTICE,), _GEM_COMMERCIAL, _NO_SECRETS,
+                 'Requires explicit model, price ceiling and source. Live generation and billing unverified.',
+                 'none') for model in DIRECT_IMAGE_MODELS),
     ModelEntry('gemini', 'gemini-omni-1-1-flash', 'gemini-omni-1.1-flash', 'Gemini deprecations page (2026-10-11)',
                'Gemini Omni', 'video', ('media.video.generate',), ('video_asset',), 'none (adapter not written)', '',
                ('text', 'image', 'video'), LANG_HE_EN, None, None, False, False, False, False, True, False,

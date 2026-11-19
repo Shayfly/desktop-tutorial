@@ -15,9 +15,11 @@ from typing import Mapping
 MAX_PAGES = 20
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
-DIRECT_MEDIA_MODELS = (
+DIRECT_IMAGE_MODELS = (
     'gemini-nano-banana-2.1', 'gemini-3.1-flash-image',
     'gemini-3.1-flash-lite-image', 'gemini-3-pro-image',
+)
+DIRECT_MEDIA_MODELS = DIRECT_IMAGE_MODELS + (
     'gemini-omni-1.2-flash', 'gemini-omni-1.1-flash',
     'lyria-3.5', 'lyria-3-clip-preview', 'lyria-3-pro-preview', 'lyria-realtime-exp',
     'gemini-3.8-flash-lite-tts', 'gemini-3.5-transcribe',

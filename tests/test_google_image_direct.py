@@ -31,11 +31,11 @@ class DurableTestJournal(MemorySubmissionJournal):
     durable = True
 
 
-def transport(calls):
+def transport(calls, *, mime='image/png', image_count=1):
     image = io.BytesIO()
     Image.new('RGB', (8, 8), 'blue').save(image, format='PNG')
     payload = {'candidates': [{'content': {'parts': [{'inlineData': {
-        'mimeType': 'image/png', 'data': base64.b64encode(image.getvalue()).decode()}}]}}],
+        'mimeType': mime, 'data': base64.b64encode(image.getvalue()).decode()}}] * image_count}}],
         'usageMetadata': {'promptTokenCount': 10}}
     def send(req, **kwargs):
         calls.append(req)
@@ -47,6 +47,62 @@ def transport(calls):
         assert body['generationConfig']['imageConfig']['imageSize'] == '1K'
         return io.BytesIO(json.dumps(payload).encode())
     return send
+
+
+def test_reject_declared_mime_inconsistent_with_the_returned_bytes():
+    calls = []
+    store = MemoryArtifactStore()
+    provider = build_image_provider(ENV, journal=DurableTestJournal(), artifact_store=store,
+                                    urlopen=transport(calls, mime='image/jpeg'))
+    with pytest.raises(RuntimeError, match='MIME does not match its bytes'):
+        provider.submit(REQ, idempotency_key='build:wrong-mime')
+    assert len(calls) == 1
+
+
+def test_reject_more_than_one_image_in_a_single_provider_response():
+    calls = []
+    provider = build_image_provider(ENV, journal=DurableTestJournal(),
+                                    artifact_store=MemoryArtifactStore(),
+                                    urlopen=transport(calls, image_count=2))
+    with pytest.raises(RuntimeError, match='exactly one image'):
+        provider.submit(REQ, idempotency_key='build:extra-image')
+    assert len(calls) == 1
+
+
+def test_collect_checks_checksum_of_image_in_durable_storage():
+    store = MemoryArtifactStore()
+    provider = build_image_provider(ENV, journal=DurableTestJournal(), artifact_store=store,
+                                    urlopen=transport([]))
+    handle = provider.submit(REQ, idempotency_key='build:checksum')
+    key = f'provider-results/google-image/{handle.provider_task_id}/0.json'
+    saved = json.loads(store.get_bytes(key))
+    # Simulate a swapped artifact whose bytes still parse and match its MIME type.
+    other = io.BytesIO()
+    Image.new('RGB', (8, 8), 'red').save(other, format='PNG')
+    saved['data'] = base64.b64encode(other.getvalue()).decode()
+    read = store.get_bytes
+    with (mock.patch.object(store, 'get_bytes',
+                            side_effect=lambda path: json.dumps(saved).encode() if path == key else read(path)),
+          pytest.raises(RuntimeError, match='Stored Google image checksum mismatch')):
+        provider.collect(handle)
+
+
+def test_reject_four_images_before_quote_or_provider_contact():
+    send = mock.Mock(side_effect=AssertionError('network forbidden'))
+    provider = build_image_provider(ENV, journal=DurableTestJournal(),
+                                    artifact_store=MemoryArtifactStore(), urlopen=send)
+    requirement = replace(REQ, quantity=4)
+    with pytest.raises(ValueError, match='1 to 3 images'):
+        provider.quote(requirement)
+    with pytest.raises(ValueError, match='1 to 3 images'):
+        provider.submit(requirement, idempotency_key='build:too-many-images')
+    send.assert_not_called()
+
+
+def test_reject_insecure_image_price_source_in_factory():
+    env = {**ENV, 'OMNI_GOOGLE_IMAGE_PRICE_SOURCE': 'http://pricing.example.test/images'}
+    assert readiness(env)['status'] == 'BLOCKED'
+    assert build_image_provider(env, journal=DurableTestJournal()) is None
 
 
 def test_factory_quote_and_generation_resume_through_existing_path():
@@ -128,3 +184,30 @@ def test_real_capability_executor_verifies_and_stores_the_generated_artifact():
     assert len(result.artifacts) == 1
     assert store.get_bytes(result.artifacts[0].artifact_key).startswith(b'\x89PNG')
     assert len(calls) == 1
+
+
+@pytest.mark.parametrize('changed', [
+    {'OMNI_GOOGLE_IMAGE_MAXIMUM_USD': '0.30'},
+    {'OMNI_GOOGLE_IMAGE_PRICE_SOURCE': 'https://example.com/revised-price'},
+    {'OMNI_GOOGLE_IMAGE_MODEL': 'gemini-3-pro-image'},
+])
+def test_executor_retry_after_lost_response_preserves_paid_attempt(changed):
+    journal, store, repository = DurableTestJournal(), MemoryArtifactStore(), MemoryCapabilityRepository()
+    plan = CapabilityPlan((REQ,), ('media.image.generate',))
+    repository.create_plan(build_id='b1', plan=plan)
+    post = mock.Mock(side_effect=TimeoutError('response lost after submit'))
+
+    def execute(env, worker_id, now):
+        stage = build_image_capability_stage(env=env, repository=repository, artifact_store=store,
+                                            journal=journal, worker_id=worker_id, urlopen=post)
+        return stage.executor.execute_plan(build_id='b1', project_id='p1', plan=plan,
+                                           assignments=build_image_quote_resolver(env)(plan), now=now)
+
+    with pytest.raises(TimeoutError):
+        execute(ENV, 'first', 100)
+    with pytest.raises(ValueError, match='execution idempotency key identity conflict'):
+        execute({**ENV, **changed}, 'replacement', 10000)
+    post.assert_called_once()
+    original_quote = build_image_quote_resolver(ENV)(plan)[REQ.id].quote
+    assert repository.requirements(build_id='b1')[0]['pricing_version'] == original_quote.pricing_version
+    assert repository.usage_for_build(build_id='b1') == []

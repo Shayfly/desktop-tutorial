@@ -1,0 +1,179 @@
+{
+ "pr": "conversation-limit-followup",
+ "sha256": [
+  "tests/test_conversation_limit_followup.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the pre-check counts a quote held in flight as spent and closes the conversation for good",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                project = self.reservations.counted(pscope) - (held(pscope) if held else 0)\n",
+     "new": "                project = self.reservations.counted(pscope)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit_followup.py"
+   ],
+   "expect_failed": [
+    "test_a_held_quote_goes_to_reserve"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the closed state is read from the last assistant message only: a reply without a limit reopens the paid path",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            if kind:\n                return kind if kind in ('budget', 'turns') else None\n",
+     "new": "            return kind if kind in ('budget', 'turns') else None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit_followup.py"
+   ],
+   "expect_failed": [
+    "test_a_reply_without_a_limit_in_between_does_not_reopen_the_paid_path"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the follow-up wording ignores the kind: after busy a real stop reads \"the conversation ended\"",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if kind in closing and prev_limit.get('kind') in closing:\n",
+     "new": "        if prev_limit:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit_followup.py"
+   ],
+   "expect_failed": [
+    "test_a_stop_after_busy_says_why_it_stopped",
+    "test_two_daily_pauses_say_later_never_ended"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "two busy replies in a row repeat word for word (then become \"no change\")",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            intro = T['limit_busy_alt'] if prev_text.startswith(T['limit_busy']) else T['limit_busy']\n",
+     "new": "            intro = T['limit_busy']  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit_followup.py"
+   ],
+   "expect_failed": [
+    "test_two_busy_replies_alternate_and_never_say_no_change"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "two daily pauses in a row repeat word for word",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            intro = T['limit_daily_alt'] if prev_text.startswith(T['limit_daily']) else T['limit_daily']\n",
+     "new": "            intro = T['limit_daily']  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit_followup.py"
+   ],
+   "expect_failed": [
+    "test_two_daily_pauses_say_later_never_ended"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "busy on the turn that completed the spec drops the summary",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            if any(a.get('type') in ('approve_spec', 'show_plan') for a in turn.actions):\n                turn.reply = re.sub(",
+     "new": "            if False:  # NEGATIVE CONTROL\n                turn.reply = re.sub("
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit_followup.py"
+   ],
+   "expect_failed": [
+    "test_busy_on_the_turn_that_completed_the_spec_keeps_the_summary"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "an Updated: line made at the limit is dropped from the closing",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            got = [x for x in parts if x.startswith((T['got'], T['corrected'], T['blocked']))]\n",
+     "new": "            got = [x for x in parts if x.startswith((T['got'], T['blocked']))]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit_followup.py"
+   ],
+   "expect_failed": [
+    "test_an_update_made_at_the_limit_is_told"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a late paid reply after a daily pause is closed as daily",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if interp is None or str(getattr(interp, 'interpreter', '')).startswith('model') or \\\n                getattr(interp, 'reservation_id', None):\n",
+     "new": "        if interp is None or str(getattr(interp, 'interpreter', '')).startswith('model'):  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit_followup.py"
+   ],
+   "expect_failed": [
+    "test_a_late_paid_reply_after_a_daily_pause_is_not_closed_as_daily"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "an image-only message reads \"the provider is busy\"",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers and interp is not None:\n",
+     "new": "        elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit_followup.py"
+   ],
+   "expect_failed": [
+    "test_an_image_only_message_is_never_provider_busy"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "Venice falls back from Sonnet to Haiku silently",
+   "mutations": [
+    {
+     "file": "omni_prod/providers/venice.py",
+     "old": "            if chosen.id != allowed[0]:\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit_followup.py"
+   ],
+   "expect_failed": [
+    "test_haiku_answering_for_sonnet_is_logged_with_the_reason"
+   ]
+  }
+ ]
+}

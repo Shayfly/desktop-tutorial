@@ -1,0 +1,198 @@
+{
+  "pr": 453,
+  "sha256": [
+    "tests/test_google_image_direct.py",
+    "tests/test_direct_model_enrollment.py",
+    "tests/test_provider_probe.py",
+    "tests/test_vision_probe.py"
+  ],
+  "controls": [
+    {
+      "id": "M1",
+      "what": "A disabled catalog route sends a paid provider probe.",
+      "mutations": [
+        {
+          "file": "infra/worker-host/provider_probe.py",
+          "old": "if not m.get('enabled', True):",
+          "new": "if False:  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_provider_probe.py::ProviderProbe::test_disabled_enrollment_never_starts_a_paid_probe"
+      ],
+      "expect_failed": [
+        "test_disabled_enrollment_never_starts_a_paid_probe"
+      ]
+    },
+    {
+      "id": "M2",
+      "what": "A prior journal intent can send another paid request.",
+      "mutations": [
+        {
+          "file": "omni_prod/providers/google_image.py",
+          "old": "            if record.preexisting:",
+          "new": "            if False:  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_google_image_direct.py::test_uncertain_request_is_not_paid_for_again"
+      ],
+      "expect_failed": [
+        "test_uncertain_request_is_not_paid_for_again"
+      ]
+    },
+    {
+      "id": "M3",
+      "what": "The adapter accepts image bytes that disagree with the declared MIME.",
+      "mutations": [
+        {
+          "file": "omni_prod/providers/google_image.py",
+          "old": "        if mime != image.get('mimeType'):",
+          "new": "        if False:  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_google_image_direct.py::test_reject_declared_mime_inconsistent_with_the_returned_bytes"
+      ],
+      "expect_failed": [
+        "test_reject_declared_mime_inconsistent_with_the_returned_bytes"
+      ]
+    },
+    {
+      "id": "M4",
+      "what": "A previously completed operation can be reused for another request.",
+      "mutations": [
+        {
+          "file": "omni_prod/providers/google_image.py",
+          "old": "            if existing['request_hash'] != digest:",
+          "new": "            if False:  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_google_image_direct.py::test_factory_quote_and_generation_resume_through_existing_path"
+      ],
+      "expect_failed": [
+        "test_factory_quote_and_generation_resume_through_existing_path"
+      ]
+    },
+    {
+      "id": "M6",
+      "what": "A provider can return multiple images for a single-image request.",
+      "mutations": [
+        {
+          "file": "omni_prod/providers/google_image.py",
+          "old": "        if len(images) != 1:",
+          "new": "        if not images:  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_google_image_direct.py::test_reject_more_than_one_image_in_a_single_provider_response"
+      ],
+      "expect_failed": [
+        "test_reject_more_than_one_image_in_a_single_provider_response"
+      ]
+    },
+    {
+      "id": "M7",
+      "what": "Discovery follows a cross-origin HTTP redirect.",
+      "mutations": [
+        {
+          "file": "omni_prod/model_discovery.py",
+          "old": "        raise ValueError('model discovery refuses redirects')",
+          "new": "        return super().redirect_request(req, fp, code, msg, headers, newurl)  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_direct_model_enrollment.py::test_discovery_does_not_follow_cross_origin_redirect_with_provider_headers"
+      ],
+      "expect_failed": [
+        "test_discovery_does_not_follow_cross_origin_redirect_with_provider_headers"
+      ]
+    },
+    {
+      "id": "M8",
+      "what": "An incomplete model list is reported as account visibility.",
+      "mutations": [
+        {
+          "file": "omni_prod/model_discovery.py",
+          "old": "    return {**result, 'status': 'UNVERIFIED', 'reason': 'model list page limit reached'}",
+          "new": "    return {**result, 'status': 'ACCOUNT_VISIBLE', 'models': sorted(models)}  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_direct_model_enrollment.py::test_incomplete_listing_at_page_limit_is_unverified"
+      ],
+      "expect_failed": [
+        "test_incomplete_listing_at_page_limit_is_unverified"
+      ]
+    },
+    {
+      "id": "M9",
+      "what": "Disabled entries count toward the vision probe bound.",
+      "mutations": [
+        {
+          "file": "omni_prod/vision_probe.py",
+          "old": "    models = [m for m in models if m.endpoint is not None]",
+          "new": "    # negative control: count every catalog entry"
+        }
+      ],
+      "targets": [
+        "tests/test_vision_probe.py::VisionProbe::test_pending_entries_do_not_consume_the_probe_bound"
+      ],
+      "expect_failed": [
+        "test_pending_entries_do_not_consume_the_probe_bound"
+      ]
+    },
+    {
+      "id": "M10",
+      "what": "Collection accepts stored image bytes that fail the saved checksum.",
+      "mutations": [
+        {
+          "file": "omni_prod/providers/google_image.py",
+          "old": "            if hashlib.sha256(data).hexdigest() != image['sha256']:",
+          "new": "            if False:  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_google_image_direct.py::test_collect_checks_checksum_of_image_in_durable_storage"
+      ],
+      "expect_failed": [
+        "test_collect_checks_checksum_of_image_in_durable_storage"
+      ]
+    },
+    {
+      "id": "M11",
+      "what": "The direct image adapter accepts more than three images.",
+      "mutations": [
+        {
+          "file": "omni_prod/providers/google_image.py",
+          "old": "if int(requirement.quantity) != requirement.quantity or not 1 <= requirement.quantity <= 3:",
+          "new": "if int(requirement.quantity) != requirement.quantity or requirement.quantity < 1:  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_google_image_direct.py::test_reject_four_images_before_quote_or_provider_contact"
+      ],
+      "expect_failed": [
+        "test_reject_four_images_before_quote_or_provider_contact"
+      ]
+    },
+    {
+      "id": "M12",
+      "what": "A pricing source can use plain HTTP.",
+      "mutations": [
+        {
+          "file": "omni_prod/providers/google_image.py",
+          "old": "    if not valid_price or not source.startswith('https://'):",
+          "new": "    if not valid_price:  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_google_image_direct.py::test_reject_insecure_image_price_source_in_factory"
+      ],
+      "expect_failed": [
+        "test_reject_insecure_image_price_source_in_factory"
+      ]
+    }
+  ]
+}

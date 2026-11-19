@@ -119,7 +119,7 @@ class VeniceModel:
 
 
 def select_model(models: list[VeniceModel], *, needs_tools: bool = False, prefer_e2ee: bool = True,
-                 allowed: tuple[str, ...] | None = None) -> VeniceModel:
+                 allowed: tuple[str, ...] | None = None, prefer_order: bool = False) -> VeniceModel:
     priced = [m for m in models if m.input_usd_per_m is not None and m.output_usd_per_m is not None]
     if allowed is not None:                        # the allowlist decides; privacy may be private or anonymized
         pool = [m for m in priced if m.id in set(allowed) and m.privacy in ALLOWED_PRIVACY
@@ -127,6 +127,21 @@ def select_model(models: list[VeniceModel], *, needs_tools: bool = False, prefer
         if not pool:
             raise NoAllowedModel(f'none of {ALLOWED_ENV}={",".join(allowed)} is offered by Venice (with prices'
                                  + (' and tools' if needs_tools else '') + ' and within the price ceiling)')
+        if prefer_order:
+            # the conversation agent's profile (owner 2026-11-18, decision 10): the first listed model Venice offers
+            # within the ceiling wins -- Sonnet, and Haiku only when Sonnet is not offered -- chosen before any request
+            by_id = {m.id: m for m in pool}
+            chosen = next(by_id[i] for i in allowed if i in by_id)
+            if chosen.id != allowed[0]:
+                # D10 review: never silent -- the first choice is not offered within the ceiling (a price change, or
+                # Venice stopped listing it), so the next one answers; the reason is in the log, the model on the call
+                import logging
+                listed = {m.id: m for m in priced}.get(allowed[0])
+                why = ('not offered with a price within the ceiling' if listed is None else
+                       f'offered at {listed.input_usd_per_m},{listed.output_usd_per_m} per M, privacy {listed.privacy}')
+                logging.getLogger(__name__).warning('VENICE_PREFERRED_MODEL_UNAVAILABLE preferred=%s chosen=%s reason=%s',
+                                                    allowed[0], chosen.id, why)
+            return chosen
         return min(pool, key=lambda m: (m.input_usd_per_m + m.output_usd_per_m, m.id))
     private = [m for m in priced if m.privacy == 'private']
     if needs_tools:
@@ -203,6 +218,7 @@ class VeniceClient:
         self.budget, self.timeout, self.retries, self.sleep = budget, timeout, retries, sleep
         # the caller's list (e.g. the one a reservation was quoted with) wins over the environment's
         self.allowed = tuple(allowed) if allowed is not None else allowed_models(env)
+        self.prefer_order = False         # set by the intake gateway for the agent profile (list order = preference)
         self.transport = transport or _urllib_transport
 
     def __repr__(self):                                # the key never appears in a repr, a log line or an export
@@ -243,7 +259,8 @@ class VeniceClient:
     def chat(self, *, conversation: str, messages: list[dict], lang: str, max_tokens: int = 800,
              needs_tools: bool = False, cancel: threading.Event | None = None, idempotency_key: str | None = None,
              venice_parameters: dict | None = None) -> dict:
-        model = select_model(self.models(), needs_tools=needs_tools, allowed=self.allowed)
+        model = select_model(self.models(), needs_tools=needs_tools, allowed=self.allowed,
+                             prefer_order=self.prefer_order)
         prompt_chars = sum(len(str(m.get('content', ''))) for m in messages)
         worst = (model.input_usd_per_m * Decimal(prompt_chars + 64) + model.output_usd_per_m * Decimal(max_tokens)) / Decimal(1_000_000)
         self.budget.reserve(conversation, worst)

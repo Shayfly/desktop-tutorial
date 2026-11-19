@@ -84,8 +84,13 @@ class CapabilityExecutor:
         self.max_artifact_bytes = max_artifact_bytes
 
     @staticmethod
-    def _idempotency_key(build_id: str, requirement: CapabilityRequirement, assignment: CapabilityExecutionAssignment) -> str:
+    def _idempotency_key(build_id: str, requirement: CapabilityRequirement, assignment: CapabilityExecutionAssignment,
+                         namespace: str | None = None) -> str:
         source = f"{build_id}\0{requirement.id}\0{assignment.provider}\0{assignment.quote.pricing_version}"
+        if namespace is not None:
+            # A synchronous paid submission can lose its response. A new model
+            # or quote must hit the same attempt and its original identity check.
+            source = f"{build_id}\0{requirement.id}\0{namespace}"
         return "cap_" + hashlib.sha256(source.encode("utf-8")).hexdigest()
 
     def _requirement_row(self, build_id: str, requirement_id: str) -> dict:
@@ -241,7 +246,9 @@ class CapabilityExecutor:
             raise CapabilityExecutionError("assignment quote capability mismatch")
 
         provider = self.provider_registry.get(assignment.provider)
-        idempotency_key = self._idempotency_key(build_id, requirement, assignment)
+        idempotency_key = self._idempotency_key(
+            build_id, requirement, assignment, getattr(provider, "execution_idempotency_namespace", None)
+        )
         attempt = self.repository.ensure_execution_attempt(
             attempt_id="att_" + hashlib.sha256(idempotency_key.encode()).hexdigest()[:24],
             build_id=build_id,

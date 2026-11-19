@@ -15,10 +15,10 @@ from urllib import request, error
 from ..provider_contracts import (ProviderArtifactPayload, ProviderCapability,
                                   ProviderExecutionResult, ProviderQuote,
                                   ProviderTaskHandle, ProviderTaskState)
-from ..model_discovery import DIRECT_MEDIA_MODELS
+from ..model_discovery import DIRECT_IMAGE_MODELS
 from ..model_policy import ModelPolicyViolation, SPEND_DISABLED, external_spend_enabled
 
-MODELS = frozenset(DIRECT_MEDIA_MODELS[:4])
+MODELS = frozenset(DIRECT_IMAGE_MODELS)
 MAX_BODY_BYTES = 32 * 1024 * 1024
 
 
@@ -42,6 +42,7 @@ def readiness(env):
 
 
 class GoogleImageProvider:
+    execution_idempotency_namespace = "google-direct-image"
     paid_external = True
     durable_idempotency = True
     durable_result_retrieval = True

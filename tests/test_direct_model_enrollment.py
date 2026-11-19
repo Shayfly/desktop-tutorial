@@ -2,15 +2,18 @@
 import io
 import json
 from datetime import date
+from email.message import Message
 from pathlib import Path
 from unittest import mock
 from urllib.error import HTTPError
+from urllib.request import HTTPSHandler
+from urllib.response import addinfourl
 
 import pytest
 
 from omni_prod.model_catalog import parse_model_catalog
 from omni_prod.intelligence.prices import price_at, validate
-from omni_prod.model_discovery import discover_provider
+from omni_prod.model_discovery import MAX_PAGES, discover_provider
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = json.loads((ROOT / 'infra/worker-host/model-catalog.json').read_text())
@@ -86,3 +89,43 @@ def test_partial_or_failed_listing_is_not_reported_as_complete_and_errors_are_re
     result = discover_provider('anthropic', KEYS, transport=repeated)
     assert result['status'] == 'UNVERIFIED'
     assert result['models'] == []
+
+
+def test_discovery_does_not_follow_cross_origin_redirect_with_provider_headers():
+    seen = []
+
+    def https_open(self, req):
+        seen.append((req.full_url, req.get_method()))
+        headers = Message()
+        if len(seen) == 1:
+            headers['Location'] = 'https://other-origin.example.test/models'
+            result = addinfourl(io.BytesIO(), headers, req.full_url, 302)
+            result.msg = 'Found'
+        else:
+            result = addinfourl(response({'data': [{'id': 'other-origin-model'}]}), headers, req.full_url, 200)
+            result.msg = 'OK'
+        return result
+
+    # Stub the wire only. The production opener and redirect handler dispatch the 302.
+    with mock.patch.object(HTTPSHandler, 'https_open', https_open):
+        result = discover_provider('openai', KEYS)
+    assert seen == [('https://api.openai.com/v1/models', 'GET')]
+    assert result['status'] == 'UNVERIFIED'
+    assert result['models'] == []
+
+
+def test_incomplete_listing_at_page_limit_is_unverified():
+    pages = []
+
+    def transport(req, **kwargs):
+        pages.append(req.full_url)
+        page = len(pages)
+        return response({'models': [{'name': f'models/test-model-{page}'}],
+                         'nextPageToken': f'page-{page}'})
+
+    result = discover_provider('gemini', KEYS, transport=transport)
+    assert len(pages) == MAX_PAGES
+    assert result['status'] == 'UNVERIFIED'
+    assert result['models'] == []
+    assert not result['generation_verified']
+    assert not result['billing_verified']

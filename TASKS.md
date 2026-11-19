@@ -72,3 +72,9 @@
 | QUOTA-REPAIR-STOP | Claude Code | In review | a repair call with a no-credit route keeps the verified build (ProviderQuotaUnavailable by type, #448 follow-up); NC 4/4 |
 
 | DIRECT-MODELS | Codex | PARTIAL; independent review and runtime canaries pending | Branch codex/add-provider-models-20261118; 109 passed, 1 skipped, 9 subtests; docs/DIRECT_MODEL_ENROLLMENT_HE.md |
+| QUOTA-REPAIR-STOP-DONE | Claude Code | Done | #452 `f961661` -> `9bc130e` |
+| D10-FOLLOWUP | Claude Code | In review | the review's remaining findings: in-flight holds, sticky closed state, wording by kind, busy keeps the summary, EXECUTING is busy, unknown tokens None, fallback logged; NC 10/10 + pg 10/10 |
+| D10-LIMIT | Claude Code | In review | a conversation at its limit stops gracefully: typed limit, closing reply with the summary or one open question in words (read for free), no 'provider busy'; NC 15/15 |
+| D10-TURNS | Claude Code | In review | the agent's 8-turn cap in reserve() (contacted calls only, under the locks) and tokens and cost per conversation; NC 8/8 + pg 7/7 |
+| D10-SONNET | Claude Code | In review | Sonnet for the conversation agent only (ordered Venice profile, Haiku when Sonnet is not offered); rehearsal agent path; NC 9/9 |
+| DIRECT-ENROLL-NC | Codex | Local controls passed, pending independent review | #453, tests/negative_controls/direct_model_enrollment.json |

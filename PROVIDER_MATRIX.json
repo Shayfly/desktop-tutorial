@@ -3,30 +3,30 @@
  "as_of": "2026-11-18",
  "summary": {
   "credential_state": {
-   "CREDENTIAL_PRESENT": 13,
+   "CREDENTIAL_PRESENT": 16,
    "CREDENTIAL_UNKNOWN": 10
   },
   "connection_state": {
    "CONNECTION_TESTED": 7,
-   "NOT_CONNECTED": 16
+   "NOT_CONNECTED": 19
   },
   "verification_state": {
    "REAL_EXECUTION_VERIFIED": 4,
-   "UNVERIFIED": 19
+   "UNVERIFIED": 22
   },
   "availability": {
    "AVAILABLE": 3,
    "DEPRECATED": 1,
    "INSUFFICIENT_CREDIT": 2,
-   "NOT_ROUTED": 17
+   "NOT_ROUTED": 20
   },
   "implementation_status": {
    "BLOCKED": 2,
-   "IMPLEMENTED": 13,
-   "NOT_IMPLEMENTED": 4,
+   "IMPLEMENTED": 17,
+   "NOT_IMPLEMENTED": 3,
    "REAL_SERVER_VERIFIED": 4
   },
-  "models": 23
+  "models": 26
  },
  "models": [
   {
@@ -945,9 +945,9 @@
   },
   {
    "provider_key": "gemini",
-   "model_key": "gemini-3-1-flash-lite-image",
-   "provider_model_id": "gemini-3.1-flash-lite-image",
-   "id_source": "Gemini pricing page (2026-10-11)",
+   "model_key": "gemini-nano-banana-2-1",
+   "provider_model_id": "gemini-nano-banana-2.1",
+   "id_source": "Direct Google image adapter allowlist",
    "model_family": "Nano Banana",
    "provider_type": "image",
    "capability_types": [
@@ -956,8 +956,8 @@
    "intended_task_types": [
     "image_asset"
    ],
-   "execution_adapter": "none (adapter not written)",
-   "adapter_implementation_path": "",
+   "execution_adapter": "Google generateContent (direct image)",
+   "adapter_implementation_path": "omni_prod/providers/google_image.py",
    "supported_modalities": [
     "text",
     "image"
@@ -967,12 +967,12 @@
     "en"
    ],
    "context_window": null,
-   "maximum_output_tokens": null,
+   "maximum_output_tokens": 8192,
    "supports_tool_calls": false,
    "supports_structured_output": false,
    "supports_streaming": false,
    "supports_reasoning": false,
-   "supports_vision": true,
+   "supports_vision": false,
    "supports_function_calling": false,
    "credential_reference_names": [
     "GEMINI_API_KEY"
@@ -981,7 +981,150 @@
    "credential_state": "CREDENTIAL_PRESENT",
    "connection_state": "NOT_CONNECTED",
    "verification_state": "UNVERIFIED",
-   "implementation_status": "NOT_IMPLEMENTED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": "2026-10-10T20:17Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-nano-banana-2.1",
+    "effective_from": "2026-10-01",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "1.50",
+    "reasoning_accounting": "billed as output tokens",
+    "per_image": "0.0336",
+    "units_note": "per 1K image; 2K $0.0504, 4K $0.113"
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Gemini API paid tier: outputs usable commercially; paid-tier prompts not used to improve products",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Requires explicit model, price ceiling and source. Live generation and billing unverified.",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": false,
+   "catalog_quality": null,
+   "eligible_tasks": [],
+   "current_operational_status": "direct image adapter implemented; runtime configuration and generation unverified",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-3-1-flash-image",
+   "provider_model_id": "gemini-3.1-flash-image",
+   "id_source": "Direct Google image adapter allowlist",
+   "model_family": "Nano Banana",
+   "provider_type": "image",
+   "capability_types": [
+    "media.image.generate"
+   ],
+   "intended_task_types": [
+    "image_asset"
+   ],
+   "execution_adapter": "Google generateContent (direct image)",
+   "adapter_implementation_path": "omni_prod/providers/google_image.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 8192,
+   "supports_tool_calls": false,
+   "supports_structured_output": false,
+   "supports_streaming": false,
+   "supports_reasoning": false,
+   "supports_vision": false,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": "2026-10-10T20:17Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets"
+   ],
+   "price_schedule_reference": null,
+   "price_in_force": null,
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Gemini API paid tier: outputs usable commercially; paid-tier prompts not used to improve products",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Requires explicit model, price ceiling and source. Live generation and billing unverified.",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": false,
+   "catalog_quality": null,
+   "eligible_tasks": [],
+   "current_operational_status": "direct image adapter implemented; runtime configuration and generation unverified",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-3-1-flash-lite-image",
+   "provider_model_id": "gemini-3.1-flash-lite-image",
+   "id_source": "Direct Google image adapter allowlist",
+   "model_family": "Nano Banana",
+   "provider_type": "image",
+   "capability_types": [
+    "media.image.generate"
+   ],
+   "intended_task_types": [
+    "image_asset"
+   ],
+   "execution_adapter": "Google generateContent (direct image)",
+   "adapter_implementation_path": "omni_prod/providers/google_image.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 8192,
+   "supports_tool_calls": false,
+   "supports_structured_output": false,
+   "supports_streaming": false,
+   "supports_reasoning": false,
+   "supports_vision": false,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
    "health": "UNKNOWN",
    "availability": "NOT_ROUTED",
    "last_verified_at": "2026-10-10T20:17Z",
@@ -1015,12 +1158,75 @@
    "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
    "commercial_usage_constraints": "Gemini API paid tier: outputs usable commercially; paid-tier prompts not used to improve products",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
-   "known_limitations": "no adapter; no free tier",
+   "known_limitations": "Requires explicit model, price ceiling and source. Live generation and billing unverified.",
    "fallback_eligibility": "none",
    "in_worker_catalog": false,
    "catalog_quality": null,
    "eligible_tasks": [],
-   "current_operational_status": "candidate: not routed (not in the worker catalog)",
+   "current_operational_status": "direct image adapter implemented; runtime configuration and generation unverified",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-3-pro-image",
+   "provider_model_id": "gemini-3-pro-image",
+   "id_source": "Direct Google image adapter allowlist",
+   "model_family": "Nano Banana",
+   "provider_type": "image",
+   "capability_types": [
+    "media.image.generate"
+   ],
+   "intended_task_types": [
+    "image_asset"
+   ],
+   "execution_adapter": "Google generateContent (direct image)",
+   "adapter_implementation_path": "omni_prod/providers/google_image.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 8192,
+   "supports_tool_calls": false,
+   "supports_structured_output": false,
+   "supports_streaming": false,
+   "supports_reasoning": false,
+   "supports_vision": false,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": "2026-10-10T20:17Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets"
+   ],
+   "price_schedule_reference": null,
+   "price_in_force": null,
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Gemini API paid tier: outputs usable commercially; paid-tier prompts not used to improve products",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Requires explicit model, price ceiling and source. Live generation and billing unverified.",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": false,
+   "catalog_quality": null,
+   "eligible_tasks": [],
+   "current_operational_status": "direct image adapter implemented; runtime configuration and generation unverified",
    "blocker": ""
   },
   {

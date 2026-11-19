@@ -130,6 +130,8 @@ def build(catalog: list[dict] | None = None, as_of: date = AS_OF) -> dict:
 def _operational(e, health, life) -> str:
     if life == lifecycle.RETIRED:
         return 'RETIRED: never routed'
+    if e.adapter_implementation_path == 'omni_prod/providers/google_image.py':
+        return 'direct image adapter implemented; runtime configuration and generation unverified'
     if not e.in_catalog:
         return 'candidate: not routed (not in the worker catalog)'
     if health == S.CREDIT_EXHAUSTED:

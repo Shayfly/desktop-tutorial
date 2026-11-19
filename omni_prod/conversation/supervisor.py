@@ -35,6 +35,20 @@ from .. import discovery as d
 from ..intake import agent as intake_agent
 from ..intake import contract as C
 from ..intake.interpreter import DeterministicInterpreter, interpreter_from_env, language_of
+
+
+class _AtLimit(DeterministicInterpreter):
+    """The pre-check refused the paid call because a conversation limit is reached: the free interpreter answers, and
+    the limit is carried as a typed outcome (owner 2026-11-18), never as the "provider is busy" text."""
+
+    def __init__(self, kind: str, reason: str, source: str = 'precheck'):
+        self.kind, self.reason, self.source = kind, reason, source
+
+    def interpret(self, message, brief=None):
+        out = super().interpret(message, brief)
+        out.limit = {'kind': self.kind, 'source': self.source}
+        out.dropped.append(f'model not used: {self.reason}')
+        return out
 from ..planning import feasibility as F
 from ..planning.architect import ChiefArchitect
 
@@ -151,7 +165,21 @@ _TXT = {
            'ready_again': 'התוכנית מעודכנת ומוכנה. כדי להתחיל לבנות לחצו על "אישור והתחלת בנייה" — שום חיוב לא מתחיל לפני האישור.',
            'ready': 'יש לי תמונה מלאה. הכנתי תוכנית עבודה — אפשר לעבור עליה ולאשר. שום בנייה ושום חיוב לא מתחילים לפני אישור.',
            'blocked': 'יש דרישה שאי אפשר לבנות כרגע', 'nothing': 'לא זיהיתי פרטים חדשים. ספרו לי עוד על מה שתרצו, או שאלו "מה חסר?".',
+           # owner 2026-11-18: an overrun stops the conversation and does not crash it -- said as it is, with the way on
+           'limit_budget': 'הגענו לתקרת העלות של השיחה עם הסוכן, ולכן הוא לא ממשיך בשיחה החופשית. מה שכתבתם נשמר.',
+           'limit_turns': 'הגענו למספר התורות המרבי של השיחה עם הסוכן, ולכן הוא לא ממשיך בשיחה החופשית. מה שכתבתם נשמר.',
+           'limit_daily': 'הסוכן הגיע לתקרת השימוש היומית ויחזור לענות בהמשך. מה שכתבתם נשמר.',
+           'limit_busy': 'הסוכן עדיין עונה על ההודעה הקודמת. מה שכתבתם נשמר — שלחו שוב בעוד רגע.',
+           'limit_busy_alt': 'התשובה הקודמת עוד בדרך. ההודעה שלכם נשמרה — נסו שוב בעוד רגע.',
+           'limit_daily_alt': 'הסוכן עדיין בהפסקה היומית ויחזור לענות בהמשך. גם ההודעה הזאת נשמרה.',
+           'limit_ready': 'הנה הסיכום — אפשר לאשר אותו או לתקן:',
+           'limit_incomplete': 'עוד חסר: {missing}.',
+           'limit_incomplete_any': 'כדי להתקדם, השלימו את המפרט בלשונית המפרט ואשרו משם.',
+           'limit_ask': 'ענו כאן במילים שלכם, בלי עלות:',
+           'limit_still': 'השיחה עם הסוכן הסתיימה. מה שכתבתם נשמר.',
+           'limit_still_alt': 'הסוכן כבר לא עונה בשיחה הזאת, אבל ההודעה נשמרה.',
            'model_unavailable': 'הסוכן לא הספיק לענות הפעם (העומס אצל ספק המודל). מה שכתבתם נשמר — שלחו שוב בעוד רגע, או כתבו עוד פרט על המוצר.',
+           'model_refused': 'הסוכן לא זמין כרגע: ספק המודל סירב לבקשה בגלל החשבון שלנו אצלו, לא בגללכם. מה שכתבתם נשמר, ולא חויב דבר. אפשר להמשיך לפרט כאן, והסוכן יענה כשהחשבון יחודש.',
            'missing_none': 'לא חסר כלום — אפשר לעבור לסיכום ולאשר.', 'missing': 'חסר לי:', 'contra': 'יש סתירה שצריך להחליט עליה:',
            'conflict': 'קודם נקבע: {current}. עכשיו הבנתי: {proposed}. לא שיניתי — מה נכון?',
            'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
@@ -201,7 +229,20 @@ _TXT = {
            'ready_again': 'The plan is up to date. To start, press "Approve and start build"; nothing is charged before you approve.',
            'ready': 'I have the full picture and prepared a work plan you can review and approve. Nothing is built or charged before you approve.',
            'blocked': 'Something you asked for cannot be built right now', 'nothing': 'I did not spot new details. Tell me more, or ask "what is missing?".',
+           'limit_budget': 'This conversation reached its cost limit, so the assistant stops the open conversation here. What you wrote is saved.',
+           'limit_turns': 'This conversation reached its maximum number of turns, so the assistant stops the open conversation here. What you wrote is saved.',
+           'limit_daily': 'The assistant reached its daily usage limit and will answer again later. What you wrote is saved.',
+           'limit_busy': 'The assistant is still answering your previous message. What you wrote is saved; send it again in a moment.',
+           'limit_busy_alt': 'The previous answer is still on its way. Your message is saved; try again in a moment.',
+           'limit_daily_alt': 'The assistant is still on its daily pause and will answer again later. This message is saved too.',
+           'limit_ready': 'Here is the summary; you can approve it or correct it:',
+           'limit_incomplete': 'Still missing: {missing}.',
+           'limit_incomplete_any': 'To go on, complete the specification in the specification tab and approve it there.',
+           'limit_ask': 'Answer here in your own words, at no cost:',
+           'limit_still': 'The conversation with the assistant has ended. What you wrote is saved.',
+           'limit_still_alt': 'The assistant no longer answers in this conversation, but your message is saved.',
            'model_unavailable': 'The assistant could not answer in time (the model provider is busy). What you wrote is saved; send it again in a moment, or add another detail about the product.',
+           'model_refused': 'The assistant is not available right now: the model provider refused the request because of our account with it, not because of you. What you wrote is saved and nothing was charged. You can keep adding details here; the assistant answers again once the account is renewed.',
            'missing_none': 'Nothing is missing: you can review the summary and approve.', 'missing': 'Still missing:',
            'contra': 'There is a contradiction to decide:',
            'conflict': 'Earlier: {current}. Now I understood: {proposed}. I did not change it — which is right?',
@@ -273,6 +314,18 @@ _NOT_UNDERSTOOD_RX = (r'^\s*(מה\??|מה זה\??|למה\??|לא הבנתי(?: �
                       r'لماذا\s*[?؟]?|ماذا\s*[?؟]?|لم أفهم|اشرح)\s*[.!?؟]*\s*$')
 _DONT_KNOW_RX = (r'^\s*(לא (יודע|יודעת|בטוח|בטוחה)|אין לי מושג|i don\'?t know|not sure|no idea|'
                  r'لا أعرف|لست متأكد[ًا]*)\s*[.!?؟]*\s*$')
+
+
+_REFUSALS = ('VeniceInsufficientCredit', 'VeniceAuthError', 'insufficient credit', 'credit balance is too low')
+
+
+def _provider_refused(interp) -> str | None:
+    """The refusal the model provider gave this turn (no credit, a refused key), from the interpretation's dropped
+    notes -- or None when the model was merely slow or unavailable."""
+    for note in getattr(interp, 'dropped', None) or ():
+        if any(r in str(note) for r in _REFUSALS):
+            return str(note)[:160]
+    return None
 
 
 def _short(field_: str, lang: str) -> str:
@@ -420,8 +473,13 @@ class ConversationSupervisor:
 
         def spend():
             if self.reservations is not None and account_id:
-                return (self.reservations.counted(f'project:{account_id}:{project_id}'),
-                        self.reservations.counted(B.DAILY_SCOPE))
+                # D10 review: counted() includes quotes still held by calls in flight. A hold is not spend yet --
+                # the call may settle far lower -- so the pre-check leaves it to reserve(), which tells 'busy' from
+                # 'budget' under the scope locks; otherwise a held quote closed the conversation for good.
+                pscope = f'project:{account_id}:{project_id}'
+                held = getattr(self.reservations, 'open_held', None)
+                project = self.reservations.counted(pscope) - (held(pscope) if held else 0)
+                return project, self.reservations.counted(B.DAILY_SCOPE)
             return self.store.conversation_cost(project_id), self.store.daily_cost()
         worker_route_available = self.worker_interpreter is not None or (
             self.reservations is not None and self.enqueue is not None)
@@ -435,7 +493,8 @@ class ConversationSupervisor:
         from ..intake import mode as intake_mode
         m = self.intake_mode(project_id, account_id)
         if m.mode != intake_mode.MODEL_WORKER:
-            return DeterministicInterpreter()
+            # a reached limit is said as such (owner 2026-11-18), never the "provider is busy" text
+            return _AtLimit(m.limit, m.reason) if m.limit else DeterministicInterpreter()
         if self.worker_interpreter is not None:
             if hasattr(self.worker_interpreter, 'task'):
                 self.worker_interpreter.task = task
@@ -443,9 +502,19 @@ class ConversationSupervisor:
         if self.reservations is None or self.enqueue is None or not account_id:
             return DeterministicInterpreter()
         from ..intake.worker_route import ReservedWorkerInterpreter
+        from ..intake import conversation_agent as agent
+        caps, profile = B.caps_from_env(), None
+        if agent.enabled():                     # the agent's turn cap (owner 2026-11-18); every other account: no cap
+            import dataclasses
+            from ..providers import venice_gateway as VG
+            caps = dataclasses.replace(caps, project_turns=agent.MAX_TURNS,
+                                       project_usd=min(caps.project_usd, agent.MAX_COST_USD))
+            # Sonnet for the conversation agent only, on Venice (owner 2026-11-18): every other account keeps the
+            # global list and ceiling, quoted exactly as before
+            profile = agent.venice_profile() if VG.selected() else None
         return ReservedWorkerInterpreter(self.reservations, self.enqueue, account_id=account_id,
-                                         project_id=project_id, request_key=request_key, caps=B.caps_from_env(),
-                                         task=task)
+                                         project_id=project_id, request_key=request_key, caps=caps, task=task,
+                                         venice_profile=profile)
 
     def _feasibility(self, row) -> dict:
         """What can be built from the spec, WITHOUT a plan (gate 1 has not been passed yet)."""
@@ -681,6 +750,8 @@ class ConversationSupervisor:
         self._label_carries_its_question(turn, lang)
         turn.reply = self._not_repeated(project_id, turn, T)
         paid = turn.reservation_id is not None
+        usage = (self._conversation_usage(project_id, account_id)
+                 if paid or (turn.interpretation or {}).get('limit') else None)
         self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
                                interpretation={'intent': turn.intent, **(turn.interpretation or {}),
@@ -700,7 +771,10 @@ class ConversationSupervisor:
                                                **({'gate': turn.gate} if getattr(turn, 'gate', None) else {}),
                                                **({'blocked': turn.blocked} if getattr(turn, 'blocked', None) else {}),
                                                **({'unsupported': turn.unsupported} if turn.unsupported else {}),
-                                               **({'venice': turn.venice} if getattr(turn, 'venice', None) else {})},
+                                               **({'venice': turn.venice} if getattr(turn, 'venice', None) else {}),
+                                               # owner 2026-11-18: tokens and cost per conversation, stored with the
+                                               # message (server side; Turn.to_dict does not send it to the browser)
+                                               **({'usage': usage} if usage else {})},
                                interpreter=(turn.interpretation or {}).get('interpreter', 'deterministic'),
                                cost_usd=turn.cost_usd, request_key=request_key,
                                cost_state=turn.cost_state if paid else None, reservation_id=turn.reservation_id)
@@ -939,8 +1013,13 @@ class ConversationSupervisor:
             return refused
         cls, lane = (self._classify(project_id, row, message) if message else (None, None))
         interp = None
+        closed = self._closed(project_id)
         if message:
-            source = (self._interpreter(project_id, account_id, request_key, task=lane['task'])
+            # owner 2026-11-18: an overrun stops the conversation. Once it was closed at its budget or its turns, no
+            # message pays a model again -- a shorter message would otherwise fit under the cap and run after the
+            # closing reply (D10 review). Decided before the lane and the quote.
+            source = (_AtLimit(closed, 'the conversation was closed at its limit', source='closed') if closed else
+                      self._interpreter(project_id, account_id, request_key, task=lane['task'])
                       if lane['lane'] in lanes.MODEL_LANES else DeterministicInterpreter())
             source.history = [m for m in self.store.messages_for(project_id, limit=6)[:-1]
                               if not (m.get('interpretation') or {}).get('system')][-4:]   # never the flow mark
@@ -1134,6 +1213,9 @@ class ConversationSupervisor:
                 explain = unsure or repeated
                 parts.extend(self._ask_line(res, row, lang, T, unsure=explain))
                 turn.explained = explain and not self._last_reply_was_why
+        limit = self._turn_limit(project_id, interp, answers)
+        if limit is not None:
+            return self._closing_turn(project_id, turn, row, limit, parts, lang, T)
         if not parts:
             parts.append(T['nothing'])
         turn.reply = re.sub(r'\n +', '\n', ' '.join(parts)).strip()
@@ -1160,9 +1242,14 @@ class ConversationSupervisor:
                 # and loses any sentence that asks (it asked the same field in its own words, then the card again)
                 turn.reply = _no_question(turn.reply) or T['ask_one']
                 turn.questions = [held]
-        elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers:
-            # the model is configured but did not answer in time: say so; never pass the questionnaire off as it
-            turn.reply, turn.questions = T['model_unavailable'], []
+        elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers and interp is not None:
+            # the model is configured but did not answer in time: say so; never pass the questionnaire off as it.
+            # 2026-11-19: a provider that REFUSED the request (no credit, a revoked key) is not "busy" -- sending
+            # again changes nothing. Say what happened, and log it loudly for the owner.
+            refused = _provider_refused(interp)
+            turn.reply, turn.questions = T['model_refused' if refused else 'model_unavailable'], []
+            if refused:
+                logging.getLogger(__name__).error('INTAKE_PROVIDER_REFUSED project=%s reason=%s', project_id, refused)
         self._card_limit(project_id, account_id, turn, lang, T, request_key)
         if no_subject and not res.conflicts and not turn.blocked:
             base = _no_question(interp.reply.strip()) if model_reply else ''   # the model's own words, never a card list
@@ -1179,6 +1266,153 @@ class ConversationSupervisor:
             turn.asked_in_words = [x.id for x in turn.questions]
             turn.questions = []
         return turn
+
+    def _conversation_usage(self, project_id, account_id) -> dict | None:
+        """The conversation's tokens and cost so far, as reported per call (owner 2026-11-18). The reservations are the
+        source of truth: a recount by SQL equals this. Never fails the turn: an error is kept as `usage_error`."""
+        svc = self.reservations
+        if svc is None or not account_id or not hasattr(svc, 'conversation_usage'):
+            return None
+        from ..intake import conversation_agent as agent
+        try:
+            u = svc.conversation_usage(f'project:{account_id}:{project_id}')
+        except Exception as exc:
+            logging.getLogger(__name__).error('INTAKE_CONVERSATION_USAGE_FAILED project=%s: %s: %s', project_id,
+                                              type(exc).__name__, str(exc)[:200])
+            return {'usage_error': type(exc).__name__}
+        u = {**u, 'max_turns': agent.MAX_TURNS if agent.enabled() else None}
+        logging.getLogger(__name__).info(
+            'INTAKE_CONVERSATION_USAGE project=%s turns=%s input_tokens=%s output_tokens=%s settled_usd=%s held_usd=%s '
+            'unknown=%s open=%s models=%s', project_id, u['turns'], u['input_tokens'], u['output_tokens'],
+            u['settled_usd'], u['held_usd'], u['unknown_calls'], u['open_calls'], ','.join(u['models']))
+        return u
+
+    def _turn_limit(self, project_id, interp, answers) -> dict | None:
+        """The conversation limit this turn runs into, or None. The paid call was refused (interp.limit) -- or the message
+        took the free lane (a greeting, "תודה") after the conversation had stopped: it never reaches the model, and
+        must not read "the provider is busy" (skeptic of the D10 plan, 2026-11-18). A button answer is free and goes on."""
+        limit = getattr(interp, 'limit', None) if interp is not None else None
+        if limit:
+            return dict(limit)
+        if answers:
+            return None
+        if interp is None or str(getattr(interp, 'interpreter', '')).startswith('model') or \
+                getattr(interp, 'reservation_id', None):
+            # a paid call ran (its reply may be late): its own outcome stands, never a carried 'daily' (D10 review)
+            return None
+        closed = self._closed(project_id)
+        if closed:
+            return {'kind': closed, 'source': 'carried'}
+        prev = self._last_assistant(project_id)
+        carried = ((prev or {}).get('interpretation') or {}).get('limit')
+        if carried and carried.get('kind') == 'daily':      # a pause carries to the very next message only
+            return {'kind': 'daily', 'source': 'carried'}
+        return None
+
+    def _closed(self, project_id) -> str | None:
+        """'budget' or 'turns' when the conversation was closed at that limit; 'daily' and 'busy' pass by themselves and
+        close nothing. D10 review: read from the last assistant message that CARRIES a limit, not the last message --
+        a button answer, an intent reply or an image turn in between stores none and used to reopen the paid path."""
+        try:
+            msgs = self.store.messages_for(project_id, limit=200)
+        except Exception:
+            return None
+        for m in reversed(msgs):
+            if m.get('role') != 'assistant':
+                continue
+            kind = (((m.get('interpretation') or {}).get('limit')) or {}).get('kind')
+            if kind:
+                return kind if kind in ('budget', 'turns') else None
+        return None
+
+    def _last_assistant(self, project_id) -> dict | None:
+        try:
+            msgs = self.store.messages_for(project_id, limit=6)
+        except Exception:
+            return None
+        return next((m for m in reversed(msgs) if m.get('role') == 'assistant'), None)
+
+    def _closing_turn(self, project_id, turn, row, limit, parts, lang, T):
+        """Owner 2026-11-18: an overrun stops the conversation and does not crash it. No question and no card: the reply
+        says why the assistant stopped, keeps what this message recorded, and leads to the way on -- the summary with
+        its approval when the spec is ready (gate 1, built above at no model cost), else the specification tab."""
+        kind = limit.get('kind') if limit.get('kind') in ('budget', 'turns', 'daily', 'busy') else 'budget'
+        prev = self._last_assistant(project_id)
+        prev_limit = ((prev or {}).get('interpretation') or {}).get('limit') or {}
+        prev_text = (prev or {}).get('content') or ''
+        if kind == 'busy':
+            # the turn cap is reached only by calls still in flight: not a closing, the next message may go through.
+            # Two in a row never repeat (warehouse 113), and a turn that completed the spec keeps its summary and
+            # the gate-1 approval it offers (D10 review: the approve button came without the summary or the cost).
+            turn.questions, turn.asked_in_words = [], []
+            intro = T['limit_busy_alt'] if prev_text.startswith(T['limit_busy']) else T['limit_busy']
+            if any(a.get('type') in ('approve_spec', 'show_plan') for a in turn.actions):
+                turn.reply = re.sub(r'\n +', '\n', ' '.join(x for x in [intro, *parts] if x)).strip()
+            else:
+                got = [x for x in parts if x.startswith((T['got'], T['corrected']))]
+                turn.reply = ' '.join([intro, *got]).strip()
+            turn.interpretation = {**(turn.interpretation or {}), 'limit': {'kind': 'busy',
+                                                                           'source': limit.get('source', 'reserve')}}
+            return turn
+        closing = ('budget', 'turns')
+        if kind in closing and prev_limit.get('kind') in closing:
+            # warehouse 113: never the same message twice in a row -- the follow-up wording alternates. Only after a
+            # closing: after 'busy' a real stop says why it stopped, and 'daily' keeps saying "later" (D10 review)
+            intro = T['limit_still_alt'] if prev_text.startswith(T['limit_still']) else T['limit_still']
+        elif kind == 'daily' and prev_limit.get('kind') == 'daily':
+            intro = T['limit_daily_alt'] if prev_text.startswith(T['limit_daily']) else T['limit_daily']
+        else:
+            intro = T[f'limit_{kind}']
+        from ..intake import conversation_agent as agent
+        if not agent.enabled():
+            # the questionnaire accounts (no agent): the model stops, the cards go on -- a button answer is free
+            turn.reply = re.sub(r'\n +', '\n', ' '.join(x for x in [intro, *parts] if x)).strip()
+            turn.interpretation = {**(turn.interpretation or {}), 'limit': {'kind': kind,
+                                                                           'source': limit.get('source', 'reserve')}}
+            return turn
+        turn.questions, turn.asked_in_words = [], []
+        ready = any(a.get('type') in ('approve_spec', 'show_plan') for a in turn.actions)
+        if ready:
+            lines = [intro, T['limit_ready'], *parts]
+        else:
+            turn.actions = [a for a in turn.actions if a.get('type') != 'approve_spec']
+            names = [_short(f, lang) for f in (row.brief.open_material or ()) if f in d.BY_ID] if row is not None else []
+            # what was recorded, what was updated (D10 review: a change made at the limit is told), what blocks
+            got = [x for x in parts if x.startswith((T['got'], T['corrected'], T['blocked']))]
+            lines = [intro, *got, T['limit_incomplete'].format(missing=', '.join(names[:4])) if names
+                     else T['limit_incomplete_any']]
+            # D10 review (confirmed): the spec tab edits only answered fields and, with no card, a typed answer is
+            # read only against a question that was asked -- so naming the gaps alone was a dead end. One open
+            # question the words can answer is asked here and recorded as asked; the next typed message is read
+            # against it by words, with no model and no cost.
+            ask = self._free_question(row)
+            if ask is not None:
+                lines += [T['limit_ask'], agent.asked_in_words(ask, lang)]
+                turn.asked_in_words = [ask.id]
+            elif names:
+                lines.append(T['limit_incomplete_any'])
+            if row is not None and not any(a.get('type') == 'edit_requirements' for a in turn.actions):
+                turn.actions.append({'type': 'edit_requirements', 'brief_revision': row.revision})
+        turn.reply = re.sub(r'\n +', '\n', ' '.join(x for x in lines if x)).strip()
+        turn.interpretation = {**(turn.interpretation or {}), 'limit': {'kind': kind,
+                                                                       'source': limit.get('source', 'reserve')}}
+        logging.getLogger(__name__).info('INTAKE_CONVERSATION_STOPPED project=%s kind=%s source=%s ready=%s',
+                                         project_id, kind, limit.get('source'), ready)
+        return turn
+
+    @staticmethod
+    def _free_question(row):
+        """The first open field whose answer a typed message can give without a model (a choice question with words),
+        or None."""
+        from ..intake import conversation_agent as agent
+        if row is None:
+            return None
+        images = {x.id for x in d.IMAGE_QUESTIONS}
+        for f in row.brief.open_material or ():
+            q = d.BY_ID.get(f)
+            if q is not None and q.kind == 'choice' and q.id not in images and agent.WORDS.get(q.id):
+                return q
+        return None
 
     def _not_repeated(self, project_id, turn, T) -> str:
         """Warehouse 113: the assistant never sends the same message twice in a row. When nothing moved, it says so in

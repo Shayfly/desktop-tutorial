@@ -2154,6 +2154,8 @@ def _conversation_message_status(message: dict) -> str:
     interpretation = message.get('interpretation') or {}
     lane = (interpretation.get('lane') or {}).get('lane')
     interpreter = str(message.get('interpreter') or '')
+    if interpretation.get('limit'):
+        return 'limit'           # the conversation stopped at a limit and says so; not "built from fixed rules"
     if interpreter.startswith(('model:', 'model+')):
         return 'model'
     if lane in ('standard', 'escalated'):
