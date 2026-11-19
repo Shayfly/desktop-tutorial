@@ -293,11 +293,12 @@ def scopes_for(account_id: str, project_id: str, lane: str, campaign_id: str | N
 
 # The turn cap counts only reservations made under it (quote.turn_cap): a project's earlier turns (before the cap
 # existed) never close it on the first day. A SETTLED call the provider never received (contacted=false in the settle
-# event: a model list or price refusal before the request) and a RELEASED one are not turns.
+# event: a model list or price refusal before the request) and a RELEASED one are not turns. A call still EXECUTING is
+# in flight: it may yet settle as not contacted, so a message sent meanwhile reads 'busy', never 'turns' (D10 review).
 _TURNS = """
-SELECT count(*) FILTER (WHERE r.state IN ('EXECUTING', 'UNKNOWN')
+SELECT count(*) FILTER (WHERE r.state = 'UNKNOWN'
                            OR (r.state = 'SETTLED' AND COALESCE(e.contacted, 'true') <> 'false')),
-       count(*) FILTER (WHERE r.state IN ('RESERVED', 'CLAIMED'))
+       count(*) FILTER (WHERE r.state IN ('RESERVED', 'CLAIMED', 'EXECUTING'))
 FROM intake_reservation_scopes s JOIN intake_reservations r ON r.id = s.reservation_id
 LEFT JOIN LATERAL (SELECT ev.detail->>'contacted' AS contacted FROM intake_reservation_events ev
                    WHERE ev.reservation_id = r.id AND ev.from_state = 'EXECUTING' ORDER BY ev.id DESC LIMIT 1) e ON true
@@ -366,12 +367,25 @@ class ReservationService:
         with self.pool.connection() as conn, conn.cursor() as cur:
             cur.execute(_USAGE, (scope,))
             turns, settled, held, unknown, open_, tin, tout, untokened, models = cur.fetchone()
+            cur.execute(_TURNS, (scope,))
+            cap_used, cap_inflight = (int(x) for x in cur.fetchone())
         settled, held = Decimal(settled), Decimal(held)
+        untokened = int(untokened)
+        # D10 review: a call the provider received without reporting tokens makes the token totals unknown (None),
+        # never a sum that silently counts it as 0 -- as an unknown cost makes the cost total None
         return {'turns': int(turns), 'settled_usd': str(settled), 'held_usd': str(held),
                 'counted_usd': str(settled + held), 'unknown_calls': int(unknown), 'open_calls': int(open_),
                 'actual_total_usd': str(settled) if not unknown and not open_ else None,
-                'input_tokens': int(tin), 'output_tokens': int(tout), 'calls_without_tokens': int(untokened),
-                'models': sorted(models or ())}
+                'input_tokens': None if untokened else int(tin), 'output_tokens': None if untokened else int(tout),
+                'calls_without_tokens': untokened, 'models': sorted(models or ()),
+                # what the turn cap itself counts (reservations made under it), next to max_turns
+                'cap_turns_used': cap_used, 'cap_turns_in_flight': cap_inflight}
+
+    def open_held(self, scope: str) -> Decimal:
+        """The quotes still held by calls in flight (RESERVED, CLAIMED, EXECUTING) on this scope."""
+        with self.pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(_OPEN_HELD, (scope,))
+            return Decimal(cur.fetchone()[0])
 
     def counted(self, scope: str, cur=None) -> Decimal:
         def run(c):

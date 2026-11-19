@@ -131,7 +131,17 @@ def select_model(models: list[VeniceModel], *, needs_tools: bool = False, prefer
             # the conversation agent's profile (owner 2026-11-18, decision 10): the first listed model Venice offers
             # within the ceiling wins -- Sonnet, and Haiku only when Sonnet is not offered -- chosen before any request
             by_id = {m.id: m for m in pool}
-            return next(by_id[i] for i in allowed if i in by_id)
+            chosen = next(by_id[i] for i in allowed if i in by_id)
+            if chosen.id != allowed[0]:
+                # D10 review: never silent -- the first choice is not offered within the ceiling (a price change, or
+                # Venice stopped listing it), so the next one answers; the reason is in the log, the model on the call
+                import logging
+                listed = {m.id: m for m in priced}.get(allowed[0])
+                why = ('not offered with a price within the ceiling' if listed is None else
+                       f'offered at {listed.input_usd_per_m},{listed.output_usd_per_m} per M, privacy {listed.privacy}')
+                logging.getLogger(__name__).warning('VENICE_PREFERRED_MODEL_UNAVAILABLE preferred=%s chosen=%s reason=%s',
+                                                    allowed[0], chosen.id, why)
+            return chosen
         return min(pool, key=lambda m: (m.input_usd_per_m + m.output_usd_per_m, m.id))
     private = [m for m in priced if m.privacy == 'private']
     if needs_tools:

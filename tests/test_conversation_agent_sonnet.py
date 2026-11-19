@@ -180,3 +180,28 @@ class TheBuilderStaysOnItsModel(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TheRehearsalSaysWhyACallFailed(unittest.TestCase):
+    """Run 44445874611 (2026-11-19): 9 of 10 agent calls failed and the rehearsal printed only "model call failed".
+    Each failed call's reason is now kept on the gateway and printed, with keys masked."""
+
+    def test_a_failed_call_is_recorded_with_its_reason_and_keys_masked(self):
+        class Refusing(Venice):
+            def __call__(self, method, url, headers, body, timeout):
+                if method == 'POST':
+                    raise RuntimeError('HTTP 429 rate limited for key vn-abcdefghijklmnop')
+                return super().__call__(method, url, headers, body, timeout)
+        g = R.ProductionPathGateway(R.agent_quote(TheRehearsalMeasuresTheAgent.PROD), cap_usd=Decimal('0.15'),
+                                    max_turns=8)
+        venice = Refusing(models('claude-sonnet-5-5', 'claude-haiku-5-5'))
+        real = V.VeniceIntakeGateway
+        with mock.patch.dict(os.environ, KEY), \
+                mock.patch.object(V, 'VeniceIntakeGateway', lambda q, **kw: real(q, env=KEY, transport=venice, **kw)):
+            it = ModelInterpreter(g).interpret('אתר לחנות פרחים בחיפה')
+        self.assertTrue(it.interpreter.startswith('deterministic'), it.interpreter)
+        self.assertEqual(len(g.call_errors), 1)
+        self.assertIn('429 rate limited', g.call_errors[0])
+        self.assertNotIn('abcdefghijklmnop', g.call_errors[0])
+        g.reset()
+        self.assertEqual(g.call_errors, [])

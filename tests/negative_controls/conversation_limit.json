@@ -36,8 +36,8 @@
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
-     "old": "        if (carried and carried.get('kind') in ('budget', 'turns', 'daily') and interp is not None\n",
-     "new": "        if (False and carried and interp is not None  # NEGATIVE CONTROL\n"
+     "old": "        if carried and carried.get('kind') == 'daily':      # a pause carries to the very next message only\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
@@ -53,7 +53,7 @@
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
-     "old": "            intro = T['limit_still_alt'] if (prev.get('content') or '').startswith(T['limit_still']) else T['limit_still']\n",
+     "old": "            intro = T['limit_still_alt'] if prev_text.startswith(T['limit_still']) else T['limit_still']\n",
      "new": "            intro = T['limit_still']  # NEGATIVE CONTROL\n"
     }
    ],
@@ -189,8 +189,8 @@
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
-     "old": "        closed = self._closed(project_id)\n",
-     "new": "        closed = None  # NEGATIVE CONTROL\n"
+     "old": "        closed = self._closed(project_id)\n        if message:\n",
+     "new": "        closed = None  # NEGATIVE CONTROL\n        if message:\n"
     }
    ],
    "targets": [
