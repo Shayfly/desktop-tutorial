@@ -1,0 +1,29 @@
+{
+ "pr": "daily-cap-test",
+ "sha256": [
+  "tests/test_intake_budget_pg.py",
+  "omni_prod/intake/budget.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "reserve() skips the daily scope's dollar cap: 50 concurrent turns all reserve",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "                    if used + amount > cap:\n",
+     "new": "                    if scope != DAILY_SCOPE and used + amount > cap:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_intake_budget_pg.py::EndToEndTests::test_50_concurrent_turns_never_exceed_the_daily_cap"
+   ],
+   "expect_failed": [
+    "test_50_concurrent_turns_never_exceed_the_daily_cap"
+   ]
+  }
+ ]
+}

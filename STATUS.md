@@ -1,3 +1,17 @@
+# 2026-11-19 — the concurrent daily-cap test counted calls, not dollars (Claude Code)
+
+- **What broke:** intake-budget-pg on #463 (run 44484532008): `test_50_concurrent_turns_never_exceed_the_daily_cap`
+  "6 not less than or equal to 5", while `counted(daily) <= cap` passed. Not the PR's diff (a CI script).
+- **Root cause (the test's, not the cap's):** the cap is dollars. A call settles at its actual cost, far below its quote
+  ($0.000525 vs $0.007374), and frees the difference; a turn that reserves after one settlement fits a 6th call under
+  the same cap. Proof on local PostgreSQL 16: the 50 turns run one at a time reserved 50, counted $0.02625 of a $0.03687
+  cap. The count bound held only when no call settled before the last reserve -- a timing condition.
+- **Fix:** the test's provider reports each call's cost as exactly its quote, so no settlement frees headroom and at most
+  five calls fit; the dollar assertion is unchanged. Same experiment one at a time: 4 reserved.
+- **Evidence:** the test 25 of 25 passed concurrently; `test_intake_budget_pg.py` + `test_conversation_turn_cap_pg.py`
+  35 passed on local PostgreSQL (1 skipped: it needs Redis, not here); control `daily_cap_test` 1/1 (envs pg: reserve() without the daily scope's cap -> the
+  test fails).
+
 # 2026-11-19 — the worker tells the generator what the gates check; it never did (Claude Code)
 
 - **What broke:** SHARE failed all five production builds of 2026-11-17 (no og:title / og:description). **Root cause,
