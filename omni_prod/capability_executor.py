@@ -450,6 +450,14 @@ class CapabilityExecutor:
                     raise CapabilityExecutionError(f"no provider assignment for required capability {requirement.key}")
                 continue
 
+            selected = row.get("selected_provider")
+            if row["status"] in {"QUOTED", "RUNNING"} and selected and selected != assignment.provider:
+                # A lost response can leave a paid request in flight. Resume
+                # its recorded provider, even if deployment defaults changed.
+                raise CapabilityExecutionError(
+                    f"provider assignment changed for {requirement.id}; resume with the recorded provider"
+                )
+
             if row["status"] == "PLANNED":
                 if not self._transition_requirement(
                     build_id=build_id,

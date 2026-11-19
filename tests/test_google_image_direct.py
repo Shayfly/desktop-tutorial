@@ -8,6 +8,7 @@ import pytest
 from PIL import Image
 
 from omni_prod.capabilities import CapabilityRequirement, CapabilityPlan
+from omni_prod.capability_executor import CapabilityExecutionError
 from omni_prod.capability_repository import MemoryCapabilityRepository
 from omni_prod.memory_adapters import MemoryArtifactStore
 from omni_prod.providers.image_provider import (build_image_provider, build_image_capability_stage,
@@ -205,9 +206,38 @@ def test_executor_retry_after_lost_response_preserves_paid_attempt(changed):
 
     with pytest.raises(TimeoutError):
         execute(ENV, 'first', 100)
-    with pytest.raises(ValueError, match='execution idempotency key identity conflict'):
+    with pytest.raises((ValueError, CapabilityExecutionError),
+                       match='execution idempotency key identity conflict|provider assignment changed'):
         execute({**ENV, **changed}, 'replacement', 10000)
     post.assert_called_once()
     original_quote = build_image_quote_resolver(ENV)(plan)[REQ.id].quote
     assert repository.requirements(build_id='b1')[0]['pricing_version'] == original_quote.pricing_version
     assert repository.usage_for_build(build_id='b1') == []
+
+
+@pytest.mark.parametrize('first,second', [('google', 'replicate'), ('replicate', 'google')])
+def test_lost_response_cannot_dispatch_to_a_replacement_provider(first, second):
+    journal, store, repository = DurableTestJournal(), MemoryArtifactStore(), MemoryCapabilityRepository()
+    plan = CapabilityPlan((REQ,), ('media.image.generate',))
+    repository.create_plan(build_id='b1', plan=plan)
+    post = mock.Mock(side_effect=TimeoutError('response lost after submit'))
+    envs = {
+        'google': ENV,
+        'replicate': {'REPLICATE_API_TOKEN': 'test-token', 'OMNI_ZERO_COST_MODE': '0',
+                      'OMNI_ALLOW_EXTERNAL_FALLBACK': '1'},
+    }
+
+    def execute(name, now):
+        env = envs[name]
+        stage = build_image_capability_stage(env=env, repository=repository, artifact_store=store,
+                                            journal=journal, worker_id=name, urlopen=post)
+        return stage.executor.execute_plan(build_id='b1', project_id='p1', plan=plan,
+                                           assignments=build_image_quote_resolver(env)(plan), now=now)
+
+    with pytest.raises(TimeoutError):
+        execute(first, 100)
+    initial_provider = repository.requirements(build_id='b1')[0]['selected_provider']
+    with pytest.raises(CapabilityExecutionError, match='provider assignment changed'):
+        execute(second, 10000)
+    assert repository.requirements(build_id='b1')[0]['selected_provider'] == initial_provider
+    post.assert_called_once()

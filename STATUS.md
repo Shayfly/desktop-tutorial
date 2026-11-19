@@ -4030,5 +4030,5 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 ## 2026-11-19 — Direct model enrollment negative controls (Codex)
 
-- PR #453 adds seven missing assertions. The targeted suite passed 95 tests with 1 skip. All 11 specified mutations were caught by the repository runner.
-- A pending direct image operation retains its identity when configuration changes. Production activation and independent review of the new head are pending.
+- PR #453 adds seven missing assertions. The requested 11 controls plus a provider-switch control exercise the real execution paths.
+- A pending image operation retains its identity across changes to price and cannot be submitted to a different provider after a lost response. Production activation and independent review of the new head are pending.

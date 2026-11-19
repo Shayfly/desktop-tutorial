@@ -193,6 +193,24 @@
       "expect_failed": [
         "test_reject_insecure_image_price_source_in_factory"
       ]
+    },
+    {
+      "id": "M13",
+      "what": "An in-flight image operation can switch providers and submit twice.",
+      "mutations": [
+        {
+          "file": "omni_prod/capability_executor.py",
+          "old": "            if row[\"status\"] in {\"QUOTED\", \"RUNNING\"} and selected and selected != assignment.provider:",
+          "new": "            if False:  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_google_image_direct.py::test_lost_response_cannot_dispatch_to_a_replacement_provider"
+      ],
+      "expect_failed": [
+        "test_lost_response_cannot_dispatch_to_a_replacement_provider[google-replicate]",
+        "test_lost_response_cannot_dispatch_to_a_replacement_provider[replicate-google]"
+      ]
     }
   ]
 }
