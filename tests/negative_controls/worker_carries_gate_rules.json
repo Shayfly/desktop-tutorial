@@ -1,0 +1,64 @@
+{
+ "pr": "worker-carries-gate-rules",
+ "sha256": [
+  "tests/test_worker_carries_gate_rules.py",
+  "omni_prod/worker_tasks.py",
+  "omni_prod/skill_units/gate.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the worker installs the gates and never carries their checks (production before this fix)",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        carry_rules(engine, WORKER_GATES)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_worker_carries_gate_rules.py"
+   ],
+   "expect_failed": [
+    "test_the_spec_a_worker_build_starts_from_names_the_share_check",
+    "test_every_gate_the_worker_installs_is_in_the_rules",
+    "test_the_rules_are_carried_after_the_last_gate_and_before_the_build"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the rules wrap the outer engine's architect only, not the core's that builds",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "    for holder in (core, engine):\n        architect = getattr(holder, 'architect', None)\n        if architect is not None and not isinstance(architect, GateRulesArchitect):\n            holder.architect = GateRulesArchitect(architect, gates)",
+     "new": "    for holder in (engine,):\n        architect = getattr(holder, 'architect', None)\n        if architect is not None and not isinstance(architect, GateRulesArchitect):\n            holder.architect = GateRulesArchitect(architect, gates)"
+    }
+   ],
+   "targets": [
+    "tests/test_worker_carries_gate_rules.py"
+   ],
+   "expect_failed": [
+    "test_the_spec_a_worker_build_starts_from_names_the_share_check",
+    "test_every_gate_the_worker_installs_is_in_the_rules"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the share check's own text no longer names og:title",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/share_meta/manifest.json",
+     "old": "shows a title and a description (og:title, og:description).",
+     "new": "shows a title and a description."
+    }
+   ],
+   "targets": [
+    "tests/test_worker_carries_gate_rules.py"
+   ],
+   "expect_failed": [
+    "test_the_spec_a_worker_build_starts_from_names_the_share_check"
+   ]
+  }
+ ]
+}
