@@ -170,6 +170,8 @@ _TXT = {
            'limit_turns': 'הגענו למספר התורות המרבי של השיחה עם הסוכן, ולכן הוא לא ממשיך בשיחה החופשית. מה שכתבתם נשמר.',
            'limit_daily': 'הסוכן הגיע לתקרת השימוש היומית ויחזור לענות בהמשך. מה שכתבתם נשמר.',
            'limit_busy': 'הסוכן עדיין עונה על ההודעה הקודמת. מה שכתבתם נשמר — שלחו שוב בעוד רגע.',
+           'limit_busy_alt': 'התשובה הקודמת עוד בדרך. ההודעה שלכם נשמרה — נסו שוב בעוד רגע.',
+           'limit_daily_alt': 'הסוכן עדיין בהפסקה היומית ויחזור לענות בהמשך. גם ההודעה הזאת נשמרה.',
            'limit_ready': 'הנה הסיכום — אפשר לאשר אותו או לתקן:',
            'limit_incomplete': 'עוד חסר: {missing}.',
            'limit_incomplete_any': 'כדי להתקדם, השלימו את המפרט בלשונית המפרט ואשרו משם.',
@@ -230,6 +232,8 @@ _TXT = {
            'limit_turns': 'This conversation reached its maximum number of turns, so the assistant stops the open conversation here. What you wrote is saved.',
            'limit_daily': 'The assistant reached its daily usage limit and will answer again later. What you wrote is saved.',
            'limit_busy': 'The assistant is still answering your previous message. What you wrote is saved; send it again in a moment.',
+           'limit_busy_alt': 'The previous answer is still on its way. Your message is saved; try again in a moment.',
+           'limit_daily_alt': 'The assistant is still on its daily pause and will answer again later. This message is saved too.',
            'limit_ready': 'Here is the summary; you can approve it or correct it:',
            'limit_incomplete': 'Still missing: {missing}.',
            'limit_incomplete_any': 'To go on, complete the specification in the specification tab and approve it there.',
@@ -455,8 +459,13 @@ class ConversationSupervisor:
 
         def spend():
             if self.reservations is not None and account_id:
-                return (self.reservations.counted(f'project:{account_id}:{project_id}'),
-                        self.reservations.counted(B.DAILY_SCOPE))
+                # D10 review: counted() includes quotes still held by calls in flight. A hold is not spend yet --
+                # the call may settle far lower -- so the pre-check leaves it to reserve(), which tells 'busy' from
+                # 'budget' under the scope locks; otherwise a held quote closed the conversation for good.
+                pscope = f'project:{account_id}:{project_id}'
+                held = getattr(self.reservations, 'open_held', None)
+                project = self.reservations.counted(pscope) - (held(pscope) if held else 0)
+                return project, self.reservations.counted(B.DAILY_SCOPE)
             return self.store.conversation_cost(project_id), self.store.daily_cost()
         worker_route_available = self.worker_interpreter is not None or (
             self.reservations is not None and self.enqueue is not None)
@@ -1219,7 +1228,7 @@ class ConversationSupervisor:
                 # and loses any sentence that asks (it asked the same field in its own words, then the card again)
                 turn.reply = _no_question(turn.reply) or T['ask_one']
                 turn.questions = [held]
-        elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers:
+        elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers and interp is not None:
             # the model is configured but did not answer in time: say so; never pass the questionnaire off as it
             turn.reply, turn.questions = T['model_unavailable'], []
         self._card_limit(project_id, account_id, turn, lang, T, request_key)
@@ -1268,19 +1277,34 @@ class ConversationSupervisor:
             return dict(limit)
         if answers:
             return None
+        if interp is None or str(getattr(interp, 'interpreter', '')).startswith('model') or \
+                getattr(interp, 'reservation_id', None):
+            # a paid call ran (its reply may be late): its own outcome stands, never a carried 'daily' (D10 review)
+            return None
+        closed = self._closed(project_id)
+        if closed:
+            return {'kind': closed, 'source': 'carried'}
         prev = self._last_assistant(project_id)
         carried = ((prev or {}).get('interpretation') or {}).get('limit')
-        if (carried and carried.get('kind') in ('budget', 'turns', 'daily') and interp is not None
-                and not str(getattr(interp, 'interpreter', '')).startswith('model')):     # 'busy' passes by itself
-            return {'kind': carried.get('kind', 'budget'), 'source': 'carried'}
+        if carried and carried.get('kind') == 'daily':      # a pause carries to the very next message only
+            return {'kind': 'daily', 'source': 'carried'}
         return None
 
     def _closed(self, project_id) -> str | None:
-        """'budget' or 'turns' when the conversation was closed at that limit (the last closing reply says so); 'daily'
-        and 'busy' pass by themselves and close nothing."""
-        prev = self._last_assistant(project_id)
-        kind = (((prev or {}).get('interpretation') or {}).get('limit') or {}).get('kind')
-        return kind if kind in ('budget', 'turns') else None
+        """'budget' or 'turns' when the conversation was closed at that limit; 'daily' and 'busy' pass by themselves and
+        close nothing. D10 review: read from the last assistant message that CARRIES a limit, not the last message --
+        a button answer, an intent reply or an image turn in between stores none and used to reopen the paid path."""
+        try:
+            msgs = self.store.messages_for(project_id, limit=200)
+        except Exception:
+            return None
+        for m in reversed(msgs):
+            if m.get('role') != 'assistant':
+                continue
+            kind = (((m.get('interpretation') or {}).get('limit')) or {}).get('kind')
+            if kind:
+                return kind if kind in ('budget', 'turns') else None
+        return None
 
     def _last_assistant(self, project_id) -> dict | None:
         try:
@@ -1294,19 +1318,30 @@ class ConversationSupervisor:
         says why the assistant stopped, keeps what this message recorded, and leads to the way on -- the summary with
         its approval when the spec is ready (gate 1, built above at no model cost), else the specification tab."""
         kind = limit.get('kind') if limit.get('kind') in ('budget', 'turns', 'daily', 'busy') else 'budget'
+        prev = self._last_assistant(project_id)
+        prev_limit = ((prev or {}).get('interpretation') or {}).get('limit') or {}
+        prev_text = (prev or {}).get('content') or ''
         if kind == 'busy':
-            # the turn cap is reached only by calls still in flight: not a closing, the next message may go through
+            # the turn cap is reached only by calls still in flight: not a closing, the next message may go through.
+            # Two in a row never repeat (warehouse 113), and a turn that completed the spec keeps its summary and
+            # the gate-1 approval it offers (D10 review: the approve button came without the summary or the cost).
             turn.questions, turn.asked_in_words = [], []
-            got = [x for x in parts if x.startswith(T['got'])]
-            turn.reply = ' '.join([T['limit_busy'], *got]).strip()
+            intro = T['limit_busy_alt'] if prev_text.startswith(T['limit_busy']) else T['limit_busy']
+            if any(a.get('type') in ('approve_spec', 'show_plan') for a in turn.actions):
+                turn.reply = re.sub(r'\n +', '\n', ' '.join(x for x in [intro, *parts] if x)).strip()
+            else:
+                got = [x for x in parts if x.startswith((T['got'], T['corrected']))]
+                turn.reply = ' '.join([intro, *got]).strip()
             turn.interpretation = {**(turn.interpretation or {}), 'limit': {'kind': 'busy',
                                                                            'source': limit.get('source', 'reserve')}}
             return turn
-        prev = self._last_assistant(project_id)
-        prev_limit = ((prev or {}).get('interpretation') or {}).get('limit')
-        if prev_limit:
-            # warehouse 113: never the same message twice in a row -- the follow-up wording alternates
-            intro = T['limit_still_alt'] if (prev.get('content') or '').startswith(T['limit_still']) else T['limit_still']
+        closing = ('budget', 'turns')
+        if kind in closing and prev_limit.get('kind') in closing:
+            # warehouse 113: never the same message twice in a row -- the follow-up wording alternates. Only after a
+            # closing: after 'busy' a real stop says why it stopped, and 'daily' keeps saying "later" (D10 review)
+            intro = T['limit_still_alt'] if prev_text.startswith(T['limit_still']) else T['limit_still']
+        elif kind == 'daily' and prev_limit.get('kind') == 'daily':
+            intro = T['limit_daily_alt'] if prev_text.startswith(T['limit_daily']) else T['limit_daily']
         else:
             intro = T[f'limit_{kind}']
         from ..intake import conversation_agent as agent
@@ -1323,7 +1358,8 @@ class ConversationSupervisor:
         else:
             turn.actions = [a for a in turn.actions if a.get('type') != 'approve_spec']
             names = [_short(f, lang) for f in (row.brief.open_material or ()) if f in d.BY_ID] if row is not None else []
-            got = [x for x in parts if x.startswith((T['got'], T['blocked']))]   # what was recorded, what blocks
+            # what was recorded, what was updated (D10 review: a change made at the limit is told), what blocks
+            got = [x for x in parts if x.startswith((T['got'], T['corrected'], T['blocked']))]
             lines = [intro, *got, T['limit_incomplete'].format(missing=', '.join(names[:4])) if names
                      else T['limit_incomplete_any']]
             # D10 review (confirmed): the spec tab edits only answered fields and, with no card, a typed answer is
