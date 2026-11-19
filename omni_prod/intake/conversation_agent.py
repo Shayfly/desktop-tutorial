@@ -45,6 +45,28 @@ def venice_profile() -> dict:
     """The agent's Venice profile, as budget.quote takes it."""
     from decimal import Decimal
     return {'models': VENICE_MODELS, 'ceiling': tuple(Decimal(x) for x in VENICE_CEILING_USD_PER_M), 'select': 'order'}
+
+
+# The owner, 2026-11-19: measure cheap Venice models for the conversation agent before choosing one ("a model inside
+# Venice that is free or very cheap and good at understanding the customer"). REHEARSAL ONLY: production quotes with
+# venice_profile() above, and a change of the agent's model stays the owner's decision. One model per candidate, its
+# ceiling = its list price on Venice's pricing page (docs/venice_prices_snapshot.md, read 2026-10-19): if Venice now
+# asks more, select_model refuses it before any request -- loud, never a pricier call.
+CANDIDATES = {
+    'deepseek-v4-flash': ('0.14', '0.28'),
+    'openai-gpt-oss-120b': ('0.07', '0.30'),
+    'qwen3-235b-a22b-instruct-2507': ('0.15', '0.75'),
+    'openai-gpt-6-luna': ('0.10', '0.50'),
+    'claude-haiku-5-5': ('0.10', '0.50'),
+}
+
+
+def candidate_profile(model: str) -> dict:
+    """One candidate's Venice profile for a rehearsal. An unknown name raises: never a free-typed model or price."""
+    from decimal import Decimal
+    if model not in CANDIDATES:
+        raise ValueError(f'unknown candidate {model!r}; known: {sorted(CANDIDATES)}')
+    return {'models': (model,), 'ceiling': tuple(Decimal(x) for x in CANDIDATES[model]), 'select': 'order'}
 # The owner, 2026-11-17: the flag is per account -- the agent runs for the listed accounts only, everyone else keeps
 # the conversation as it was, one environment change away. Production is not the laboratory.
 _ACCOUNT: contextvars.ContextVar = contextvars.ContextVar('conversation_agent_account', default=None)

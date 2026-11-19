@@ -15,6 +15,10 @@ on:
         description: "production = the intake worker's gateway from the newest production quote (default); routed = the old path"
         required: false
         default: production
+      candidate:
+        description: "agent path only: one candidate model to measure (empty = the agent's own profile): deepseek-v4-flash openai-gpt-oss-120b qwen3-235b-a22b-instruct-2507 openai-gpt-6-luna claude-haiku-5-5"
+        required: false
+        default: ""
 
 concurrency:
   group: conversation-rehearsal
@@ -31,10 +35,11 @@ jobs:
         env:
           SCENARIOS: ${{ inputs.scenarios }}
           REHEARSAL_PATH: ${{ inputs.path || 'production' }}
+          REHEARSAL_CANDIDATE: ${{ inputs.candidate }}
         run: |
           set +e
           set -uo pipefail
-          docker compose run --rm --no-deps -T -e OMNI_EXTERNAL_BUDGET_USD=0.40 -e OMNI_EXTERNAL_CALLS_PER_BUILD=60 -e SCENARIOS="$SCENARIOS" -e REHEARSAL_PATH="$REHEARSAL_PATH" worker \
+          docker compose run --rm --no-deps -T -e OMNI_EXTERNAL_BUDGET_USD=0.40 -e OMNI_EXTERNAL_CALLS_PER_BUILD=60 -e SCENARIOS="$SCENARIOS" -e REHEARSAL_PATH="$REHEARSAL_PATH" -e REHEARSAL_CANDIDATE="$REHEARSAL_CANDIDATE" worker \
             python -c 'import os, sys; from omni_prod.conversation_rehearsal import main; sys.exit(main(os.environ.get("SCENARIOS", "").split()))' 2>&1 \
             | sed -E 's/(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{16,}/[redacted]/g' > "$RUNNER_TEMP/conversation.out"
           rc=${PIPESTATUS[0]}

@@ -8,6 +8,17 @@
   (a modification once a version exists).
 - **Evidence:** `tests/test_long_request_is_not_a_question.py` 4 passed on the production message, through the real
   supervisor (the interpreter is called once); 3 fail without the fix; controls `intent_long` 2/2.
+# 2026-11-19 — the rehearsal measures one cheap Venice model at a time (Claude Code)
+
+- **Why (the owner, 2026-11-19):** choose the conversation agent's model by measurement, among cheap Venice models, with
+  the owner. Production is unchanged: it quotes with `conversation_agent.venice_profile()` (Sonnet, then Haiku).
+- **What:** `conversation_agent.CANDIDATES` -- deepseek-v4-flash, openai-gpt-oss-120b, qwen3-235b-a22b-instruct-2507,
+  openai-gpt-6-luna, claude-haiku-5-5 -- each at its list price (docs/venice_prices_snapshot.md, 2026-10-19) as its
+  ceiling. The workflow input `candidate` (agent path only) quotes the rehearsal with that one model; an unknown name
+  raises, another path refuses it, and a model Venice now prices above the ceiling is refused before any request.
+- **Evidence:** `tests/test_conversation_model_candidates.py` 11 passed on the real build_gateway / VeniceIntakeGateway /
+  select_model (Venice HTTP faked), 5 failed without the change; controls `model_candidates` 3/3.
+- **Not yet measured:** nothing about quality or cost -- that is the rehearsal runs, after the release.
 
 # 2026-11-19 — the concurrent daily-cap test counted calls, not dollars (Claude Code)
 
