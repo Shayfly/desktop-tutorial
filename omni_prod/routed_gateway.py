@@ -11,7 +11,8 @@ from .model_gateway import (ModelEndpoint, OpenAICompatibleGateway, ModelGateway
 from .model_policy import ModelUsePolicy, ModelUseState, authorize_model_call
 from .provider_usage import ProviderUsageLedger
 from .model_router import RoutingPolicy, estimated_cost
-from .attempt_ledger import AttemptLedgerUnavailable, AttemptRecord, AttemptRecorder, content_version, metered_cost
+from .attempt_ledger import (AttemptLedgerUnavailable, AttemptRecord, AttemptRecorder, content_version, metered_cost,
+                             new_call_id)
 import os
 
 
@@ -44,6 +45,7 @@ class RouteEvent:
     call: str = ''
     max_estimated_cost_usd: str = ''
     reason: str = ''
+    call_id: str = ''      # the logical call this event belongs to (same id as its AttemptRecords)
 
 
 class RoutedModelGateway:
@@ -56,6 +58,9 @@ class RoutedModelGateway:
     """
 
     accepts_task_tag = True
+    # complete/complete_json take `call_id`: every attempt and route event of that call carries it, so a caller can
+    # price ONE call from a ledger that keeps the whole run (reservation_worker.meter; owner 2026-11-18).
+    accepts_call_id = True
 
     def __init__(
         self,
@@ -215,7 +220,10 @@ class RoutedModelGateway:
         return 'error'
 
     def _attempt(self, route: ProviderRoute, method: str, kwargs: dict, reason: str = '', *,
-                 task: str = 'general', option=None, rank: int | None = None, candidate_set=None):
+                 task: str = 'general', option=None, rank: int | None = None, candidate_set=None,
+                 call_id: str = ''):
+        if not call_id:
+            raise ValueError('an attempt without a call id cannot be priced per call')
         authorize_model_call(
             endpoint=route.endpoint,
             policy=self.policy,
@@ -231,7 +239,7 @@ class RoutedModelGateway:
             prompt_version=content_version('prompt', kwargs.get('system', '')),
             price_catalog_version=self.price_catalog_version if option is not None else None,
             selection_reason=reason, selected_candidate=route.endpoint.name, candidate_set=candidate_set,
-            fallback_rank=rank, authorized_cost_usd=route.max_estimated_cost_usd)
+            fallback_rank=rank, authorized_cost_usd=route.max_estimated_cost_usd, call_id=call_id)
         # Write-ahead: the attempt exists (outcome 'unknown', authorized worst
         # case) before the provider is contacted, and is flushed to the ledger.
         self.recorder.add(record)
@@ -279,7 +287,8 @@ class RoutedModelGateway:
                 self.rejected_json = (self.rejected_json + [entry])[-10:]
                 self.rejected_json_manifest.append({k: v for k, v in entry.items() if k != 'raw'})   # all, without raw
             self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, elapsed, str(exc)[:300],
-                                    request_id=getattr(usage, 'request_id', None), **self._decision(route, method, reason)))
+                                    request_id=getattr(usage, 'request_id', None), call_id=call_id,
+                                    **self._decision(route, method, reason)))
             if isinstance(exc, ModelGatewayError):
                 raise
             raise ModelGatewayError(f'{route.endpoint.name} failed: {exc}') from exc
@@ -293,7 +302,8 @@ class RoutedModelGateway:
             self.health.record_success(route.endpoint.name)
         self.models_by_task.setdefault(task or 'general', set()).add(route.endpoint.name)
         self._record(RouteEvent(route.endpoint.name, route.endpoint.external, True, elapsed,
-                                request_id=getattr(usage, 'request_id', None), **self._decision(route, method, reason)))
+                                request_id=getattr(usage, 'request_id', None), call_id=call_id,
+                                **self._decision(route, method, reason)))
         return value
 
     def _settle(self, route: ProviderRoute, record: AttemptRecord) -> None:
@@ -483,7 +493,10 @@ class RoutedModelGateway:
     # Called after a provider attempt is written ahead (worker: flush the ledger).
     on_attempt_start: Callable[[], None] | None = None
 
-    def _route(self, method: str, kwargs: dict, task: str = 'general', validate: Callable | None = None):
+    def _route(self, method: str, kwargs: dict, task: str = 'general', validate: Callable | None = None,
+               call_id: str | None = None):
+        # A caller that prices this call names it; any other caller (a build) gets a fresh id per call.
+        call_id = call_id or new_call_id()
         if self.before_call is not None:
             self.before_call(task)
         last_error: Exception | None = None
@@ -512,7 +525,7 @@ class RoutedModelGateway:
                 routes.append((route, kwargs, 'configured fallback', None))
         for route, why_not in refused:
             self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, 0,
-                                    f'not contacted: {why_not}'[:300],
+                                    f'not contacted: {why_not}'[:300], call_id=call_id,
                                     **self._decision(route, method, 'below the task quality floor')))
         if kwargs.get('images'):
             # 2026-11-15: a call with images goes only to a model with evidence that it reads them (vision_models).
@@ -522,7 +535,7 @@ class RoutedModelGateway:
             for route, *_ in blind:
                 self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, 0,
                                         'not contacted: no evidence this model reads images (vision_models)',
-                                        **self._decision(route, method, 'images need a vision model')))
+                                        call_id=call_id, **self._decision(route, method, 'images need a vision model')))
             if not routes:
                 raise ModelGatewayError('no vision-capable model route for a call with images (eligible: '
                                         + ', '.join(r[0].endpoint.model for r in blind) + '; none in vision_models)')
@@ -538,20 +551,26 @@ class RoutedModelGateway:
             name = route.endpoint.name
             if name in self.unavailable:
                 failures.append(f'{route.endpoint.model}: skipped ({self.unavailable[name]})')
+                # an event too (2026-11-18): a route closed by an earlier call of this gateway was skipped without one,
+                # so every later turn of a rehearsal could not say why the preferred model did not answer
+                self._record(RouteEvent(name, route.endpoint.external, False, 0,
+                                        f'skipped: {self.unavailable[name]}'[:300], call_id=call_id,
+                                        **self._decision(route, method, 'unavailable earlier in this run')))
                 continue
             if route.endpoint.external:
                 admitted, why_not = self.health.admit(name)
                 if not admitted:
                     self.unavailable[name] = why_not
                     failures.append(f'{route.endpoint.model}: skipped (provider health: {why_not})')
-                    self._record(RouteEvent(name, True, False, 0, f'skipped: {why_not}'[:300],
+                    self._record(RouteEvent(name, True, False, 0, f'skipped: {why_not}'[:300], call_id=call_id,
                                             **self._decision(route, method, 'circuit open')))
                     continue
             for retry in range(self.transient_retries + 1):
                 try:
                     result = self._attempt(route, method, call_kwargs,
                                            why if retry == 0 else f'{why}; transient retry #{retry}',
-                                           task=task, option=option, rank=rank, candidate_set=candidate_set)
+                                           task=task, option=option, rank=rank, candidate_set=candidate_set,
+                                           call_id=call_id)
                     if validate is not None:
                         # A well-formed answer that is unusable for the caller (e.g. code whose indentation was
                         # lost, bld_5b2e8f58) is a model-output failure like invalid JSON: escalate to the next
@@ -576,7 +595,8 @@ class RoutedModelGateway:
                                     return self._attempt(f_route, method, f_kwargs,
                                                          f'{why}; output allowance cut to {f_kwargs["max_tokens"]} tokens '
                                                          'to fit the remaining budget',
-                                                         task=task, option=option, rank=rank, candidate_set=candidate_set)
+                                                         task=task, option=option, rank=rank, candidate_set=candidate_set,
+                                                         call_id=call_id)
                                 except Exception as fitted_exc:
                                     last_error = fitted_exc
                                     if isinstance(fitted_exc, AttemptLedgerUnavailable):
@@ -623,19 +643,19 @@ class RoutedModelGateway:
         raise ModelGatewayError(f'all model routes failed: {detail}')
 
     def complete(self, *, system: str, user: str, temperature: float = 0.1, max_tokens: int = 4096,
-                 task: str = 'general') -> str:
+                 task: str = 'general', call_id: str | None = None) -> str:
         return self._route('complete', {
             'system': system,
             'user': user,
             'temperature': temperature,
             'max_tokens': max_tokens,
-        }, task)
+        }, task, call_id=call_id)
 
     def complete_json(self, *, system: str, user: str, max_tokens: int = 4096, task: str = 'general',
-                      validate: Callable | None = None, images: tuple = ()) -> dict:
+                      validate: Callable | None = None, images: tuple = (), call_id: str | None = None) -> dict:
         return self._route('complete_json', {
             'system': system,
             'user': user,
             'max_tokens': max_tokens,
             **({'images': tuple(images)} if images else {}),
-        }, task, validate=validate)
+        }, task, validate=validate, call_id=call_id)

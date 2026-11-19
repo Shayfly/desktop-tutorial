@@ -311,6 +311,11 @@ jobs:
       - name: Install Chromium (bounded attempts, retried)
         timeout-minutes: 9
         run: |
+          # 2026-11-18 (#449, run 44259745208): attempt 1 hit its bound on a slow apt mirror (117 kB/s), but its
+          # apt-get child lived on and kept the dpkg lock, so attempts 2 and 3 failed at once on "Could not get
+          # lock /var/lib/dpkg/lock-frontend". apt now WAITS for the lock (bounded, inside one attempt) instead of
+          # failing, so a retry picks up after the stalled install instead of dying on its lock.
+          echo 'DPkg::Lock::Timeout "150";' | sudo tee /etc/apt/apt.conf.d/90-wait-for-dpkg-lock >/dev/null
           for attempt in 1 2 3; do
             if timeout 160 npx playwright install --with-deps chromium; then
               echo "playwright install: ok on attempt $attempt"; exit 0

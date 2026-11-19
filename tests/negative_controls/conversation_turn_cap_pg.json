@@ -1,0 +1,170 @@
+{
+ "pr": "conversation-turn-cap-pg",
+ "sha256": [
+  "tests/test_conversation_turn_cap_pg.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a call the provider never received counts as a turn",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "                           OR (r.state = 'SETTLED' AND COALESCE(e.contacted, 'true') <> 'false')),\n",
+     "new": "                           OR (r.state = 'SETTLED')),  -- NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap_pg.py"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_a_call_the_provider_never_received_and_a_released_one_are_not_turns"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a project's turns from before the cap close it on the first day",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "WHERE s.scope = %s AND r.quote->'turn_cap' IS NOT NULL\n",
+     "new": "WHERE s.scope = %s  -- NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap_pg.py"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_turns_before_the_cap_existed_do_not_count"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "no turn cap: the ninth turn is sent",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "                    if used + inflight >= caps.project_turns:\n",
+     "new": "                    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap_pg.py"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_a_call_the_provider_never_received_and_a_released_one_are_not_turns",
+    "test_calls_still_in_flight_say_busy_not_closed",
+    "test_eight_turns_then_the_ninth_is_refused_and_closes"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "calls still in flight are told as a closed conversation",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "        return 'turns' if self.used >= self.max_turns else 'busy'\n",
+     "new": "        return 'turns'  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap_pg.py"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_calls_still_in_flight_say_busy_not_closed"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "calls in flight are not counted: two tabs can both take the last turn",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "                    if used + inflight >= caps.project_turns:\n",
+     "new": "                    if used >= caps.project_turns:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap_pg.py"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_calls_still_in_flight_say_busy_not_closed"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "an open call is summed as if it cost nothing more",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "                'actual_total_usd': str(settled) if not unknown and not open_ else None,\n",
+     "new": "                'actual_total_usd': str(settled),  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap_pg.py"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_an_open_or_unknown_call_makes_the_total_unknown_not_zero"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the tokens are read from the wrong event",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "                   WHERE ev.reservation_id = r.id AND ev.from_state = 'EXECUTING' ORDER BY ev.id DESC LIMIT 1) e ON true\nWHERE s.scope = %s\n\"\"\"",
+     "new": "                   WHERE ev.reservation_id = r.id AND ev.from_state = 'CLAIMED' ORDER BY ev.id DESC LIMIT 1) e ON true\nWHERE s.scope = %s\n\"\"\""
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap_pg.py"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_tokens_and_cost_per_conversation_and_counted_agrees"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the money refusal does not know what is still in flight: a busy turn reads as closed",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "                        raise BudgetExceeded(scope, cap, used, amount, Decimal(cur.fetchone()[0]))",
+     "new": "                        raise BudgetExceeded(scope, cap, used, amount)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_held_quote_refuses_as_busy_and_a_settled_spend_as_budget"
+   ]
+  }
+ ]
+}
