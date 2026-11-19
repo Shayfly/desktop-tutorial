@@ -38,6 +38,24 @@
   `conversation_turn_cap_pg` 7/7 (`envs: pg`). The PG file runs in intake-budget-pg's isolated per-file loop
   (`scripts/ci_test_coverage.py` PASS).
 
+# 2026-11-19 — D10 review follow-up: the stop holds, says the right thing, and counts honestly (Claude Code)
+
+- **What broke (the adversarial review wf_8c2f9499-486, findings that survived its skeptics):** the pre-check closed a
+  conversation for good on a quote only HELD by a call in flight; the closed state lived in the last assistant message
+  only, so a button answer or intent reply in between reopened the paid path; after 'daily' the conversation "had
+  ended", after 'busy' a real stop never said why, two 'busy' replies became "no change"; 'busy' on the turn that
+  completed the spec dropped the summary; an 'Updated:' line at the limit was dropped; a late paid reply after a daily
+  pause was closed as 'daily'; an image-only message read "provider busy"; an EXECUTING call counted as a used turn;
+  unreported tokens were summed as 0; Venice's fallback from Sonnet to Haiku was silent.
+- **Fix:** each of the above, in `supervisor.py`, `budget.py` (`open_held`, `_TURNS`, `conversation_usage`) and
+  `venice.py` (a `VENICE_PREFERRED_MODEL_UNAVAILABLE` warning with the reason).
+- **Evidence:** `tests/test_conversation_limit_followup.py` 12 passed, 10 of them fail on the unfixed code (the other two
+  are controls); `tests/test_conversation_turn_cap_pg.py` 11 passed on PostgreSQL 16, the 2 new ones fail on the
+  unfixed code; negative controls `conversation_limit_followup` 10/10, `conversation_turn_cap_pg` 10/10 (pg).
+- **Status:** implemented and verified locally; ships with its PR's release. The #456 release itself: the worker was
+  deployed by a manual run (the merge title did not END with `[release]` -- Claude's error); Vercel production ships
+  with this PR's release.
+
 # 2026-11-18 — the agent's closing of an incomplete spec is no longer a dead end (Claude Code, D10 review)
 
 - **What broke:** at the limit, an agent conversation whose spec was incomplete only named the gaps and pointed at the
