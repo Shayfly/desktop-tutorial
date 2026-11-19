@@ -70,8 +70,10 @@
 | METER-CALL-ID | Claude Code | In review | the meter prices ONE call by its id (owner 2026-11-18): ten turns give ten sums; no id, no ledger or an untagged attempt is loud, never $0; every routed rehearsal cost to date invalid; review fixes (lane, warnings, dropped id, skip event); NC 24/24 (NC1 permanent) |
 | METER-CALL-ID-DONE | Claude Code | Done | #451 `4b3b329` -> `9aee98a` |
 | QUOTA-REPAIR-STOP | Claude Code | In review | a repair call with a no-credit route keeps the verified build (ProviderQuotaUnavailable by type, #448 follow-up); NC 4/4 |
+| RUN-COSTS | Codex | Read-only export independently verified against production on PR #454 | [SQL](scripts/observed_model_costs.sql), based on `9bc130e` |
 | QUOTA-REPAIR-STOP-DONE | Claude Code | Done | #452 `f961661` -> `9bc130e` |
 | D10-FOLLOWUP | Claude Code | In review | the review's remaining findings: in-flight holds, sticky closed state, wording by kind, busy keeps the summary, EXECUTING is busy, unknown tokens None, fallback logged; NC 10/10 + pg 10/10 |
 | D10-LIMIT | Claude Code | In review | a conversation at its limit stops gracefully: typed limit, closing reply with the summary or one open question in words (read for free), no 'provider busy'; NC 15/15 |
 | D10-TURNS | Claude Code | In review | the agent's 8-turn cap in reserve() (contacted calls only, under the locks) and tokens and cost per conversation; NC 8/8 + pg 7/7 |
 | D10-SONNET | Claude Code | In review | Sonnet for the conversation agent only (ordered Venice profile, Haiku when Sonnet is not offered); rehearsal agent path; NC 9/9 |
+| OVERLAY-ACCEPTANCE-W | Codex | Draft; awaiting CI and independent review | GitHub run 44479691814, job 135408636414 |
