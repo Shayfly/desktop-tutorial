@@ -9,7 +9,7 @@
 - **Fix:** the test's provider reports each call's cost as exactly its quote, so no settlement frees headroom and at most
   five calls fit; the dollar assertion is unchanged. Same experiment one at a time: 4 reserved.
 - **Evidence:** the test 25 of 25 passed concurrently; `test_intake_budget_pg.py` + `test_conversation_turn_cap_pg.py`
-  35 passed on local PostgreSQL; control `daily_cap_test` 1/1 (envs pg: reserve() without the daily scope's cap -> the
+  35 passed on local PostgreSQL (1 skipped: it needs Redis, not here); control `daily_cap_test` 1/1 (envs pg: reserve() without the daily scope's cap -> the
   test fails).
 
 # 2026-11-19 — the worker tells the generator what the gates check; it never did (Claude Code)
