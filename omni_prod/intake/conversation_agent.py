@@ -22,6 +22,29 @@ import re
 FLAG = 'OMNI_INTAKE_AGENT'
 ACCOUNTS = 'OMNI_INTAKE_AGENT_ACCOUNTS'
 MAX_QUESTION_CHARS = 400
+# The owner, 2026-11-18 (Sonnet for the conversation agent): at most 8 turns per conversation. A turn is a paid model
+# call the provider received or may have received (budget.TurnCapReached); the cap holds for agent accounts only.
+MAX_TURNS = 8
+# ... and at most $0.15 per conversation: the agent's own cap, never above the global OMNI_INTAKE_MODEL_BUDGET_USD (it is
+# the smaller of the two), so raising the global cap for other accounts never raises the agent's (D10 review).
+from decimal import Decimal as _D
+MAX_COST_USD = _D('0.15')
+# The owner, 2026-11-18: Sonnet for the conversation agent in production only; decision 10 (2026-11-17): when it is not
+# available, the regular model, never below 70. On Venice that is an ordered list -- the first model Venice offers
+# within the ceiling wins, chosen before any request (a reservation is one call, so this is not a second call). Both are
+# tagged anonymized on Venice (IRON_LAWS א.1: the owner's decision is the explicit founder decision). The ceiling is the
+# live list price of the first model, never above it, because every agent turn is quoted at the ceiling: Venice's
+# pricing page, read 2026-11-18, claude-sonnet-5-5 $2.00 / $10.00 per 1M tokens (claude-haiku-5-5 $0.10 / $0.50).
+# In code, not in an environment variable: the quote (Vercel) and the rehearsal (the worker) read the same source, and
+# a change of the agent's model is the owner's decision, made in a reviewed change.
+VENICE_MODELS = ('claude-sonnet-5-5', 'claude-haiku-5-5')
+VENICE_CEILING_USD_PER_M = ('2', '10')
+
+
+def venice_profile() -> dict:
+    """The agent's Venice profile, as budget.quote takes it."""
+    from decimal import Decimal
+    return {'models': VENICE_MODELS, 'ceiling': tuple(Decimal(x) for x in VENICE_CEILING_USD_PER_M), 'select': 'order'}
 # The owner, 2026-11-17: the flag is per account -- the agent runs for the listed accounts only, everyone else keeps
 # the conversation as it was, one environment change away. Production is not the laboratory.
 _ACCOUNT: contextvars.ContextVar = contextvars.ContextVar('conversation_agent_account', default=None)

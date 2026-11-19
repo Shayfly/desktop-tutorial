@@ -233,8 +233,8 @@
    "mutations": [
     {
      "file": "omni_prod/conversation_rehearsal.py",
-     "old": "        self.recorder = SimpleNamespace(records=[])\n        gateway = build_gateway(",
-     "new": "        gateway = build_gateway("
+     "old": "        self.recorder = SimpleNamespace(records=[])\n        amount = self.amount(",
+     "new": "        amount = self.amount("
     }
    ],
    "targets": [

@@ -1,0 +1,276 @@
+{
+ "pr": "conversation-limit",
+ "sha256": [
+  "tests/test_conversation_limit.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "no closing turn: a reached limit falls through to \"the provider is busy\" and a dead end (the state before 2026-11-18)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if limit is not None:\n            return self._closing_turn(project_id, turn, row, limit, parts, lang, T)\n",
+     "new": "        pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_a_closed_conversation_never_pays_a_model_again",
+    "test_a_greeting_after_a_daily_pause_says_paused_not_provider_busy",
+    "test_a_greeting_after_the_stop_is_not_provider_busy_and_never_repeats",
+    "test_a_questionnaire_account_keeps_its_cards_at_the_limit",
+    "test_a_ready_spec_closes_with_the_summary_and_its_approval",
+    "test_a_spent_project_is_closed_at_the_precheck",
+    "test_an_incomplete_spec_closes_with_the_way_on_not_provider_busy",
+    "test_the_daily_limit_says_later_not_closed",
+    "test_the_missing_items_are_named_and_one_is_asked_and_answered_by_words_for_free",
+    "test_the_stored_message_says_limit_and_carries_no_amounts"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a free-lane message after a daily pause reads \"the provider is busy\"",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if (carried and carried.get('kind') in ('budget', 'turns', 'daily') and interp is not None\n",
+     "new": "        if (False and carried and interp is not None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_a_greeting_after_a_daily_pause_says_paused_not_provider_busy"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the closing line repeats word for word (warehouse 113)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            intro = T['limit_still_alt'] if (prev.get('content') or '').startswith(T['limit_still']) else T['limit_still']\n",
+     "new": "            intro = T['limit_still']  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_a_greeting_after_the_stop_is_not_provider_busy_and_never_repeats"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the reservation refusal stays a string: no typed limit",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/worker_route.py",
+     "old": "            base.limit = exc.public()\n            logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s scope=%s",
+     "new": "            pass  # NEGATIVE CONTROL\n            logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s scope=%s"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_the_project_scope_is_budget_and_the_daily_scope_is_daily"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the amounts leave the server with the limit (the daily scope is every account's spend)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/worker_route.py",
+     "old": "            base.limit = exc.public()\n            logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s scope=%s",
+     "new": "            base.limit = {**exc.public(), 'cap': str(exc.cap)}  # NEGATIVE CONTROL\n            logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s scope=%s"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_the_project_scope_is_budget_and_the_daily_scope_is_daily"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the daily scope is told as the conversation's own budget (closed, not later)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "        if self.scope == DAILY_SCOPE:\n            return 'daily'\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n            return 'daily'\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_the_project_scope_is_budget_and_the_daily_scope_is_daily"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the pre-check refusal keeps no reason: the free interpreter answers as if the model were busy",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            return _AtLimit(m.limit, m.reason) if m.limit else DeterministicInterpreter()\n",
+     "new": "            return DeterministicInterpreter()  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_a_spent_project_is_closed_at_the_precheck"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a closing message is labelled \"built from fixed rules\"",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    if interpretation.get('limit'):\n        return 'limit'",
+     "new": "    if False:  # NEGATIVE CONTROL\n        return 'limit'"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_the_stored_message_says_limit_and_carries_no_amounts"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a ready spec at the limit loses its summary and approval",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        ready = any(a.get('type') in ('approve_spec', 'show_plan') for a in turn.actions)\n",
+     "new": "        ready = False  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_a_ready_spec_closes_with_the_summary_and_its_approval"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the closing names what is missing by its full question (a list of question marks)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            names = [_short(f, lang) for f in (row.brief.open_material or ()) if f in d.BY_ID] if row is not None else []\n",
+     "new": "            names = [d.BY_ID[f].he for f in (row.brief.open_material or ()) if f in d.BY_ID] if row is not None else []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_the_missing_items_are_named_and_one_is_asked_and_answered_by_words_for_free"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a closed conversation pays a model again for a shorter message (the stop is not sticky)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        closed = self._closed(project_id)\n",
+     "new": "        closed = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_a_closed_conversation_never_pays_a_model_again",
+    "test_a_greeting_after_the_stop_is_not_provider_busy_and_never_repeats",
+    "test_the_missing_items_are_named_and_one_is_asked_and_answered_by_words_for_free"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "a questionnaire account loses its cards at the limit",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if not agent.enabled():\n            # the questionnaire accounts (no agent)",
+     "new": "        if False:  # NEGATIVE CONTROL\n            # the questionnaire accounts (no agent)"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_a_questionnaire_account_keeps_its_cards_at_the_limit"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "a refusal caused only by calls in flight is told as a closed conversation",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "        return 'busy' if (self.counted - self.open_usd) + self.quote <= self.cap else 'budget'\n",
+     "new": "        return 'budget'  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_a_refusal_caused_only_by_calls_in_flight_is_busy_not_closed"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the incomplete closing only names the gaps: no question is asked, so a typed answer is never read (the dead end the D10 review confirmed)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            ask = self._free_question(row)\n",
+     "new": "            ask = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_the_missing_items_are_named_and_one_is_asked_and_answered_by_words_for_free",
+    "test_an_incomplete_spec_closes_with_the_way_on_not_provider_busy"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "the question is said but not recorded as asked: the next typed answer is not read",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                turn.asked_in_words = [ask.id]\n",
+     "new": "                pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_the_missing_items_are_named_and_one_is_asked_and_answered_by_words_for_free",
+    "test_an_incomplete_spec_closes_with_the_way_on_not_provider_busy"
+   ]
+  }
+ ]
+}

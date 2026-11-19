@@ -52,8 +52,12 @@ def build_gateway(quoted_usd: Decimal, models: tuple[str, ...], quote: dict | No
         cin, cout = quote['venice_ceiling_usd_per_m']
         # the list the reservation was QUOTED with; a quote without one (older) falls back to the worker's
         # OMNI_VENICE_ALLOWED_MODELS, and with neither the gateway refuses to build (released, no charge)
+        select = quote.get('venice_select', 'cheapest')
+        if select not in ('cheapest', 'order'):          # a quote the worker does not understand is never guessed
+            raise ValueError(f'unknown venice_select {select!r} in the quote')
         return venice_gateway.VeniceIntakeGateway(quoted_usd, ceiling=(Decimal(cin), Decimal(cout)),
-                                                  allowed=tuple(quote.get('venice_allowed_models') or ()) or None)
+                                                  allowed=tuple(quote.get('venice_allowed_models') or ()) or None,
+                                                  prefer_order=select == 'order')
     from ..model_policy import ModelUsePolicy
     from ..model_router import RoutingPolicy
     from ..model_runtime_config import ModelRuntimeConfig

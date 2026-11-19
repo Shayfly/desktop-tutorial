@@ -97,19 +97,52 @@ class _Supervisor:
 
 
 PATH_ENV = 'REHEARSAL_PATH'
-PATHS = ('production', 'routed')
+PATHS = ('production', 'routed', 'agent')
 
 
 def production_quote(pool) -> dict:
     """The newest settled production intake reservation's quote, with its id and per-call amount. Loud when none."""
     with pool.connection() as conn:
+        # the plain profile only: after the agent's release the newest quote may be an agent (Sonnet) one, and the
+        # production path must not measure that by chance (D10 review); the agent path adds its profile itself
         row = conn.execute("SELECT id, quoted_usd, quote FROM intake_reservations WHERE state = 'SETTLED' "
-                           "AND quote IS NOT NULL ORDER BY settled_at DESC NULLS LAST, updated_at DESC LIMIT 1").fetchone()
+                           "AND quote IS NOT NULL AND COALESCE(quote->>'mode', 'plain') = 'plain' "
+                           "ORDER BY settled_at DESC NULLS LAST, updated_at DESC LIMIT 1").fetchone()
     if row is None:
         raise SystemExit('no settled production intake reservation: the production path cannot be rehearsed')
     rid, quoted, quote = row[0], row[1], row[2]
     quote = quote if isinstance(quote, dict) else json.loads(quote)
     return {'reservation_id': rid, 'quoted_usd': Decimal(str(quoted)), 'quote': quote}
+
+
+def project_cap(quote: dict) -> Decimal:
+    """The per-conversation cap production reserved this quote under (its caps snapshot, the database): the worker has
+    no OMNI_INTAKE_MODEL_BUDGET_USD of its own, and a cap is never guessed."""
+    caps = quote.get('caps') or {}
+    found = [v.get('cap') for k, v in caps.items() if str(k).startswith('project:') and isinstance(v, dict)]
+    if len(found) != 1 or found[0] in (None, ''):
+        raise SystemExit(f'the production quote carries no single project cap snapshot ({sorted(caps)}): the agent '
+                         'path cannot hold the conversation to it')
+    cap = Decimal(str(found[0]))
+    if not cap.is_finite() or cap <= 0:
+        raise SystemExit(f'the production project cap snapshot is not a positive amount ({found[0]!r})')
+    return cap
+
+
+def agent_quote(prod: dict) -> dict:
+    """The conversation agent's quote (owner 2026-11-18): production's newest quote (its token bounds, the database) with
+    the agent's Venice profile from the code the API quotes with (conversation_agent.venice_profile) -- one source for
+    both, never a list typed into the workflow."""
+    from .intake import conversation_agent as agent
+    q = dict(prod['quote'])
+    if q.get('provider') != 'venice':
+        raise SystemExit(f"the newest production quote is not a Venice quote ({q.get('provider')!r}): the agent "
+                         'profile cannot be rehearsed on it')
+    p = agent.venice_profile()
+    q.update({'mode': 'agent', 'venice_select': p['select'], 'venice_allowed_models': list(p['models']),
+              'allowed_models': ['venice:' + m for m in p['models']],
+              'venice_ceiling_usd_per_m': [str(x) for x in p['ceiling']]})
+    return q
 
 
 class ProductionPathGateway:
@@ -119,10 +152,17 @@ class ProductionPathGateway:
 
     accepts_call_id = True
 
-    def __init__(self, quote: dict):
+    def __init__(self, quote: dict, *, cap_usd: Decimal | None = None, max_turns: int | None = None):
         self.quote = quote
         self.recorder = None
         self.models_used: list[str] = []
+        # the agent path holds each conversation to the production limits, checked as reserve() checks them: before
+        # the call, at its worst case (an unknown cost counts at its worst case, never $0)
+        self.cap_usd, self.max_turns = cap_usd, max_turns
+        self.spent, self.turns = Decimal('0'), 0
+
+    def reset(self) -> None:
+        self.spent, self.turns, self.models_used = Decimal('0'), 0, []
 
     def amount(self, system: str, user: str, max_tokens: int) -> Decimal:
         from decimal import ROUND_CEILING
@@ -144,14 +184,25 @@ class ProductionPathGateway:
         # building never contacts a provider: if it fails, THIS call has an empty ledger (not contacted), never the
         # previous call's
         self.recorder = SimpleNamespace(records=[])
-        gateway = build_gateway(self.amount(system, user, max_tokens), tuple(q.get('allowed_models') or ()), q)
+        amount = self.amount(system, user, max_tokens)
+        from .intake import budget as B
+        if self.max_turns is not None and self.turns >= self.max_turns:
+            raise B.TurnCapReached('project:rehearsal', self.max_turns, self.turns, 0)
+        if self.cap_usd is not None and self.spent + amount > self.cap_usd:
+            raise B.BudgetExceeded('project:rehearsal', self.cap_usd, self.spent, amount)
+        gateway = build_gateway(amount, tuple(q.get('allowed_models') or ()), q)
         self.recorder = getattr(gateway, 'recorder', None)
         try:
             return gateway.complete_json(system=system, user=user, max_tokens=max_tokens, task=task, call_id=call_id)
         finally:
-            for r in (getattr(self.recorder, 'records', None) or []):
+            records = [r for r in (getattr(self.recorder, 'records', None) or []) if getattr(r, 'call_id', None) == call_id]
+            for r in records:
                 if getattr(r, 'model', None):
                     self.models_used.append(str(r.model))
+            if records:
+                self.turns += 1
+                costs = [getattr(r, 'provider_reported_cost_usd', None) for r in records]
+                self.spent += sum(costs) if all(c is not None for c in costs) else amount
 
 
 class RoutedPathGateway:
@@ -253,18 +304,27 @@ def main(argv=None) -> int:
     path = os.environ.get(PATH_ENV, 'production').strip() or 'production'
     if path not in PATHS:
         raise SystemExit(f'{PATH_ENV} must be one of {PATHS}, not {path!r}')
-    if path == 'production':
+    if path in ('production', 'agent'):
         from .db import DatabasePool
         pool = DatabasePool(os.environ['OMNI_DATABASE_URL'], min_size=1, max_size=2).open()
         try:
             prod = production_quote(pool)
         finally:
             pool.close()
-        q = prod['quote']
-        print(f"::notice title=conversation path::production -- the quote of reservation {prod['reservation_id']}: "
+        q = prod['quote'] if path == 'production' else agent_quote(prod)
+        print(f"::notice title=conversation path::{path} -- the quote of reservation {prod['reservation_id']}"
+              f"{' with the agent profile from the code' if path == 'agent' else ''}: "
               f"provider {q.get('provider') or 'routed'}, allowed {q.get('allowed_models')}, "
-              f"ceiling {q.get('venice_ceiling_usd_per_m')}, max_tokens {q.get('max_tokens')}")
-        gateway = ProductionPathGateway(q)
+              f"select {q.get('venice_select', 'cheapest')}, ceiling {q.get('venice_ceiling_usd_per_m')}, "
+              f"max_tokens {q.get('max_tokens')}")
+        if path == 'agent':                           # the production limits, per conversation (owner 2026-11-18)
+            from .intake import conversation_agent as agent
+            gateway = ProductionPathGateway(q, cap_usd=min(project_cap(prod['quote']), agent.MAX_COST_USD),
+                                            max_turns=agent.MAX_TURNS)
+            print(f"::notice title=conversation limits::per conversation: {agent.MAX_TURNS} turns, "
+                  f"${gateway.cap_usd} (worst case checked before each call, as reserve() does)")
+        else:
+            gateway = ProductionPathGateway(q)
     else:
         from .investor_app import _live_components
         _, inner = _live_components()
@@ -273,6 +333,8 @@ def main(argv=None) -> int:
     results = []
     for n in names:
         gateway.models_used = []                      # per scenario: which models answered THIS conversation
+        if path == 'agent':
+            gateway.reset()                           # each scenario is its own conversation: its own 8 and $0.15
         if path == 'routed':
             gateway.route_failures = []
         results.append(run_scenario(n, ModelInterpreter(gateway)))

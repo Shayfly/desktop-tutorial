@@ -1,3 +1,79 @@
+# 2026-11-18 — Sonnet for the conversation agent only, with the regular model when Venice does not offer it (Claude Code)
+
+- **What was missing:** on Venice the cheapest listed model always won (`venice.select_model`), and one global list and
+  ceiling served every account: listing Sonnet beside Haiku never ran Sonnet, listing it alone moved every account onto
+  it. Environment variables alone could not give the owner's "Sonnet for the conversation agent only" (D10 analysis).
+- **Fix (part 3 of 3):** agent accounts are quoted with the agent's own Venice profile (`conversation_agent`:
+  `claude-sonnet-5-5` then `claude-haiku-5-5`, ceiling 2,10 = Sonnet's live list price, Venice pricing page read
+  2026-11-18; both tagged anonymized, IRON_LAWS א.1 covered by the owner's decision). The quote says `mode: agent`,
+  `venice_select: order`; the worker picks the first listed model Venice offers within the ceiling -- Sonnet, and Haiku
+  only when Sonnet is not offered (decision 10), before any request, so never a second paid call. Every other account is
+  quoted and served exactly as before (`mode: plain`, cheapest). The profile is in code, not an environment variable:
+  the quote (Vercel) and the rehearsal (the worker) read one source. The builder never reads it (guard test). The
+  rehearsal has an agent path (`REHEARSAL_PATH=agent`): production's newest quote with the agent profile, each
+  conversation held to 8 turns and to production's project cap from the quote's own snapshot, as typed limits.
+- **Evidence:** `tests/test_conversation_agent_sonnet.py` 12 passed on the real quote, build_gateway, VeniceIntakeGateway
+  and select_model (Venice HTTP faked): Sonnet sent when offered, Haiku when not, the plain quote unchanged. Controls
+  `conversation_agent_sonnet` 9/9.
+- **Next:** release (Vercel and the worker), then the agent-path rehearsal: the first real measurement of the
+  conversation agent's cost. No cost is reported before it.
+
+# 2026-11-18 — the conversation agent's 8-turn cap, and tokens and cost per conversation (Claude Code)
+
+- **What was missing:** the owner's decision for Sonnet set at most 8 turns per conversation and tokens and cost
+  recorded per conversation. No turn cap existed on the production intake path (only the rehearsal had one), and tokens
+  lived only in each reservation's settle event.
+- **Fix (part 2 of 3):** `reserve()` enforces `Caps.project_turns` under the same scope locks as the money check, so two
+  tabs cannot both take the last turn and a retry with the same key returns its reservation. A turn is a paid call the
+  provider received or may have received; a released call and a settled call the provider never received
+  (contacted=false) are not turns, and only reservations made under the cap count (a project's earlier turns never close
+  it on the first day). 'turns' closes the conversation; 'busy' (the cap reached only by calls still in flight) says so
+  and does not. The cap holds for agent accounts only (`conversation_agent.MAX_TURNS = 8`). `conversation_usage(scope)`
+  returns turns, tokens, settled and held amounts and the models; an UNKNOWN or open call makes the total None, never
+  $0, and `counted_usd` equals `counted(scope)`. It is stored with each paid or limited assistant message (server side,
+  never sent to the browser) and logged as `INTAKE_CONVERSATION_USAGE`; a read failure is kept as `usage_error` and never
+  fails the turn. No migration.
+- **Evidence:** `tests/test_conversation_turn_cap_pg.py` 8 passed on real PostgreSQL 16 (local, a fresh database with
+  every migration); `tests/test_conversation_turn_cap.py` 8 passed. Controls `conversation_turn_cap` 8/8 and
+  `conversation_turn_cap_pg` 7/7 (`envs: pg`). The PG file runs in intake-budget-pg's isolated per-file loop
+  (`scripts/ci_test_coverage.py` PASS).
+
+# 2026-11-18 — the agent's closing of an incomplete spec is no longer a dead end (Claude Code, D10 review)
+
+- **What broke:** at the limit, an agent conversation whose spec was incomplete only named the gaps and pointed at the
+  specification tab. The tab edits only answered fields (`app.js` `beginBriefEdit`), and with no card a typed answer
+  is read only against an asked question (`_awaiting`), so the summary was unreachable. **Root cause:** the closing
+  cleared `asked_in_words`. Found by the adversarial review wf_8c2f9499-486 (confirmed, high).
+- **Fix:** the closing asks ONE open choice question in words (`_free_question`) and records it as asked; the next
+  typed message is read by words (`typed_choice`) with no model call and no reservation. The intro no longer says
+  "stops asking". A missing free-text field still has only the spec tab (open, below).
+- **Evidence:** `tests/test_conversation_limit.py` 13 passed (the new test asserts one question, the answer recorded,
+  and no model call); `conversation_limit` NC 15/15 (NC14 no question asked, NC15 not recorded as asked);
+  `test_fast.sh` 187 files, 1480 passed; PG turn cap 9 passed, NC 8/8 pg.
+- **Status:** implemented, verified locally; not yet in production (ships with the D10 PR and its release).
+- **Open:** a missing free-text field at the closing; the review's unverified findings ("Updated:" lines dropped at
+  the closing, an image-only message after the stop, an EXECUTING call counted as a turn).
+
+# 2026-11-18 — a conversation that reaches its limit stops gracefully, with the way on (Claude Code)
+
+- **What broke:** when a conversation reached a limit (the $0.15 project cap, the daily cap), the customer read "the
+  model provider is busy, send again in a moment" -- false -- every question was cleared and the summary could never
+  be reached: a dead end. **Root cause:** the limit was only a free-text `dropped` string (`worker_route.py`), the
+  pre-check kept no reason at all (`supervisor._interpreter`), and the supervisor then took the "model did not answer"
+  branch. Found by the D10 design analysis (wf_c308510a-631, 3 readers, 2 skeptics), confirmed in the code.
+- **Fix (the owner's 2026-11-18 decision, part 1 of 3):** the limit is a typed outcome (`budget.LimitReached`,
+  `Interpretation.limit` = {kind, source}; never caps or totals, the daily scope is every account's). The supervisor
+  closes the conversation: why it stopped, what this message recorded, and the way on -- the summary with its approval
+  when the spec is ready (gate 1, no model cost), else the specification tab (`edit_requirements`, the missing items by
+  name). A message that takes the free lane after the stop gets the same closing, not "provider busy"; two closing
+  messages in a row alternate (warehouse 113). The stored message is labelled `limit`, not "built from fixed rules".
+- **Evidence:** `tests/test_conversation_limit.py` 9 passed on the real supervisor (as the rehearsal runs it) and the
+  real ReservedWorkerInterpreter with a refusing reservation service. Controls `conversation_limit` 10/10; the 25
+  existing controls on the changed files pass. Related tests 376 passed; `test_fast.sh` 1478.
+- **Next (same decision):** the 8-turn cap and tokens and cost per conversation; then Sonnet for the agent profile
+  (ordered preference, Haiku when Venice does not offer Sonnet, decision 10), the release, and the production-path
+  rehearsal that is the first real cost measurement. No cost is reported before it.
+
 # 2026-11-18 — a repair call where a route answered "no credit" no longer ends the whole build (Claude Code)
 
 - **What broke:** the #448 fix (keep a build's verified work when no route answers the repair) missed one shape of
