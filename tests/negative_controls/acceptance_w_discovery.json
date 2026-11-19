@@ -1,0 +1,25 @@
+{
+  "pr": "acceptance-w-discovery",
+  "sha256": [
+    "tests/test_acceptance_w_discovery.py"
+  ],
+  "controls": [
+    {
+      "id": "M1",
+      "what": "Overlay discovery launches a second full unittest suite.",
+      "mutations": [
+        {
+          "file": "tests/test_m4_acceptance.py",
+          "old": "        if os.environ.get('OMNI_M4_ACCEPTANCE_W_DISCOVERY') == '1':",
+          "new": "        if False:  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_acceptance_w_discovery.py"
+      ],
+      "expect_failed": [
+        "test_full_discovery_does_not_start_a_second_unittest_suite"
+      ]
+    }
+  ]
+}
