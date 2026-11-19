@@ -1,3 +1,123 @@
+# 2026-11-17 — the game check presses "start" the way a player does (Claude Code)
+
+- **Root cause (rehearsal 44079074182, the stars game):** a working game waited on its start screen; the probe tapped the
+  canvas and pressed keys but never the "התחל" button, saw one still frame and called the game frozen (`GAME_FROZEN`).
+- **Fix:** before it plays, the probe presses one visible control whose whole label is a start word ("התחל", "שחקו",
+  "start", "play"...), says which (`started_by`), and only then plays; a control that is not a start word ("הוראות") is
+  never pressed. The start words are one pattern (`START_LABEL`) injected into the sandbox script, so a browser-free test
+  checks the same pattern the browser uses.
+- **Evidence:** `tests/test_game_runtime.py` + `tests/test_game_runtime_rules.py` 22/22 locally, 13 of them in a real
+  browser; controls `game_start_screen` 4/4 with `NC_ENV=browser` (NC1-NC2 need Chromium; NC3-NC4 run in every CI job),
+  `game_runtime` 9/9. NOT run in CI: the real-browser half (no CI job has Python Playwright with Chromium -- open).
+
+# 2026-11-18 — Sonnet for the conversation agent only, with the regular model when Venice does not offer it (Claude Code)
+
+- **What was missing:** on Venice the cheapest listed model always won (`venice.select_model`), and one global list and
+  ceiling served every account: listing Sonnet beside Haiku never ran Sonnet, listing it alone moved every account onto
+  it. Environment variables alone could not give the owner's "Sonnet for the conversation agent only" (D10 analysis).
+- **Fix (part 3 of 3):** agent accounts are quoted with the agent's own Venice profile (`conversation_agent`:
+  `claude-sonnet-5-5` then `claude-haiku-5-5`, ceiling 2,10 = Sonnet's live list price, Venice pricing page read
+  2026-11-18; both tagged anonymized, IRON_LAWS א.1 covered by the owner's decision). The quote says `mode: agent`,
+  `venice_select: order`; the worker picks the first listed model Venice offers within the ceiling -- Sonnet, and Haiku
+  only when Sonnet is not offered (decision 10), before any request, so never a second paid call. Every other account is
+  quoted and served exactly as before (`mode: plain`, cheapest). The profile is in code, not an environment variable:
+  the quote (Vercel) and the rehearsal (the worker) read one source. The builder never reads it (guard test). The
+  rehearsal has an agent path (`REHEARSAL_PATH=agent`): production's newest quote with the agent profile, each
+  conversation held to 8 turns and to production's project cap from the quote's own snapshot, as typed limits.
+- **Evidence:** `tests/test_conversation_agent_sonnet.py` 12 passed on the real quote, build_gateway, VeniceIntakeGateway
+  and select_model (Venice HTTP faked): Sonnet sent when offered, Haiku when not, the plain quote unchanged. Controls
+  `conversation_agent_sonnet` 9/9.
+- **Next:** release (Vercel and the worker), then the agent-path rehearsal: the first real measurement of the
+  conversation agent's cost. No cost is reported before it.
+
+# 2026-11-19 — the first real Sonnet measurement: 1 of 10 agent calls answered (Claude Code)
+
+- **What ran:** conversation-rehearsal, path `agent`, run 44445874611 on the worker, at code `063e4a5` (#456), quote
+  `irs_35e9ed263ca84a86b575abcb` with the agent profile (Sonnet then Haiku, ceiling 2,10, order).
+- **Result:** red, 1 of 3 scenarios passed (doors). One Sonnet call answered: **$0.018109 CONFIRMED** for the first doors
+  turn (`provider_models=['claude-sonnet-5-5']`). The other 9 calls reached Venice and failed fast (17 s for the whole
+  run), so their cost is UNKNOWN; each held its worst case, and butcher and bare hit the $0.15 conversation cap after
+  about 4 failed calls -- the closing worked as designed (the stop, the free question, the summary).
+- **Root cause:** not known yet. The rehearsal printed only "model call failed" (the interpreter keeps the exception
+  type alone). A rate limit or a low Venice balance fits the timing; neither is shown. #457 makes the rehearsal print
+  each failed call's reason; the next run says which.
+- **What this is not:** a cost per conversation. One confirmed turn is not a measurement of the agent; no cost is
+  reported until a run where the calls answer.
+
+# 2026-11-18 — the conversation agent's 8-turn cap, and tokens and cost per conversation (Claude Code)
+
+- **What was missing:** the owner's decision for Sonnet set at most 8 turns per conversation and tokens and cost
+  recorded per conversation. No turn cap existed on the production intake path (only the rehearsal had one), and tokens
+  lived only in each reservation's settle event.
+- **Fix (part 2 of 3):** `reserve()` enforces `Caps.project_turns` under the same scope locks as the money check, so two
+  tabs cannot both take the last turn and a retry with the same key returns its reservation. A turn is a paid call the
+  provider received or may have received; a released call and a settled call the provider never received
+  (contacted=false) are not turns, and only reservations made under the cap count (a project's earlier turns never close
+  it on the first day). 'turns' closes the conversation; 'busy' (the cap reached only by calls still in flight) says so
+  and does not. The cap holds for agent accounts only (`conversation_agent.MAX_TURNS = 8`). `conversation_usage(scope)`
+  returns turns, tokens, settled and held amounts and the models; an UNKNOWN or open call makes the total None, never
+  $0, and `counted_usd` equals `counted(scope)`. It is stored with each paid or limited assistant message (server side,
+  never sent to the browser) and logged as `INTAKE_CONVERSATION_USAGE`; a read failure is kept as `usage_error` and never
+  fails the turn. No migration.
+- **Evidence:** `tests/test_conversation_turn_cap_pg.py` 8 passed on real PostgreSQL 16 (local, a fresh database with
+  every migration); `tests/test_conversation_turn_cap.py` 8 passed. Controls `conversation_turn_cap` 8/8 and
+  `conversation_turn_cap_pg` 7/7 (`envs: pg`). The PG file runs in intake-budget-pg's isolated per-file loop
+  (`scripts/ci_test_coverage.py` PASS).
+
+# 2026-11-19 — D10 review follow-up: the stop holds, says the right thing, and counts honestly (Claude Code)
+
+- **What broke (the adversarial review wf_8c2f9499-486, findings that survived its skeptics):** the pre-check closed a
+  conversation for good on a quote only HELD by a call in flight; the closed state lived in the last assistant message
+  only, so a button answer or intent reply in between reopened the paid path; after 'daily' the conversation "had
+  ended", after 'busy' a real stop never said why, two 'busy' replies became "no change"; 'busy' on the turn that
+  completed the spec dropped the summary; an 'Updated:' line at the limit was dropped; a late paid reply after a daily
+  pause was closed as 'daily'; an image-only message read "provider busy"; an EXECUTING call counted as a used turn;
+  unreported tokens were summed as 0; Venice's fallback from Sonnet to Haiku was silent.
+- **Fix:** each of the above, in `supervisor.py`, `budget.py` (`open_held`, `_TURNS`, `conversation_usage`) and
+  `venice.py` (a `VENICE_PREFERRED_MODEL_UNAVAILABLE` warning with the reason).
+- **Evidence:** `tests/test_conversation_limit_followup.py` 12 passed, 10 of them fail on the unfixed code (the other two
+  are controls); `tests/test_conversation_turn_cap_pg.py` 11 passed on PostgreSQL 16, the 2 new ones fail on the
+  unfixed code; negative controls `conversation_limit_followup` 10/10, `conversation_turn_cap_pg` 10/10 (pg).
+- **Status:** implemented and verified locally; ships with its PR's release. The #456 release itself: the worker was
+  deployed by a manual run (the merge title did not END with `[release]` -- Claude's error); Vercel production ships
+  with this PR's release.
+
+# 2026-11-18 — the agent's closing of an incomplete spec is no longer a dead end (Claude Code, D10 review)
+
+- **What broke:** at the limit, an agent conversation whose spec was incomplete only named the gaps and pointed at the
+  specification tab. The tab edits only answered fields (`app.js` `beginBriefEdit`), and with no card a typed answer
+  is read only against an asked question (`_awaiting`), so the summary was unreachable. **Root cause:** the closing
+  cleared `asked_in_words`. Found by the adversarial review wf_8c2f9499-486 (confirmed, high).
+- **Fix:** the closing asks ONE open choice question in words (`_free_question`) and records it as asked; the next
+  typed message is read by words (`typed_choice`) with no model call and no reservation. The intro no longer says
+  "stops asking". A missing free-text field still has only the spec tab (open, below).
+- **Evidence:** `tests/test_conversation_limit.py` 13 passed (the new test asserts one question, the answer recorded,
+  and no model call); `conversation_limit` NC 15/15 (NC14 no question asked, NC15 not recorded as asked);
+  `test_fast.sh` 187 files, 1480 passed; PG turn cap 9 passed, NC 8/8 pg.
+- **Status:** implemented, verified locally; not yet in production (ships with the D10 PR and its release).
+- **Open:** a missing free-text field at the closing; the review's unverified findings ("Updated:" lines dropped at
+  the closing, an image-only message after the stop, an EXECUTING call counted as a turn).
+
+# 2026-11-18 — a conversation that reaches its limit stops gracefully, with the way on (Claude Code)
+
+- **What broke:** when a conversation reached a limit (the $0.15 project cap, the daily cap), the customer read "the
+  model provider is busy, send again in a moment" -- false -- every question was cleared and the summary could never
+  be reached: a dead end. **Root cause:** the limit was only a free-text `dropped` string (`worker_route.py`), the
+  pre-check kept no reason at all (`supervisor._interpreter`), and the supervisor then took the "model did not answer"
+  branch. Found by the D10 design analysis (wf_c308510a-631, 3 readers, 2 skeptics), confirmed in the code.
+- **Fix (the owner's 2026-11-18 decision, part 1 of 3):** the limit is a typed outcome (`budget.LimitReached`,
+  `Interpretation.limit` = {kind, source}; never caps or totals, the daily scope is every account's). The supervisor
+  closes the conversation: why it stopped, what this message recorded, and the way on -- the summary with its approval
+  when the spec is ready (gate 1, no model cost), else the specification tab (`edit_requirements`, the missing items by
+  name). A message that takes the free lane after the stop gets the same closing, not "provider busy"; two closing
+  messages in a row alternate (warehouse 113). The stored message is labelled `limit`, not "built from fixed rules".
+- **Evidence:** `tests/test_conversation_limit.py` 9 passed on the real supervisor (as the rehearsal runs it) and the
+  real ReservedWorkerInterpreter with a refusing reservation service. Controls `conversation_limit` 10/10; the 25
+  existing controls on the changed files pass. Related tests 376 passed; `test_fast.sh` 1478.
+- **Next (same decision):** the 8-turn cap and tokens and cost per conversation; then Sonnet for the agent profile
+  (ordered preference, Haiku when Venice does not offer Sonnet, decision 10), the release, and the production-path
+  rehearsal that is the first real cost measurement. No cost is reported before it.
+
 # 2026-11-18 — a repair call where a route answered "no credit" no longer ends the whole build (Claude Code)
 
 - **What broke:** the #448 fix (keep a build's verified work when no route answers the repair) missed one shape of
@@ -3903,4 +4023,4 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 ## 2026-11-19 — Model costs of recorded runs (Codex, internal reporting)
 
 - The read-only query in [scripts/observed_model_costs.sql](scripts/observed_model_costs.sql) returns build and intake run IDs, phases, routes, evidence bases, recorded subtotals and run totals. A missing price leaves the full total null. Budget reservations and prospective prices do not enter these figures.
-- Exercised the SELECT on both operational ledger databases. The export is rerunnable via psql and has no write or runtime hooks. Independent verification of this change is pending. The report contains operational data and is kept outside this public repository.
+- Exercised the SELECT on both operational ledger databases. The export is rerunnable via psql and has no write or runtime hooks. Claude Code independently verified the unchanged SQL against the production ledger on 2026-11-19 (PR #454, review of 71ec345). The report contains operational data and is kept outside this public repository.

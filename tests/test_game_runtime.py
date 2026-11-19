@@ -70,6 +70,11 @@ IGNORES = game(input_='')                                             # it anima
 THROWS = game(run=RAF + "\nsetTimeout(() => { throw new Error('boom in the loop'); }, 300);")
 NO_CANVAS = game(markup='<div id="g">טקסט בלבד</div>', script='')
 TOO_WIDE = game(markup='<canvas id="g" width="900" height="240"></canvas>', css='max-width:none;width:900px;')
+# A start screen (rehearsal 44079074182): one still frame until the "התחל" button OUTSIDE the canvas is pressed
+START_SCREEN = game(markup=CANVAS + '<button id="go" type="button">התחל</button>',
+                    run="draw(); document.getElementById('go').addEventListener('click', () => { " + RAF + " });")
+# a control that is not "start" is never pressed for the player (only a start word counts)
+WITH_HELP = game(markup=CANVAS + '<button id="help" type="button">הוראות</button>')
 TURN_BASED = game(moving='', run='draw();', input_=INPUT + "\naddEventListener('keydown', draw); c.addEventListener('pointerdown', draw);")
 
 
@@ -118,6 +123,21 @@ class RealGamesInARealBrowser(unittest.TestCase):
             self.assertTrue(m['text_changed'])                          # the score moved when it was played
             self.assertGreater(m['input_calls'], 0)
         self.assertEqual([p for _, p in gate._inner.runs], ['browser', 'browser'])
+
+    def test_a_start_screen_is_started_the_way_a_player_starts_it(self):
+        gate, report = play(START_SCREEN)
+        self.assertEqual((gate.last_game['status'], gate.last_game['findings']), ('pass', []), gate.last_game)
+        for m in gate.last_game['viewports'].values():
+            self.assertEqual(m['started_by'], 'התחל')
+            self.assertGreater(len(set(m['played'])), 1)
+
+    def test_a_game_with_no_start_control_says_none_was_pressed(self):
+        gate, _ = play(GOOD)
+        self.assertEqual({m['started_by'] for m in gate.last_game['viewports'].values()}, {None})
+
+    def test_a_control_that_is_not_start_is_not_pressed(self):
+        gate, _ = play(WITH_HELP)
+        self.assertEqual({m['started_by'] for m in gate.last_game['viewports'].values()}, {None})
 
     def test_one_frozen_frame_is_found(self):
         gate, report = play(FROZEN)

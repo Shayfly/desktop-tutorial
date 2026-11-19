@@ -1,0 +1,373 @@
+{
+ "pr": "g-apple",
+ "sha256": [
+  "tests/test_g_apple.py",
+  "omni_prod/g_apple/static.py",
+  "omni_prod/g_apple/__init__.py",
+  "omni_prod/g_apple/reviewers.py",
+  "omni_prod/g_apple/contract.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a raw colour passes",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "                add('RAW_COLOUR', f'{selector} {{ {prop} }}', f'{m.group(0)}: use a var(--color-...) token')\n",
+     "new": "                pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_each_contract_rule",
+    "test_in_block_a_static_finding_and_a_reviewers_p0_fail_the_build_and_a_p1_does_not",
+    "test_in_warn_everything_is_recorded_and_nothing_blocks",
+    "test_many_findings_of_one_code_are_capped_and_counted"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a size off the scale passes",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "                    if px not in allowed_px:",
+     "new": "                    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_each_contract_rule"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a third weight passes",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "    if extra:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_each_contract_rule"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a page without the contract passes",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "    if not root_ok:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_each_contract_rule"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "no focus-visible passes",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "    if not pseudo['focus-visible']:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_each_contract_rule"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "lorem ipsum passes",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "    if _LOREM.search(body):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_the_refusal_list"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a carousel passes",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "    if _CAROUSEL.search(html or ''):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_the_refusal_list"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "three icon cards pass",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "    for row in cards.rows[:3]:",
+     "new": "    for row in ():"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_the_refusal_list"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "emoji icons pass",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "    for icon in cards.emoji_icons[:5]:",
+     "new": "    for icon in ():"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_the_refusal_list"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "three button styles pass",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "    if len(button_looks) > 2:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_the_refusal_list"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the cap drops findings in silence",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "        if n > MAX_PER_CODE:",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_many_findings_of_one_code_are_capped_and_counted"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "a second accent passes",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "                if m.group(1) not in token_names:",
+     "new": "                if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_each_contract_rule"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "a missing button state passes",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "            if not seen:",
+     "new": "            if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_each_contract_rule"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "corners off the contract pass",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/static.py",
+     "old": "    if radii:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_each_contract_rule"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "warn blocks like block",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/__init__.py",
+     "old": "        if self.mode != 'block' or not blocking:",
+     "new": "        if not blocking:"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_in_warn_everything_is_recorded_and_nothing_blocks"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "a reviewer's P0 does not block",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/__init__.py",
+     "old": "if f['severity'] == 'P0']",
+     "new": "if f['severity'] == 'P9']"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_in_block_a_static_finding_and_a_reviewers_p0_fail_the_build_and_a_p1_does_not"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "a reviewer that did not run reads as a pass",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/__init__.py",
+     "old": "('NOT_RUN' if not_run else 'pass')",
+     "new": "'pass'"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_a_clean_page_whose_reviewer_did_not_run_is_not_run_never_a_pass"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "a deadline inside a reviewer becomes NOT_RUN",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/reviewers.py",
+     "old": "        reraise_control(exc)                   # a cancel",
+     "new": "        pass                                   # a cancel"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_a_deadline_ends_the_build_instead_of_being_a_result"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "an answer of the wrong shape counts as no findings",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/reviewers.py",
+     "old": "        return {**base, 'status': 'NOT_RUN', 'reason': 'the answer is not {\"findings\": [...]}'}",
+     "new": "        pass"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_a_clean_page_whose_reviewer_did_not_run_is_not_run_never_a_pass",
+    "test_what_cannot_be_trusted_is_not_run_never_no_findings"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "a finding with an unknown severity is kept",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/reviewers.py",
+     "old": "f.get('severity') not in SEVERITIES or ",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_what_cannot_be_trusted_is_not_run_never_no_findings"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "the gate is on when its mode is off",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/__init__.py",
+     "old": "    if mode == 'off':",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g_apple.py"
+   ],
+   "expect_failed": [
+    "test_a_page_that_failed_earlier_is_not_judged_and_off_is_said"
+   ]
+  }
+ ]
+}

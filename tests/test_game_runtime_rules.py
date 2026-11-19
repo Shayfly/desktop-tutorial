@@ -1,6 +1,7 @@
 """The game runtime gate's rules, bounds and wiring, without a browser (the real-browser cases are in
 tests/test_game_runtime.py). Every rule of `judge` is exercised on its own here, so each negative control is quick."""
 import os
+import json
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -79,6 +80,29 @@ class TheRules(unittest.TestCase):
             self.assertEqual(GR.install(engine), 'warn')
         self.assertEqual(GR.report(engine), {'gate': 'GAME', 'mode': 'warn', 'last': None})
 
+
+
+class TheStartLabel(unittest.TestCase):
+    """Which control a player presses to start (rehearsal 44079074182: the stars game's "התחל" button), browser-free:
+    the same pattern is injected into the sandbox script."""
+
+    def test_start_words_are_start(self):
+        from omni_prod.game_runtime import is_start_label
+        for text in ('התחל', 'התחל משחק', 'שחקו!', 'Start', 'play now', 'begin.'):
+            self.assertTrue(is_start_label(text), text)
+
+    def test_other_controls_are_not_start(self):
+        from omni_prod.game_runtime import is_start_label
+        for text in ('הוראות', 'הגדרות', 'התחל מחדש את ההוראות', 'start over later', ''):
+            self.assertFalse(is_start_label(text), text)
+
+    def test_the_sandbox_script_uses_this_pattern(self):
+        from omni_prod import game_runtime as G
+        src = G._PROBE[G._PROBE.index('START = """'):]
+        src = src[:src.index('"""', len('START = """')) + 3]
+        ns = {}
+        exec(src, ns)                                   # what the sandbox's Python makes of it
+        self.assertIn('new RegExp(' + json.dumps(G.START_LABEL, ensure_ascii=False) + ", 'i')", ns['START'])
 
 
 if __name__ == '__main__':

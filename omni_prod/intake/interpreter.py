@@ -60,13 +60,16 @@ class Interpretation:
     reservation_id: str | None = None
     reply: str = ''   # advisory prose only; never a build/state/approval command
     semantic_decisions: list[dict] = field(default_factory=list)  # evidence-bound; no paid action
+    # owner 2026-11-18: a conversation limit (budget / daily / turns) stopped the paid call. {kind, source} only.
+    limit: dict | None = None
 
     def to_dict(self):
         return {'schema': SCHEMA, 'language': self.language, 'product_family': self.product_family,
                 'proposals': [p.to_dict() for p in self.proposals], 'delegate_rest': self.delegate_rest,
                 'requirements': list(self.requirements), 'interpreter': self.interpreter, 'dropped': list(self.dropped),
                 'cost_usd': self.cost_usd, 'cost_state': self.cost_state, 'reservation_id': self.reservation_id,
-                'reply':self.reply, 'semantic_decisions': list(self.semantic_decisions)}
+                'reply':self.reply, 'semantic_decisions': list(self.semantic_decisions),
+                **({'limit': dict(self.limit)} if self.limit else {})}
 
 
 def language_of(text: str) -> str:
@@ -436,6 +439,9 @@ class ModelInterpreter:
             m = {'contacted': True, 'cost_state': COST_UNKNOWN, 'actual_usd': None, 'reason': unmetered}
             base.dropped.append(unmetered)
         cost = m['actual_usd']
+        from .budget import LimitReached
+        if isinstance(error, LimitReached):         # refused before any provider contact: the conversation's limit
+            base.limit = error.public()
         if error is not None or not isinstance(raw, dict):
             base.dropped.append(f'model unavailable: {type(error).__name__}' if error else 'model output malformed')
             base.cost_usd, base.cost_state = (None if cost is None else str(cost)), m['cost_state']

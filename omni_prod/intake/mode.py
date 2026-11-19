@@ -52,6 +52,9 @@ class IntakeMode:
     daily_cap_usd: str = '0'
     daily_spent_usd: str = '0'
     call_reserve_usd: str = '0'
+    # owner 2026-11-18: the pre-check refused because a conversation limit is reached ('budget' / 'daily'), as
+    # opposed to the model being switched off or not configured -- the conversation then ends gracefully
+    limit: str | None = None
 
     @property
     def paid(self) -> bool:
@@ -77,9 +80,9 @@ def resolve(*, project_spent: Decimal = Decimal('0'), daily_spent: Decimal = Dec
     if reserve <= 0:
         return IntakeMode(DETERMINISTIC, 'no per-message reserve', **caps)
     if project_spent + reserve > project_cap:
-        return IntakeMode(DETERMINISTIC, 'project intake budget exhausted', **caps)
+        return IntakeMode(DETERMINISTIC, 'project intake budget exhausted', **caps, limit='budget')
     if daily_spent + reserve > daily_cap:
-        return IntakeMode(DETERMINISTIC, 'daily intake budget exhausted', **caps)
+        return IntakeMode(DETERMINISTIC, 'daily intake budget exhausted', **caps, limit='daily')
     if os.getenv('OMNI_INTAKE_VIA_WORKER') == '1':
         if worker_route_available is False:
             return IntakeMode(DETERMINISTIC, 'intake worker route is unavailable', **caps)
