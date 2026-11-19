@@ -1,3 +1,14 @@
+# 2026-11-19 — a long request is a request, even with "כמה עולה" inside it (Claude Code)
+
+- **What broke (production, the owner, 19:14):** a 14-line law-firm brief got "לא זיהיתי פרטים חדשים". intake_messages:
+  interpretation `{"intent": "cost"}`, no reservation, a 0.7 s reply -- the model never read it.
+- **Root cause:** `classify_intent` searched the whole message for question phrases; the FAQ line "כמה עולה ייעוץ
+  ראשון (250 ₪)" matched the cost question.
+- **Fix:** a question intent is a short question (at most 2 lines and 200 characters); anything longer is a request
+  (a modification once a version exists).
+- **Evidence:** `tests/test_long_request_is_not_a_question.py` 4 passed on the production message, through the real
+  supervisor (the interpreter is called once); 3 fail without the fix; controls `intent_long` 2/2.
+
 # 2026-11-19 — the concurrent daily-cap test counted calls, not dollars (Claude Code)
 
 - **What broke:** intake-budget-pg on #463 (run 44484532008): `test_50_concurrent_turns_never_exceed_the_daily_cap`

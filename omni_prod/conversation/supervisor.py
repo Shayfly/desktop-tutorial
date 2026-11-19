@@ -91,10 +91,24 @@ _START_BARE = (r'(?:יאללה\s+)?(?:בוא(?:ו)?\s+)?(?:נתחיל|תתחיל
                r'(?:\s+לבנות)?(?:\s+(?:עכשיו|כבר|בבקשה))*|(?:ok\s+)?(?:go|start|let\'?s start)(?:\s+(?:now|please))*')
 
 
+QUESTION_MAX_CHARS = 200
+
+
+def _is_short_question(text: str) -> bool:
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    return len(lines) <= 2 and len(text) <= QUESTION_MAX_CHARS
+
+
 def classify_intent(message: str, *, has_version: bool, has_brief: bool) -> str:
     t = (message or '').strip().lower()
     if has_brief and re.fullmatch(_START_BARE, t.strip(' .!?,'), re.I):
         return 'approve'
+    # Production 2026-11-19 (the owner's law-firm brief, project prj_4tizfrqJkgO-Eg): a 14-line request whose FAQ line
+    # said "כמה עולה ייעוץ ראשון (250 ₪)" was taken for a cost question; the model was never asked and the customer
+    # read "no new details". A question intent is a short question, not a phrase inside a request: a message of
+    # several lines or longer than QUESTION_MAX_CHARS is a request (a modification once a version exists).
+    if not _is_short_question(t):
+        return 'modify' if has_version and re.search(_MODIFY_RX, t, re.I) else 'requirements'
     for intent in ('status', 'approve', 'cost', 'missing', 'recommend', 'feasibility'):
         if re.search(_RX[intent], t, re.I):
             return intent
