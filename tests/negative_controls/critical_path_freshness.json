@@ -1,0 +1,25 @@
+{
+  "pr": "critical-path-freshness",
+  "sha256": [
+    "tests/test_critical_path_freshness.py"
+  ],
+  "controls": [
+    {
+      "id": "M1",
+      "what": "A successful workflow counts an unexecuted critical step as proof.",
+      "mutations": [
+        {
+          "file": "scripts/check_critical_path_freshness.py",
+          "old": "step['name'] == step_name and step['conclusion'] == 'success' and step.get('completed_at')",
+          "new": "step['name'] == step_name and step.get('completed_at')"
+        }
+      ],
+      "targets": [
+        "tests/test_critical_path_freshness.py"
+      ],
+      "expect_failed": [
+        "test_successful_workflow_does_not_count_a_skipped_critical_step"
+      ]
+    }
+  ]
+}

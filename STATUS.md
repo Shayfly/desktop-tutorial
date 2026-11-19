@@ -4019,3 +4019,8 @@ and an instrumented OpenAI-compatible HTTP boundary. A positive canary permits a
 call and observes both counters reach one (HTTP is intercepted, no paid call).
 The PG balance/replay test now executes that worker path twice for the same ID.
 Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
+
+## 2026-11-19 — Critical production path freshness (Codex)
+
+- The proposed daily workflow reads action run, step and artifact metadata. It reports success from the relevant main-branch step within seven days, BROKEN when no qualifying evidence exists, and UNVERIFIED when the API cannot be read. Scope: deployment, golden rehearsal, Golden E2E, verify-replay and restoration.
+- Local evidence: two targeted tests, the skipped-step mutation, and workflow validation. Scheduled activation and independent review are pending.
