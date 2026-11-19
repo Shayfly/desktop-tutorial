@@ -179,6 +179,7 @@ _TXT = {
            'limit_still': 'השיחה עם הסוכן הסתיימה. מה שכתבתם נשמר.',
            'limit_still_alt': 'הסוכן כבר לא עונה בשיחה הזאת, אבל ההודעה נשמרה.',
            'model_unavailable': 'הסוכן לא הספיק לענות הפעם (העומס אצל ספק המודל). מה שכתבתם נשמר — שלחו שוב בעוד רגע, או כתבו עוד פרט על המוצר.',
+           'model_refused': 'הסוכן לא זמין כרגע: ספק המודל סירב לבקשה בגלל החשבון שלנו אצלו, לא בגללכם. מה שכתבתם נשמר, ולא חויב דבר. אפשר להמשיך לפרט כאן, והסוכן יענה כשהחשבון יחודש.',
            'missing_none': 'לא חסר כלום — אפשר לעבור לסיכום ולאשר.', 'missing': 'חסר לי:', 'contra': 'יש סתירה שצריך להחליט עליה:',
            'conflict': 'קודם נקבע: {current}. עכשיו הבנתי: {proposed}. לא שיניתי — מה נכון?',
            'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
@@ -241,6 +242,7 @@ _TXT = {
            'limit_still': 'The conversation with the assistant has ended. What you wrote is saved.',
            'limit_still_alt': 'The assistant no longer answers in this conversation, but your message is saved.',
            'model_unavailable': 'The assistant could not answer in time (the model provider is busy). What you wrote is saved; send it again in a moment, or add another detail about the product.',
+           'model_refused': 'The assistant is not available right now: the model provider refused the request because of our account with it, not because of you. What you wrote is saved and nothing was charged. You can keep adding details here; the assistant answers again once the account is renewed.',
            'missing_none': 'Nothing is missing: you can review the summary and approve.', 'missing': 'Still missing:',
            'contra': 'There is a contradiction to decide:',
            'conflict': 'Earlier: {current}. Now I understood: {proposed}. I did not change it — which is right?',
@@ -312,6 +314,18 @@ _NOT_UNDERSTOOD_RX = (r'^\s*(מה\??|מה זה\??|למה\??|לא הבנתי(?: �
                       r'لماذا\s*[?؟]?|ماذا\s*[?؟]?|لم أفهم|اشرح)\s*[.!?؟]*\s*$')
 _DONT_KNOW_RX = (r'^\s*(לא (יודע|יודעת|בטוח|בטוחה)|אין לי מושג|i don\'?t know|not sure|no idea|'
                  r'لا أعرف|لست متأكد[ًا]*)\s*[.!?؟]*\s*$')
+
+
+_REFUSALS = ('VeniceInsufficientCredit', 'VeniceAuthError', 'insufficient credit', 'credit balance is too low')
+
+
+def _provider_refused(interp) -> str | None:
+    """The refusal the model provider gave this turn (no credit, a refused key), from the interpretation's dropped
+    notes -- or None when the model was merely slow or unavailable."""
+    for note in getattr(interp, 'dropped', None) or ():
+        if any(r in str(note) for r in _REFUSALS):
+            return str(note)[:160]
+    return None
 
 
 def _short(field_: str, lang: str) -> str:
@@ -1229,8 +1243,13 @@ class ConversationSupervisor:
                 turn.reply = _no_question(turn.reply) or T['ask_one']
                 turn.questions = [held]
         elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers and interp is not None:
-            # the model is configured but did not answer in time: say so; never pass the questionnaire off as it
-            turn.reply, turn.questions = T['model_unavailable'], []
+            # the model is configured but did not answer in time: say so; never pass the questionnaire off as it.
+            # 2026-11-19: a provider that REFUSED the request (no credit, a revoked key) is not "busy" -- sending
+            # again changes nothing. Say what happened, and log it loudly for the owner.
+            refused = _provider_refused(interp)
+            turn.reply, turn.questions = T['model_refused' if refused else 'model_unavailable'], []
+            if refused:
+                logging.getLogger(__name__).error('INTAKE_PROVIDER_REFUSED project=%s reason=%s', project_id, refused)
         self._card_limit(project_id, account_id, turn, lang, T, request_key)
         if no_subject and not res.conflicts and not turn.blocked:
             base = _no_question(interp.reply.strip()) if model_reply else ''   # the model's own words, never a card list

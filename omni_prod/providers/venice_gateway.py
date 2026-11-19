@@ -27,8 +27,8 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 
-from .venice import (ALLOWED_ENV, NoAllowedModel, VeniceBudget, VeniceBudgetExceeded, VeniceClient, VeniceError,
-                     VENICE_CONFIG, allowed_models)
+from .venice import (ALLOWED_ENV, NoAllowedModel, VeniceAuthError, VeniceBudget, VeniceBudgetExceeded, VeniceClient,
+                     VeniceError, VeniceInsufficientCredit, VENICE_CONFIG, allowed_models)
 
 PROVIDER_ENV = 'OMNI_INTAKE_PROVIDER'
 # USD per 1M tokens, "input,output". The reservation is quoted at this ceiling (budget.quote, API side) and the
@@ -168,6 +168,13 @@ class VeniceIntakeGateway:
                                                       'disable_thinking': True})
         except VeniceBudgetExceeded:
             raise                            # refused before contact: no record, nothing spent
+        except (VeniceInsufficientCredit, VeniceAuthError):
+            # 2026-11-19 (rehearsals 44445874611, 44453949615): Venice answered 402 "insufficient credit" -- it
+            # refused the request, no tokens were processed and nothing was charged. It used to be recorded as a
+            # contacted call with no usage, so its cost was UNKNOWN: held at the worst case, counted as a turn,
+            # and four refusals closed a conversation at its $0.15 cap with no model answer at all. A 401/402 is a
+            # refusal before any work: no record, so the call is metered as not contacted ($0, not a turn).
+            raise
         except Exception as exc:
             if not self._chat_sent:          # model list / key / budget failure: Venice never saw the prompt
                 raise
