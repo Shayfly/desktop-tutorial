@@ -10,6 +10,35 @@
   browser; controls `game_start_screen` 4/4 with `NC_ENV=browser` (NC1-NC2 need Chromium; NC3-NC4 run in every CI job),
   `game_runtime` 9/9. NOT run in CI: the real-browser half (no CI job has Python Playwright with Chromium -- open).
 
+# 2026-11-19 — gate calibration on the five builds with gate evidence; two false findings fixed (Claude Code)
+
+- **Data (SELECT on build_jobs.evidence_json.skill_gates, the five builds of 2026-11-17 that carry it):**
+
+  | Gate | Mode | Pass | Fail | Not run | Finding codes |
+  |---|---|---|---|---|---|
+  | G1 | warn | 5 | 0 | 0 | -- |
+  | G3 | block | 5 | 0 | 0 | -- |
+  | G4 | warn | 4 | 1 | 0 | SCRIPT_BLOCKING |
+  | G5 | warn | 5 | 0 | 0 | -- |
+  | G6 | block | 5 | 0 | 0 | -- |
+  | G10 | warn | 5 | 0 | 0 | -- |
+  | G11 | warn | 4 | 1 | 0 | ADDRESS_INCOMPLETE (false) |
+  | HE | warn | 4 | 1 | 0 | HE_GENDER (false) |
+  | BRAND | warn | 4 | 1 | 0 | BRAND_MISSING (not judged: the served page was not read) |
+  | SHARE | warn | 0 | 5 | 0 | SHARE_META_MISSING (true: no og:title/og:description on any build) |
+  | A4, APPLE, G8 | warn | 0 | 0 | 5 | -- (not judged on these builds) |
+
+- **Fixed (both false, both on bld_d36b3b4e):** HE_GENDER on "פתיחת פניית שירות חדשה" -- a construct phrase whose
+  head agrees with the adjective is ambiguous and not judged; pairs are matched overlapping, so a real error after a
+  construct ("מחיר שירות חדשה") is now found. ADDRESS_INCOMPLETE on "תאריך שירות" -- a bare "כתובת" inside `<label>`
+  is a form field, not an address.
+- **Evidence:** `tests/test_gate_calibration_false_positives.py` 7 passed (3 fail on the old probes); the unit
+  fixtures unchanged (broken fails, ok passes); negative controls `gate_calibration_false_positives` 5/5,
+  `skill_gate_he` 6/6, `skill_gate_links` 5/5, `skill_gates` 10/10.
+- **Not done here (one matter per PR):** moving G1/G10/G5 to block (5 clean builds each; the broken fixtures prove
+  they fail); SHARE fails every build because the generator never writes share tags -- a generator fix before any
+  block; BRAND needs the served page of bld_d36b3b4e to judge.
+
 # 2026-11-18 — Sonnet for the conversation agent only, with the regular model when Venice does not offer it (Claude Code)
 
 - **What was missing:** on Venice the cheapest listed model always won (`venice.select_model`), and one global list and
