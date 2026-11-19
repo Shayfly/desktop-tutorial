@@ -4019,3 +4019,7 @@ and an instrumented OpenAI-compatible HTTP boundary. A positive canary permits a
 call and observes both counters reach one (HTTP is intercepted, no paid call).
 The PG balance/replay test now executes that worker path twice for the same ID.
 Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
+
+## 2026-11-19 — Finding attribution check (Codex)
+
+- Added CI verification of the declared Found-by and Co-Authored-By commit trailers. The check flags a shared named agent and does not infer authorship on commits without attribution. Two targeted tests passed locally. Repository rollout and independent review pending.

@@ -1,0 +1,25 @@
+{
+  "pr": "finding-attribution",
+  "sha256": [
+    "tests/test_finding_attribution.py"
+  ],
+  "controls": [
+    {
+      "id": "M1",
+      "what": "A match between the finding reporter and a fix co-author is ignored.",
+      "mutations": [
+        {
+          "file": "scripts/check_finding_attribution.py",
+          "old": "    return reporters & authors",
+          "new": "    return set()  # negative control"
+        }
+      ],
+      "targets": [
+        "tests/test_finding_attribution.py"
+      ],
+      "expect_failed": [
+        "test_same_agent_cannot_report_and_coauthor_even_with_multiple_trailers"
+      ]
+    }
+  ]
+}
