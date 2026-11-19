@@ -84,6 +84,7 @@ def probe_model(gateway, model: str) -> dict:
 
 def run(catalog, gateway_factory) -> list[dict]:
     models = list(catalog)
+    models = [m for m in models if m.endpoint is not None]
     if not models:
         raise SystemExit('vision probe: the model catalog is empty (OMNI_MODEL_CATALOG_JSON) -- nothing was probed')
     if len(models) > MAX_MODELS:

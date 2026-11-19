@@ -1,3 +1,11 @@
+# 2026-11-18 — Direct-provider model enrollment (Codex; PARTIAL)
+
+- Implemented, local verification only: ten disabled text routes in the existing catalog and source-backed effective-dated prices; direct Google Nano Banana adapter through the existing image factory and capability executor; read-only account discovery.
+- Local evidence: focused provider/routing/capability suite 109 passed, 1 skipped, 9 subtests; dialect/probe/reliability suite 93 passed, 3 subtests; fast suite 1481 passed, 604 subtests, 15.1 s under the 30 s limit; enrollment/image/document checks 29 passed, 2 subtests. Matrix --check and compileall passed. No independent approval or live provider proof is claimed.
+- Awaiting external verification: account model visibility, request canaries, task quality, real durable-journal recovery and generated-image storage, then exact-SHA CI and independent review before activation.
+- Blocked here by runtime access: OPENAI_API_KEY, ANTHROPIC_API_KEY and GEMINI_API_KEY are absent in this execution environment; discovery returned NOT_CONFIGURED for each. Worker secrets were not read. New routes remain disabled with unknown quality.
+- Not implemented by this change: Google video/music/voice generation and image editing.
+- Details and official sources: docs/DIRECT_MODEL_ENROLLMENT_HE.md.
 # 2026-11-19 — the concurrent daily-cap test counted calls, not dollars (Claude Code)
 
 - **What broke:** intake-budget-pg on #463 (run 44484532008): `test_50_concurrent_turns_never_exceed_the_daily_cap`
@@ -4109,6 +4117,10 @@ call and observes both counters reach one (HTTP is intercepted, no paid call).
 The PG balance/replay test now executes that worker path twice for the same ID.
 Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
+## 2026-11-19 — Direct model enrollment negative controls (Codex)
+
+- PR #453 adds seven missing assertions. The requested 11 controls plus a provider-switch control exercise the real execution paths.
+- A pending image operation retains its identity across changes to price and cannot be submitted to a different provider after a lost response. Production activation and independent review of the new head are pending.
 ## 2026-11-19 — Finding attribution check (Codex)
 
 - Added CI verification of the declared Found-by and Co-Authored-By commit trailers. The check flags a shared named agent and does not infer authorship on commits without attribution. The comparison also recognizes the versioned Claude signatures used in main. Three focused tests and two mutation controls passed locally. Repository rollout and independent review pending.
@@ -4125,3 +4137,9 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 - The #463 Overlay run 44479691814 ran 3911 unittest cases and failed only because the nested AcceptanceW subprocess exceeded 300 seconds. Overlay discovery now skips the wrapper only. Standalone and v24 invocations retain the 300-second check.
 - Local targeted checks: 8 tests and 19 subtests passed, and the duplicate-invocation mutation was caught. Exact-head CI and independent review pending.
+
+## 2026-11-19 — Direct model enrollment remains disabled (#453, Codex)
+
+- Synced with main `0ed3d0e`. The deletion registry contains every main declaration plus ten pending independent review: 251 + 10 = 261. The exact-deletion check found a matching digest for every changed file with deleted lines.
+- All ten added text routes remain `enabled: false`. The catalog requires explicit opt-in, an integer quality score from 1 to 100, a provider key and valid governed pricing before routing a staged entry. The four direct Google image model choices remain unavailable without explicit configuration and credentials. No paid calls or configuration changes were made.
+- Full local `pytest tests` with production and test dependencies at main `0ed3d0e` and branch code `bab6b57`: 3,979 and 4,025 passed respectively, both with 291 skips, one xfail and zero failures or collection errors. AcceptanceW passed in both reports. Focused checks: 61 passed. `direct_model_enrollment` negative controls: 14/14, including unmeasured quality and implicit opt-in. GitHub CI and review are pending.
