@@ -4083,6 +4083,10 @@ call and observes both counters reach one (HTTP is intercepted, no paid call).
 The PG balance/replay test now executes that worker path twice for the same ID.
 Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
+## 2026-11-19 — Critical production path freshness (Codex)
+
+- The proposed daily workflow reads action run, step and artifact metadata. It reports success from the relevant main-branch step within seven days, BROKEN when no qualifying evidence exists, and UNVERIFIED when the API cannot be read. Scope: deployment, golden rehearsal, Golden E2E, verify-replay and restoration.
+- The replay source positively verifies a nonempty completed batch with at least one passing version. Freshness counts successful old runs rerun within seven days and labels the displayed revision as the workflow trigger SHA. Local evidence: eight tests, three mutation controls, and workflow validation. Scheduled activation and independent review are pending.
 ## 2026-11-19 — Model costs of recorded runs (Codex, internal reporting)
 
 - The read-only query in [scripts/observed_model_costs.sql](scripts/observed_model_costs.sql) returns build and intake run IDs, phases, routes, evidence bases, recorded subtotals and run totals. A missing price leaves the full total null. Budget reservations and prospective prices do not enter these figures.
