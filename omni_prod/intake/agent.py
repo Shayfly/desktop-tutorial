@@ -78,6 +78,13 @@ def _off_topic(fld: str, value: str) -> bool:
     return False
 
 
+def _extends(old, new) -> bool:
+    """The new text keeps the old one whole (spacing and the separators ; | , aside) and adds to it."""
+    norm = lambda v: re.sub(r'[\s;|,]+', ' ', str(v or '')).strip()
+    a, b = norm(old), norm(new)
+    return bool(a) and len(b) > len(a) and a in b
+
+
 def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True,
           require_confirmation: bool = False) -> TurnResult:
     new = _copy(brief)
@@ -114,6 +121,14 @@ def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True
             new.hints[p.field] = p.value      # sensitive turn: pre-select and ask, never apply
             res.conflicts.append({'field': p.field, 'current': (old or {}).get('value'), 'proposed': p.value,
                                   'origin': origin, 'reason': 'sensitive turn: needs explicit confirmation'})
+            continue
+        if q.kind == 'text' and old and old.get('source') in CONFIRMED_SOURCES and p.confidence == HIGH \
+                and _extends(old['value'], p.value):
+            # Production 2026-11-19 (the owner's law-firm site): the model restated the content field with one fact
+            # added (a WhatsApp number); every restatement differed from the confirmed text, so each turn asked "what
+            # is right?" again -- a loop. A text that keeps every word of the confirmed one and adds to it extends it.
+            new.fields[p.field] = {'value': p.value, 'source': 'message', 'question_id': q.id, 'confidence': 'stated'}
+            res.applied.append({'field': p.field, 'value': p.value, 'source': 'message'})
             continue
         if old and old.get('source') in CONFIRMED_SOURCES and old['value'] != p.value and \
                 p.confidence in (HIGH, MEDIUM) and (origin == 'model' or material(p.field, new.values())):
