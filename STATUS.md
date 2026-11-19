@@ -9,6 +9,9 @@
 - **Evidence:** `tests/test_worker_carries_gate_rules.py` 3 passed, on the real `_run_live_build_job` (BuildHarness):
   the spec the build starts from names og:title and every installed unit; 3 failed without the fix. Controls
   `worker_carries_gate_rules` 3/3.
+- **One test double changed:** `test_first_pass_requires_a_passed_build`'s architect returned a SimpleNamespace, a spec
+  no production architect makes; the wrapped worker path reads `spec.to_dict()` (as the facts, outline and contract
+  wrappers do), so it returns a ProductSpec. Its assertion is unchanged (declared deletion).
 - **Not proven yet:** that a model told about og tags writes them. After the release: the next production build's
   stored spec has `PLATFORM-CHECKS` (SQL), and its SHARE result in `evidence_json.skill_gates`. SHARE stays at warn.
 
