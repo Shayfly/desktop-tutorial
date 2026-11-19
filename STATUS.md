@@ -1,3 +1,17 @@
+# 2026-11-19 — the worker tells the generator what the gates check; it never did (Claude Code)
+
+- **What broke:** SHARE failed all five production builds of 2026-11-17 (no og:title / og:description). **Root cause,
+  Claude's bug (#430):** the gates' checks reach the spec through `carry_rules`, which only `install_all` called; only
+  the rehearsal calls `install_all`, while the worker installs each gate on its own line. **Evidence:** SELECT on
+  `project_version_specs` since 2026-11-17: 0 of 5 stored specs carry the `PLATFORM-CHECKS` requirement.
+- **Fix:** the worker calls `carry_rules(engine, WORKER_GATES)` after its last gate and before the build -- the same list
+  the rehearsal uses (`test_gates_calibrating` already holds the worker's gates equal to it).
+- **Evidence:** `tests/test_worker_carries_gate_rules.py` 3 passed, on the real `_run_live_build_job` (BuildHarness):
+  the spec the build starts from names og:title and every installed unit; 3 failed without the fix. Controls
+  `worker_carries_gate_rules` 3/3.
+- **Not proven yet:** that a model told about og tags writes them. After the release: the next production build's
+  stored spec has `PLATFORM-CHECKS` (SQL), and its SHARE result in `evidence_json.skill_gates`. SHARE stays at warn.
+
 # 2026-11-17 — the game check presses "start" the way a player does (Claude Code)
 
 - **Root cause (rehearsal 44079074182, the stars game):** a working game waited on its start screen; the probe tapped the
