@@ -4024,3 +4024,7 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 - The proposed daily workflow reads action run, step and artifact metadata. It reports success from the relevant main-branch step within seven days, BROKEN when no qualifying evidence exists, and UNVERIFIED when the API cannot be read. Scope: deployment, golden rehearsal, Golden E2E, verify-replay and restoration.
 - The replay source positively verifies a nonempty completed batch with at least one passing version. Freshness counts successful old runs rerun within seven days and labels the displayed revision as the workflow trigger SHA. Local evidence: eight tests, three mutation controls, and workflow validation. Scheduled activation and independent review are pending.
+## 2026-11-19 — Model costs of recorded runs (Codex, internal reporting)
+
+- The read-only query in [scripts/observed_model_costs.sql](scripts/observed_model_costs.sql) returns build and intake run IDs, phases, routes, evidence bases, recorded subtotals and run totals. A missing price leaves the full total null. Budget reservations and prospective prices do not enter these figures.
+- Exercised the SELECT on both operational ledger databases. The export is rerunnable via psql and has no write or runtime hooks. Claude Code independently verified the unchanged SQL against the production ledger on 2026-11-19 (PR #454, review of 71ec345). The report contains operational data and is kept outside this public repository.
