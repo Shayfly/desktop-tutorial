@@ -22,6 +22,34 @@
   `skill_gate_copy` 5/5, `skill_gate_rights` 20/20, `skill_gate_blocks_brand_share` 4/4 (each NC4 now mutates a
   calibrated gate back to warn).
 - **What changes for a build:** a G1/G10/G5 finding now fails the round and goes to repair instead of a warning.
+# 2026-11-19 — gate calibration on the five builds with gate evidence; two false findings fixed (Claude Code)
+
+- **Data (SELECT on build_jobs.evidence_json.skill_gates, the five builds of 2026-11-17 that carry it):**
+
+  | Gate | Mode | Pass | Fail | Not run | Finding codes |
+  |---|---|---|---|---|---|
+  | G1 | warn | 5 | 0 | 0 | -- |
+  | G3 | block | 5 | 0 | 0 | -- |
+  | G4 | warn | 4 | 1 | 0 | SCRIPT_BLOCKING |
+  | G5 | warn | 5 | 0 | 0 | -- |
+  | G6 | block | 5 | 0 | 0 | -- |
+  | G10 | warn | 5 | 0 | 0 | -- |
+  | G11 | warn | 4 | 1 | 0 | ADDRESS_INCOMPLETE (false) |
+  | HE | warn | 4 | 1 | 0 | HE_GENDER (false) |
+  | BRAND | warn | 4 | 1 | 0 | BRAND_MISSING (not judged: the served page was not read) |
+  | SHARE | warn | 0 | 5 | 0 | SHARE_META_MISSING (true: no og:title/og:description on any build) |
+  | A4, APPLE, G8 | warn | 0 | 0 | 5 | -- (not judged on these builds) |
+
+- **Fixed (both false, both on bld_d36b3b4e):** HE_GENDER on "פתיחת פניית שירות חדשה" -- a construct phrase whose
+  head agrees with the adjective is ambiguous and not judged; pairs are matched overlapping, so a real error after a
+  construct ("מחיר שירות חדשה") is now found. ADDRESS_INCOMPLETE on "תאריך שירות" -- a bare "כתובת" inside `<label>`
+  is a form field, not an address.
+- **Evidence:** `tests/test_gate_calibration_false_positives.py` 7 passed (3 fail on the old probes); the unit
+  fixtures unchanged (broken fails, ok passes); negative controls `gate_calibration_false_positives` 5/5,
+  `skill_gate_he` 6/6, `skill_gate_links` 5/5, `skill_gates` 10/10.
+- **Not done here (one matter per PR):** moving G1/G10/G5 to block (5 clean builds each; the broken fixtures prove
+  they fail); SHARE fails every build because the generator never writes share tags -- a generator fix before any
+  block; BRAND needs the served page of bld_d36b3b4e to judge.
 
 # 2026-11-18 — Sonnet for the conversation agent only, with the regular model when Venice does not offer it (Claude Code)
 
@@ -43,6 +71,23 @@
 - **Next:** release (Vercel and the worker), then the agent-path rehearsal: the first real measurement of the
   conversation agent's cost. No cost is reported before it.
 
+# 2026-11-19 — agentic repair edits with exact blocks (Claude Code)
+
+- **What broke (wf_309a64e1-002, three founder builds of 2026-11-17):** with Sonnet and gpt-6.1-sol out of credit and
+  gemini-3.8-flash answering the agentic prompt with a function call, the edit step fell to the two 8,192-token
+  Flash-Lite routes. The only edit offered was a whole file; a whole app.py needs ~9.4-9.8K output tokens (estimate),
+  and all 14 answers were cut at 8,188 tokens. **Root cause:** whole-file edits, not the model.
+- **Fix:** `omni_prod/repair_edits.py` -- `{path, old, new}` applied exactly once (overlaps counted), all or nothing,
+  misses reported back with a hint that is never applied. `agentic_repair`: edit and submit take `edits`; an existing
+  file over 12,000 characters is refused whole (`WHOLE_FILE_TOO_LARGE`); a submit whose edits missed does not end the
+  round; the prompt asks for blocks and forbids function calls; `BuildDeadline`/`BuildCancelled` are re-raised
+  instead of swallowed (found by the plan's skeptic).
+- **Evidence:** `tests/test_repair_edit_blocks.py` 13 passed on a SYNTHETIC 20K-character app.py (the round zips were
+  not read); repair tests 121 passed; negative controls `repair_edit_blocks` 9/9.
+- **Not shown:** that a Flash-Lite route produces correct blocks on a real round, or that a build is saved -- only
+  that an answer no longer has to fit a whole file. Credit is back on Sonnet and gpt-6.1-sol, so the strong routes
+  answer first again. The trade-off the skeptic named stands: a block from a quality-70 route can now end a round
+  that the classic fallback (gemini-3.8-flash) used to repair.
 # 2026-11-19 — the first real Sonnet measurement: 1 of 10 agent calls answered (Claude Code)
 
 - **What ran:** conversation-rehearsal, path `agent`, run 44445874611 on the worker, at code `063e4a5` (#456), quote
@@ -4032,3 +4077,13 @@ and an instrumented OpenAI-compatible HTTP boundary. A positive canary permits a
 call and observes both counters reach one (HTTP is intercepted, no paid call).
 The PG balance/replay test now executes that worker path twice for the same ID.
 Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
+
+## 2026-11-19 — Model costs of recorded runs (Codex, internal reporting)
+
+- The read-only query in [scripts/observed_model_costs.sql](scripts/observed_model_costs.sql) returns build and intake run IDs, phases, routes, evidence bases, recorded subtotals and run totals. A missing price leaves the full total null. Budget reservations and prospective prices do not enter these figures.
+- Exercised the SELECT on both operational ledger databases. The export is rerunnable via psql and has no write or runtime hooks. Claude Code independently verified the unchanged SQL against the production ledger on 2026-11-19 (PR #454, review of 71ec345). The report contains operational data and is kept outside this public repository.
+
+## 2026-11-19 — Remove the duplicate AcceptanceW invocation in Overlay CI (Codex)
+
+- The #463 Overlay run 44479691814 ran 3911 unittest cases and failed only because the nested AcceptanceW subprocess exceeded 300 seconds. Overlay discovery now skips the wrapper only. Standalone and v24 invocations retain the 300-second check.
+- Local targeted checks: 8 tests and 19 subtests passed, and the duplicate-invocation mutation was caught. Exact-head CI and independent review pending.

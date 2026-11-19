@@ -1,0 +1,94 @@
+{
+ "pr": "gate-calibration-false-positives",
+ "sha256": [
+  "tests/test_gate_calibration_false_positives.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a construct phrase is judged against its second noun (\"פניית שירות חדשה\" fails again)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/he_gender/probe.py",
+     "old": "            if adj_gender and adj_gender != g and _construct_head_agrees(node, m.start(2), adj_gender):\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_calibration_false_positives.py"
+   ],
+   "expect_failed": [
+    "test_the_production_construct_phrase_is_not_a_finding",
+    "test_construct_heads_of_the_adjectives_gender_are_ambiguous"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "any word before the noun excuses the adjective (real errors pass)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/he_gender/probe.py",
+     "old": "        return _gender(head) == adj_gender\n",
+     "new": "        return True  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_calibration_false_positives.py"
+   ],
+   "expect_failed": [
+    "test_a_head_of_the_other_gender_does_not_excuse_the_noun"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "pairs are matched without overlap again (\"מחיר שירות חדשה\" is never judged)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/he_gender/probe.py",
+     "old": "_PAIR = re.compile(rf'(?<!{_W})(?=(?:[ובלמש]?(ה))?({_W}+)\\s+(ה)?({_W}+)(?!{_W}))')\n",
+     "new": "_PAIR = re.compile(rf'(?<!{_W})(?:[ובלמש]?(ה))?({_W}+)\\s+(ה)?({_W}+)(?!{_W})')  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_calibration_false_positives.py"
+   ],
+   "expect_failed": [
+    "test_a_head_of_the_other_gender_does_not_excuse_the_noun"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a form field label is judged as an address (the \"תאריך שירות\" finding returns)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/links_address/probe.py",
+     "old": "        if form_label and not (m.group(1) or '').strip():\n            continue\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_gate_calibration_false_positives.py"
+   ],
+   "expect_failed": [
+    "test_a_form_field_label_is_not_an_address"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a page with a form skips every address on it",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/links_address/probe.py",
+     "old": "        if form_label and not (m.group(1) or '').strip():\n",
+     "new": "        if form_label:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_calibration_false_positives.py"
+   ],
+   "expect_failed": [
+    "test_a_label_with_its_address_inline_is_judged_even_beside_a_form"
+   ]
+  }
+ ]
+}
