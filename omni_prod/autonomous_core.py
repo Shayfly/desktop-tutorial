@@ -329,11 +329,30 @@ class AutonomousProductEngine:
             if transform is not None and hasattr(transform, 'redact_text'):
                 failures = [{k: transform.redact_text(v) if isinstance(v, str) else v
                              for k, v in f.items()} for f in failures]
-            patch = self.repairer.repair(
-                spec=spec,
-                repo_summary=self._repair_summary(repo, failures),
-                failures=failures,
-            )
+            try:
+                patch = self.repairer.repair(
+                    spec=spec,
+                    repo_summary=self._repair_summary(repo, failures),
+                    failures=failures,
+                )
+            except Exception as exc:
+                # The owner's butcher builds, 2026-11-17 (bld_6323468a, bld_c0b2b43b): three rounds were verified, then
+                # no model route answered the repair with valid JSON (prose before it, an answer cut at its length, an
+                # account with no credit). The exception ended the whole build: the verified work was thrown away and
+                # the customer was told no check ran. Now the repair stops and the build ends on its best version with
+                # its real checks. Only "no route answered"; any other error still ends the build as before.
+                from .model_gateway import ModelGatewayError, ProviderQuotaUnavailable
+                # 2026-11-18 (analysis of the same builds): when a route in the call had answered "no credit", the
+                # router raises ProviderQuotaUnavailable instead -- also "no route answered", but its message lacks
+                # the phrase, so this catch missed it and the build died the old way. Matched by type, not by text.
+                no_route = isinstance(exc, ProviderQuotaUnavailable) or (
+                    isinstance(exc, ModelGatewayError) and 'all model routes failed' in str(exc))
+                if not no_route:
+                    raise
+                self.repair_model_error = str(exc)[:1200]
+                self.trace.append({'round': rounds, 'repair_model_unavailable': str(exc)[:400]})
+                stop_reason = 'repair_model_unavailable'
+                break
             if not patch:
                 # Brain 2 point 4 (2026-11-02): an empty patch is its own label; no_progress_repository_unchanged is
                 # kept for a non-empty patch whose result is identical to the repository it was applied to.

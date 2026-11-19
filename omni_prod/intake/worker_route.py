@@ -43,8 +43,9 @@ class ReservedWorkerInterpreter:
     def __init__(self, service: B.ReservationService, enqueue, *, account_id: str, project_id: str,
                  request_key: str | None, caps: B.Caps, lane: str = B.PRODUCTION, campaign_id: str | None = None,
                  wait_seconds: float | None = None, sleep=time.sleep, clock=time.monotonic,
-                 task: str = 'conversation'):
+                 task: str = 'conversation', venice_profile: dict | None = None):
         self.svc, self.enqueue = service, enqueue
+        self.venice_profile = venice_profile   # the conversation agent's Sonnet profile (owner 2026-11-18), or None
         self.task = task          # 'conversation' or the escalated 'conversation_complex' (lanes.choose)
         self.account_id, self.project_id, self.request_key = account_id, project_id, request_key
         self.caps, self.lane, self.campaign_id = caps, lane, campaign_id
@@ -61,7 +62,8 @@ class ReservedWorkerInterpreter:
         base = self.fallback.interpret(message, brief)
         user = contextual_user(message, brief, getattr(self, 'history', ()))
         try:
-            quote = B.quote(system=SYSTEM, user=user, max_tokens=MAX_OUTPUT_TOKENS, task=self.task)
+            quote = B.quote(system=SYSTEM, user=user, max_tokens=MAX_OUTPUT_TOKENS, task=self.task,
+                            venice_profile=self.venice_profile)
         except B.QuoteUnavailable as exc:
             base.dropped.append(f'model not used: {exc}')
             return base
@@ -74,6 +76,17 @@ class ReservedWorkerInterpreter:
                                           'prompt_version': PROMPT_VERSION})
         except B.BudgetExceeded as exc:
             base.dropped.append(f'model not used: budget {exc.scope.split(":")[0]} exhausted')
+            # a typed outcome, not only a string: the supervisor ends the conversation gracefully on it (owner
+            # 2026-11-18). The amounts are logged here and never sent to the browser.
+            base.limit = exc.public()
+            logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s scope=%s counted=%s quote=%s cap=%s', exc.kind,
+                                             exc.scope.split(':')[0], exc.counted, exc.quote, exc.cap)
+            return base
+        except B.TurnCapReached as exc:         # the agent's turn cap (owner 2026-11-18)
+            base.dropped.append(f'model not used: {exc.kind} (turn cap {exc.max_turns})')
+            base.limit = exc.public()
+            logging.getLogger(__name__).info('INTAKE_LIMIT kind=%s used=%s inflight=%s max_turns=%s', exc.kind,
+                                             exc.used, exc.inflight, exc.max_turns)
             return base
         except Exception as exc:   # BudgetError, ValueError, schema/DB errors: fail closed, no paid call
             base.dropped.append(f'model not used: {type(exc).__name__}')

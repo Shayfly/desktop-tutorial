@@ -10,8 +10,8 @@
    "mutations": [
     {
      "file": "tests/fast_suite.txt",
-     "old": "# Result: 172 files",
-     "new": "tests/test_discovery_endpoints.py\n# Result: 172 files"
+     "old": "# A file is added or removed only by re-measuring, never by name.",
+     "new": "tests/test_discovery_endpoints.py\n# A file is added or removed only by re-measuring, never by name."
     }
    ],
    "targets": [
@@ -27,8 +27,8 @@
    "mutations": [
     {
      "file": "tests/fast_suite.txt",
-     "old": "# Result: 172 files",
-     "new": "tests/integration/test_live_model.py\n# Result: 172 files"
+     "old": "# A file is added or removed only by re-measuring, never by name.",
+     "new": "tests/integration/test_live_model.py\n# A file is added or removed only by re-measuring, never by name."
     }
    ],
    "targets": [

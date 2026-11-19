@@ -31,6 +31,12 @@ class AttemptLedgerUnavailable(RuntimeError):
     """A paid operation cannot start without its durable financial evidence."""
 
 
+def new_call_id() -> str:
+    """A fresh id for ONE logical model call. The caller that meters a call creates it and passes the same id to the
+    gateway and to the meter, so the meter never has to guess which attempts were this call's."""
+    return f'call_{uuid.uuid4().hex}'
+
+
 def content_version(*parts: Any) -> str:
     """Short, stable id for exact content (prompt text, catalog, policy)."""
     h = hashlib.sha256()
@@ -88,6 +94,10 @@ class AttemptRecord:
     # Not persisted: marks an attempt made by an escalation step. The current
     # pipeline has no escalation path, so this is never True yet.
     escalated: bool = False
+    # Not persisted (no column, so no migration): the logical call this attempt belongs to. One call can take several
+    # attempts (fallback, transient retry); a ledger that outlives one call (a build, a whole rehearsal) is priced per
+    # call by summing only the attempts carrying its id (reservation_worker.meter, owner 2026-11-18).
+    call_id: str | None = None
     attempt_id: str = field(default_factory=lambda: f'att_{uuid.uuid4().hex}')
 
     def __post_init__(self) -> None:

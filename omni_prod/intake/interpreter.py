@@ -60,13 +60,16 @@ class Interpretation:
     reservation_id: str | None = None
     reply: str = ''   # advisory prose only; never a build/state/approval command
     semantic_decisions: list[dict] = field(default_factory=list)  # evidence-bound; no paid action
+    # owner 2026-11-18: a conversation limit (budget / daily / turns) stopped the paid call. {kind, source} only.
+    limit: dict | None = None
 
     def to_dict(self):
         return {'schema': SCHEMA, 'language': self.language, 'product_family': self.product_family,
                 'proposals': [p.to_dict() for p in self.proposals], 'delegate_rest': self.delegate_rest,
                 'requirements': list(self.requirements), 'interpreter': self.interpreter, 'dropped': list(self.dropped),
                 'cost_usd': self.cost_usd, 'cost_state': self.cost_state, 'reservation_id': self.reservation_id,
-                'reply':self.reply, 'semantic_decisions': list(self.semantic_decisions)}
+                'reply':self.reply, 'semantic_decisions': list(self.semantic_decisions),
+                **({'limit': dict(self.limit)} if self.limit else {})}
 
 
 def language_of(text: str) -> str:
@@ -406,21 +409,39 @@ class ModelInterpreter:
     name = 'model'
 
     def __init__(self, gateway, *, fallback=None, max_tokens: int = MAX_OUTPUT_TOKENS):
+        # Every turn is priced by its own call id (owner 2026-11-18). A gateway that cannot carry one would leave the
+        # meter guessing which attempts were this turn's -- the cumulative sum that inflated the routed rehearsals.
+        if not getattr(gateway, 'accepts_call_id', False):
+            raise TypeError(f'{type(gateway).__name__} does not tag its calls with a call id; a turn on it cannot be '
+                            'priced on its own')
         self.gateway = gateway
         self.fallback = fallback or DeterministicInterpreter()
         self.max_tokens = max_tokens
 
     def interpret(self, message: str, brief: d.Brief | None = None) -> Interpretation:
-        from .reservation_worker import meter
+        from .reservation_worker import MeterError, ledger_mark, meter
+        from ..attempt_ledger import new_call_id
         base = self.fallback.interpret(message, brief)
         raw, error = None, None
+        call_id = new_call_id()          # THIS turn: the meter sums only the attempts carrying it
+        mark = ledger_mark(self.gateway)
         try:
             raw = self.gateway.complete_json(system=SYSTEM, user=contextual_user(message, brief, getattr(self, 'history', ())),
-                                             max_tokens=self.max_tokens, task='conversation')
+                                             max_tokens=self.max_tokens, task='conversation', call_id=call_id)
         except Exception as exc:  # provider down / budget: the conversation continues deterministically
             error = exc
-        m = meter(self.gateway, {'max_tokens': self.max_tokens})
+        unmetered = None
+        try:
+            m = meter(self.gateway, {'max_tokens': self.max_tokens}, call_id=call_id, before=mark)
+        except MeterError as exc:        # the turn goes on; its cost is UNKNOWN and says why, never $0
+            from .budget import COST_UNKNOWN
+            unmetered = f'cost unknown: {exc}'[:300]
+            m = {'contacted': True, 'cost_state': COST_UNKNOWN, 'actual_usd': None, 'reason': unmetered}
+            base.dropped.append(unmetered)
         cost = m['actual_usd']
+        from .budget import LimitReached
+        if isinstance(error, LimitReached):         # refused before any provider contact: the conversation's limit
+            base.limit = error.public()
         if error is not None or not isinstance(raw, dict):
             base.dropped.append(f'model unavailable: {type(error).__name__}' if error else 'model output malformed')
             base.cost_usd, base.cost_state = (None if cost is None else str(cost)), m['cost_state']
@@ -431,7 +452,10 @@ class ModelInterpreter:
             base.dropped.append('model output malformed; deterministic result used')
             base.cost_usd, base.cost_state = (None if cost is None else str(cost)), m['cost_state']
             return base
-        return merge(base, model, interpreter='model+deterministic', cost_usd=cost, cost_state=m['cost_state'])
+        merged = merge(base, model, interpreter='model+deterministic', cost_usd=cost, cost_state=m['cost_state'])
+        if unmetered and unmetered not in merged.dropped:
+            merged.dropped.append(unmetered)
+        return merged
 
 
 def interpreter_from_env(gateway=None):

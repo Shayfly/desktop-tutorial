@@ -52,8 +52,12 @@ def build_gateway(quoted_usd: Decimal, models: tuple[str, ...], quote: dict | No
         cin, cout = quote['venice_ceiling_usd_per_m']
         # the list the reservation was QUOTED with; a quote without one (older) falls back to the worker's
         # OMNI_VENICE_ALLOWED_MODELS, and with neither the gateway refuses to build (released, no charge)
+        select = quote.get('venice_select', 'cheapest')
+        if select not in ('cheapest', 'order'):          # a quote the worker does not understand is never guessed
+            raise ValueError(f'unknown venice_select {select!r} in the quote')
         return venice_gateway.VeniceIntakeGateway(quoted_usd, ceiling=(Decimal(cin), Decimal(cout)),
-                                                  allowed=tuple(quote.get('venice_allowed_models') or ()) or None)
+                                                  allowed=tuple(quote.get('venice_allowed_models') or ()) or None,
+                                                  prefer_order=select == 'order')
     from ..model_policy import ModelUsePolicy
     from ..model_router import RoutingPolicy
     from ..model_runtime_config import ModelRuntimeConfig
@@ -66,10 +70,45 @@ def build_gateway(quoted_usd: Decimal, models: tuple[str, ...], quote: dict | No
                               policy=policy, transient_retries=0)
 
 
-def meter(gateway, quote: dict) -> dict:
-    """Cost state of everything this gateway sent, from its write-ahead attempt ledger."""
-    records = [r for r in (getattr(getattr(gateway, 'recorder', None), 'records', None) or [])
-               if getattr(r, 'kind', 'provider_call') == 'provider_call']
+class MeterError(ValueError):
+    """The cost of a call cannot be attributed to it. Raised, never priced as $0."""
+
+
+def ledger_mark(gateway):
+    """Where the gateway's attempt ledger stands before a call: (the ledger, its length). Passed to meter(before=), it
+    makes every attempt written during the call prove it carries the call's id -- a layer that dropped the id on the
+    way would otherwise leave the paid attempt under an id the gateway made up, and the call would read as 'not
+    contacted', $0 (review of #451, 2026-11-18)."""
+    ledger = getattr(getattr(gateway, 'recorder', None), 'records', None)
+    return (ledger, len(ledger)) if isinstance(ledger, list) else (None, 0)
+
+
+def meter(gateway, quote: dict, *, call_id: str, before=None) -> dict:
+    """Cost state of ONE call: the attempts in the gateway's write-ahead ledger that carry `call_id`, and no other.
+
+    Owner 2026-11-18: the routed gateway's ledger keeps every attempt of its life (a build, a whole rehearsal), and
+    this used to sum all of it, so on a gateway shared by many turns turn k paid for turns 1..k (the routed rehearsal
+    runs 44126201300, 44141955553 and 44263232985; their costs are invalid). Loud, never $0: no id, no ledger, or a
+    provider attempt that carries no call id (its cost could belong to any call)."""
+    if not call_id or not isinstance(call_id, str):
+        raise MeterError('meter() needs the id of the call it prices')
+    ledger = getattr(getattr(gateway, 'recorder', None), 'records', None)
+    if not isinstance(ledger, list):
+        raise MeterError(f'{type(gateway).__name__} keeps no attempt ledger: the cost of call {call_id} is unknowable')
+    calls = [r for r in ledger if getattr(r, 'kind', 'provider_call') == 'provider_call']
+    untagged = [r for r in calls if not getattr(r, 'call_id', None)]
+    if untagged:
+        raise MeterError(f'{len(untagged)} provider attempt(s) in the ledger carry no call id '
+                         f'({untagged[0].provider}/{untagged[0].model}): they cannot be attributed to a call')
+    if before is not None:
+        old, start = before
+        fresh = ledger[start:] if ledger is old else ledger     # a gateway built for the call has a new ledger
+        foreign = [r for r in fresh if getattr(r, 'kind', 'provider_call') == 'provider_call'
+                   and getattr(r, 'call_id', None) != call_id]
+        if foreign:
+            raise MeterError(f'{len(foreign)} attempt(s) written during call {call_id} carry another id '
+                             f'({getattr(foreign[0], "call_id", None)}): the id was lost on the way to the gateway')
+    records = [r for r in calls if r.call_id == call_id]
     if not records:
         return {'contacted': False, 'cost_state': B.CONFIRMED_ZERO, 'actual_usd': Decimal('0'),
                 'reason': 'provider not contacted (no write-ahead attempt)'}
@@ -90,7 +129,8 @@ def meter(gateway, quote: dict) -> dict:
                        + (f' ({r.failure_reason[:200]})' if r.failure_reason else ''))
         if r.output_tokens is not None and bound and r.output_tokens > bound:
             overrun = True
-    info = {'contacted': True, 'attempts': len(records), 'provider': last.provider, 'model': last.model,
+    info = {'contacted': True, 'call_id': call_id, 'attempts': len(records), 'provider': last.provider,
+            'model': last.model,
             'provider_request_id': last.provider_request_id, 'input_tokens': last.input_tokens,
             'output_tokens': last.output_tokens, 'output_overrun': overrun}
     if B.COST_UNKNOWN in states:
@@ -130,10 +170,11 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
     if not svc.mark_executing(r, lease_seconds=lease_seconds):
         return {'ok': False, 'error': 'lease lost before execution'}
     raw, error = None, None
+    mark = ledger_mark(gateway)
     try:   # no database transaction is open here
         raw = gateway.complete_json(system=payload['system'], user=payload['user'],
                                     max_tokens=int(payload['max_tokens']),
-                                    task=task)
+                                    task=task, call_id=r.id)   # the reservation IS the call
     except Exception as exc:
         error = f'{type(exc).__name__}: {str(exc)[:300]}'
         # CEO 2026-11-08: the model always answers. If it wrote plain text instead of the JSON envelope, its text
@@ -147,7 +188,11 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
             salvaged = salvage_reply(prose)
             if salvaged:
                 raw, error = {'reply': salvaged, 'proposals': [], 'requirements': []}, None
-    m = meter(gateway, r.quote)
+    try:
+        m = meter(gateway, r.quote, call_id=r.id, before=mark)
+    except MeterError as exc:   # unattributable cost: held at the quote as UNKNOWN, never settled as $0
+        m = {'contacted': True, 'call_id': r.id, 'cost_state': B.COST_UNKNOWN, 'actual_usd': None,
+             'reason': f'meter: {exc}'[:300]}
     if m['cost_state'] == B.COST_UNKNOWN:
         reason = m.get('reason') or error or 'usage not reported'
     else:

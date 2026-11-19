@@ -1,3 +1,218 @@
+# 2026-11-18 — Sonnet for the conversation agent only, with the regular model when Venice does not offer it (Claude Code)
+
+- **What was missing:** on Venice the cheapest listed model always won (`venice.select_model`), and one global list and
+  ceiling served every account: listing Sonnet beside Haiku never ran Sonnet, listing it alone moved every account onto
+  it. Environment variables alone could not give the owner's "Sonnet for the conversation agent only" (D10 analysis).
+- **Fix (part 3 of 3):** agent accounts are quoted with the agent's own Venice profile (`conversation_agent`:
+  `claude-sonnet-5-5` then `claude-haiku-5-5`, ceiling 2,10 = Sonnet's live list price, Venice pricing page read
+  2026-11-18; both tagged anonymized, IRON_LAWS א.1 covered by the owner's decision). The quote says `mode: agent`,
+  `venice_select: order`; the worker picks the first listed model Venice offers within the ceiling -- Sonnet, and Haiku
+  only when Sonnet is not offered (decision 10), before any request, so never a second paid call. Every other account is
+  quoted and served exactly as before (`mode: plain`, cheapest). The profile is in code, not an environment variable:
+  the quote (Vercel) and the rehearsal (the worker) read one source. The builder never reads it (guard test). The
+  rehearsal has an agent path (`REHEARSAL_PATH=agent`): production's newest quote with the agent profile, each
+  conversation held to 8 turns and to production's project cap from the quote's own snapshot, as typed limits.
+- **Evidence:** `tests/test_conversation_agent_sonnet.py` 12 passed on the real quote, build_gateway, VeniceIntakeGateway
+  and select_model (Venice HTTP faked): Sonnet sent when offered, Haiku when not, the plain quote unchanged. Controls
+  `conversation_agent_sonnet` 9/9.
+- **Next:** release (Vercel and the worker), then the agent-path rehearsal: the first real measurement of the
+  conversation agent's cost. No cost is reported before it.
+
+# 2026-11-18 — the conversation agent's 8-turn cap, and tokens and cost per conversation (Claude Code)
+
+- **What was missing:** the owner's decision for Sonnet set at most 8 turns per conversation and tokens and cost
+  recorded per conversation. No turn cap existed on the production intake path (only the rehearsal had one), and tokens
+  lived only in each reservation's settle event.
+- **Fix (part 2 of 3):** `reserve()` enforces `Caps.project_turns` under the same scope locks as the money check, so two
+  tabs cannot both take the last turn and a retry with the same key returns its reservation. A turn is a paid call the
+  provider received or may have received; a released call and a settled call the provider never received
+  (contacted=false) are not turns, and only reservations made under the cap count (a project's earlier turns never close
+  it on the first day). 'turns' closes the conversation; 'busy' (the cap reached only by calls still in flight) says so
+  and does not. The cap holds for agent accounts only (`conversation_agent.MAX_TURNS = 8`). `conversation_usage(scope)`
+  returns turns, tokens, settled and held amounts and the models; an UNKNOWN or open call makes the total None, never
+  $0, and `counted_usd` equals `counted(scope)`. It is stored with each paid or limited assistant message (server side,
+  never sent to the browser) and logged as `INTAKE_CONVERSATION_USAGE`; a read failure is kept as `usage_error` and never
+  fails the turn. No migration.
+- **Evidence:** `tests/test_conversation_turn_cap_pg.py` 8 passed on real PostgreSQL 16 (local, a fresh database with
+  every migration); `tests/test_conversation_turn_cap.py` 8 passed. Controls `conversation_turn_cap` 8/8 and
+  `conversation_turn_cap_pg` 7/7 (`envs: pg`). The PG file runs in intake-budget-pg's isolated per-file loop
+  (`scripts/ci_test_coverage.py` PASS).
+
+# 2026-11-19 — D10 review follow-up: the stop holds, says the right thing, and counts honestly (Claude Code)
+
+- **What broke (the adversarial review wf_8c2f9499-486, findings that survived its skeptics):** the pre-check closed a
+  conversation for good on a quote only HELD by a call in flight; the closed state lived in the last assistant message
+  only, so a button answer or intent reply in between reopened the paid path; after 'daily' the conversation "had
+  ended", after 'busy' a real stop never said why, two 'busy' replies became "no change"; 'busy' on the turn that
+  completed the spec dropped the summary; an 'Updated:' line at the limit was dropped; a late paid reply after a daily
+  pause was closed as 'daily'; an image-only message read "provider busy"; an EXECUTING call counted as a used turn;
+  unreported tokens were summed as 0; Venice's fallback from Sonnet to Haiku was silent.
+- **Fix:** each of the above, in `supervisor.py`, `budget.py` (`open_held`, `_TURNS`, `conversation_usage`) and
+  `venice.py` (a `VENICE_PREFERRED_MODEL_UNAVAILABLE` warning with the reason).
+- **Evidence:** `tests/test_conversation_limit_followup.py` 12 passed, 10 of them fail on the unfixed code (the other two
+  are controls); `tests/test_conversation_turn_cap_pg.py` 11 passed on PostgreSQL 16, the 2 new ones fail on the
+  unfixed code; negative controls `conversation_limit_followup` 10/10, `conversation_turn_cap_pg` 10/10 (pg).
+- **Status:** implemented and verified locally; ships with its PR's release. The #456 release itself: the worker was
+  deployed by a manual run (the merge title did not END with `[release]` -- Claude's error); Vercel production ships
+  with this PR's release.
+
+# 2026-11-18 — the agent's closing of an incomplete spec is no longer a dead end (Claude Code, D10 review)
+
+- **What broke:** at the limit, an agent conversation whose spec was incomplete only named the gaps and pointed at the
+  specification tab. The tab edits only answered fields (`app.js` `beginBriefEdit`), and with no card a typed answer
+  is read only against an asked question (`_awaiting`), so the summary was unreachable. **Root cause:** the closing
+  cleared `asked_in_words`. Found by the adversarial review wf_8c2f9499-486 (confirmed, high).
+- **Fix:** the closing asks ONE open choice question in words (`_free_question`) and records it as asked; the next
+  typed message is read by words (`typed_choice`) with no model call and no reservation. The intro no longer says
+  "stops asking". A missing free-text field still has only the spec tab (open, below).
+- **Evidence:** `tests/test_conversation_limit.py` 13 passed (the new test asserts one question, the answer recorded,
+  and no model call); `conversation_limit` NC 15/15 (NC14 no question asked, NC15 not recorded as asked);
+  `test_fast.sh` 187 files, 1480 passed; PG turn cap 9 passed, NC 8/8 pg.
+- **Status:** implemented, verified locally; not yet in production (ships with the D10 PR and its release).
+- **Open:** a missing free-text field at the closing; the review's unverified findings ("Updated:" lines dropped at
+  the closing, an image-only message after the stop, an EXECUTING call counted as a turn).
+
+# 2026-11-18 — a conversation that reaches its limit stops gracefully, with the way on (Claude Code)
+
+- **What broke:** when a conversation reached a limit (the $0.15 project cap, the daily cap), the customer read "the
+  model provider is busy, send again in a moment" -- false -- every question was cleared and the summary could never
+  be reached: a dead end. **Root cause:** the limit was only a free-text `dropped` string (`worker_route.py`), the
+  pre-check kept no reason at all (`supervisor._interpreter`), and the supervisor then took the "model did not answer"
+  branch. Found by the D10 design analysis (wf_c308510a-631, 3 readers, 2 skeptics), confirmed in the code.
+- **Fix (the owner's 2026-11-18 decision, part 1 of 3):** the limit is a typed outcome (`budget.LimitReached`,
+  `Interpretation.limit` = {kind, source}; never caps or totals, the daily scope is every account's). The supervisor
+  closes the conversation: why it stopped, what this message recorded, and the way on -- the summary with its approval
+  when the spec is ready (gate 1, no model cost), else the specification tab (`edit_requirements`, the missing items by
+  name). A message that takes the free lane after the stop gets the same closing, not "provider busy"; two closing
+  messages in a row alternate (warehouse 113). The stored message is labelled `limit`, not "built from fixed rules".
+- **Evidence:** `tests/test_conversation_limit.py` 9 passed on the real supervisor (as the rehearsal runs it) and the
+  real ReservedWorkerInterpreter with a refusing reservation service. Controls `conversation_limit` 10/10; the 25
+  existing controls on the changed files pass. Related tests 376 passed; `test_fast.sh` 1478.
+- **Next (same decision):** the 8-turn cap and tokens and cost per conversation; then Sonnet for the agent profile
+  (ordered preference, Haiku when Venice does not offer Sonnet, decision 10), the release, and the production-path
+  rehearsal that is the first real cost measurement. No cost is reported before it.
+
+# 2026-11-18 — a repair call where a route answered "no credit" no longer ends the whole build (Claude Code)
+
+- **What broke:** the #448 fix (keep a build's verified work when no route answers the repair) missed one shape of
+  "no route answered". **Root cause (Claude's bug, #448):** the catch matched the text `all model routes failed`. When a
+  route in the call answered "no credit" -- Anthropic's HTTP 400 "credit balance is too low", including the 24-hour
+  half-open trial of a CREDIT_EXHAUSTED route -- the router raises `ProviderQuotaUnavailable` instead
+  (`routed_gateway.py`, depleted routes), whose message lacks that text, so the build still died the old way and threw
+  its verified rounds away. Found by the repair-JSON root-cause analysis (wf_309a64e1-002), confirmed in the code.
+- **Fix:** `autonomous_core.py` matches `ProviderQuotaUnavailable` by type, beside the existing text match. Any other
+  model error still ends the build.
+- **Evidence:** `tests/test_repair_model_unavailable.py` 6 passed; the new test runs the real RoutedModelGateway with
+  one route answering Anthropic's no-credit text and the other prose instead of JSON: the router raises
+  `ProviderQuotaUnavailable`, the build ends `failed / repair_model_unavailable` on round 1's version, and the customer
+  reads `verification_failed`. Controls `repair_model_unavailable` 4/4 (NC1 and NC2 follow the changed line; NC4: the
+  type check removed fails the new test).
+- **Not done here:** the rest of the repair-JSON plan. Its winning proposal (exact edit blocks) was refuted by its own
+  skeptics (the recommended option keeps whole-file answers that are cut at 8,188 tokens; build time budget unchecked;
+  the stored rejected answers in production not read). It is re-planned before anything is built.
+
+# 2026-11-18 — the meter prices one call by its id, not the whole ledger; every routed cost to date is invalid (Claude Code)
+
+- **What broke:** a turn on the routed path was charged for every earlier turn of the run. **Root cause (Claude's
+  bug):** `reservation_worker.meter(gateway, quote)` summed every provider attempt in `gateway.recorder.records`. The
+  routed gateway's ledger keeps every attempt of its life, so when one gateway served many turns (the routed rehearsal,
+  `intake/benchmark.py --model`) turn k paid for turns 1..k. **Invalid (owner 2026-11-18):** every routed cost to date
+  -- runs 44126201300, 44141955553 and 44263232985, the figures DECISIONS question 2 stood on, and decision 10's
+  numbers. The real cost of the conversation agent has not been measured; the next production-path rehearsal is the
+  measurement, and no cost is reported before it. **Not hit:** production billing -- each turn there is one
+  reservation on a fresh gateway (`ReservedWorkerInterpreter`); Venice emptied its ledger per call, which hid the same
+  trap.
+- **Fix (one mechanism everywhere):** the caller that meters a call creates its id (`attempt_ledger.new_call_id`) and
+  passes it to the gateway and to `meter(..., call_id=)`. The routed gateway stamps every attempt and every route event
+  of the call with it (a build that names none gets a fresh id per call); Venice stamps its records and no longer
+  empties its ledger; the reservation worker uses the reservation id; `ModelInterpreter` makes one id per turn and
+  refuses a gateway that cannot carry one. Loud, never $0: no id, no ledger, or an attempt without an id raises
+  `MeterError`; the worker and the interpreter record that as UNKNOWN with the reason. `call_id` is not persisted (no
+  column, no migration). The routed rehearsal names, per turn, the route that answered and each route that refused and
+  why (from that call's route events), prints each turn's cost and state, and counts an UNKNOWN turn as unknown, not
+  $0.
+- **Adversarial review of the change (3 reviewers, 2 skeptics per finding), fixed before the PR:** the routed rehearsal
+  lost the lane (`gateway.task = conversation_complex` set an unused attribute, so escalated turns ran as plain
+  `conversation`); the workflow's grep dropped the `::warning` lines that name each refused route; a production-path
+  call whose gateway could not be built was metered on no ledger or the previous call's; a call id dropped by a layer
+  on the way would let the gateway invent one and the meter read "not contacted", $0 (no such layer exists today --
+  guarded anyway: `meter(before=ledger_mark(...))` requires every attempt written during the call to carry its id);
+  a route closed earlier in the run was skipped with no route event, so later turns could not say why it did not
+  answer (it now records `skipped: ...` with the call id); and untested stamps and paths got tests and controls.
+- **Evidence:** `tests/test_meter_by_call_id.py` 17 passed -- ten turns on one real RoutedModelGateway, each answer
+  costing a different amount (n/1000), give `0.001 .. 0.010`, ten sums (the old meter gave `0.001, 0.003, 0.006, ...`);
+  a call with a fallback counts both its attempts and nothing else. `tests/test_rehearsal_routed_path.py` 12 passed.
+  Related tests 610 passed. Controls `meter_by_call_id` 24/24: NC1 (permanent) the meter sums the whole ledger; NC2 an
+  untagged attempt skipped as $0; NC3 the routed gateway does not stamp; NC4 one id for every turn; NC5 Venice
+  untagged; NC6 the worker meters another id; NC7 the rehearsal reads the run's events; NC8 a dropped id reads $0;
+  NC9 the lane lost; NC10 the warnings filtered; NC11 a stale ledger; NC12 the gateway ignores the caller's id;
+  NC13-NC24 each remaining guard, stamp and catch. The 8 existing controls on these files pass.
+
+# 2026-11-18 — a stalled Chromium install no longer locks out its own retries (Claude Code)
+
+- **What broke:** `a2-offline` on #449 (run 44259745208) skipped every A2 browser test. **Root cause:** attempt 1 hit
+  its 160 s bound on a slow apt mirror (`Fetched 21.9 MB in 3min 8s (117 kB/s)`); `timeout` stopped playwright but its
+  apt-get child (pid 2634) lived on and held the dpkg lock, so attempts 2 and 3 failed in 0 s on `Could not get lock
+  /var/lib/dpkg/lock-frontend`. The one re-run passed. `browser-tests` in `v24-ci.yml` had the same loop.
+- **Fix:** both install steps set `DPkg::Lock::Timeout "150"` in `/etc/apt/apt.conf.d` before the first attempt, so a
+  retry waits for the stalled install (under one 160 s attempt) instead of dying on its lock.
+- **Evidence (container, apt 2.8.3, a process holding the lock for 6 s):** without the setting apt-get exits after 0 s
+  with the same message as CI; with it apt-get waits and ends `coreutils is already the newest version` after 6 s.
+  `tests/test_ci_playwright_install.py` 5 passed; controls `apt_lock_wait` 3/3 (each workflow without the wait; a wait
+  longer than one attempt).
+
+# 2026-11-18 — the fast suite re-measured (Claude Code)
+
+- **Why:** `light` failed its 30 s budget four times on 2026-11-17 on the same 172 files (21.8 to 33.0 s on the CI
+  runner; 17 s here) -- the file's own rule says: re-measure when the budget fails, never raise it.
+- **Re-measured by the documented method** on main `8c7dcbf`: 442 test files; 198 touch the environment, 30 need absent
+  packages; 214 run alone, 207 pass in under 2 s. **New:** a cap on the total -- the kept files run together, fastest
+  first, under 13 s here. Result: 187 files (was 172), 1476 tests, 11.5-12.3 s in one process (was 17 s). The module listed in
+  `tests/needs_env.txt` (`test_r2_storage_signing.py`) stays out; the full suite caught the first cut keeping it.
+- The `fast_suite` controls anchored on the header line "# Result: 172 files", which changes at every re-measure; they
+  now anchor on the stable rule line. Controls 2/2.
+
+# 2026-11-17 — a repair no model answered no longer throws away the build (Claude Code)
+
+- **The owner's butcher project (prj_9GM6q4KQX-tu9A), read from build_jobs and build_events:** bld_2b5225d1 (19:56),
+  bld_6323468a (22:12) and bld_c0b2b43b (22:37) failed with `model_unavailable`; bld_b0de74d5 (22:46) is READY (2 repair
+  rounds, $0.278). In the failed ones the tests had run (up to 3 rounds); then no model route answered the repair with
+  valid JSON -- gemini-3.8-flash wrote an analysis before the JSON (rejected by T3's no-leading-prose rule, kept),
+  gemini-3.5-flash-lite was cut at its length (`finish_reason=length`), gpt-6.1-sol skipped (CREDIT_EXHAUSTED since
+  07:56 UTC). The exception ended the whole build and the screen said "אף בדיקה לא רצה" -- false.
+- **Fix:** a repair that no route answered ("all model routes failed") stops the repair (`repair_model_unavailable`);
+  the build ends on its best verified version with its real checks (`verification_failed`, "stopped repairing: no model
+  returned a valid repair"), and the screen says why in Hebrew and English. Any other error ends the build as before.
+  Tests `tests/test_repair_model_unavailable.py` 4/4 (the real loop and the real release verdict); controls 3/3.
+- **Cost of the three failed builds:** $0.42 + $0.47 + $0.22 provider spend (company loss; the owner's credits returned).
+- **The OpenAI route reopened (CLAUDE.md section 5, 2026-11-17 23:44 UTC):** the owner topped up the account ("הטענתי
+  עכשיו"); the circuit (`provider_health`) would have kept the route closed until its 24-hour trial (2026-11-18 07:56).
+  Backup branch `backup-before-openai-route-reset-2026-11-17` (br-tiny-hat-b9nclt9c); dry read: 6 rows, two
+  CREDIT_EXHAUSTED; one transaction guarded on the old value (a first try matched 0 rows -- the stored time has
+  microseconds -- and changed nothing); old: `openai-gpt-6-1-sol` CREDIT_EXHAUSTED since 2026-11-17 07:56:42.188853,
+  failures 1, recheck 2026-11-18 07:56; new: UNKNOWN, `reset_by` "claude-code for the owner: OpenAI credit topped up
+  2026-11-17" -- the same row `omni_prod.intelligence.health reset` writes; verified by a separate query (1 row
+  changed, the other 5 as they were). Not reset: `anthropic-claude-sonnet-5-5`, CREDIT_EXHAUSTED since 2026-11-16 (the
+  owner named OpenAI only).
+- **Open:** the code models' answers that fail JSON (leading prose, truncation) are not fixed here.
+
+# 2026-11-17 — the conversation rehearsal runs on the production intake path (Claude Code)
+
+- **Merged and released:** #444 `721f560` -> `0ce8cde` (the owner's conversation: the image question is not a loop;
+  "only I can change" is not an audience; a leading "לא" answers the login question). Merged: #446 `c5bf71c` ->
+  `448a18a` (negative controls in parallel). This replaces #445, which could not take main without a force-push.
+- **Why:** the rehearsal ran on the routed gateway; production intake runs through Venice. It passed on Sonnet while the
+  owner's real conversation ran on Haiku -- a rehearsal that is not the production path is not evidence of it
+  (CLAUDE.md section 3: tests run on the real path).
+- **Now:** by default (`REHEARSAL_PATH=production`) every agent call builds the gateway the intake worker builds for a
+  reservation (`reservation_worker.build_gateway`), from the quote of the newest settled production reservation, read
+  from the database -- production's provider, allowed models, price ceiling and per-call bound (recomputed for each
+  call's input with the same formula as `budget.quote`). Every call's real model is recorded (`provider_models`).
+  `routed` keeps the old path and says it is not the production path. Tests `tests/test_rehearsal_production_path.py`
+  4/4; controls `rehearsal_production_path` 4/4.
+
+# 2026-11-17 — the owner's human test: the image question looped; the conversation ran on Haiku (Claude Code)
+
 # 2026-11-17 — negative controls in parallel; the pg step's limit is not raised again (Claude Code)
 
 - **Root cause (investigated, owner's rule: investigate, do not raise a limit):** the pg job's controls step was raised
