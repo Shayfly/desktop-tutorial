@@ -1,0 +1,77 @@
+{
+ "pr": "venice-refusal-is-not-spend",
+ "sha256": [
+  "tests/test_venice_refusal_is_not_spend.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a Venice 402/401 is recorded as a contacted call with no usage (UNKNOWN, held, a turn)",
+   "mutations": [
+    {
+     "file": "omni_prod/providers/venice_gateway.py",
+     "old": "        except (VeniceInsufficientCredit, VeniceAuthError):\n",
+     "new": "        except (VeniceBudgetExceeded,):  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_venice_refusal_is_not_spend.py"
+   ],
+   "expect_failed": [
+    "test_402_and_401_are_metered_as_not_contacted",
+    "test_refusals_never_fill_the_conversation_cap"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "every error after sending is treated as costing nothing (a 500 that may have been processed reads $0)",
+   "mutations": [
+    {
+     "file": "omni_prod/providers/venice_gateway.py",
+     "old": "            if not self._chat_sent:          # model list / key / budget failure: Venice never saw the prompt\n",
+     "new": "            if True:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_venice_refusal_is_not_spend.py"
+   ],
+   "expect_failed": [
+    "test_a_server_error_after_sending_is_still_unknown"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a provider refusal reads \"the provider is busy, send again\"",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            refused = _provider_refused(interp)\n",
+     "new": "            refused = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_venice_refusal_is_not_spend.py"
+   ],
+   "expect_failed": [
+    "test_a_refusal_says_refused_not_busy"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a slow model is told as a refusal",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if any(r in str(note) for r in _REFUSALS):\n",
+     "new": "        if True:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_venice_refusal_is_not_spend.py"
+   ],
+   "expect_failed": [
+    "test_a_slow_model_is_still_busy"
+   ]
+  }
+ ]
+}
