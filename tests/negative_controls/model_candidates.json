@@ -1,0 +1,63 @@
+{
+ "pr": "model-candidates",
+ "sha256": [
+  "tests/test_conversation_model_candidates.py",
+  "omni_prod/intake/conversation_agent.py",
+  "omni_prod/conversation_rehearsal.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "an unknown candidate name is accepted at Sonnet's ceiling",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "    if model not in CANDIDATES:\n        raise ValueError",
+     "new": "    if False:  # NEGATIVE CONTROL\n        raise ValueError"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_model_candidates.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_name_raises"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the rehearsal ignores the candidate and quotes the agent's own profile",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "    p = agent.candidate_profile(candidate) if candidate else agent.venice_profile()",
+     "new": "    p = agent.venice_profile()  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_model_candidates.py"
+   ],
+   "expect_failed": [
+    "test_the_quote_names_only_the_candidate",
+    "test_the_candidate_answers_at_its_price",
+    "test_a_candidate_venice_now_prices_above_its_list_price_is_never_called"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a candidate is accepted on the production path",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "        if candidate and path != 'agent':",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_model_candidates.py"
+   ],
+   "expect_failed": [
+    "test_a_candidate_on_another_path_is_refused"
+   ]
+  }
+ ]
+}
