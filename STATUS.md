@@ -4022,7 +4022,7 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 ## 2026-11-19 — Finding attribution check (Codex)
 
-- Added CI verification of the declared Found-by and Co-Authored-By commit trailers. The check flags a shared named agent and does not infer authorship on commits without attribution. Two targeted tests passed locally. Repository rollout and independent review pending.
+- Added CI verification of the declared Found-by and Co-Authored-By commit trailers. The check flags a shared named agent and does not infer authorship on commits without attribution. The comparison also recognizes the versioned Claude signatures used in main. Three focused tests and two mutation controls passed locally. Repository rollout and independent review pending.
 ## 2026-11-19 — Model costs of recorded runs (Codex, internal reporting)
 
 - The read-only query in [scripts/observed_model_costs.sql](scripts/observed_model_costs.sql) returns build and intake run IDs, phases, routes, evidence bases, recorded subtotals and run totals. A missing price leaves the full total null. Budget reservations and prospective prices do not enter these figures.

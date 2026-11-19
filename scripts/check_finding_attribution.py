@@ -1,10 +1,13 @@
 """Verify that a declared finding reporter did not co-author its fix."""
 import argparse
+import re
 import subprocess
 
 
 def identity(value):
     name = ' '.join(value.split('<', 1)[0].casefold().split())
+    if re.fullmatch(r'claude (opus|sonnet|haiku|fable) [0-9]+(?:\.[0-9]+)*', name):
+        return 'claude'
     return {'claude code': 'claude', 'openai codex': 'codex'}.get(name, name)
 
 
