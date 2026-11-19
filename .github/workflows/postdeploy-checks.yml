@@ -209,6 +209,26 @@ jobs:
           note("verify replay results", "\n".join(json.dumps(x, ensure_ascii=False) for x in r["results"]))
           PY
 
+      - name: Confirm replay completed with successful version evidence
+        if: inputs.stage == 'verify-replay'
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/verify.txt" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          lines = Path(sys.argv[1]).read_text(encoding='utf-8').splitlines()
+          prefix = 'VERIFY_REPLAY '
+          if len(lines) != 1 or not lines[0].startswith(prefix):
+              raise SystemExit('Expected one verification replay report')
+          results = json.loads(lines[0][len(prefix):])['results']
+          if (not results or not any(row['status'] == 'PASS' for row in results)
+                  or any(row['status'] not in ('PASS', 'FAIL') for row in results)):
+              raise SystemExit('Replay lacks positive version evidence or did not finish')
+          print(f'::notice title=verify replay evidence::{len(results)} versions completed; at least one PASS')
+          PY
+
       - name: Upload replay screenshots (desktop/mobile)
         if: inputs.stage == 'verify-replay'
         uses: actions/upload-artifact@v4

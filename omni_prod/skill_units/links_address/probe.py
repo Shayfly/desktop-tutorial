@@ -13,11 +13,19 @@ CITIES = ('ירושלים', 'תל אביב', 'תל-אביב', 'חיפה', 'רא�
 _LABEL = re.compile(r'^\s*(?:ה)?כתובת\s*(?::\s*(.*)|$)')   # "כתובת:" or "כתובת" alone; not "כתובת והתקשרות"
 
 
+_FORM_LABEL = re.compile(r'<label\b[^>]*>\s*(?:ה)?כתובת\s*</label>', re.I)
+
+
 def probe(html):
     nodes, findings = text_nodes(html), []
+    # Calibration 2026-11-19 (bld_d36b3b4e): "כתובת" alone inside <label> names a form field, not an address the page
+    # shows; the next text was the next field's label ("תאריך שירות"). A bare form label is not judged.
+    form_label = bool(_FORM_LABEL.search(html or ''))
     for i, node in enumerate(nodes):
         m = _LABEL.match(node)
         if not m:
+            continue
+        if form_label and not (m.group(1) or '').strip():
             continue
         address = (m.group(1) or '').strip() or (nodes[i + 1] if i + 1 < len(nodes) else '')
         missing = [w for w, ok in (('a house number', re.search(r'\d', address)),

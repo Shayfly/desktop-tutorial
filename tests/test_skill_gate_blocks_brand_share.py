@@ -33,7 +33,8 @@ class TheThreeGates(unittest.TestCase):
                 self.assertEqual(G.gate_units(gate), [unit])
                 with mock.patch.dict(os.environ, {}, clear=False):
                     os.environ.pop(f'OMNI_GATE_{gate}', None)
-                    self.assertEqual(G.mode(gate), 'warn')    # owner 2026-11-16, rule 4: warn until calibrated on three builds
+                    # rule 4: warn until calibrated; G1 was calibrated on five builds (2026-11-19) and blocks
+                    self.assertEqual(G.mode(gate), 'block' if gate in G.CALIBRATED else 'warn')
 
     def test_each_falls_on_the_real_page_changed_in_one_place(self):
         for gate, unit in GATES.items():

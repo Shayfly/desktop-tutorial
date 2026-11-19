@@ -1,0 +1,23 @@
+name: Critical path freshness
+
+on:
+  schedule:
+    - cron: '11 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check successful production evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check_critical_path_freshness.py

@@ -1,0 +1,164 @@
+{
+ "pr": "repair-edit-blocks",
+ "sha256": [
+  "tests/test_repair_edit_blocks.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "an ambiguous block applies at its first occurrence",
+   "mutations": [
+    {
+     "file": "omni_prod/repair_edits.py",
+     "old": "        if len(at) > 1:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_edit_blocks.py"
+   ],
+   "expect_failed": [
+    "test_an_ambiguous_block_names_its_lines",
+    "test_overlapping_occurrences_count_as_two"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "overlapping occurrences are not counted (find advances past the match)",
+   "mutations": [
+    {
+     "file": "omni_prod/repair_edits.py",
+     "old": "        start = text.find(needle, start + 1)          # overlapping occurrences count\n",
+     "new": "        start = text.find(needle, start + len(needle))  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_edit_blocks.py"
+   ],
+   "expect_failed": [
+    "test_overlapping_occurrences_count_as_two"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a partial answer applies the edits that matched (not all or nothing)",
+   "mutations": [
+    {
+     "file": "omni_prod/repair_edits.py",
+     "old": "    return ({}, misses) if misses else (texts, [])\n",
+     "new": "    return (texts, misses)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_edit_blocks.py"
+   ],
+   "expect_failed": [
+    "test_all_or_nothing_and_edits_see_the_earlier_ones"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a later edit does not see the earlier edit of the same answer",
+   "mutations": [
+    {
+     "file": "omni_prod/repair_edits.py",
+     "old": "        text = texts.get(path, work.get(path))\n",
+     "new": "        text = work.get(path)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_edit_blocks.py"
+   ],
+   "expect_failed": [
+    "test_all_or_nothing_and_edits_see_the_earlier_ones"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a path outside the repository is accepted",
+   "mutations": [
+    {
+     "file": "omni_prod/repair_edits.py",
+     "old": "            path = normalize_repo_path(e['path'])\n",
+     "new": "            path = e['path']  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_edit_blocks.py"
+   ],
+   "expect_failed": [
+    "test_bad_inputs_are_refused_loudly"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a large existing file is rewritten whole again (the 8,188-token cut)",
+   "mutations": [
+    {
+     "file": "omni_prod/agentic_repair.py",
+     "old": "            if current is not None and len(current) > WHOLE_FILE_MAX_CHARS:\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_edit_blocks.py"
+   ],
+   "expect_failed": [
+    "test_a_large_existing_file_is_never_rewritten_whole"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "edit blocks are ignored by the agent (whole files only, the state before)",
+   "mutations": [
+    {
+     "file": "omni_prod/agentic_repair.py",
+     "old": "        edited, edit_misses = resolve_edits({**work, **texts}, data.get('edits'))\n",
+     "new": "        edited, edit_misses = {}, []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_edit_blocks.py"
+   ],
+   "expect_failed": [
+    "test_a_large_file_is_repaired_with_a_small_answer",
+    "test_a_large_existing_file_is_never_rewritten_whole",
+    "test_a_submit_whose_edits_miss_does_not_end_the_round"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a submit whose edits missed ends the round as submitted",
+   "mutations": [
+    {
+     "file": "omni_prod/agentic_repair.py",
+     "old": "                if not result.get('edit_misses'):\n",
+     "new": "                if True:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_edit_blocks.py"
+   ],
+   "expect_failed": [
+    "test_a_submit_whose_edits_miss_does_not_end_the_round"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the build deadline is swallowed by the repair loop",
+   "mutations": [
+    {
+     "file": "omni_prod/agentic_repair.py",
+     "old": "            except (BuildCancelled, BuildDeadline):\n                raise                       # the owner's stop and the build's time limit are never swallowed\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_repair_edit_blocks.py"
+   ],
+   "expect_failed": [
+    "test_the_deadline_and_the_owners_stop_are_never_swallowed"
+   ]
+  }
+ ]
+}
