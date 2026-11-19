@@ -177,6 +177,40 @@
    "expect_failed": [
     "test_the_production_path_never_measures_an_agent_quote_by_chance"
    ]
+  },
+  {
+   "id": "NC11",
+   "what": "the rehearsal keeps only \"model call failed\": a failed call's reason is lost",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "            self.call_errors.append(_redacted(f'call {self.turns + 1}: {type(exc).__name__}: {exc}')[:400])\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_sonnet.py"
+   ],
+   "expect_failed": [
+    "test_a_failed_call_is_recorded_with_its_reason_and_keys_masked"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "a provider key in the error is printed unmasked",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "    text = re.sub(r'(AIza|sk-ant-|sk-|vn-)[0-9A-Za-z_-]{12,}', r'\\1[redacted]', str(text))\n",
+     "new": "    text = str(text)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_sonnet.py"
+   ],
+   "expect_failed": [
+    "test_a_failed_call_is_recorded_with_its_reason_and_keys_masked"
+   ]
   }
  ]
 }

@@ -145,6 +145,13 @@ def agent_quote(prod: dict) -> dict:
     return q
 
 
+def _redacted(text: str) -> str:
+    """A provider error, safe to print: API keys and bearer tokens are masked."""
+    import re
+    text = re.sub(r'(AIza|sk-ant-|sk-|vn-)[0-9A-Za-z_-]{12,}', r'\1[redacted]', str(text))
+    return re.sub(r'(?i)(bearer\s+)[^\s\'"]+', r'\1[redacted]', text)
+
+
 class ProductionPathGateway:
     """Every call builds the gateway the intake worker builds for a reservation, from production's own quote. The
     per-call amount is the quote's bound recomputed for THIS call's input (the same formula as budget.quote), so a
@@ -160,9 +167,12 @@ class ProductionPathGateway:
         # the call, at its worst case (an unknown cost counts at its worst case, never $0)
         self.cap_usd, self.max_turns = cap_usd, max_turns
         self.spent, self.turns = Decimal('0'), 0
+        # run 44445874611 (2026-11-19): 9 of 10 agent calls failed and the rehearsal could not say why -- the
+        # interpreter keeps only the exception's type. Each failed call's reason is kept here and printed.
+        self.call_errors: list[str] = []
 
     def reset(self) -> None:
-        self.spent, self.turns, self.models_used = Decimal('0'), 0, []
+        self.spent, self.turns, self.models_used, self.call_errors = Decimal('0'), 0, [], []
 
     def amount(self, system: str, user: str, max_tokens: int) -> Decimal:
         from decimal import ROUND_CEILING
@@ -194,6 +204,9 @@ class ProductionPathGateway:
         self.recorder = getattr(gateway, 'recorder', None)
         try:
             return gateway.complete_json(system=system, user=user, max_tokens=max_tokens, task=task, call_id=call_id)
+        except Exception as exc:
+            self.call_errors.append(_redacted(f'call {self.turns + 1}: {type(exc).__name__}: {exc}')[:400])
+            raise
         finally:
             records = [r for r in (getattr(self.recorder, 'records', None) or []) if getattr(r, 'call_id', None) == call_id]
             for r in records:
@@ -338,6 +351,7 @@ def main(argv=None) -> int:
         if path == 'routed':
             gateway.route_failures = []
         results.append(run_scenario(n, ModelInterpreter(gateway)))
+        results[-1]['call_errors'] = list(getattr(gateway, 'call_errors', None) or [])
     for r in results:
         print('CONVERSATION ' + json.dumps(r, ensure_ascii=False))
         level = 'notice' if r['passed'] else 'error'
@@ -347,6 +361,8 @@ def main(argv=None) -> int:
               f"cost_unknown_turns={r['cost_unknown_turns']}")
         for f in r['route_failures']:
             print(f"::warning title=conversation {r['scenario']} route refused::{f}".replace('\n', ' '))
+        for e in r.get('call_errors') or ():
+            print(f"::warning title=conversation {r['scenario']} call failed::{e}".replace('\n', ' '))
         for i, t in enumerate(r['transcript'], 1):
             print(f"::notice title=conversation {r['scenario']} turn {i}::cost_usd={t['cost_usd']} ({t['cost_state']}) "
                   f"|| customer: {t['customer']} || agent: {t['agent']}".replace('\n', ' ')[:1800])

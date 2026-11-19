@@ -82,8 +82,8 @@
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
-     "old": "        if (carried and carried.get('kind') in ('budget', 'turns', 'daily') and interp is not None\n",
-     "new": "        if (carried and interp is not None  # NEGATIVE CONTROL\n"
+     "old": "        if carried and carried.get('kind') == 'daily':      # a pause carries to the very next message only\n            return {'kind': 'daily', 'source': 'carried'}\n",
+     "new": "        if carried:  # NEGATIVE CONTROL\n            return {'kind': carried['kind'], 'source': 'carried'}\n"
     }
    ],
    "targets": [
