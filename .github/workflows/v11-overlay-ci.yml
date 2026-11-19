@@ -66,6 +66,9 @@ jobs:
       - name: Unit tests (no network, C34)
         env:
           OMNI_TEST_REQUIRE_NETNS: '1'
+          # Full unittest discovery already runs the tests AcceptanceW wraps.
+          # The dedicated flag leaves browser and runtime checks enabled.
+          OMNI_M4_ACCEPTANCE_W_DISCOVERY: '1'
         run: python tools/netns_run.py -- python -m unittest discover -s tests -v
       - name: Prepare compose environment template
         run: cp .env.example .env

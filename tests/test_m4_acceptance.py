@@ -662,6 +662,8 @@ class AcceptanceW(unittest.TestCase):
         for their status."""
         if os.environ.get('OMNI_M4_ACCEPTANCE_W_NESTED') == '1':
             self.skipTest('nested self-check guard: this run IS the regression check being verified')
+        if os.environ.get('OMNI_M4_ACCEPTANCE_W_DISCOVERY') == '1':
+            self.skipTest('this invocation already runs the full unittest discovery suite')
         env = dict(os.environ, OMNI_M4_ACCEPTANCE_W_NESTED='1')
         repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         proc = subprocess.run(
