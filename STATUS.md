@@ -30,6 +30,23 @@
 - **Next:** release (Vercel and the worker), then the agent-path rehearsal: the first real measurement of the
   conversation agent's cost. No cost is reported before it.
 
+# 2026-11-19 — agentic repair edits with exact blocks (Claude Code)
+
+- **What broke (wf_309a64e1-002, three founder builds of 2026-11-17):** with Sonnet and gpt-6.1-sol out of credit and
+  gemini-3.8-flash answering the agentic prompt with a function call, the edit step fell to the two 8,192-token
+  Flash-Lite routes. The only edit offered was a whole file; a whole app.py needs ~9.4-9.8K output tokens (estimate),
+  and all 14 answers were cut at 8,188 tokens. **Root cause:** whole-file edits, not the model.
+- **Fix:** `omni_prod/repair_edits.py` -- `{path, old, new}` applied exactly once (overlaps counted), all or nothing,
+  misses reported back with a hint that is never applied. `agentic_repair`: edit and submit take `edits`; an existing
+  file over 12,000 characters is refused whole (`WHOLE_FILE_TOO_LARGE`); a submit whose edits missed does not end the
+  round; the prompt asks for blocks and forbids function calls; `BuildDeadline`/`BuildCancelled` are re-raised
+  instead of swallowed (found by the plan's skeptic).
+- **Evidence:** `tests/test_repair_edit_blocks.py` 13 passed on a SYNTHETIC 20K-character app.py (the round zips were
+  not read); repair tests 121 passed; negative controls `repair_edit_blocks` 9/9.
+- **Not shown:** that a Flash-Lite route produces correct blocks on a real round, or that a build is saved -- only
+  that an answer no longer has to fit a whole file. Credit is back on Sonnet and gpt-6.1-sol, so the strong routes
+  answer first again. The trade-off the skeptic named stands: a block from a quality-70 route can now end a round
+  that the classic fallback (gemini-3.8-flash) used to repair.
 # 2026-11-19 — the first real Sonnet measurement: 1 of 10 agent calls answered (Claude Code)
 
 - **What ran:** conversation-rehearsal, path `agent`, run 44445874611 on the worker, at code `063e4a5` (#456), quote
