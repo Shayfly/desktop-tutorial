@@ -1,3 +1,13 @@
+# 2026-11-19 — the preview's enlarge button covers the whole screen on a phone (Claude Code)
+
+- **What broke (the owner, iPhone):** "מסך מלא לתצוגה מקדימה לא עובד". Reproduced in Chromium as an iPhone 13: after
+  ⤢ the stage moved to x=-12 (12px off the screen) with the same width, under the app's bars -- the phone rule makes the
+  stage width:100% and static, so `stage-max`'s inset:12px only shifted it.
+- **Fix:** on a phone, `.workspace.stage-max>.stage` is fixed at inset 0 over everything (z-index 1000), no backdrop.
+- **Evidence:** `tests/preview_frame_browser.cjs` (real app, real ⤢ click) at 390 and 1440 px: the enlarged stage is
+  the whole viewport on a phone, 12px inset on a desktop, nothing covers it, the same button restores it. Without the
+  CSS fix the new check fails with x=-12 (run here; the browser job runs it in CI).
+
 # 2026-11-19 — the owner's page structure: "עיצוב:" is not a section, "פתיח" needs no heading (Claude Code)
 
 - **What broke (production, bld_7da07ab0, 6 rounds, $1.52):** the QA review failed CUSTOMER-PAGE-STRUCTURE -- no
