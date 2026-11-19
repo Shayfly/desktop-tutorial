@@ -1,3 +1,16 @@
+# 2026-11-19 — a shared link shows a preview by construction (Claude Code)
+
+- **What broke:** SHARE (og:title, og:description) failed on all five production builds with gate evidence and on the
+  owner's law-firm build (bld_b0eb47a5), after #467 had put the rule in the spec. Telling the model is not enough.
+- **Fix:** `omni_prod/share_preview.py`, a repository transform after the RTL rule, in the worker and the rehearsal:
+  a served page with a <title> and no og:title gets one from that title; og:description comes from the page's meta
+  description, else its first paragraph (160 characters). Nothing invented; a page already tagged is left as is;
+  a Python template is changed only if it still compiles; tests are never touched.
+- **Evidence:** `tests/test_share_preview_by_construction.py` 8 passed, including the butcher production page with its
+  og tags removed (SHARE fails; after the transform it passes) and an engine build that is ready with 0 repair rounds
+  with SHARE set to block; controls `share_preview` 5/5.
+- **Not done:** og:image -- needs the hero image served as a file (warehouse 118).
+
 # 2026-11-19 — the owner's page structure: "עיצוב:" is not a section, "פתיח" needs no heading (Claude Code)
 
 - **What broke (production, bld_7da07ab0, 6 rounds, $1.52):** the QA review failed CUSTOMER-PAGE-STRUCTURE -- no

@@ -1019,6 +1019,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # CEO 2026-11-09: Hebrew/Arabic pages are right-to-left by construction (after the logo transform).
         from .page_locale import install as install_page_locale
         install_page_locale(engine, prompt)
+        # 2026-11-19: SHARE failed on every production build with the rule in the spec -- the platform writes og tags
+        from .share_preview import install as install_share_preview
+        install_share_preview(engine)
         # Michael 2026-11-10 condition 2: the truth gate's canon comes from the APPROVED request, not the spec summary.
         from .product_review import install_review_request
         install_review_request(engine, prompt)
