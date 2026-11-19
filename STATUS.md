@@ -35,6 +35,19 @@
   that an answer no longer has to fit a whole file. Credit is back on Sonnet and gpt-6.1-sol, so the strong routes
   answer first again. The trade-off the skeptic named stands: a block from a quality-70 route can now end a round
   that the classic fallback (gemini-3.8-flash) used to repair.
+# 2026-11-19 — the first real Sonnet measurement: 1 of 10 agent calls answered (Claude Code)
+
+- **What ran:** conversation-rehearsal, path `agent`, run 44445874611 on the worker, at code `063e4a5` (#456), quote
+  `irs_35e9ed263ca84a86b575abcb` with the agent profile (Sonnet then Haiku, ceiling 2,10, order).
+- **Result:** red, 1 of 3 scenarios passed (doors). One Sonnet call answered: **$0.018109 CONFIRMED** for the first doors
+  turn (`provider_models=['claude-sonnet-5-5']`). The other 9 calls reached Venice and failed fast (17 s for the whole
+  run), so their cost is UNKNOWN; each held its worst case, and butcher and bare hit the $0.15 conversation cap after
+  about 4 failed calls -- the closing worked as designed (the stop, the free question, the summary).
+- **Root cause:** not known yet. The rehearsal printed only "model call failed" (the interpreter keeps the exception
+  type alone). A rate limit or a low Venice balance fits the timing; neither is shown. #457 makes the rehearsal print
+  each failed call's reason; the next run says which.
+- **What this is not:** a cost per conversation. One confirmed turn is not a measurement of the agent; no cost is
+  reported until a run where the calls answer.
 
 # 2026-11-18 — the conversation agent's 8-turn cap, and tokens and cost per conversation (Claude Code)
 
