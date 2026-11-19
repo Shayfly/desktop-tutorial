@@ -1,0 +1,26 @@
+{
+ "pr": "no-store-words",
+ "sha256": [
+  "tests/test_no_store_answer_is_read.py",
+  "omni_prod/intake/conversation_agent.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a negated 'store' does not decide the personal-data question (asked a third time in production)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "|(?:לא|בלי|אל)\\s+(?:ל|ת|י)?(?:שמור",
+     "new": "|(?:NEGATIVE_CONTROL)\\s+(?:ל|ת|י)?(?:שמור"
+    }
+   ],
+   "targets": [
+    "tests/test_no_store_answer_is_read.py"
+   ],
+   "expect_failed": [
+    "test_both_production_answers_say_no"
+   ]
+  }
+ ]
+}
