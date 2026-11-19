@@ -6,7 +6,7 @@
   openai-gpt-6-luna, claude-haiku-5-5 -- each at its list price (docs/venice_prices_snapshot.md, 2026-10-19) as its
   ceiling. The workflow input `candidate` (agent path only) quotes the rehearsal with that one model; an unknown name
   raises, another path refuses it, and a model Venice now prices above the ceiling is refused before any request.
-- **Evidence:** `tests/test_conversation_model_candidates.py` 8 passed on the real build_gateway / VeniceIntakeGateway /
+- **Evidence:** `tests/test_conversation_model_candidates.py` 11 passed on the real build_gateway / VeniceIntakeGateway /
   select_model (Venice HTTP faked), 5 failed without the change; controls `model_candidates` 3/3.
 - **Not yet measured:** nothing about quality or cost -- that is the rehearsal runs, after the release.
 
