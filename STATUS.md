@@ -1,3 +1,15 @@
+# 2026-11-17 — the game check presses "start" the way a player does (Claude Code)
+
+- **Root cause (rehearsal 44079074182, the stars game):** a working game waited on its start screen; the probe tapped the
+  canvas and pressed keys but never the "התחל" button, saw one still frame and called the game frozen (`GAME_FROZEN`).
+- **Fix:** before it plays, the probe presses one visible control whose whole label is a start word ("התחל", "שחקו",
+  "start", "play"...), says which (`started_by`), and only then plays; a control that is not a start word ("הוראות") is
+  never pressed. The start words are one pattern (`START_LABEL`) injected into the sandbox script, so a browser-free test
+  checks the same pattern the browser uses.
+- **Evidence:** `tests/test_game_runtime.py` + `tests/test_game_runtime_rules.py` 22/22 locally, 13 of them in a real
+  browser; controls `game_start_screen` 4/4 with `NC_ENV=browser` (NC1-NC2 need Chromium; NC3-NC4 run in every CI job),
+  `game_runtime` 9/9. NOT run in CI: the real-browser half (no CI job has Python Playwright with Chromium -- open).
+
 # 2026-11-18 — Sonnet for the conversation agent only, with the regular model when Venice does not offer it (Claude Code)
 
 - **What was missing:** on Venice the cheapest listed model always won (`venice.select_model`), and one global list and
