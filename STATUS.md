@@ -4109,6 +4109,9 @@ call and observes both counters reach one (HTTP is intercepted, no paid call).
 The PG balance/replay test now executes that worker path twice for the same ID.
 Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
+## 2026-11-19 — Finding attribution check (Codex)
+
+- Added CI verification of the declared Found-by and Co-Authored-By commit trailers. The check flags a shared named agent and does not infer authorship on commits without attribution. The comparison also recognizes the versioned Claude signatures used in main. Three focused tests and two mutation controls passed locally. Repository rollout and independent review pending.
 ## 2026-11-19 — Critical production path freshness (Codex)
 
 - The proposed daily workflow reads action run, step and artifact metadata. It reports success from the relevant main-branch step within seven days, BROKEN when no qualifying evidence exists, and UNVERIFIED when the API cannot be read. Scope: deployment, golden rehearsal, Golden E2E, verify-replay and restoration.
