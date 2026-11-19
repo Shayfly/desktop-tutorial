@@ -239,6 +239,13 @@ class TheGate(unittest.TestCase):
         self.assertTrue(report.passed)
         self.assertEqual((g.last_apple['static'], sum(r['p0'] for r in g.last_apple['reviewers'])), ([], 0))
 
+    def test_a_clean_page_whose_reviewer_did_not_run_is_not_run_never_a_pass(self):
+        # one reviewer answers in the wrong shape: it did not review, so a page with no static finding is NOT_RUN
+        g, report = gate(page(), 'block', [{'nonsense': True}, CLEAN[1]])
+        self.assertTrue(report.passed)                                    # NOT_RUN never blocks ...
+        self.assertEqual(g.last_apple['status'], 'NOT_RUN')               # ... and is never reported as a pass
+        self.assertTrue(any(n.split(':')[0] in V.REVIEWERS for n in g.last_apple['not_run']))   # which one, and why
+
     def test_without_a_contract_the_gate_says_not_run_with_the_reason(self):
         engine = SimpleNamespace(executor=_Inner())
         with mock.patch.dict(os.environ, {}, clear=False):
