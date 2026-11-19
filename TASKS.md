@@ -72,6 +72,7 @@
 | QUOTA-REPAIR-STOP | Claude Code | In review | a repair call with a no-credit route keeps the verified build (ProviderQuotaUnavailable by type, #448 follow-up); NC 4/4 |
 
 | DIRECT-MODELS | Codex | PARTIAL; independent review and runtime canaries pending | Branch codex/add-provider-models-20261118; 109 passed, 1 skipped, 9 subtests; docs/DIRECT_MODEL_ENROLLMENT_HE.md |
+| RUN-COSTS | Codex | Read-only export independently verified against production on PR #454 | [SQL](scripts/observed_model_costs.sql), based on `9bc130e` |
 | QUOTA-REPAIR-STOP-DONE | Claude Code | Done | #452 `f961661` -> `9bc130e` |
 | D10-FOLLOWUP | Claude Code | In review | the review's remaining findings: in-flight holds, sticky closed state, wording by kind, busy keeps the summary, EXECUTING is busy, unknown tokens None, fallback logged; NC 10/10 + pg 10/10 |
 | D10-LIMIT | Claude Code | In review | a conversation at its limit stops gracefully: typed limit, closing reply with the summary or one open question in words (read for free), no 'provider busy'; NC 15/15 |

@@ -4032,3 +4032,7 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 - PR #453 adds seven missing assertions. The requested 11 controls plus a provider-switch control exercise the real execution paths.
 - A pending image operation retains its identity across changes to price and cannot be submitted to a different provider after a lost response. Production activation and independent review of the new head are pending.
+## 2026-11-19 — Model costs of recorded runs (Codex, internal reporting)
+
+- The read-only query in [scripts/observed_model_costs.sql](scripts/observed_model_costs.sql) returns build and intake run IDs, phases, routes, evidence bases, recorded subtotals and run totals. A missing price leaves the full total null. Budget reservations and prospective prices do not enter these figures.
+- Exercised the SELECT on both operational ledger databases. The export is rerunnable via psql and has no write or runtime hooks. Claude Code independently verified the unchanged SQL against the production ledger on 2026-11-19 (PR #454, review of 71ec345). The report contains operational data and is kept outside this public repository.
