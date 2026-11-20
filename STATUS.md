@@ -4204,3 +4204,21 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 - The #463 Overlay run 44479691814 ran 3911 unittest cases and failed only because the nested AcceptanceW subprocess exceeded 300 seconds. Overlay discovery now skips the wrapper only. Standalone and v24 invocations retain the 300-second check.
 - Local targeted checks: 8 tests and 19 subtests passed, and the duplicate-invocation mutation was caught. Exact-head CI and independent review pending.
+
+## 2026-11-20 — Critical path freshness manual check (#464, Codex)
+
+GitHub Actions [manual run 44658425152](https://github.com/Shayfly/desktop-tutorial/actions/runs/44658425152) on `main` at `15a36579cec27eee1f6132ce3dfed8af9423125e` finished with exit 1. The three BROKEN annotations mean no qualifying successful step in the preceding seven days. PASS below records fresh historical evidence; it does not certify the revision that triggered this check. Times are UTC.
+
+| Critical path | Result | Most recent qualifying success found |
+|---|---|---|
+| Worker deployment | PASS | [2026-11-19 22:04:43, queue execution proof](https://github.com/Shayfly/desktop-tutorial/actions/runs/44624663436/job/135915241531), workflow SHA `29e515e` |
+| Golden rehearsal | BROKEN | None in the seven-day window |
+| Post-deploy verify-replay | BROKEN | None in the seven-day window |
+| Backup restore | PASS | [2026-11-19 10:16:28, restore and verify](https://github.com/Shayfly/desktop-tutorial/actions/runs/44503989411/job/135490677325), workflow SHA `8cde544` |
+| Golden E2E | BROKEN | None in the seven-day window |
+
+- Golden rehearsal — Claude Code owns a main-branch Golden build rehearsal with an approved synthetic prompt and spend, preserving the successful build-step result.
+- Post-deploy verify-replay — Codex owns the CI evidence. Run the Post-deploy checks workflow on main with stage `verify-replay` and stored versions available, and confirm the replay completed with at least one successful verification. The replay mode does not call models.
+- Golden E2E — Claude Code owns the trusted live producer and Matt independently verifies its evidence. The producer must attach `golden-e2e-evidence` and call the reusable gate in the same run with the build ID and expected commit so all four checks pass.
+
+The newer [worker deployment at `15a3657`](https://github.com/Shayfly/desktop-tutorial/actions/runs/44650631173/job/136004430513) failed at Apply database migrations with `applied migration missing from package: 45`. The recovery step reported that the previous consumers were restored, and the queue proof was skipped. This run is not counted as evidence of freshness.
