@@ -37,7 +37,10 @@ MAX_COST_USD = _D('0.15')
 # pricing page, read 2026-11-18, claude-sonnet-5-5 $2.00 / $10.00 per 1M tokens (claude-haiku-5-5 $0.10 / $0.50).
 # In code, not in an environment variable: the quote (Vercel) and the rehearsal (the worker) read the same source, and
 # a change of the agent's model is the owner's decision, made in a reviewed change.
-VENICE_MODELS = ('claude-sonnet-5-5', 'claude-haiku-5-5')
+# The owner, 2026-11-19 (after the measurement, runs 44602428561..44616521276): openai-gpt-6-luna first -- 3/3
+# conversations, 0 failed calls, $0.0011-0.0016 a conversation (Sonnet $0.029-0.041) -- and Sonnet when Venice does not
+# offer luna. The ceiling stays Sonnet's list price so the fallback is never refused; a turn settles at its actual cost.
+VENICE_MODELS = ('openai-gpt-6-luna', 'claude-sonnet-5-5')
 VENICE_CEILING_USD_PER_M = ('2', '10')
 
 

@@ -1,3 +1,17 @@
+# 2026-11-19 — the conversation agent runs on gpt-6-luna, Sonnet when Venice does not offer it (Claude Code)
+
+- **Decision (the owner, 2026-11-19, after the measurement):** "אני איתך מה שאתה ממליץ" -- luna, with Sonnet as fallback.
+- **Measurement (conversation-rehearsal, agent path, 3 Hebrew conversations each):** luna 3/3, 0 failed calls,
+  $0.0011-0.0016 a conversation (run 44613790551); Sonnet 3/3, $0.029-0.041 (44602458248); Haiku 3/3, $0.0014-0.0023
+  (44616521276); deepseek-v4-flash 3/3 with one failed call (44602428561); gpt-oss-120b 5 empty or invalid answers
+  (44605208470); qwen3-235b 5 timeouts and Arabic in the Hebrew (44607455048).
+- **Change:** `conversation_agent.VENICE_MODELS = ('openai-gpt-6-luna', 'claude-sonnet-5-5')`; the ceiling stays Sonnet's
+  list price (2,10) so the fallback is never refused; each turn settles at its actual cost. Other accounts unchanged.
+- **Evidence:** `tests/test_conversation_agent_sonnet.py` 15 passed, with a new test that the list order wins over the
+  price (luna is first and cheapest, so the old controls could no longer tell them apart); controls
+  `conversation_agent_sonnet` 12/12 (NC1-NC3 retargeted to that test).
+- **Not measured:** 3 conversations per model, all content sites; measure again after a week of real conversations.
+
 # 2026-11-19 — the owner's page structure: "עיצוב:" is not a section, "פתיח" needs no heading (Claude Code)
 
 - **What broke (production, bld_7da07ab0, 6 rounds, $1.52):** the QA review failed CUSTOMER-PAGE-STRUCTURE -- no
