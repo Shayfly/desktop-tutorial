@@ -18,8 +18,7 @@
     "tests/test_conversation_agent_sonnet.py"
    ],
    "expect_failed": [
-    "test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits",
-    "test_sonnet_answers_when_venice_offers_it"
+    "test_the_list_order_wins_over_the_price"
    ]
   },
   {
@@ -36,8 +35,7 @@
     "tests/test_conversation_agent_sonnet.py"
    ],
    "expect_failed": [
-    "test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits",
-    "test_sonnet_answers_when_venice_offers_it"
+    "test_the_list_order_wins_over_the_price"
    ]
   },
   {
@@ -54,8 +52,7 @@
     "tests/test_conversation_agent_sonnet.py"
    ],
    "expect_failed": [
-    "test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits",
-    "test_sonnet_answers_when_venice_offers_it"
+    "test_the_list_order_wins_over_the_price"
    ]
   },
   {
