@@ -75,6 +75,25 @@ class TheLibrary(unittest.TestCase):
             b.close()
         self.assertEqual(over, {320: 0, 390: 0, 1440: 0})
 
+    def test_the_render_check_sees_every_element_settled_after_300ms(self):
+        # g_apple/render.py screenshots 300ms after load: the hero entrance must be over by then, and nothing below the
+        # first screen may wait for a scroll to appear (the platform's own reviewers would see a blank page)
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:  # pragma: no cover
+            self.skipTest('playwright is required to render the page')
+        page_html = re.sub(r'<link[^>]+fonts\.g[^>]+>', '', self.doc)
+        with sync_playwright() as p:
+            b = p.chromium.launch()
+            pg = b.new_page(viewport={'width': 1440, 'height': 900})
+            pg.set_content(page_html)
+            pg.wait_for_timeout(300)
+            faded = pg.evaluate("""[...document.querySelectorAll('main *')].filter(el => {
+                const s = getComputedStyle(el); return parseFloat(s.opacity) < 0.99 && !el.closest('.panel-art'); })
+                .map(el => el.tagName + '.' + el.className).slice(0, 5)""")
+            b.close()
+        self.assertEqual(faded, [])
+
 
 if __name__ == '__main__':
     unittest.main()
