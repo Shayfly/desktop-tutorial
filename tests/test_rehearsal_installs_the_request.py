@@ -51,7 +51,9 @@ class TheReviewGetsTheRequest(unittest.TestCase):
 
     def test_a_hebrew_request_gets_the_right_to_left_rule(self):
         engine, _, _ = run_until_the_build(BUTCHER)
-        self.assertIsNotNone(getattr(engine, 'repository_transform', None))
+        transform = getattr(engine, 'repository_transform', None)
+        # the transform itself writes dir="rtl" (another transform, e.g. the share preview, is not enough)
+        self.assertIn('dir="rtl"', transform({'index.html': '<html><body><p>x</p></body></html>'})['index.html'])
 
     def test_an_engine_without_a_review_says_so(self):
         engine = SimpleNamespace(executor=_Inner(), architect=None, build=mock.Mock(side_effect=Stop('x')))
