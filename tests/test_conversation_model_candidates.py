@@ -62,7 +62,9 @@ class TheRealGatewaySendsTheCandidate(unittest.TestCase):
 
     def test_a_candidate_venice_now_prices_above_its_list_price_is_never_called(self):
         q = R.agent_quote(PROD, 'deepseek-v4-flash')
-        venice = Venice(listed({'deepseek-v4-flash': (0.5, 2), 'claude-haiku-5-5': (0.1, 0.5)}))
+        # the agent's own model is listed at its price, so only the candidate's raised price can refuse the call
+        venice = Venice(listed({'deepseek-v4-flash': (0.5, 2), 'claude-haiku-5-5': (0.1, 0.5),
+                                'openai-gpt-6-luna': (0.1, 0.5)}))
         with self.assertRaises(Exception):
             sent(q, venice)
         self.assertEqual(venice.sent_model, [])                                 # refused before any request
