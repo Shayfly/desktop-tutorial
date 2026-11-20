@@ -64,6 +64,30 @@
    "reviewer": "shai",
    "reviewed_at": "2026-11-15",
    "signature_note": "Signed by the owner's instruction in the chat, 2026-11-15 21:29 Asia/Jerusalem, relayed by Shay. The reviewer field was typed by the author (claude) on that instruction."
+  },
+  {
+   "id": "design-minimum-pro",
+   "from_digest": "80008d63a02475929b7db9449691d7673bdc1c27cc950e9b98a593baff0044a7",
+   "to_digest": "41a6e1345bc04d30d70ad98a05afccd0b75bf6002ed04fea1c1b19e0d4c34618",
+   "added": [],
+   "removed": [],
+   "changed": [
+    "omni_prod/skill_units/gate.py",
+    "omni_prod/skills_runtime.py",
+    "omni_prod/worker_tasks.py"
+   ],
+   "data_changed": [
+    "omni_prod/skill_units/design_minimum/failure_codes.json",
+    "omni_prod/skill_units/design_minimum/fixtures/broken/expected.json",
+    "omni_prod/skill_units/design_minimum/fixtures/broken/law_bare.html",
+    "omni_prod/skill_units/design_minimum/fixtures/ok/butcher_real.html",
+    "omni_prod/skill_units/design_minimum/manifest.json"
+   ],
+   "reason": "The owner 2026-11-19 (bld_b0eb47a5, the law-firm site: \"רמה נמוכה ... אני רוצה מקצועיות\"): a new skill unit design_minimum (gate PRO, DESIGN_TOO_BASIC) enters CALIBRATING (warn) and WORKER_GATES; its manifest reaches the generator through carry_rules, and LANDING_CONVERSION's guidance and checklist state the professional shape (4+ sections, hero visual, services as a card grid, one accent colour). worker_tasks installs the gate.",
+   "author": "claude",
+   "reviewer": "shai",
+   "reviewed_at": "2026-11-20",
+   "signature_note": "Signed by the owner's instruction, 2026-11-19 (\"מאשר הכול תמשיך לעבוד\" on the professional-minimum gate and the generator guidance). The reviewer field was typed by the author (claude) on that instruction."
   }
  ]
 }
