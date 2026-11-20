@@ -1110,6 +1110,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         for g in ('G1', 'BRAND', 'SHARE'):                            # empty blocks, brand name, share preview
             install_skill_gate(engine, g)
         install_skill_gate(engine, 'G5')                              # rights: every font, image, audio has a known source
+        install_skill_gate(engine, 'PRO')                             # professional minimum of a business site
         # #430 carried the gates' checks to the generator only in install_all, which the rehearsal calls and the worker
         # never did: 0 of 5 production specs carried them, and SHARE failed all five (2026-11-19). The same list.
         from .skill_units.gate import WORKER_GATES, carry_rules

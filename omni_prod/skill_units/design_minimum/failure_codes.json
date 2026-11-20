@@ -1,0 +1,6 @@
+{
+ "DESIGN_TOO_BASIC": {
+  "meaning": "the business page is below the professional minimum: too few sections, no visual, no single main heading, or the contact action appears once",
+  "fix": "build the sections the customer described as separate <section> blocks, add a hero visual, keep one <h1>, and repeat the main contact action at the end of the page"
+ }
+}

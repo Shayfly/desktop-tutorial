@@ -20,6 +20,7 @@
 | skill.brand.name | BRAND | BRAND_MISSING |
 | skill.copy.filler | G10 | COPY_FILLER |
 | skill.copy.placeholder | G10 | COPY_PLACEHOLDER |
+| skill.design.minimum | PRO | DESIGN_TOO_BASIC |
 | skill.he.gender | HE | HE_GENDER |
 | skill.he.grammar | HE | HE_GRAMMAR |
 | skill.he.translationese | HE | HE_TRANSLATIONESE |
