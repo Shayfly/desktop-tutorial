@@ -129,6 +129,7 @@
    "pr": 371
   }],
   "omni_prod/skills_runtime.py": [{"reason": "bdi-in-the-prompt: one guidance line is split to add 'write it in the page yourself, nothing adds it for you, and a test of that text compares visible_text(body)'; nothing removed in meaning.", "deleted_sha256": "9dbb006b309970cd817ca63f3e9429c27468af660d0fa402c711b6c86c34c91c", "pr": "bdi-in-the-prompt", "author": "claude", "reviewer": "shai", "reviewed_at": "2026-11-15", "signature_note": "Signed by the owner's instruction in the chat, 2026-11-15 21:29 Asia/Jerusalem, relayed by Shay. The reviewer field was typed by the author (claude) on that instruction."}, {
+   "reason": "design-minimum-pro: LANDING_CONVERSION's guidance gains the professional shape (4+ sections, hero visual, card grid) and its checklist one line; the replaced lines are the same guidance ending and checklist opening.", "deleted_sha256": "4f15024ba61b76839a8e5b626264fa344fdfc885f0e2be6b09852f73fa1b4e4d", "pr": "design-minimum-pro", "author": "claude", "reviewer": "shai", "reviewed_at": "2026-11-16", "signature_note": "Signed by the owner's instruction, standing autonomy grant, 2026-11-16. The reviewer field was typed by the author (claude) on that instruction."}, {
    "reason": "rtl-time-ranges-bdi (#371): two lines are replaced, nothing removed in meaning -- the text_locale static_checks tuple gains _time_ranges_isolated, and the guidance sentence on times gains 'on an RTL page wrap every time range in <bdi dir=\"ltr\">'.",
    "author": "claude",
    "reviewer": "michael",
