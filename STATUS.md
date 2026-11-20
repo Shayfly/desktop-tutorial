@@ -7,6 +7,20 @@
 - **Evidence:** `tests/preview_frame_browser.cjs` (real app, real ⤢ click) at 390 and 1440 px: the enlarged stage is
   the whole viewport on a phone, 12px inset on a desktop, nothing covers it, the same button restores it. Without the
   CSS fix the new check fails with x=-12 (run here; the browser job runs it in CI).
+# 2026-11-20 — migration 045 applied to production: the frozen reference corpus (Claude Code)
+
+- **Approval:** the owner, 2026-11-19 ("מאשר הכול תמשיך לעבוד", on migration 045 + the corpus).
+- **Procedure (CLAUDE.md section 5):** backup branch `backup-before-migration-045-corpus-pages-2026-11-20`
+  (br-ancient-sunset-b9yi0wyu); dry check: corpus_pages absent, schema_migrations 40 rows, max 44; one transaction
+  that first refuses unless max = 44 and the table is absent, then creates the table, index, trigger and the
+  schema_migrations row (sha256 3b0d7fb47d0e1a31e4b84d1d1fd2e6be39c0199b7d5fd5db1094a31923b203cb = the file);
+  verification in a separate query: corpus_pages exists with 0 rows, trigger corpus_pages_frozen and both constraints
+  present, schema_migrations 41 rows, max 45. A first attempt rolled back whole (schema_migrations.sha256 is NOT NULL).
+- **Order:** the database was migrated before this code merges; a database ahead of the code is still COMPATIBLE
+  (`schema_manifest.compatibility` counts only missing versions).
+- **Code:** migration + rollback, `tests/test_corpus_pages_migration.py` (PostgreSQL, intake-budget-pg), the first
+  category collected (restaurants: 5 accepted of 26 checked, every rejection with its reason) and the insert script
+  (never overwrites; 20% hold-out by a rule on the URL). The rows are not inserted yet.
 # 2026-11-19 — the conversation agent runs on gpt-6-luna, Sonnet when Venice does not offer it (Claude Code)
 
 - **Decision (the owner, 2026-11-19, after the measurement):** "אני איתך מה שאתה ממליץ" -- luna, with Sonnet as fallback.
