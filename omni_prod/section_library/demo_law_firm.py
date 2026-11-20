@@ -11,7 +11,7 @@ from . import page
 
 BRIEF_DESIGN = ('\n--- Approved project brief\nDesign: style clean; primary colour #1e3a5f; palette #1e3a5f, #b45309, '
                 "#f8fafc, #0f172a (primary, accent, background, text: navy and white); font 'Heebo', system-ui, "
-                'sans-serif (load it from Google Fonts)')
+                "sans-serif (load it from Google Fonts); display font 'Frank Ruhl Libre', serif")
 
 CONTENT = {
     'title': 'כהן ושות׳ – דיני עבודה | משרד עורכי דין בתל אביב',

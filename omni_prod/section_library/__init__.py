@@ -24,9 +24,20 @@ from urllib.parse import quote
 HERE = Path(__file__).resolve().parent
 # shipped without its comments: a comment that names what the page avoids must not read as the thing itself
 CSS = re.sub(r'/\*.*?\*/', '', (HERE / 'library.css').read_text(encoding='utf-8'), flags=re.S).strip()
-FONT_LINKS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
-              '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-              '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap">')
+def font_links(contract: dict) -> str:
+    """Google Fonts for the contract's body and heading fonts (each loaded once, weights 400 and 700, display=swap);
+    a system font stack loads nothing."""
+    names = []
+    for token in ('--font-family', '--font-display'):
+        m = re.match(r"\s*'([^']+)'", contract['tokens'].get(token, ''))
+        if m and m.group(1) not in names:
+            names.append(m.group(1))
+    if not names:
+        return ''
+    families = '&'.join('family=' + n.replace(' ', '+') + ':wght@400;700' for n in names)
+    return ('<link rel="preconnect" href="https://fonts.googleapis.com">'
+            '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+            f'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?{families}&display=swap">')
 
 e = html.escape
 
@@ -194,7 +205,7 @@ def page(content: dict, contract: dict) -> tuple[str, list[str]]:
     head = (f'<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
             f'<title>{e(c["title"])}</title><meta name="description" content="{e(c["description"])}">'
             f'<meta property="og:title" content="{e(c["title"])}"><meta property="og:description" content="{e(c["description"])}">'
-            f'<meta property="og:type" content="website">{FONT_LINKS}<style>{contract["css"]}\n{CSS}</style>')
+            f'<meta property="og:type" content="website">{font_links(contract)}<style>{contract["css"]}\n{CSS}</style>')
     doc = (f'<!doctype html><html lang="he" dir="rtl"><head>{head}</head><body>'
            f'<a class="skip" href="#main">דלגו לתוכן</a>{header(c)}<main id="main">{"".join(body)}</main>'
            f'{footer(c)}{mobile_bar(c)}{SCRIPT}</body></html>')

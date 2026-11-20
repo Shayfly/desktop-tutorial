@@ -19,6 +19,7 @@ body {
   text-rendering: optimizeLegibility;
 }
 img, svg { display: block; max-width: 100%; }
+h1, h2, h3, .panel-figure, .stat dd, .brand b { font-family: var(--font-display); }
 a { color: var(--color-primary); text-underline-offset: 0.2em; }
 a:hover { text-decoration-thickness: 2px; }
 a:active { opacity: 0.8; }
