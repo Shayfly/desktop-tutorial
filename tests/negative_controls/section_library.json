@@ -54,7 +54,19 @@
     "tests/test_section_library.py"
    ],
    "expect_failed": [
-    "test_a_section_with_no_content_is_skipped_and_said_never_invented"
+    "test_a_section_with_no_content_is_skipped_and_said_never_invented",
+    "test_a_team_of_three_is_not_a_row_of_three_icon_cards",
+    "test_an_image_without_alt_text_is_refused",
+    "test_it_passes_the_professional_minimum_and_every_skill_unit",
+    "test_nothing_scrolls_sideways_on_a_phone_or_a_wide_screen",
+    "test_one_h1_and_the_main_action_at_the_top_and_again_at_the_end",
+    "test_the_customers_text_is_escaped",
+    "test_the_first_screen_image_is_eager_and_every_other_is_lazy",
+    "test_the_library_css_uses_only_the_contracts_tokens",
+    "test_the_owners_page_passes_the_design_contract_and_its_refusal_list",
+    "test_the_render_check_sees_every_element_settled_after_300ms",
+    "test_the_richer_page_still_passes_the_contract_and_every_unit",
+    "test_time_ranges_keep_their_order_on_a_right_to_left_page"
    ]
   },
   {
@@ -71,7 +83,8 @@
     "tests/test_section_library.py"
    ],
    "expect_failed": [
-    "test_the_owners_page_passes_the_design_contract_and_its_refusal_list"
+    "test_the_owners_page_passes_the_design_contract_and_its_refusal_list",
+    "test_the_richer_page_still_passes_the_contract_and_every_unit"
    ]
   },
   {
@@ -110,8 +123,45 @@
     "tests/test_section_library.py"
    ],
    "expect_failed": [
+    "test_the_library_css_uses_only_the_contracts_tokens",
     "test_the_owners_page_passes_the_design_contract_and_its_refusal_list",
-    "test_the_library_css_uses_only_the_contracts_tokens"
+    "test_the_richer_page_still_passes_the_contract_and_every_unit"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the team card opens with the face: a team of three becomes a row of three icon cards",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "        return f'<article class=\"member\"><h3>{e(m[\"name\"])}</h3><p>{e(m[\"role\"])}</p>{face}</article>'",
+     "new": "        return f'<article class=\"member\">{face}<h3>{e(m[\"name\"])}</h3><p>{e(m[\"role\"])}</p></article>'"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py"
+   ],
+   "expect_failed": [
+    "test_a_team_of_three_is_not_a_row_of_three_icon_cards",
+    "test_the_richer_page_still_passes_the_contract_and_every_unit"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "every image loads eagerly: the page pays for photos the visitor never scrolls to",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    load = ' loading=\"eager\" fetchpriority=\"high\"' if eager else ' loading=\"lazy\"'",
+     "new": "    load = ' loading=\"eager\" fetchpriority=\"high\"'"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py"
+   ],
+   "expect_failed": [
+    "test_the_first_screen_image_is_eager_and_every_other_is_lazy",
+    "test_the_richer_page_still_passes_the_contract_and_every_unit"
    ]
   }
  ]

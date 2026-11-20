@@ -49,7 +49,7 @@ class TheLibrary(unittest.TestCase):
         content = copy.deepcopy(D.CONTENT)
         del content['faq'], content['stats']
         doc, skipped = L.page(content, self.contract)
-        self.assertEqual(skipped, ['stats', 'faq'])
+        self.assertEqual(skipped, ['stats', 'team', 'testimonials', 'faq'])      # no team or testimonials in the brief
         self.assertNotIn('id="faq"', doc)
 
     def test_the_customers_text_is_escaped(self):
@@ -93,6 +93,42 @@ class TheLibrary(unittest.TestCase):
                 .map(el => el.tagName + '.' + el.className).slice(0, 5)""")
             b.close()
         self.assertEqual(faded, [])
+
+
+class ImagesTeamAndTestimonials(unittest.TestCase):
+    """Real images when the customer gives them; a team and testimonials only when given (synthetic test data)."""
+    def setUp(self):
+        self.contract = D.build()[1]
+        self.c = copy.deepcopy(D.CONTENT)
+        self.c['hero']['image'] = {'src': '/assets/office.webp', 'alt': 'משרדי כהן ושות׳', 'width': 1200, 'height': 900}
+        self.c['about']['image'] = {'src': '/assets/team.webp', 'alt': 'צוות המשרד', 'width': 1200, 'height': 900}
+        self.c['team'] = {'eyebrow': 'הצוות', 'title': 'עורכי הדין', 'members': [
+            {'name': 'דנה כהן', 'role': 'שותפה'}, {'name': 'יוסי לוי', 'role': 'עורך דין'},
+            {'name': 'מיכל רז', 'role': 'עורכת דין', 'photo': {'src': '/assets/m.webp', 'alt': 'מיכל רז'}}]}
+        self.c['testimonials'] = {'eyebrow': 'לקוחות', 'title': 'מה אומרים', 'items': [
+            {'text': 'ליווי מקצועי.', 'name': 'א׳'}, {'text': 'זמינות.', 'name': 'ב׳'}, {'text': 'תוצאה.', 'name': 'ג׳'}]}
+        self.doc, self.skipped = L.page(self.c, self.contract)
+
+    def test_the_richer_page_still_passes_the_contract_and_every_unit(self):
+        self.assertEqual(static.check(self.doc, self.contract), [])
+        units = [d for d in os.listdir(os.path.dirname(U.__file__))
+                 if os.path.isdir(os.path.join(os.path.dirname(U.__file__), d)) and not d.startswith('_')]
+        self.assertEqual({u: U.run(u, self.doc) for u in units if U.run(u, self.doc).get('status') != 'pass'}, {})
+
+    def test_the_first_screen_image_is_eager_and_every_other_is_lazy(self):
+        imgs = re.findall(r'<img\b[^>]*>', self.doc)
+        self.assertIn('loading="eager" fetchpriority="high"', imgs[0])
+        self.assertTrue(all('loading="lazy"' in i for i in imgs[1:]), imgs)
+
+    def test_an_image_without_alt_text_is_refused(self):
+        self.c['about']['image'] = {'src': '/assets/x.webp', 'alt': ''}
+        with self.assertRaises(ValueError):
+            L.page(self.c, self.contract)
+
+    def test_a_team_of_three_is_not_a_row_of_three_icon_cards(self):
+        # the heading is first in the markup; CSS shows the face on top
+        self.assertIn('<article class="member"><h3>דנה כהן</h3>', self.doc)
+        self.assertNotIn('THREE_ICON_CARDS', [f['code'] for f in static.check(self.doc, self.contract)])
 
 
 if __name__ == '__main__':

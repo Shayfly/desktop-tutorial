@@ -63,6 +63,17 @@ def _art() -> str:
             f'{cols}<circle cx="260" cy="110" r="24"/></svg>')
 
 
+def img(image: dict, *, eager: bool = False, cls: str = '') -> str:
+    """A customer image: src, alt (required, said, never empty for content), optional width/height. The first screen's
+    image loads eagerly with high priority; every other image is lazy (perf gates)."""
+    if not image.get('alt'):
+        raise ValueError(f"an image without alt text: {image.get('src')!r}")
+    size = ''.join(f' {k}="{int(image[k])}"' for k in ('width', 'height') if image.get(k))
+    load = ' loading="eager" fetchpriority="high"' if eager else ' loading="lazy"'
+    klass = f' class="{e(cls)}"' if cls else ''
+    return f'<img{klass} src="{e(image["src"])}" alt="{e(image["alt"])}"{size}{load} decoding="async">'
+
+
 def tel(phone: str) -> str:
     digits = ''.join(c for c in phone if c.isdigit() or c == '+')
     return 'tel:' + digits
@@ -96,7 +107,8 @@ def hero(c: dict) -> str:
             f'<a class="btn btn-primary" href="#contact">{e(h["cta"])}</a>'
             f'<a class="btn btn-secondary" href="{wa(c["whatsapp"])}">{_icon("whatsapp")}<span>וואטסאפ</span></a>'
             f'</div><p class="hero-note">{e(h["note"])}</p></div>'
-            f'<aside class="panel" aria-label="{e(h["panel_label"])}">{_art()}'
+            f'<aside class="panel{" panel--photo" if h.get("image") else ""}" aria-label="{e(h["panel_label"])}">'
+            f'{img(h["image"], eager=True, cls="panel-photo") if h.get("image") else _art()}'
             f'<p class="panel-figure">{e(h["panel_figure"])}</p><p class="panel-caption">{e(h["panel_caption"])}</p>'
             f'<dl>{facts}</dl></aside></div></section>')
 
@@ -126,7 +138,30 @@ def about(c: dict) -> str:
     facts = ''.join(f'<div><dt>{e(k)}</dt><dd>{e(v)}</dd></div>' for k, v in a['facts'])
     return (f'<section class="section" id="about" aria-labelledby="about-title"><div class="wrap split"><div>'
             f'{_head(a["eyebrow"], a["title"], "", "about-title")}{paras}</div>'
-            f'<dl class="facts">{facts}</dl></div></section>')
+            + (f'<figure class="about-photo">{img(a["image"])}</figure>' if a.get('image') else f'<dl class="facts">{facts}</dl>')
+            + '</div></section>')
+
+
+def team(c: dict) -> str:
+    t = c['team']
+
+    def member(m):
+        face = img(m['photo'], cls='member-photo') if m.get('photo') else \
+            f'<span class="member-initials" aria-hidden="true">{e("".join(w[0] for w in m["name"].split()[:2]))}</span>'
+        # the heading comes first in the markup (a row of three never opens with an image); CSS shows the face on top
+        return f'<article class="member"><h3>{e(m["name"])}</h3><p>{e(m["role"])}</p>{face}</article>'
+    return (f'<section class="section" id="team" aria-labelledby="team-title"><div class="wrap">'
+            f'{_head(t["eyebrow"], t["title"], t.get("lead", ""), "team-title")}'
+            f'<div class="members">{"".join(member(m) for m in t["members"])}</div></div></section>')
+
+
+def testimonials(c: dict) -> str:
+    """Only the customer's own testimonials, each with the name the customer gave; none given -> not rendered."""
+    t = c['testimonials']
+    quotes = ''.join(f'<figure class="quote"><blockquote><p>{e(q["text"])}</p></blockquote>'
+                     f'<figcaption>{e(q["name"])}</figcaption></figure>' for q in t['items'])
+    return (f'<section class="section section--tint" id="testimonials" aria-labelledby="testimonials-title"><div class="wrap">'
+            f'{_head(t["eyebrow"], t["title"], "", "testimonials-title")}<div class="quotes">{quotes}</div></div></section>')
 
 
 def process(c: dict) -> str:
@@ -189,8 +224,8 @@ SCRIPT = ('<script>document.querySelectorAll("form[data-wa]").forEach(function(f
           'a.closest("details").removeAttribute("open");});});</script>')
 
 # order on the page; a section whose key is missing from the content is skipped, never filled with invention
-ORDER = (('hero', hero), ('stats', stats), ('services', services), ('about', about), ('process', process),
-         ('faq', faq), ('cta', cta), ('contact', contact))
+ORDER = (('hero', hero), ('stats', stats), ('services', services), ('about', about), ('team', team),
+         ('process', process), ('testimonials', testimonials), ('faq', faq), ('cta', cta), ('contact', contact))
 
 
 def page(content: dict, contract: dict) -> tuple[str, list[str]]:
