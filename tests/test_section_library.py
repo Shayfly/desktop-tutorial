@@ -131,5 +131,45 @@ class ImagesTeamAndTestimonials(unittest.TestCase):
         self.assertNotIn('THREE_ICON_CARDS', [f['code'] for f in static.check(self.doc, self.contract)])
 
 
+class WiringReadiness(unittest.TestCase):
+    """What the content-document route needs from the library (the wiring judges, 2026-11-20)."""
+    def setUp(self):
+        self.contract = D.build()[1]
+        self.c = copy.deepcopy(D.CONTENT)
+
+    def test_quotes_in_the_customers_text_appear_as_typed_and_are_escaped_inside_attributes(self):
+        self.c['name'] = 'כהן ושות\' בע"מ'
+        doc, _ = L.page(self.c, self.contract)
+        self.assertIn('<b>כהן ושות\' בע"מ</b>', doc)                         # text node: as typed
+        self.assertIn('aria-label="כהן ושות&#x27; בע&quot;מ במספרים"', doc)   # attribute: escaped
+
+    def test_the_form_reaches_whatsapp_even_without_javascript_and_never_the_sites_server(self):
+        form = re.search(r'<form\b[^>]*>', L.page(self.c, self.contract)[0]).group(0)
+        self.assertIn('action="https://wa.me/97235551234"', form)
+        self.assertIn('method="get"', form)
+
+    def test_the_panel_facts_come_before_the_hero_photo_in_the_markup(self):
+        # the truth gate reads the first 45,000 characters; an inlined photo must not push the facts past them
+        self.c['hero']['image'] = {'src': 'data:image/webp;base64,' + 'A' * 60_000, 'alt': 'המשרד'}
+        doc, _ = L.page(self.c, self.contract)
+        self.assertLess(doc.index('דרך מנחם בגין 132'), doc.index('data:image/webp'))
+        self.assertLess(doc.index('09:00'), doc.index('data:image/webp'))
+
+    def test_the_customers_outline_sets_the_order_and_leaves_out_what_it_does_not_name(self):
+        doc, skipped = L.page(self.c, self.contract, order=['faq', 'services', 'contact'])
+        ids = re.findall(r'<section[^>]*\bid="(\w+)"', doc)
+        self.assertEqual(ids, ['top', 'faq', 'services', 'contact'])
+        self.assertIn('about', skipped)
+        self.assertNotIn('href="#about"', doc)                               # no link to a section left out
+        with self.assertRaises(ValueError):
+            L.page(self.c, self.contract, order=['services', 'blog'])
+
+    def test_the_page_carries_the_library_fingerprint_and_fits_the_truth_gate_window(self):
+        doc = L.page(self.c, self.contract)[0]
+        self.assertIn(f'data-148-kit="section-library/{L.LIBRARY_VERSION}"', doc)
+        self.assertLess(len(doc), 45_000)
+        self.assertNotIn('/*', L.CSS)
+
+
 if __name__ == '__main__':
     unittest.main()

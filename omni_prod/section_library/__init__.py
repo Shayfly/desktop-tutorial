@@ -28,14 +28,31 @@ from urllib.parse import quote
 
 HERE = Path(__file__).resolve().parent
 # shipped without its comments: a comment that names what the page avoids must not read as the thing itself
-CSS = re.sub(r'/\*.*?\*/', '', (HERE / 'library.css').read_text(encoding='utf-8'), flags=re.S).strip()
+LIBRARY_VERSION = '2'
+
+
+def _minify(css: str) -> str:
+    """Comments out, whitespace collapsed around braces and semicolons only (never inside a selector or a calc()): the
+    page must fit the 45,000 characters the truth gate reads (preview_smoke)."""
+    css = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+    css = re.sub(r'\s+', ' ', css)
+    return re.sub(r'\s*([{};])\s*', r'\1', css).strip()
+
+
+CSS = _minify((HERE / 'library.css').read_text(encoding='utf-8'))
 DIRECTIONS = json.loads((HERE / 'directions.json').read_text(encoding='utf-8'))
 NBSP = ' '
 
 
 def e(s) -> str:
-    """The customer's text, escaped; a shekel sign never wraps away from its number ("250 ₪")."""
-    return html.escape(str(s)).replace(' ₪', NBSP + '₪')
+    """The customer's text in a text node: escaped (& < >) but quotes kept as typed (בע"מ, ושות'), and a shekel sign never
+    wraps away from its number ("250 ₪")."""
+    return html.escape(str(s), quote=False).replace(' ₪', NBSP + '₪')
+
+
+def ea(s) -> str:
+    """The customer's text inside an attribute value: quotes escaped too."""
+    return html.escape(str(s), quote=True)
 
 
 def font_links(contract: dict) -> str:
@@ -106,8 +123,8 @@ def img(image: dict, *, eager: bool = False, cls: str = '') -> str:
         raise ValueError(f"an image without alt text: {image.get('src')!r}")
     size = ''.join(f' {k}="{int(image[k])}"' for k in ('width', 'height') if image.get(k))
     load = ' loading="eager" fetchpriority="high"' if eager else ' loading="lazy"'
-    klass = f' class="{e(cls)}"' if cls else ''
-    return f'<img{klass} src="{e(image["src"])}" alt="{e(image["alt"])}"{size}{load} decoding="async">'
+    klass = f' class="{ea(cls)}"' if cls else ''
+    return f'<img{klass} src="{ea(image["src"])}" alt="{ea(image["alt"])}"{size}{load} decoding="async">'
 
 
 def tel(phone: str) -> str:
@@ -154,7 +171,7 @@ _LONG_NAV = 48          # characters of link text: more than this does not fit b
 
 def header(c: dict, rendered: list[str]) -> str:
     items = [(i, t) for i, t in c.get('nav', ()) if i in rendered]       # never a link to a section that was left out
-    links = ''.join(f'<a href="#{e(i)}">{e(t)}</a>' for i, t in items)
+    links = ''.join(f'<a href="#{ea(i)}">{e(t)}</a>' for i, t in items)
     long = len(items) > 5 or sum(len(t) for _, t in items) > _LONG_NAV
     tagline = f'<span>{e(c["tagline"])}</span>' if c.get('tagline') else ''
     nav = f'<nav class="nav" aria-label="ניווט ראשי">{links}</nav>' if items else ''
@@ -177,7 +194,7 @@ def hero(c: dict, tone: str, direction: str) -> str:
     if not (h.get('image') or h.get('panel_figure') or h.get('panel_facts')):
         return (f'<section class="hero hero--solo" id="top" aria-labelledby="hero-title"><div class="wrap">{copy}</div>'
                 f'</section>')
-    facts = ''.join(f'<div><dt>{e(f[0])}</dt><dd>' + (f'<a href="{e(f[2])}">{e(f[1])}</a>' if len(f) > 2 else e(f[1]))
+    facts = ''.join(f'<div><dt>{e(f[0])}</dt><dd>' + (f'<a href="{ea(f[2])}">{e(f[1])}</a>' if len(f) > 2 else e(f[1]))
                     + '</dd></div>' for f in h.get('panel_facts', ()))
     art = h.get('art', DEFAULT_ART[direction])
     visual = img(h['image'], eager=True, cls='panel-photo') if h.get('image') else _art(None if art == 'none' else art)
@@ -185,8 +202,8 @@ def hero(c: dict, tone: str, direction: str) -> str:
               if h.get('panel_figure') else '')
     return (f'<section class="hero" id="top" aria-labelledby="hero-title"><div class="wrap">{copy}'
             f'<div class="panel{" panel--photo" if h.get("image") else ""}" role="group" '
-            f'aria-label="{e(h.get("panel_label") or c["name"])}">{visual}{figure}'
-            f'{f"<dl>{facts}</dl>" if facts else ""}</div></div></section>')
+            f'aria-label="{ea(h.get("panel_label") or c["name"])}">{"" if h.get("image") else visual}{figure}'
+            f'{f"<dl>{facts}</dl>" if facts else ""}{visual if h.get("image") else ""}</div></div></section>')
 
 
 def stats_shown(c: dict) -> list:
@@ -198,7 +215,7 @@ def stats_shown(c: dict) -> list:
 def stats(c: dict, tone: str) -> str:
     items = ''.join(f'<div class="stat"><dt>{e(label)}</dt><dd>{e(value)}</dd></div>' for value, label in stats_shown(c))
     label = c.get('stats_label') or f'{c["name"]} במספרים'
-    return f'<section class="stats" aria-label="{e(label)}"><div class="wrap"><dl>{items}</dl></div></section>'
+    return f'<section class="stats" aria-label="{ea(label)}"><div class="wrap"><dl>{items}</dl></div></section>'
 
 
 def services(c: dict, tone: str) -> str:
@@ -293,7 +310,7 @@ def contact(c: dict, tone: str) -> str:
     k = c['contact']
     rows = [('טלפון', f'<a href="{tel(c["phone"])}">{e(c["phone"])}</a>')]
     if c.get('email'):
-        rows.append(('דוא״ל', f'<a href="mailto:{e(c["email"])}">{e(c["email"])}</a>'))
+        rows.append(('דוא״ל', f'<a href="mailto:{ea(c["email"])}">{e(c["email"])}</a>'))
     if c.get('address'):
         q = quote(c['address'])
         rows.append(('כתובת', e(c['address']) + f'<span class="directions">ניווט: <a href="https://waze.com/ul?q={q}">Waze</a>'
@@ -307,7 +324,8 @@ def contact(c: dict, tone: str) -> str:
         topics = (f'<div class="field"><label for="f-topic">נושא הפנייה{req}</label><select id="f-topic" name="topic" required>'
                   '<option value="" disabled selected>בחרו נושא</option>'
                   + ''.join(f'<option>{e(t)}</option>' for t in k['topics']) + '</select></div>') if k.get('topics') else ''
-        form = (f'<form class="form" data-wa="{e(wa(c["whatsapp"]))}" aria-label="טופס יצירת קשר">'
+        form = (f'<form class="form" action="{ea(wa(c["whatsapp"]))}" method="get" data-wa="{ea(wa(c["whatsapp"]))}" '
+                f'aria-label="טופס יצירת קשר">'
                 f'<div class="field"><label for="f-name">שם מלא{req}</label><input id="f-name" name="name" autocomplete="name" required></div>'
                 f'<div class="field"><label for="f-phone">טלפון{req}</label><input id="f-phone" name="phone" type="tel" '
                 f'autocomplete="tel" inputmode="tel" required></div>{topics}'
@@ -319,11 +337,11 @@ def contact(c: dict, tone: str) -> str:
 
 
 def footer(c: dict, rendered: list[str]) -> str:
-    links = ''.join(f'<a href="#{e(i)}">{e(t)}</a>' for i, t in c.get('nav', ()) if i in rendered)
+    links = ''.join(f'<a href="#{ea(i)}">{e(t)}</a>' for i, t in c.get('nav', ()) if i in rendered)
     nav = f'<nav aria-label="ניווט בתחתית העמוד">{links}</nav>' if links else ''
     reach = [f'<a href="{tel(c["phone"])}">{e(c["phone"])}</a>']
     if c.get('email'):
-        reach.append(f'<a href="mailto:{e(c["email"])}">{e(c["email"])}</a>')
+        reach.append(f'<a href="mailto:{ea(c["email"])}">{e(c["email"])}</a>')
     if c.get('address'):
         reach.append(e(c['address']))
     tagline = f'<p>{e(c["tagline"])}</p>' if c.get('tagline') else ''
@@ -395,34 +413,47 @@ def _schema(c: dict) -> str:
     return f'<script type="application/ld+json">{raw}</script>'
 
 
-def page(content: dict, contract: dict) -> tuple[str, list[str]]:
-    """(html, skipped section keys). `contract` is a G-APPLE contract (contract.build). A missing required fact or an
-    unknown art direction raises; nothing is filled in silently."""
+def page(content: dict, contract: dict, order: list[str] | None = None) -> tuple[str, list[str]]:
+    """(html, skipped section keys). `contract` is a G-APPLE contract (contract.build). `order` is the customer's own
+    outline as section keys (the hero always opens the page); without it, ORDER. A missing required fact, an unknown
+    section key or an unknown art direction raises; nothing is filled in silently."""
     c = content
     _need(c, REQUIRED, 'page')
+    sequence = ORDER
+    if order is not None:
+        known = dict(ORDER)
+        unknown = [k for k in order if k not in known]
+        if unknown or len(set(order)) != len(order):
+            raise ValueError(f'outline {order!r}: unknown or repeated sections {unknown}')
+        keys = ['hero'] + [k for k in order if k != 'hero']
+        sequence = tuple((k, known[k]) for k in keys) + tuple((k, f) for k, f in ORDER if k not in keys)
     direction = c['direction']
     if direction not in DIRECTIONS['directions']:
         raise ValueError(f'unknown art direction {direction!r}')
     rendered, skipped = [], []
-    for key, fn in ORDER:
-        if c.get(key) and (key != 'stats' or stats_shown(c)):
+    for key, fn in sequence:
+        if (order is None or key in order or key == 'hero') and c.get(key) and (key != 'stats' or stats_shown(c)):
             rendered.append(key)
         else:
             skipped.append(key)
     # a number the panel already shows is said once; the strip's copy is left out and reported
     skipped += [f'stats:{v} (shown in the hero panel)' for v, _ in c.get('stats') or () if v == c['hero'].get('panel_figure')]
     tone = tones(rendered, direction)
-    fns = dict(ORDER)
-    body = [hero(c, '', direction) if k == 'hero' else fns[k](c, tone.get(k, '')) for k in rendered]
+    fns = dict(sequence)
+    body = ''.join(hero(c, '', direction) if k == 'hero' else fns[k](c, tone.get(k, '')) for k in rendered)
+    if not c['hero'].get('image'):
+        # no hero photo: the page's first image is still the first one the browser meets -- it is not deferred
+        body = body.replace(' loading="lazy"', ' loading="eager"', 1)
     head = (f'<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-            f'<title>{e(c["title"])}</title><meta name="description" content="{e(c["description"])}">'
-            f'<meta property="og:title" content="{e(c["title"])}"><meta property="og:description" content="{e(c["description"])}">'
+            f'<title>{e(c["title"])}</title><meta name="description" content="{ea(c["description"])}">'
+            f'<meta property="og:title" content="{ea(c["title"])}"><meta property="og:description" content="{ea(c["description"])}">'
             f'<meta property="og:type" content="website"><meta property="og:locale" content="he_IL">'
             f'{font_links(contract)}<style>{contract["css"]}\n{CSS}</style>{_schema(c)}')
     single = any(n in contract['tokens'].get('--font-display', '') for n in DIRECTIONS['single_weight_display'])
     doc = (f'<!doctype html><html lang="he" dir="rtl"><head>{head}</head>'
-           f'<body data-direction="{direction}"{" data-display-weight=regular" if single else ""}>'
-           f'<a class="skip" href="#main">דלגו לתוכן</a>{header(c, rendered)}<main id="main">{"".join(body)}</main>'
+           f'<body data-direction="{direction}" data-148-kit="section-library/{LIBRARY_VERSION}"'
+           f'{" data-display-weight=regular" if single else ""}>'
+           f'<a class="skip" href="#main">דלגו לתוכן</a>{header(c, rendered)}<main id="main">{body}</main>'
            f'{footer(c, rendered)}{mobile_bar(c)}{SCRIPT}</body></html>')
     from ..bidi_ranges import wrap_ranges        # "09:00–18:00" stays in its order on a right-to-left page
     return wrap_ranges(doc), skipped
