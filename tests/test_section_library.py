@@ -37,7 +37,7 @@ class TheLibrary(unittest.TestCase):
     def test_one_h1_and_the_main_action_at_the_top_and_again_at_the_end(self):
         self.assertEqual(len(re.findall(r'<h1\b', self.doc)), 1)
         self.assertGreaterEqual(self.doc.count('href="tel:035551234"'), 3)
-        self.assertGreaterEqual(self.doc.count('https://wa.me/97235551234'), 3)
+        self.assertGreaterEqual(self.doc.count('https://wa.me/972505551234'), 3)
 
     def test_the_library_css_uses_only_the_contracts_tokens(self):
         self.assertIsNone(re.search(r'#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(', L.CSS))
@@ -145,7 +145,7 @@ class WiringReadiness(unittest.TestCase):
 
     def test_the_form_reaches_whatsapp_even_without_javascript_and_never_the_sites_server(self):
         form = re.search(r'<form\b[^>]*>', L.page(self.c, self.contract)[0]).group(0)
-        self.assertIn('action="https://wa.me/97235551234"', form)
+        self.assertIn('action="https://wa.me/972505551234"', form)
         self.assertIn('method="get"', form)
 
     def test_the_panel_facts_come_before_the_hero_photo_in_the_markup(self):

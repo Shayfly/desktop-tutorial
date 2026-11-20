@@ -20,7 +20,7 @@ CONTENT = {
     'description': 'מייצגים עובדים ומעסיקים בדיני עבודה מאז 2008. דרך מנחם בגין 132, תל אביב. 03-5551234.',
     'name': 'כהן ושות׳', 'tagline': 'דיני עבודה · תל אביב', 'year': '2026',
     'direction': 'formal', 'schema_type': 'LegalService',
-    'phone': '03-5551234', 'whatsapp': '03-5551234', 'email': 'office@cohen-law.co.il',
+    'phone': '03-5551234', 'whatsapp': '050-5551234',   # the brief: "וואטסאפ: 050-5551234" 'email': 'office@cohen-law.co.il',
     'address': 'דרך מנחם בגין 132, תל אביב', 'hours': 'א׳–ה׳ 09:00–18:00',
     'nav': [('services', 'תחומי התמחות'), ('about', 'על המשרד'), ('process', 'איך זה עובד'), ('faq', 'שאלות נפוצות'),
             ('contact', 'יצירת קשר')],
