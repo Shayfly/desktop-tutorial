@@ -9,6 +9,13 @@
 - **Evidence:** `tests/test_windows_fit_the_business.py` 7 passed (law firm: 2 windows; butcher with sales: 4; wine
   shop: all 8); window approval tests updated (a cafe is offered 2); controls `windows_fit` 4/4 (NC4 first exposed a
   guard that never ran alone -- fixed).
+# 2026-11-20 — the conversation agent never guesses the customer's gender (Claude Code)
+
+- **What broke:** rehearsal 44650878701 (luna on the production path, 3/3 passed) -- the agent wrote "תרצי להציג
+  מחירון" to a customer who never said their gender. The reply rules said nothing about Hebrew address.
+- **Fix:** the reply rules: in Hebrew, the plural (אתם: תרצו, ספרו) or gender-neutral wording, never a guess.
+- **Evidence:** `tests/test_reply_never_guesses_gender.py` 1 passed; control `reply_neutral_address` 1/1.
+- **Not verified yet:** a model obeying it -- the next agent rehearsal reads the replies.
 
 # 2026-11-19 — a shared link shows a preview by construction (Claude Code)
 
