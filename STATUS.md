@@ -10,6 +10,15 @@
   shop: all 8); window approval tests updated (a cafe is offered 2); controls `windows_fit` 4/4 (NC4 first exposed a
   guard that never ran alone -- fixed).
 
+# 2026-11-19 — the preview's enlarge button covers the whole screen on a phone (Claude Code)
+
+- **What broke (the owner, iPhone):** "מסך מלא לתצוגה מקדימה לא עובד". Reproduced in Chromium as an iPhone 13: after
+  ⤢ the stage moved to x=-12 (12px off the screen) with the same width, under the app's bars -- the phone rule makes the
+  stage width:100% and static, so `stage-max`'s inset:12px only shifted it.
+- **Fix:** on a phone, `.workspace.stage-max>.stage` is fixed at inset 0 over everything (z-index 1000), no backdrop.
+- **Evidence:** `tests/preview_frame_browser.cjs` (real app, real ⤢ click) at 390 and 1440 px: the enlarged stage is
+  the whole viewport on a phone, 12px inset on a desktop, nothing covers it, the same button restores it. Without the
+  CSS fix the new check fails with x=-12 (run here; the browser job runs it in CI).
 # 2026-11-20 — migration 045 applied to production: the frozen reference corpus (Claude Code)
 
 - **Approval:** the owner, 2026-11-19 ("מאשר הכול תמשיך לעבוד", on migration 045 + the corpus).
@@ -4230,3 +4239,23 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 - The #463 Overlay run 44479691814 ran 3911 unittest cases and failed only because the nested AcceptanceW subprocess exceeded 300 seconds. Overlay discovery now skips the wrapper only. Standalone and v24 invocations retain the 300-second check.
 - Local targeted checks: 8 tests and 19 subtests passed, and the duplicate-invocation mutation was caught. Exact-head CI and independent review pending.
+
+## 2026-11-20 — Critical path freshness manual check (#464, Codex)
+
+GitHub Actions [manual run 44658425152](https://github.com/Shayfly/desktop-tutorial/actions/runs/44658425152) on `main` at `15a36579cec27eee1f6132ce3dfed8af9423125e` finished with exit 1. The three BROKEN annotations mean no qualifying successful step in the preceding seven days. PASS below records fresh historical evidence; it does not certify the revision that triggered this check. Times are UTC.
+
+| Critical path | Result | Most recent qualifying success found |
+|---|---|---|
+| Worker deployment | PASS | [2026-11-19 22:04:43, queue execution proof](https://github.com/Shayfly/desktop-tutorial/actions/runs/44624663436/job/135915241531), workflow SHA `29e515e` |
+| Golden rehearsal | BROKEN | None in the seven-day window |
+| Post-deploy verify-replay | BROKEN | None in the seven-day window |
+| Backup restore | PASS | [2026-11-19 10:16:28, restore and verify](https://github.com/Shayfly/desktop-tutorial/actions/runs/44503989411/job/135490677325), workflow SHA `8cde544` |
+| Golden E2E | BROKEN | None in the seven-day window |
+
+- Golden rehearsal — Claude Code owns a main-branch Golden build rehearsal with an approved synthetic prompt and spend, preserving the successful build-step result.
+- Post-deploy verify-replay — Codex owns the CI evidence. Run the Post-deploy checks workflow on main with stage `verify-replay` and stored versions available, and confirm the replay completed with at least one successful verification. The replay mode does not call models.
+- Golden E2E — Claude Code owns the trusted live producer and Matt independently verifies its evidence. The producer must attach `golden-e2e-evidence` and call the reusable gate in the same run with the build ID and expected commit so all four checks pass.
+
+The newer [worker deployment at `15a3657`](https://github.com/Shayfly/desktop-tutorial/actions/runs/44650631173/job/136004430513) failed at Apply database migrations with `applied migration missing from package: 45`. The recovery step reported that the previous consumers were restored, and the queue proof was skipped. This run is not counted as evidence of freshness.
+
+Follow-up after the manual check: migration 045 was merged in #474. The [worker deployment for `df37f4f`](https://github.com/Shayfly/desktop-tutorial/actions/runs/44665058956/job/136052265327) completed successfully and proved queue execution at 03:06:03 UTC on 2026-11-20.
