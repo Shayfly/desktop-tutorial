@@ -76,6 +76,6 @@
 | D10-LIMIT | Claude Code | In review | a conversation at its limit stops gracefully: typed limit, closing reply with the summary or one open question in words (read for free), no 'provider busy'; NC 15/15 |
 | D10-TURNS | Claude Code | In review | the agent's 8-turn cap in reserve() (contacted calls only, under the locks) and tokens and cost per conversation; NC 8/8 + pg 7/7 |
 | D10-SONNET | Claude Code | In review | Sonnet for the conversation agent only (ordered Venice profile, Haiku when Sonnet is not offered); rehearsal agent path; NC 9/9 |
-| FINDING-ATTRIBUTION | Codex | Draft; independent review pending | scripts/check_finding_attribution.py and its negative control |
-| CRITICAL-PATH-FRESHNESS | Codex | Draft; independent review pending | scripts/check_critical_path_freshness.py |
+| FINDING-ATTRIBUTION | Codex | Done | #463 b327fb082092645b4c2bfc83fe3d7e8d33f6e7da → 0ed3d0ec684a515fb1b6cc61dede4252782ea220 |
+| CRITICAL-PATH-FRESHNESS | Codex | Done | #464 db1055affb59fe903e6d7334923ecd6779c4c105 → 5ee43950e294b73b3388e75407a3f7e3b6dc76c8 |
 | OVERLAY-ACCEPTANCE-W | Codex | Draft; awaiting CI and independent review | GitHub run 44479691814, job 135408636414 |
