@@ -432,6 +432,12 @@ def failure_code(exc: BaseException) -> str:
             return 'model_budget_exhausted'
         return 'model_policy_blocked'
     if isinstance(exc, ModelGatewayError) and 'all model routes failed' in text:
+        # warehouse 70 (bld_* 2026-11-17, gemini-3.8-flash: "model did not return valid JSON"): every model that was
+        # tried answered, but none in the required format. That is not "load or quota", and the customer is told so.
+        from .model_gateway import ModelJSONRejected
+        tried = [k for k in getattr(exc, 'route_failures', ()) if k not in ('skipped', 'budget')]
+        if tried and all(isinstance(k, type) and issubclass(k, ModelJSONRejected) for k in tried):
+            return 'model_bad_output'
         return 'model_unavailable'
     return 'worker_exception'
 

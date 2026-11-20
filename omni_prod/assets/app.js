@@ -67,6 +67,12 @@ const T = {
       worker_exception:'אירעה תקלה פנימית במהלך הבנייה. הצוות קיבל את הפרטים.',
       model_budget_exhausted:'הבנייה הגיעה לתקרת העלות שנקבעה לה ונעצרה לפני שהושלמה. אפשר לנסות שוב.',
       model_unavailable:'ספקי ה־AI לא היו זמינים כרגע (עומס או מכסה). אפשר לנסות שוב בעוד כמה דקות.',
+      model_bad_output:'מודלי ה־AI ענו, אבל אף תשובה לא הגיעה בפורמט שהבנייה צריכה, ולכן הבנייה נעצרה לפני הבדיקות. זו לא בעיה של עומס או מכסה. אפשר לנסות שוב; הפירוט בפרטים הטכניים.',
+      attempt_ledger_unavailable:'הבנייה נעצרה לפני היצירה: רישום העלויות של הבנייה לא היה זמין, ובלעדיו המערכת לא מפעילה מודלים. אפשר לנסות שוב בעוד כמה דקות.',
+      plan_violation:'הבנייה נעצרה: אחד השלבים חרג מהתוכנית שאושרה לבנייה הזאת. הפירוט בפרטים הטכניים.',
+      infrastructure_not_configured:'הבנייה לא יכלה לרוץ: חלק מתשתית הבנייה לא מוגדר בשרת. זו תקלה אצלנו, לא אצלכם; הפירוט בפרטים הטכניים.',
+      capability_not_configured:'יכולת שהמוצר צריך (למשל יצירת תמונות) לא מוגדרת בשרת, ולכן הבנייה נעצרה לפני היצירה. הפירוט בפרטים הטכניים.',
+      release_policy_unavailable:'הבנייה הסתיימה, אבל דוח האיכות שנדרש כדי לסמן אותה כמוכנה לא נוצר, ולכן היא לא סומנה כמוכנה. הפירוט בפרטים הטכניים.',
       provider_quota_exhausted:'לפחות ספק AI אחד דיווח שנגמרה המכסה או יתרת הקרדיטים. אין כרגע ספק חלופי שהשלים את הבקשה. בדקו את הספק שמופיע בהמשך.',
       model_policy_blocked:'מדיניות השימוש במודלים לא אפשרה את הבנייה בסביבה הזו.',
       capability_gate_failed:'יכולת נדרשת (למשל יצירת תמונות) לא אומתה, ולכן הבנייה לא אושרה.',
@@ -196,6 +202,12 @@ const T = {
       worker_exception:'An internal error occurred during the build. The details were recorded.',
       model_budget_exhausted:'The build reached its cost ceiling and stopped before it was finished. You can try again.',
       model_unavailable:'The AI providers were not available right now (load or quota). Try again in a few minutes.',
+      model_bad_output:'The AI models answered, but no answer came in the format the build needs, so the build stopped before its checks. This is not load or quota. You can try again; see the technical details.',
+      attempt_ledger_unavailable:'The build stopped before generating: the build\'s cost record was not available, and without it the system does not call models. Try again in a few minutes.',
+      plan_violation:'The build stopped: a step went outside the plan approved for this build. See the technical details.',
+      infrastructure_not_configured:'The build could not run: part of the build infrastructure is not configured on the server. This is our fault, not yours; see the technical details.',
+      capability_not_configured:'A capability the product needs (such as image generation) is not configured on the server, so the build stopped before generating. See the technical details.',
+      release_policy_unavailable:'The build finished, but the quality report needed to mark it ready was not produced, so it was not marked ready. See the technical details.',
       provider_quota_exhausted:'An AI provider reported exhausted quota/credits, and no fallback completed. Check the named provider below.',
       model_policy_blocked:'The model usage policy did not allow this build in this environment.',
       capability_gate_failed:'A required capability (such as image generation) was not verified, so the build was not accepted.',
@@ -1066,7 +1078,7 @@ function renderTrack() {
   // shown as skipped, never as done (a failed build once showed the quality
   // gates as passed although generation had failed before them).
   const FAIL_STEP = { infrastructure_not_configured: 1, capability_not_configured: 2, capability_gate_failed: 2, image_mismatch: 2,
-    worker_exception: 3, build_timeout: 3, provider_liability_unknown: 3, worker_lost: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, provider_quota_exhausted: 3, model_policy_blocked: 3, verification_failed: 3, release_policy_failed: 4, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
+    worker_exception: 3, build_timeout: 3, provider_liability_unknown: 3, worker_lost: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, model_bad_output: 3, attempt_ledger_unavailable: 3, plan_violation: 3, provider_quota_exhausted: 3, model_policy_blocked: 3, verification_failed: 3, release_policy_failed: 4, release_policy_unavailable: 4, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
   const failedIdx = failedCode in FAIL_STEP ? FAIL_STEP[failedCode] : -1;
   const preview = S.preview;
   const steps = [];
@@ -1090,7 +1102,7 @@ function renderTrack() {
   backendStep('stepInfra', 1, ['infrastructure_not_configured'], infraEv === null && status === 'ready' ? t('none') : null);
   backendStep('stepAssets', 2, ['capability_not_configured', 'capability_gate_failed', 'image_mismatch'], null);
   const repairNote = b && b.repair_rounds !== undefined && b.repair_rounds !== null && isTerminal(b.status) ? t('repairs')(b.repair_rounds) : t('noteGenerate');
-  backendStep('stepGenerate', 3, ['worker_exception', 'preview_not_ready', 'model_budget_exhausted', 'model_unavailable', 'provider_quota_exhausted', 'model_policy_blocked', 'verification_failed'], repairNote);
+  backendStep('stepGenerate', 3, ['worker_exception', 'preview_not_ready', 'model_budget_exhausted', 'model_unavailable', 'model_bad_output', 'attempt_ledger_unavailable', 'plan_violation', 'provider_quota_exhausted', 'model_policy_blocked', 'verification_failed'], repairNote);
   backendStep('stepGates', 4, ['quality_gate_failed', 'security_gate_failed', 'rights_gate_not_clear'], null);
   let pState = (!preview && (status === 'cancelled' || status === 'failed')) ? 'skipped' : 'pending', pNote = null;
   if (preview) {
@@ -1219,7 +1231,7 @@ function renderSharing(p) {
 // died); a failed build whose report could not be generated, or a report stored before the list existed, says nothing
 // rather than guessing.
 function notRunLine(b) {
-  const NO_REPORT_BEFORE_CHECKS = ['worker_exception', 'model_budget_exhausted', 'model_unavailable', 'provider_quota_exhausted', 'model_policy_blocked', 'attempt_ledger_unavailable', 'plan_violation'];
+  const NO_REPORT_BEFORE_CHECKS = ['worker_exception', 'model_budget_exhausted', 'model_unavailable', 'model_bad_output', 'provider_quota_exhausted', 'model_policy_blocked', 'attempt_ledger_unavailable', 'plan_violation'];
   const status = b ? String(b.status || '').toLowerCase() : '';
   if (status !== 'failed' && status !== 'ready') return '';
   const qr = b.evidence && b.evidence.quality_report;
