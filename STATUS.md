@@ -15,6 +15,26 @@
 - **Not yet:** the generator does not use the library. Wiring it in comes after the owner approves the look.
 - **Warehouse:** 105 (colour by category) is untouched -- the library takes its colours from the contract.
 
+# 2026-11-20 — the conversation agent never guesses the customer's gender (Claude Code)
+
+- **What broke:** rehearsal 44650878701 (luna on the production path, 3/3 passed) -- the agent wrote "תרצי להציג
+  מחירון" to a customer who never said their gender. The reply rules said nothing about Hebrew address.
+- **Fix:** the reply rules: in Hebrew, the plural (אתם: תרצו, ספרו) or gender-neutral wording, never a guess.
+- **Evidence:** `tests/test_reply_never_guesses_gender.py` 1 passed; control `reply_neutral_address` 1/1.
+- **Not verified yet:** a model obeying it -- the next agent rehearsal reads the replies.
+
+# 2026-11-19 — a shared link shows a preview by construction (Claude Code)
+
+- **What broke:** SHARE (og:title, og:description) failed on all five production builds with gate evidence and on the
+  owner's law-firm build (bld_b0eb47a5), after #467 had put the rule in the spec. Telling the model is not enough.
+- **Fix:** `omni_prod/share_preview.py`, a repository transform after the RTL rule, in the worker and the rehearsal:
+  a served page with a <title> and no og:title gets one from that title; og:description comes from the page's meta
+  description, else its first paragraph (160 characters). Nothing invented; a page already tagged is left as is;
+  a Python template is changed only if it still compiles; tests are never touched.
+- **Evidence:** `tests/test_share_preview_by_construction.py` 8 passed, including the butcher production page with its
+  og tags removed (SHARE fails; after the transform it passes) and an engine build that is ready with 0 repair rounds
+  with SHARE set to block; controls `share_preview` 5/5.
+- **Not done:** og:image -- needs the hero image served as a file (warehouse 118).
 # 2026-11-19 — PRO: a business site meets a professional minimum (Claude Code)
 
 - **What broke (the owner, bld_b0eb47a5, the law-firm site):** "רמה נמוכה ... אני רוצה מקצועיות". The build passed every

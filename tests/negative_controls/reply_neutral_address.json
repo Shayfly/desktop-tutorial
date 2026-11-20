@@ -1,0 +1,10 @@
+{
+ "pr": "neutral-address",
+ "sha256": ["tests/test_reply_never_guesses_gender.py", "omni_prod/intake/interpreter.py"],
+ "controls": [
+  {"id": "NC1", "what": "the reply rules lose the address rule (the agent guesses the customer's gender again)",
+   "mutations": [{"file": "omni_prod/intake/interpreter.py", "old": "          'the plural (אתם: תרצו, ספרו, תוכלו) or in gender-neutral wording -- never guess their gender (never תרצי/תרצה); '\n", "new": "          ''\n"}],
+   "targets": ["tests/test_reply_never_guesses_gender.py"],
+   "expect_failed": ["test_the_reply_rules_say_plural_or_neutral_and_never_a_guess"]}
+ ]
+}
