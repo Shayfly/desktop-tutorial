@@ -68,8 +68,8 @@
    "mutations": [
     {
      "file": "omni_prod/skill_units/gate.py",
-     "old": "WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE', 'G5')",
-     "new": "WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE')"
+     "old": "WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE', 'G5', 'PRO')",
+     "new": "WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE', 'PRO')"
     }
    ],
    "targets": [
