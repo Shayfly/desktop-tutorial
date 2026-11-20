@@ -4218,3 +4218,8 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 - The #463 Overlay run 44479691814 ran 3911 unittest cases and failed only because the nested AcceptanceW subprocess exceeded 300 seconds. Overlay discovery now skips the wrapper only. Standalone and v24 invocations retain the 300-second check.
 - Local targeted checks: 8 tests and 19 subtests passed, and the duplicate-invocation mutation was caught. Exact-head CI and independent review pending.
+
+## 2026-11-19 — Record merged CI tasks (Codex)
+
+- GitHub confirmed the finding attribution change (#463, head `b327fb0`, merge `0ed3d0e`) and the critical path freshness change (#464, head `db1055a`, merge `5ee4395`). The two TASKS rows now record those exact revisions and the Done status. The workflow run evidence is tracked separately.
+- Full local `pytest tests` matched main `0ed3d0e`: both reported 3,979 passed, 291 skipped, one expected failure and zero failures or errors. The status integrity checks also passed (four tests).
