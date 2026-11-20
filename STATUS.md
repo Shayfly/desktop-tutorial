@@ -1,3 +1,17 @@
+# 2026-11-20 — migration 045 applied to production: the frozen reference corpus (Claude Code)
+
+- **Approval:** the owner, 2026-11-19 ("מאשר הכול תמשיך לעבוד", on migration 045 + the corpus).
+- **Procedure (CLAUDE.md section 5):** backup branch `backup-before-migration-045-corpus-pages-2026-11-20`
+  (br-ancient-sunset-b9yi0wyu); dry check: corpus_pages absent, schema_migrations 40 rows, max 44; one transaction
+  that first refuses unless max = 44 and the table is absent, then creates the table, index, trigger and the
+  schema_migrations row (sha256 3b0d7fb47d0e1a31e4b84d1d1fd2e6be39c0199b7d5fd5db1094a31923b203cb = the file);
+  verification in a separate query: corpus_pages exists with 0 rows, trigger corpus_pages_frozen and both constraints
+  present, schema_migrations 41 rows, max 45. A first attempt rolled back whole (schema_migrations.sha256 is NOT NULL).
+- **Order:** the database was migrated before this code merges; a database ahead of the code is still COMPATIBLE
+  (`schema_manifest.compatibility` counts only missing versions).
+- **Code:** migration + rollback, `tests/test_corpus_pages_migration.py` (PostgreSQL, intake-budget-pg), the first
+  category collected (restaurants: 5 accepted of 26 checked, every rejection with its reason) and the insert script
+  (never overwrites; 20% hold-out by a rule on the URL). The rows are not inserted yet.
 # 2026-11-19 — the conversation agent runs on gpt-6-luna, Sonnet when Venice does not offer it (Claude Code)
 
 - **Decision (the owner, 2026-11-19, after the measurement):** "אני איתך מה שאתה ממליץ" -- luna, with Sonnet as fallback.
@@ -4222,3 +4236,5 @@ GitHub Actions [manual run 44658425152](https://github.com/Shayfly/desktop-tutor
 - Golden E2E — Claude Code owns the trusted live producer and Matt independently verifies its evidence. The producer must attach `golden-e2e-evidence` and call the reusable gate in the same run with the build ID and expected commit so all four checks pass.
 
 The newer [worker deployment at `15a3657`](https://github.com/Shayfly/desktop-tutorial/actions/runs/44650631173/job/136004430513) failed at Apply database migrations with `applied migration missing from package: 45`. The recovery step reported that the previous consumers were restored, and the queue proof was skipped. This run is not counted as evidence of freshness.
+
+Follow-up after the manual check: migration 045 was merged in #474. The [worker deployment for `df37f4f`](https://github.com/Shayfly/desktop-tutorial/actions/runs/44665058956/job/136052265327) completed successfully and proved queue execution at 03:06:03 UTC on 2026-11-20.
