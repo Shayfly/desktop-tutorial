@@ -164,6 +164,13 @@ class WiringReadiness(unittest.TestCase):
         with self.assertRaises(ValueError):
             L.page(self.c, self.contract, order=['services', 'blog'])
 
+    def test_a_number_the_hero_panel_shows_is_not_repeated_in_the_strip_and_the_drop_is_said(self):
+        self.c['stats'] = [('+1,500', 'תיקים'), ('3', 'עורכי דין'), ('2008', 'פעילים מאז')]   # the panel shows +1,500
+        doc, skipped = L.page(self.c, self.contract)
+        strip = re.search(r'<section class="stats".*?</section>', doc).group(0)
+        self.assertNotIn('+1,500', strip)
+        self.assertIn('stats:+1,500 (shown in the hero panel)', skipped)
+
     def test_the_page_carries_the_library_fingerprint_and_fits_the_truth_gate_window(self):
         doc = L.page(self.c, self.contract)[0]
         self.assertIn(f'data-148-kit="section-library/{L.LIBRARY_VERSION}"', doc)
