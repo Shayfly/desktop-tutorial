@@ -10,6 +10,33 @@
   og tags removed (SHARE fails; after the transform it passes) and an engine build that is ready with 0 repair rounds
   with SHARE set to block; controls `share_preview` 5/5.
 - **Not done:** og:image -- needs the hero image served as a file (warehouse 118).
+# 2026-11-20 — migration 045 applied to production: the frozen reference corpus (Claude Code)
+
+- **Approval:** the owner, 2026-11-19 ("מאשר הכול תמשיך לעבוד", on migration 045 + the corpus).
+- **Procedure (CLAUDE.md section 5):** backup branch `backup-before-migration-045-corpus-pages-2026-11-20`
+  (br-ancient-sunset-b9yi0wyu); dry check: corpus_pages absent, schema_migrations 40 rows, max 44; one transaction
+  that first refuses unless max = 44 and the table is absent, then creates the table, index, trigger and the
+  schema_migrations row (sha256 3b0d7fb47d0e1a31e4b84d1d1fd2e6be39c0199b7d5fd5db1094a31923b203cb = the file);
+  verification in a separate query: corpus_pages exists with 0 rows, trigger corpus_pages_frozen and both constraints
+  present, schema_migrations 41 rows, max 45. A first attempt rolled back whole (schema_migrations.sha256 is NOT NULL).
+- **Order:** the database was migrated before this code merges; a database ahead of the code is still COMPATIBLE
+  (`schema_manifest.compatibility` counts only missing versions).
+- **Code:** migration + rollback, `tests/test_corpus_pages_migration.py` (PostgreSQL, intake-budget-pg), the first
+  category collected (restaurants: 5 accepted of 26 checked, every rejection with its reason) and the insert script
+  (never overwrites; 20% hold-out by a rule on the URL). The rows are not inserted yet.
+# 2026-11-19 — the conversation agent runs on gpt-6-luna, Sonnet when Venice does not offer it (Claude Code)
+
+- **Decision (the owner, 2026-11-19, after the measurement):** "אני איתך מה שאתה ממליץ" -- luna, with Sonnet as fallback.
+- **Measurement (conversation-rehearsal, agent path, 3 Hebrew conversations each):** luna 3/3, 0 failed calls,
+  $0.0011-0.0016 a conversation (run 44613790551); Sonnet 3/3, $0.029-0.041 (44602458248); Haiku 3/3, $0.0014-0.0023
+  (44616521276); deepseek-v4-flash 3/3 with one failed call (44602428561); gpt-oss-120b 5 empty or invalid answers
+  (44605208470); qwen3-235b 5 timeouts and Arabic in the Hebrew (44607455048).
+- **Change:** `conversation_agent.VENICE_MODELS = ('openai-gpt-6-luna', 'claude-sonnet-5-5')`; the ceiling stays Sonnet's
+  list price (2,10) so the fallback is never refused; each turn settles at its actual cost. Other accounts unchanged.
+- **Evidence:** `tests/test_conversation_agent_sonnet.py` 15 passed, with a new test that the list order wins over the
+  price (luna is first and cheapest, so the old controls could no longer tell them apart); controls
+  `conversation_agent_sonnet` 12/12 (NC1-NC3 retargeted to that test).
+- **Not measured:** 3 conversations per model, all content sites; measure again after a week of real conversations.
 
 # 2026-11-19 — the owner's page structure: "עיצוב:" is not a section, "פתיח" needs no heading (Claude Code)
 
