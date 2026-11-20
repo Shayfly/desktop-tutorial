@@ -1,0 +1,17 @@
+{
+ "_about": "The owner 2026-11-20: sections for every kind of business, each with its own character. A business's palette (vertical_palettes.json) decides its art direction and its heading font. Fonts: Google Fonts, OFL, Hebrew support checked. A palette missing here, or a direction library.css does not define, fails tests/test_section_library.py.",
+ "directions": ["formal", "warm", "bold", "elegant"],
+ "palettes": {
+  "counsel":  {"direction": "formal",  "display": "'Frank Ruhl Libre', serif"},
+  "clinic":   {"direction": "formal",  "display": "'Heebo', system-ui, sans-serif"},
+  "hearth":   {"direction": "warm",    "display": "'Secular One', system-ui, sans-serif"},
+  "retreat":  {"direction": "warm",    "display": "'Secular One', system-ui, sans-serif"},
+  "trade":    {"direction": "bold",    "display": "'Heebo', system-ui, sans-serif"},
+  "energy":   {"direction": "bold",    "display": "'Heebo', system-ui, sans-serif"},
+  "crimson":  {"direction": "bold",    "display": "'Heebo', system-ui, sans-serif"},
+  "blush":    {"direction": "elegant", "display": "'David Libre', serif"},
+  "boutique": {"direction": "elegant", "display": "'David Libre', serif"},
+  "studio":   {"direction": "elegant", "display": "'Frank Ruhl Libre', serif"}
+ },
+ "single_weight_display": ["Secular One"]
+}

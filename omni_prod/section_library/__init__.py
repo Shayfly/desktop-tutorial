@@ -34,12 +34,22 @@ def font_links(contract: dict) -> str:
             names.append(m.group(1))
     if not names:
         return ''
-    families = '&'.join('family=' + n.replace(' ', '+') + ':wght@400;700' for n in names)
+    families = '&'.join('family=' + n.replace(' ', '+') + ('' if n in DIRECTIONS['single_weight_display'] else ':wght@400;700')
+                        for n in names)
     return ('<link rel="preconnect" href="https://fonts.googleapis.com">'
             '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
             f'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?{families}&display=swap">')
 
 e = html.escape
+import json as _json
+DIRECTIONS = _json.loads((HERE / 'directions.json').read_text(encoding='utf-8'))
+
+
+def direction_for(palette: str) -> dict:
+    """{'direction', 'display'} of a vertical palette (vertical_palettes.json). An unknown palette raises."""
+    if palette not in DIRECTIONS['palettes']:
+        raise KeyError(f'no art direction for palette {palette!r}')
+    return DIRECTIONS['palettes'][palette]
 
 
 def _icon(name: str) -> str:
@@ -164,6 +174,32 @@ def testimonials(c: dict) -> str:
             f'{_head(t["eyebrow"], t["title"], "", "testimonials-title")}<div class="quotes">{quotes}</div></div></section>')
 
 
+def pricelist(c: dict) -> str:
+    """A menu or price list -- only the items and prices the customer gave. Groups (e.g. "שתייה חמה") are optional;
+    an item without a price shows none (never a guessed price)."""
+    p = c['pricelist']
+
+    def row(i):
+        price = f'<span class="price">{e(i["price"])}</span>' if i.get('price') else ''
+        desc = f'<p>{e(i["desc"])}</p>' if i.get('desc') else ''
+        return f'<li><div class="item-head"><h4>{e(i["name"])}</h4>{price}</div>{desc}</li>'
+    groups = ''.join(f'<div class="price-group"><h3>{e(g["title"])}</h3><ul class="items">'
+                     f'{"".join(row(i) for i in g["items"])}</ul></div>' for g in p['groups'])
+    return (f'<section class="section" id="pricelist" aria-labelledby="pricelist-title"><div class="wrap">'
+            f'{_head(p["eyebrow"], p["title"], p.get("lead", ""), "pricelist-title")}<div class="price-groups">{groups}</div>'
+            f'</div></section>')
+
+
+def gallery(c: dict) -> str:
+    """The customer's own photos of their work; captions only when given."""
+    g = c['gallery']
+    figs = ''.join(f'<figure>{img(i)}' + (f'<figcaption>{e(i["caption"])}</figcaption>' if i.get('caption') else '')
+                   + '</figure>' for i in g['images'])
+    return (f'<section class="section section--tint" id="gallery" aria-labelledby="gallery-title"><div class="wrap">'
+            f'{_head(g["eyebrow"], g["title"], g.get("lead", ""), "gallery-title")}<div class="gallery">{figs}</div>'
+            f'</div></section>')
+
+
 def process(c: dict) -> str:
     p = c['process']
     steps = ''.join(f'<li><h3>{e(t)}</h3><p>{e(d)}</p></li>' for t, d in p['steps'])
@@ -193,7 +229,9 @@ def contact(c: dict) -> str:
     rows = [('טלפון', f'<a href="{tel(c["phone"])}">{e(c["phone"])}</a>')]
     if c.get('email'):
         rows.append(('דוא״ל', f'<a href="mailto:{e(c["email"])}">{e(c["email"])}</a>'))
-    rows += [('כתובת', e(c['address'])), ('שעות פעילות', e(c['hours']))]
+    nav = (f' <a class="maps" href="https://waze.com/ul?q={quote(c["address"])}">Waze</a>'
+           f' · <a class="maps" href="https://www.google.com/maps/search/?api=1&amp;query={quote(c["address"])}">Google Maps</a>')
+    rows += [('כתובת', e(c['address']) + f'<span class="directions">ניווט:{nav}</span>'), ('שעות פעילות', e(c['hours']))]
     info = ''.join(f'<div><dt>{t}</dt><dd>{v}</dd></div>' for t, v in rows)
     topics = ''.join(f'<option>{e(t)}</option>' for t in k['topics'])
     return (f'<section class="section section--tint" id="contact" aria-labelledby="contact-title"><div class="wrap contact">'
@@ -224,8 +262,9 @@ SCRIPT = ('<script>document.querySelectorAll("form[data-wa]").forEach(function(f
           'a.closest("details").removeAttribute("open");});});</script>')
 
 # order on the page; a section whose key is missing from the content is skipped, never filled with invention
-ORDER = (('hero', hero), ('stats', stats), ('services', services), ('about', about), ('team', team),
-         ('process', process), ('testimonials', testimonials), ('faq', faq), ('cta', cta), ('contact', contact))
+ORDER = (('hero', hero), ('stats', stats), ('services', services), ('pricelist', pricelist), ('gallery', gallery),
+         ('about', about), ('team', team), ('process', process), ('testimonials', testimonials), ('faq', faq),
+         ('cta', cta), ('contact', contact))
 
 
 def page(content: dict, contract: dict) -> tuple[str, list[str]]:
@@ -241,7 +280,12 @@ def page(content: dict, contract: dict) -> tuple[str, list[str]]:
             f'<title>{e(c["title"])}</title><meta name="description" content="{e(c["description"])}">'
             f'<meta property="og:title" content="{e(c["title"])}"><meta property="og:description" content="{e(c["description"])}">'
             f'<meta property="og:type" content="website">{font_links(contract)}<style>{contract["css"]}\n{CSS}</style>')
-    doc = (f'<!doctype html><html lang="he" dir="rtl"><head>{head}</head><body>'
+    direction = c.get('direction', 'formal')
+    if direction not in DIRECTIONS['directions']:
+        raise ValueError(f'unknown art direction {direction!r}')
+    single = any(n in contract['tokens'].get('--font-display', '') for n in DIRECTIONS['single_weight_display'])
+    doc = (f'<!doctype html><html lang="he" dir="rtl"><head>{head}</head>'
+           f'<body data-direction="{direction}"{" data-display-weight=regular" if single else ""}>'
            f'<a class="skip" href="#main">דלגו לתוכן</a>{header(c)}<main id="main">{"".join(body)}</main>'
            f'{footer(c)}{mobile_bar(c)}{SCRIPT}</body></html>')
     from ..bidi_ranges import wrap_ranges        # "09:00–18:00" stays in its order on a right-to-left page

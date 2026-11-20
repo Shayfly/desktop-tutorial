@@ -21,7 +21,7 @@ import json
 import re
 
 VERSION = 1
-TYPE_PX = (12, 14, 16, 20, 24, 32, 40, 56)
+TYPE_PX = (12, 14, 16, 20, 24, 32, 40, 56, 72)   # 72: a bold direction's headline (the owner 2026-11-20)
 SPACE_PX = (0, 4, 8, 16, 24, 32, 48, 64, 96)
 WEIGHTS = (400, 700)
 RADIUS_PX = 8

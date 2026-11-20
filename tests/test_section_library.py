@@ -49,7 +49,7 @@ class TheLibrary(unittest.TestCase):
         content = copy.deepcopy(D.CONTENT)
         del content['faq'], content['stats']
         doc, skipped = L.page(content, self.contract)
-        self.assertEqual(skipped, ['stats', 'team', 'testimonials', 'faq'])      # no team or testimonials in the brief
+        self.assertEqual(skipped, ['stats', 'pricelist', 'gallery', 'team', 'testimonials', 'faq'])   # not in the brief
         self.assertNotIn('id="faq"', doc)
 
     def test_the_customers_text_is_escaped(self):

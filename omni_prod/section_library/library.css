@@ -135,6 +135,24 @@ p { max-width: 35rem; }
 
 .about-photo img { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); }
 
+/* price list / menu: the customer's items and prices only */
+.price-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: var(--space-48); }
+.price-group h3 { font-size: var(--text-24); font-weight: var(--weight-bold); margin-block-end: var(--space-16);
+  padding-block-end: var(--space-8); border-block-end: 2px solid var(--color-primary); }
+.items { list-style: none; display: grid; gap: var(--space-16); }
+.items li { padding-block-end: var(--space-16); border-block-end: 1px dashed var(--color-border); }
+.item-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-16); }
+.item-head h4 { font-size: var(--text-16); font-weight: var(--weight-bold); }
+.price { font-weight: var(--weight-bold); color: var(--color-primary); white-space: nowrap; }
+.items p { color: var(--color-muted); font-size: var(--text-14); margin-block-start: var(--space-4); }
+
+/* gallery: the customer's own photos */
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: var(--space-16); }
+.gallery figure img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); }
+.gallery figcaption { margin-block-start: var(--space-8); font-size: var(--text-14); color: var(--color-muted); }
+.directions { display: block; font-size: var(--text-14); font-weight: var(--weight-regular); color: var(--color-muted);
+  margin-block-start: var(--space-4); }
+
 /* team: the face is shown first, the heading stays first in the markup */
 .members { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--space-32); }
 .member { display: flex; flex-direction: column; gap: var(--space-4); }
@@ -219,12 +237,43 @@ p { max-width: 35rem; }
   transition: background-size var(--motion-base) var(--motion-ease), color var(--motion-fast) var(--motion-ease); }
 .nav a:hover, .nav a:focus-visible { background-size: 100% 2px; }
 
+/* art directions (directions.json): one library, four characters -- all from the same contract tokens */
+[data-display-weight="regular"] h1, [data-display-weight="regular"] h2, [data-display-weight="regular"] h3,
+[data-display-weight="regular"] .panel-figure, [data-display-weight="regular"] .stat dd { font-weight: var(--weight-regular); }
+
+/* warm: food, nature -- a light panel, soft tinted cards, no hard rules */
+[data-direction="warm"] .panel { background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg)); color: var(--color-text); }
+[data-direction="warm"] .panel-art { color: var(--color-primary); }
+[data-direction="warm"] .panel dt { color: var(--color-muted); }
+[data-direction="warm"] .panel dl { border-block-start-color: color-mix(in srgb, var(--color-primary) 25%, var(--color-bg)); }
+[data-direction="warm"] .card { background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg)); border-color: transparent;
+  border-block-start-color: transparent; }
+[data-direction="warm"] .section--tint { background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg)); }
+
+/* bold: trades, sport -- a 72px headline, heavy rules, numbers in the primary colour */
+[data-direction="bold"] .hero h1 { font-size: var(--text-72); line-height: 1; letter-spacing: -0.03em; }
+[data-direction="bold"] .title { font-size: var(--text-56); line-height: 1.05; }
+[data-direction="bold"] .card { border-block-start-width: 2px; border-color: var(--color-text); }
+[data-direction="bold"] .stats { background: var(--color-primary); border-block-color: var(--color-primary); }
+[data-direction="bold"] .stat dd { color: var(--color-on-primary); }
+[data-direction="bold"] .stat dt { color: color-mix(in srgb, var(--color-on-primary) 78%, var(--color-primary)); }
+[data-direction="bold"] .stat { border-inline-start-color: color-mix(in srgb, var(--color-on-primary) 25%, var(--color-primary)); }
+
+/* elegant: beauty, boutique, studio -- the hero as one centred block, hairlines, air */
+[data-direction="elegant"] .hero .wrap { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; gap: var(--space-48); }
+[data-direction="elegant"] .hero .wrap > div { max-width: 44rem; }
+[data-direction="elegant"] .hero .lead, [data-direction="elegant"] .hero .actions { margin-inline: auto; justify-content: center; }
+[data-direction="elegant"] .panel { width: 100%; min-height: 0; padding: var(--space-32); text-align: start; }
+[data-direction="elegant"] .card { border-block-start-width: 1px; border-color: var(--color-border); }
+[data-direction="elegant"] .section { padding-block: var(--space-96); }
+
 /* phone: the action bar stays in reach of the thumb */
 .mobile-bar { display: none; }
 
 @media (max-width: 960px) {
   .hero .wrap, .split, .contact, .band { grid-template-columns: minmax(0, 1fr); }
   .hero h1 { font-size: var(--text-40); }
+  [data-direction="bold"] .hero h1 { font-size: var(--text-56); }
   .panel { min-height: 20rem; }
   .nav { display: none; }
   .menu { display: block; }
@@ -233,7 +282,8 @@ p { max-width: 35rem; }
 @media (max-width: 640px) {
   .section { padding-block: var(--space-64); }
   .hero { padding-block: var(--space-32) var(--space-64); }
-  .hero h1 { font-size: var(--text-32); }
+  .hero h1, [data-direction="bold"] .hero h1 { font-size: var(--text-32); }
+  [data-direction="bold"] .title { font-size: var(--text-32); }
   .title { font-size: var(--text-32); }
   .lead { font-size: var(--text-16); }
   .band, .form { padding: var(--space-32) var(--space-24); }
