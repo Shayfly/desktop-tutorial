@@ -1,3 +1,20 @@
+# 2026-11-20 — the section library: designed sections the generator will assemble (Claude Code)
+
+- **Why:** the owner's law-firm build (bld_b0eb47a5) was bare; the model designed every site from nothing. The owner
+  (2026-11-20): "תכין את הסקשנים אתה אבל ברמה הכי גבוהה שיש".
+- **What:** `omni_prod/section_library` -- header with a phone menu, hero with a facts panel and a drawn visual (no
+  stock gavel, per the brief), numbers strip, practice-area cards, about with facts, process steps, FAQ, call band,
+  contact with a form that sends to WhatsApp (nothing stored), footer, a phone action bar. One stylesheet written
+  against the G-APPLE design contract: only its tokens, the 8-grid, two weights, one radius, no custom property of its
+  own, two button looks. A section with no content is skipped and named; every customer string is escaped; time
+  ranges are isolated for right-to-left.
+- **Evidence:** the owner's own brief assembled (`demo_law_firm.py`): G-APPLE static check 0 findings, PRO pass, every
+  skill unit pass, no unwrapped time range, no sideways scroll at 320/390/1440 (Chromium) --
+  `tests/test_section_library.py` 8 passed; controls `section_library` 6/6 (NC5 first named the wrong cause -- the
+  e-mail -- and was retargeted to the real one, the form fields' default width).
+- **Not yet:** the generator does not use the library. Wiring it in comes after the owner approves the look.
+- **Warehouse:** 105 (colour by category) is untouched -- the library takes its colours from the contract.
+
 # 2026-11-19 — PRO: a business site meets a professional minimum (Claude Code)
 
 - **What broke (the owner, bld_b0eb47a5, the law-firm site):** "רמה נמוכה ... אני רוצה מקצועיות". The build passed every

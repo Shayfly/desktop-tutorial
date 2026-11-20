@@ -1,0 +1,118 @@
+{
+ "pr": "section-library",
+ "sha256": [
+  "tests/test_section_library.py",
+  "omni_prod/section_library/__init__.py",
+  "omni_prod/section_library/library.css"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "time ranges are not isolated: the hours read backwards on the right-to-left page",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    return wrap_ranges(doc), skipped\n",
+     "new": "    return doc, skipped\n"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py"
+   ],
+   "expect_failed": [
+    "test_time_ranges_keep_their_order_on_a_right_to_left_page"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the customer's text is not escaped",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "e = html.escape\n",
+     "new": "e = str\n"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py"
+   ],
+   "expect_failed": [
+    "test_the_customers_text_is_escaped"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a section with no content is rendered anyway (it would be filled with invention or crash)",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "        if c.get(key):\n",
+     "new": "        if True:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py"
+   ],
+   "expect_failed": [
+    "test_a_section_with_no_content_is_skipped_and_said_never_invented"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a third button look (the shared base rule draws a border): the design contract fails",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": "  border-radius: var(--radius); cursor: pointer;\n",
+     "new": "  border-radius: var(--radius); border: 2px solid var(--color-border); cursor: pointer;\n"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py"
+   ],
+   "expect_failed": [
+    "test_the_owners_page_passes_the_design_contract_and_its_refusal_list"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a form field keeps its default width: the page scrolls sideways on a 320px phone",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": "  width: 100%; min-width: 0;\n",
+     "new": ""
+    },
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": "  .hero .wrap, .split, .contact, .band { grid-template-columns: minmax(0, 1fr); }",
+     "new": "  .hero .wrap, .split, .contact, .band { grid-template-columns: 1fr; }"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py"
+   ],
+   "expect_failed": [
+    "test_nothing_scrolls_sideways_on_a_phone_or_a_wide_screen"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a raw colour in the library: a second accent the contract does not allow",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": ".eyebrow { font-size: var(--text-14);",
+     "new": ".eyebrow { color: #b45309; font-size: var(--text-14);"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py"
+   ],
+   "expect_failed": [
+    "test_the_owners_page_passes_the_design_contract_and_its_refusal_list",
+    "test_the_library_css_uses_only_the_contracts_tokens"
+   ]
+  }
+ ]
+}
