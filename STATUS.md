@@ -4218,3 +4218,10 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 - The #463 Overlay run 44479691814 ran 3911 unittest cases and failed only because the nested AcceptanceW subprocess exceeded 300 seconds. Overlay discovery now skips the wrapper only. Standalone and v24 invocations retain the 300-second check.
 - Local targeted checks: 8 tests and 19 subtests passed, and the duplicate-invocation mutation was caught. Exact-head CI and independent review pending.
+
+## 2026-11-20 — AcceptanceW without optional dependencies (Codex)
+
+- Reproduced the failure on main `0ed3d0e` without FastAPI and psycopg. The nested unittest suite ignored the repository's measured dependency manifest and reported 43 errors and four failures.
+- AcceptanceW still runs a nested suite and requires a successful exit. With optional dependencies present, the existing unittest command and 300-second timeout stay in place. Without them, the nested pytest command applies the repository's `not needs_env` selection and has a separate 600-second ceiling. Three modules and four individual tests that depend on FastAPI were measured and added to the manifest. They remain in full CI.
+- The standalone AcceptanceW test passed in the dependency-light environment on code commit `1453d7e` in 252.76 seconds. Both negative controls passed, including one that injects a real inner test failure and checks that the outer gate rejects it.
+- The same offline reproduction on current base `df37f4f` still failed (43 errors and four failures in the nested command). Full `pytest tests` with dependencies passed both before and after the fix: 4,015 on base and 4,016 on the branch, 294 skipped and one expected failure on each, with no failures or errors.
