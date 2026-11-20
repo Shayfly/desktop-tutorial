@@ -6,6 +6,19 @@
 - **Evidence:** `tests/test_reply_never_guesses_gender.py` 1 passed; control `reply_neutral_address` 1/1.
 - **Not verified yet:** a model obeying it -- the next agent rehearsal reads the replies.
 
+# 2026-11-19 — PRO: a business site meets a professional minimum (Claude Code)
+
+- **What broke (the owner, bld_b0eb47a5, the law-firm site):** "רמה נמוכה ... אני רוצה מקצועיות". The build passed every
+  blocking gate; nothing judged how the page looks -- a hero block, two sections, no visual, the consultation action once.
+- **Fix:** a new unit `skill_units/design_minimum` (gate PRO, code DESIGN_TOO_BASIC). It judges only a page with a contact
+  action (tel:, WhatsApp, mailto:, #contact): exactly one h1, at least 4 sections, a visual (img/svg/picture/video or a
+  CSS background image), the contact action at least twice. Its manifest reaches the generator through `carry_rules`;
+  LANDING_CONVERSION now also tells it the professional shape (4+ sections, hero visual, services as a card grid).
+- **Rule 4:** PRO enters CALIBRATING (warn) and WORKER_GATES; it blocks only after three calibration builds.
+- **Evidence:** `tests/test_design_minimum.py` 6 passed (ok fixture = the real butcher production page; broken fixture =
+  the law-firm shape, falls with 3 findings); controls `design_minimum` 6/6, `gates_calibrating` 9/9.
+- **Not checked:** the owner's real page itself -- the built files are in object storage, not in the database; the
+  broken fixture is its shape as seen in the owner's screenshots.
 # 2026-11-19 — the preview's enlarge button covers the whole screen on a phone (Claude Code)
 
 - **What broke (the owner, iPhone):** "מסך מלא לתצוגה מקדימה לא עובד". Reproduced in Chromium as an iPhone 13: after

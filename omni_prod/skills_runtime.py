@@ -846,8 +846,13 @@ LANDING_CONVERSION = Skill(
         'answers real objections, and a final call to action; the same primary action (call, WhatsApp, form) is visible '
         'on a phone without scrolling and repeated at the end. SEO basics in <head>: a unique <title> under 60 '
         'characters, meta description under 160, lang/dir, Open Graph title/description, canonical-friendly clean '
-        'URLs, one h1, and structured data (JSON-LD LocalBusiness) when an address or hours were given.'),
+        'URLs, one h1, and structured data (JSON-LD LocalBusiness) when an address or hours were given. It looks '
+        'professional, not like a bare page (the owner, 2026-11-19): at least four separate <section> blocks; a hero with '
+        'a visual (the provided image, or an inline SVG / CSS background); services or benefits as a grid of cards, each '
+        'with a short title and one line; a numbers or trust strip only from facts the customer gave; a consistent '
+        'type scale, generous spacing, and one accent colour used for the actions.'),
     checklist=('The main call to action is visible above the fold on a phone and repeated at the end.',
+               'At least four sections, a hero visual, and services shown as a grid of cards.',
                'Title, meta description and Open Graph tags are present and specific.'),
 )
 
