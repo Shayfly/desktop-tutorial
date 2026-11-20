@@ -1,0 +1,159 @@
+{
+  "category": "restaurants",
+  "collected_at": "2026-11-17T15:21:16Z",
+  "query_template": "\"מסעדה\" \"<city>\"",
+  "accepted": [
+    {
+      "url": "https://www.fattoush.co.il",
+      "city": "חיפה",
+      "business": "פטוש",
+      "phone": "073-7584348",
+      "address": "שד' בן גוריון 38, חיפה",
+      "pages": 4,
+      "evidence": "Hebrew home page text; phone and street address shown on the page; tavily_map found 4 HTML pages (home, gallery, privacy, accessibility) plus feeds; own restaurant site; /feed paths indicate WordPress and no Wix markers; single-location restaurant."
+    },
+    {
+      "url": "https://gardenrest.co.il",
+      "city": "חיפה",
+      "business": "גארדן",
+      "phone": "04-8507061",
+      "address": "שדרות בן גוריון 43, חיפה",
+      "pages": 7,
+      "evidence": "Hebrew home page text; phone and address in the contact block; tavily_map found 7 HTML pages (about, menu, gallery, contact, acc, viplus, home); own restaurant site; WordPress-style /feed and no Wix markers; single location."
+    },
+    {
+      "url": "https://angelicarest.com",
+      "city": "ירושלים",
+      "business": "אנג'ליקה",
+      "phone": "02-6230056",
+      "address": "ג'ורג' וושינגטון 4, ירושלים",
+      "pages": 6,
+      "evidence": "Hebrew home page text; phone and address shown; tavily_map found 6 HTML pages (home, accessibility, gallery, join-team, chef's room, privacy); own chef-restaurant site; images served from /wp-content (WordPress), no Wix markers; single location."
+    },
+    {
+      "url": "https://www.butcheryb7.co.il",
+      "city": "באר שבע",
+      "business": "בוצ'רי אחוזת הבשר",
+      "phone": "072-3303700",
+      "address": "רחוב ההסתדרות 22 באר שבע",
+      "pages": 7,
+      "evidence": "Hebrew home page text; phone and street address in the contact block; tavily_map found 7 HTML pages (home, events, butcheris, vip, about, carnivores, contact); own restaurant site; /wp-content images (WordPress), no Wix markers; single location."
+    },
+    {
+      "url": "https://hasifria.com",
+      "city": "באר שבע",
+      "business": "הספריה",
+      "phone": "08-6655120",
+      "address": "יצחק נפחא 25,״מבנה״, באר שבע",
+      "pages": 7,
+      "evidence": "Hebrew home page text; phone and address shown; tavily_map found 7 HTML pages (home, menu, drinks menu, terms, privacy, accessibility, heb/menu); own restaurant domain (footer says built by ROL, a site vendor) in the small Kampai group; /wp-content images, no Wix markers."
+    }
+  ],
+  "rejected": [
+    {
+      "url": "https://shtroudl-haifa.co.il",
+      "city": "חיפה",
+      "reason": "condition 2: no phone number or street address in the extracted home page text"
+    },
+    {
+      "url": "https://zafririm1.co.il",
+      "city": "חיפה",
+      "reason": "condition 2: no phone number or street address in the extracted home page text"
+    },
+    {
+      "url": "https://aluf-restaurant.co.il",
+      "city": "ירושלים",
+      "reason": "condition 2: no phone number or street address in the extracted home page text"
+    },
+    {
+      "url": "https://www.motza-rest.co.il",
+      "city": "ירושלים",
+      "reason": "condition 2: no phone number or street address in the extracted home page text"
+    },
+    {
+      "url": "https://www.talbiye.com",
+      "city": "ירושלים",
+      "reason": "condition 5: built on Wix (images served from static.wixstatic.com)"
+    },
+    {
+      "url": "https://dejabu.co.il",
+      "city": "ירושלים",
+      "reason": "condition 3 unverified: tavily_map returned 0 URLs on two attempts, although the page shows navigation links"
+    },
+    {
+      "url": "https://www.lucianab7.co.il",
+      "city": "באר שבע",
+      "reason": "condition 5: built on Wix ('top of page'/'bottom of page' artifacts, static.wixstatic.com images)"
+    },
+    {
+      "url": "https://www.rol.co.il/restaurants?rest_name=&city=48&type=",
+      "city": "חיפה",
+      "reason": "condition 4: directory/booking/media page, not the business's own site (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://ontopo.com/he/il/haifa",
+      "city": "חיפה",
+      "reason": "condition 4: directory/booking/media page, not the business's own site (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://www.hey-fa-it.com/2023/02/10-%D7%9E%D7%A0%D7%95%D7%AA-%D7%A9%D7%9B%D7%93%D7%90%D7%99-%D7%9C%D7%90%D7%9B%D7%95%D7%9C-%D7%91%D7%97%D7%99%D7%A4%D7%94.html",
+      "city": "חיפה",
+      "reason": "condition 4: blog post about restaurants (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://www.2eat.co.il/searchrestaurants.aspx?RLoc=7&RSub=3&RStreet=%D7%94%D7%A0%D7%9E%D7%9C",
+      "city": "חיפה",
+      "reason": "condition 4: directory/booking/media page, not the business's own site (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://timeout.co.il/%D7%9E%D7%A1%D7%A2%D7%93%D7%95%D7%AA-%D7%9E%D7%95%D7%9E%D7%9C%D7%A6%D7%95%D7%AA-%D7%97%D7%99%D7%A4%D7%94",
+      "city": "חיפה",
+      "reason": "condition 4: directory/booking/media page, not the business's own site (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://tabitisrael.co.il",
+      "city": "חיפה",
+      "reason": "condition 4: directory/booking/media page, not the business's own site (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://www.rol.co.il/restaurants?rest_name=&city=242&type=",
+      "city": "ירושלים",
+      "reason": "condition 4: directory/booking/media page, not the business's own site (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://www.firststation.co.il/restaurants-and-shops",
+      "city": "ירושלים",
+      "reason": "condition 4: directory/booking/media page, not the business's own site (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://ontopo.com/he/il/jerusalem/restaurants",
+      "city": "ירושלים",
+      "reason": "condition 4: directory/booking/media page, not the business's own site (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://www.mako.co.il/food-restaurants/best/Article-9859c0749a54f91027.htm",
+      "city": "ירושלים",
+      "reason": "condition 4: news article (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://www.rol.co.il/restaurants?rest_name=&city=264&type=",
+      "city": "באר שבע",
+      "reason": "condition 4: directory/booking/media page, not the business's own site (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://www.2eat.co.il/%D7%9E%D7%A1%D7%A2%D7%93%D7%95%D7%AA_%D7%9B%D7%A9%D7%A8%D7%95%D7%AA.aspx?rloc=3&rsub=25&rtype=&rtitle=&rmeat=",
+      "city": "באר שבע",
+      "reason": "condition 4: directory/booking/media page, not the business's own site (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://ontopo.com/he/il/beer-sheva",
+      "city": "באר שבע",
+      "reason": "condition 4: directory/booking/media page, not the business's own site (judged from search result; not fetched)"
+    },
+    {
+      "url": "https://www.mishloha.co.il/%D7%9E%D7%A9%D7%9C%D7%95%D7%97%D7%99%D7%9D/%D7%91%D7%90%D7%A8-%D7%A9%D7%91%D7%A2",
+      "city": "באר שבע",
+      "reason": "condition 4: delivery platform (judged from search result; not fetched)"
+    }
+  ]
+}
