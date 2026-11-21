@@ -80,6 +80,7 @@ class TheLintCanFail(unittest.TestCase):
     def test_R3_an_overdue_drill(self):
         def never_ran_c17(r):                                                        # C17 weekly, adopted 10-20
             r['drills_run'] = [d for d in r['drills_run'] if d.get('control') != 'C17']
+            r['adopted'] = '2026-10-20'      # pinned: the registry before the owner's 2026-11-21 date correction
         errs = self.errors(never_ran_c17, today=date(2026, 10, 28))
         self.assertIn('R3 C17: drill overdue since 2026-10-27 (weekly; last adopted 2026-10-20)', errs)
         self.assertFalse(any(e.startswith('R3 C10') for e in errs))                  # C10 ran 10-20, quarterly
@@ -102,8 +103,25 @@ class TheLintCanFail(unittest.TestCase):
                                   today=date(2026, 11, 14)))
 
     def test_R3_a_live_control_with_its_own_drill(self):
-        errs = self.errors(lambda r: None, today=date(2026, 11, 21))
+        def before_the_first_c16_drill(r):   # the registry of 2026-11-20: no C16 run recorded, adopted 10-20
+            r['drills_run'] = [d for d in r['drills_run'] if d.get('control') != 'C16']
+            r['adopted'] = '2026-10-20'
+        errs = self.errors(before_the_first_c16_drill, today=date(2026, 11, 21))
         self.assertIn('R3 C16: drill overdue since 2026-11-20 (monthly; last adopted 2026-10-20)', errs)
+
+    def test_R3_the_2026_11_21_drills_clear_the_monthly_controls(self):
+        # the four monthly drills ran on 2026-11-21 (runs 44932418710, 44932702825, 44933990232, 44935937685): R3 is
+        # quiet for them until 2026-12-22 and fires the day after; a FAIL result still counts as a drill that ran (C18)
+        quiet = self.errors(lambda r: None, today=date(2026, 12, 22))
+        self.assertFalse([e for e in quiet if e.split(':')[0] in ('R3 C11', 'R3 C16', 'R3 C18', 'R3 C19')], quiet)
+        late = self.errors(lambda r: None, today=date(2026, 12, 23))
+        for cid in ('C11', 'C16', 'C18', 'C19'):
+            self.assertIn(f'R3 {cid}: drill overdue since 2026-12-22 (monthly; last run 2026-11-21)', late)
+
+    def test_R3_the_corrected_adopted_date(self):
+        # owner 2026-11-21: the drills were designed with the #99 run on 2026-10-21, not 10-20
+        self.assertEqual(REAL['adopted'], '2026-10-21')
+        self.assertEqual(REAL['adopted_correction']['old'], '2026-10-20')
 
     def test_R5_duplicate_ids(self):
         self.assertIn('R5 C01: control id is not unique', self.errors(lambda r: r['controls'].append(copy.deepcopy(control(r, 'C01')))))

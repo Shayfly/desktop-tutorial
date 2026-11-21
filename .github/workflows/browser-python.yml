@@ -47,7 +47,7 @@ jobs:
           exit 1
       - name: Browser tests
         timeout-minutes: 4
-        run: python -m pytest -q -rs --junitxml=browser.xml tests/test_section_library.py tests/test_site_content_engine.py
+        run: python -m pytest -q -rs --junitxml=browser.xml tests/test_section_library.py tests/test_section_library_conformance.py tests/test_site_content_engine.py
       - name: No test may be skipped
         if: always()
         run: |

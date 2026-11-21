@@ -222,6 +222,9 @@ class RoundTwoMeasured(unittest.TestCase):
         self.assertEqual(problems, {})
 
 
+SETTLE = ('() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 0))))')
+
+
 class PurgingChangesNothingVisible(unittest.TestCase):
     """The page ships only the rules it can use (section_library.purge). The proof that nothing that can match was
     removed: every direction, the richest and the barest shape, and every layout variant render pixel-identical with
@@ -254,6 +257,9 @@ class PurgingChangesNothingVisible(unittest.TestCase):
                             pg.set_content(re.sub(r'<link[^>]+fonts\.g[^>]+>', '', doc))
                             for w in (390, 1440):
                                 pg.set_viewport_size({'width': w, 'height': 900})
+                                # the action bar's IntersectionObserver delivers after a render, as a task: two frames
+                                # and a task let it decide `is-away` before the shot (seen once under load, 2026-11-21)
+                                pg.evaluate(SETTLE)
                                 shots[(purged, w)] = pg.screenshot(full_page=True)
                         for w in (390, 1440):
                             if shots[(True, w)] != shots[(False, w)]:

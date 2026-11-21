@@ -1,0 +1,69 @@
+{
+  "pr": "drills-2026-11-21",
+  "sha256": [
+    "tests/test_registry_lint.py",
+    "CONTROLS.json",
+    "tools/registry_lint.py"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "R3 ignores the recorded runs and counts every drill from `adopted`: the four 2026-11-21 drills would not clear R3",
+      "mutations": [
+        {
+          "file": "tools/registry_lint.py",
+          "old": "        runs[r.get('control')] = max(d, runs.get(r.get('control'), d))",
+          "new": "        pass  # NEGATIVE CONTROL"
+        }
+      ],
+      "targets": [
+        "tests/test_registry_lint.py"
+      ],
+      "expect_failed": [
+        "test_R3_a_recorded_drill_moves_the_due_date",
+        "test_R3_the_2026_11_21_drills_clear_the_monthly_controls",
+        "test_R3_the_latest_recorded_run_wins",
+        "test_a_branch_cannot_remove_a_record_main_has",
+        "test_a_branch_made_before_the_record_passes_because_main_has_it",
+        "test_a_pr_that_records_the_drill_passes_although_main_lacks_it",
+        "test_overdue_on_main_and_on_the_branch_still_fails"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "R3 fires on the due day itself (>=): a drill run 2026-11-21 would read overdue on 2026-12-22, a day early",
+      "mutations": [
+        {
+          "file": "tools/registry_lint.py",
+          "old": "        if today > due:",
+          "new": "        if today >= due:  # NEGATIVE CONTROL"
+        }
+      ],
+      "targets": [
+        "tests/test_registry_lint.py"
+      ],
+      "expect_failed": [
+        "test_R3_a_recorded_drill_moves_the_due_date",
+        "test_R3_the_2026_11_21_drills_clear_the_monthly_controls",
+        "test_R3_the_latest_recorded_run_wins"
+      ]
+    },
+    {
+      "id": "NC3",
+      "what": "the owner's date correction is reverted (adopted back to 2026-10-20)",
+      "mutations": [
+        {
+          "file": "CONTROLS.json",
+          "old": " \"adopted\": \"2026-10-21\",",
+          "new": " \"adopted\": \"2026-10-20\","
+        }
+      ],
+      "targets": [
+        "tests/test_registry_lint.py"
+      ],
+      "expect_failed": [
+        "test_R3_the_corrected_adopted_date"
+      ]
+    }
+  ]
+}

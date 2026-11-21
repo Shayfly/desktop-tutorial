@@ -56,22 +56,39 @@
   the customer never offered, an award, a guarantee in words the claim list does not know -- is not checked.
 
 # 2026-11-20 — the section library: designed sections the generator will assemble (Claude Code)
+# 2026-11-21 — the section library v3: every kind of business, international bar, variety (Claude Code)
 
 - **Why:** the owner's law-firm build (bld_b0eb47a5) was bare; the model designed every site from nothing. The owner
-  (2026-11-20): "תכין את הסקשנים אתה אבל ברמה הכי גבוהה שיש".
-- **What:** `omni_prod/section_library` -- header with a phone menu, hero with a facts panel and a drawn visual (no
-  stock gavel, per the brief), numbers strip, practice-area cards, about with facts, process steps, FAQ, call band,
-  contact with a form that sends to WhatsApp (nothing stored), footer, a phone action bar. One stylesheet written
-  against the G-APPLE design contract: only its tokens, the 8-grid, two weights, one radius, no custom property of its
-  own, two button looks. A section with no content is skipped and named; every customer string is escaped; time
-  ranges are isolated for right-to-left.
-- **Evidence:** the owner's own brief assembled (`demo_law_firm.py`): G-APPLE static check 0 findings, PRO pass, every
-  skill unit pass, no unwrapped time range, no sideways scroll at 320/390/1440 (Chromium) --
-  `tests/test_section_library.py` 8 passed; controls `section_library` 6/6 (NC5 first named the wrong cause -- the
-  e-mail -- and was retargeted to the real one, the form fields' default width).
-- **Not yet:** the generator does not use the library. Wiring it in comes after the owner approves the look.
-- **Warehouse:** 105 (colour by category) is untouched -- the library takes its colours from the contract.
+  (2026-11-20): "תכין את הסקשנים אתה אבל ברמה הכי גבוהה שיש", "המטרה שלך זה רמה בין לאומית", "לא רק לעורכי דין",
+  "מגוון בהכול ברמה הכי גבוהה".
+- **What:** `omni_prod/section_library` -- 12 sections (header, hero with a facts panel, numbers, services, price list,
+  gallery, about, team, process, call band, testimonials, FAQ, contact with a WhatsApp form, footer, phone action bar);
+  four art directions by palette (formal, warm, bold, elegant); layout variants per section (hero split/banner,
+  services cards/list, process steps/timeline, FAQ aside/stacked, testimonials grid/feature), a combination of its own
+  per business; tones by position; each page ships only the style it can use. Written against the G-APPLE contract
+  (which gained a heading-font token and a 72px step, declared and signed). Nothing invented: a section, fact or
+  channel the customer did not give is left out and said; facts the page already showed are not repeated.
+- **Verified (independently, in a browser):** two critique rounds by independent designers on seven businesses
+  (cafe, salon, plumber, dental, boutique, fitness, law): round 1 5.5-6, round 2 mean 6.64; the design editor's 20
+  measured fixes applied. Conformance: 10 palettes x 4 content shapes through every skill unit, the G-APPLE check,
+  bidi, links, channels and invented numbers; every layout variant in every direction at 320/820/1440 with no
+  sideways scroll; band contrast >= 4.5 on every palette; purged and full stylesheets pixel-identical (32 screenshots);
+  the richest page 36,699 characters (the truth gate reads 45,000). `tests/test_section_library.py` and
+  `tests/test_section_library_conformance.py`: 36 passed; controls `section_library` 22/22.
+- **Not yet:** the generator does not use the library -- the content-document route (wiring slice 1) is being built,
+  behind a flag that is off by default.
 
+# 2026-11-20 — the window approval screen offers only the windows that fit the business (Claude Code)
+
+- **What broke (the owner, 2026-11-19, law-firm site):** "בחלונות באתר שום דבר לא קשור למה הוא מציע". `offer()` listed
+  all eight catalogue windows for every website -- a cart drawer, filter chips and an age gate for a law firm.
+- **Fix:** `window_catalog.relevant(text)` reads the customer's request (whole words, Hebrew prefixes): cookies and a
+  question widget for every site; cart / chips / mega menu only for a shop; age gate only for alcohol or tobacco;
+  promotion bar and entry popup only with a sale or a shop. A decided window is always shown; a new window with no
+  offer rule raises.
+- **Evidence:** `tests/test_windows_fit_the_business.py` 7 passed (law firm: 2 windows; butcher with sales: 4; wine
+  shop: all 8); window approval tests updated (a cafe is offered 2); controls `windows_fit` 4/4 (NC4 first exposed a
+  guard that never ran alone -- fixed).
 # 2026-11-20 — the conversation agent never guesses the customer's gender (Claude Code)
 
 - **What broke:** rehearsal 44650878701 (luna on the production path, 3/3 passed) -- the agent wrote "תרצי להציג
