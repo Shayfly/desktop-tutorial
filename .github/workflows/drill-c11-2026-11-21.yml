@@ -1,0 +1,72 @@
+name: Drill C11 2026-11-21 (drain refuses without a verified rollback)
+
+# Monthly drill C11 (CONTROLS.json): the deploy's drain refuses, BEFORE stopping anything, when no verified rollback
+# image can be kept. Third in the owner's order of 2026-11-21 (C16 PASS run 44932418710; C19 PASS run 44932702825).
+# Expected, stated before the run: drain.sh exits 1 with "NOT draining, nothing was stopped" and "cannot save a rollback
+# image", writes drain-failed, attempts no stop/kill/rm/up/run/restart/down (the wrapper refuses and records every one),
+# and the same containers run before and after. Anything else = FAIL, and the drills stop here.
+on:
+  push:
+    branches: [drill/monthly-2026-11-21]
+    paths: [.github/workflows/drill-c11-2026-11-21.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker-host-drills
+  cancel-in-progress: false
+
+jobs:
+  c11-drain-refuses:
+    # C11: the deploy's drain refuses, BEFORE stopping anything, when no verified rollback image can be kept. The real
+    # drain.sh (fetched at this commit; no checkout on the worker host, which would clean the deploy's workspace) runs on
+    # the real host against the live containers; a wrapper makes `docker tag` fail and finds no existing rollback image,
+    # and it refuses every stop/kill/rm/up/run/restart/down, so even a broken refusal could stop nothing. PASS needs the
+    # refusal for the right reason: "cannot save a rollback image".
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: C11 -- drain.sh with no verified rollback must refuse and stop nothing
+        run: |
+          set -uo pipefail
+          D="$RUNNER_TEMP/c11"; mkdir -p "$D"
+          for f in drain.sh docker-compose.yml; do
+            curl -sf -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.raw" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/infra/worker-host/$f?ref=$GITHUB_SHA" -o "$D/$f" \
+              || { echo "::error title=C11 not run::cannot fetch $f"; exit 1; }
+          done
+          : > "$D/.env"                                   # compose needs the file; `ps` needs no values
+          export OMNI_SANDBOX_SHARED_SECRET=drill-placeholder
+          REAL=$(command -v docker)
+          SHIM="$RUNNER_TEMP/drillbin"; mkdir -p "$SHIM"
+          cat > "$SHIM/docker" <<EOF
+          #!/usr/bin/env bash
+          case "\$*" in
+            tag\ *) echo "drill: docker tag refused" >&2; exit 1;;
+            *"image inspect omni-rollback/"*) echo "drill: no rollback image" >&2; exit 1;;
+            stop*|kill*|rm*|run*|start*|restart*|"compose stop"*|"compose kill"*|"compose rm"*|"compose down"*|"compose up"*|"compose run"*|"compose restart"*|"compose start"*)
+              echo "DRILL-BLOCKED: \$*" >&2; echo "\$*" >> "$RUNNER_TEMP/blocked"; exit 1;;
+          esac
+          exec "$REAL" "\$@"
+          EOF
+          chmod +x "$SHIM/docker"
+          before=$(docker ps --format '{{.Names}} {{.Status}}' | sort | cut -d' ' -f1 | tr '\n' ' ')
+          set +e
+          (cd "$D" && PATH="$SHIM:$PATH" DEPLOY_STATE_DIR="$RUNNER_TEMP/drill-state" ACTIVE_JOBS_CMD=true bash ./drain.sh) > "$RUNNER_TEMP/drain.out" 2>&1
+          rc=$?
+          set -e
+          after=$(docker ps --format '{{.Names}} {{.Status}}' | sort | cut -d' ' -f1 | tr '\n' ' ')
+          echo "::notice title=C11 drain exit $rc::$(tr '\n' ' ' < "$RUNNER_TEMP/drain.out" | cut -c1-900)"
+          echo "::notice title=C11 stop attempts blocked by the wrapper::$(cat "$RUNNER_TEMP/blocked" 2>/dev/null | tr '\n' ';')"
+          echo "::notice title=C11 running containers before / after::$before / $after"
+          [ -s "$RUNNER_TEMP/blocked" ] && { echo "::error title=C11 FAIL::drain tried to stop consumers without a verified rollback"; exit 1; }
+          if [ "$rc" -eq 1 ] && grep -q 'NOT draining, nothing was stopped' "$RUNNER_TEMP/drain.out" \
+             && grep -q 'cannot save a rollback image' "$RUNNER_TEMP/drain.out" && [ -f "$RUNNER_TEMP/drill-state/drain-failed" ] \
+             && [ "$before" = "$after" ]; then
+            echo "::notice title=C11 PASS::drain refused before stopping anything because no rollback image could be kept (exit 1, drain-failed written, the same containers running)"
+          else
+            echo "::error title=C11 FAIL::drain did not refuse for the rollback reason (exit $rc)"; exit 1
+          fi
