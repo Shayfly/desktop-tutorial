@@ -141,8 +141,8 @@ def schema_for_model(offered: dict, outline_titles: dict, *, name_given: bool, l
         sections[key + ('' if need == 'required' else ' (optional section: include it only with real content)')] = body
     top = {'schema': SCHEMA}
     if not name_given:
-        top['name'] = ("the business name exactly as the customer wrote it (a part of the customer's text), "
-                       'at most 60 characters')
+        top['name'] = ("the business name: one of business_names_quoted exactly, or the part of one before its "
+                       "' – ', at most 60 characters")
     top.update({'tagline': _describe(TOP['tagline']), 'description': _describe(TOP['description']),
                 'layout (optional)': {axis: f'one of {list(opts)}' for axis, opts in layouts.items()},
                 'sections': sections})

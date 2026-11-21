@@ -102,6 +102,7 @@ class FactSheet:
     problems: list[str] = field(default_factory=list)
     counts: dict = field(default_factory=dict)          # typed counts the customer gave (fact_canon.count_facts)
     withheld_prices: list = field(default_factory=list)  # prices of the build itself (a budget): never on the page
+    name_candidates: list = field(default_factory=list)  # with no declared name: the customer's quoted names
 
     def allowed_numbers(self) -> set[str]:
         return {n['value'] for n in self.numbers}
@@ -137,6 +138,7 @@ class FactSheet:
                        for p in self.prices],
             'reviews': [{'id': r['id'], 'author': r['author']} for r in self.reviews],
             'business_name_given': self.name,
+            'business_names_quoted': list(self.name_candidates),
             'facts_the_platform_shows': [k for k in ('phone', 'whatsapp', 'email', 'address', 'hours')
                                          if getattr(self, k)],
             'images': sorted(self.images),
@@ -148,7 +150,8 @@ class FactSheet:
                 'email': self.email, 'address': self.address, 'hours': list(self.hours), 'reviews': self.reviews,
                 'prices': self.prices, 'withheld_prices': self.withheld_prices, 'numbers': self.numbers,
                 'outline': [list(x) for x in self.outline],
-                'exclusions': self.exclusions, 'images': self.images, 'problems': self.problems, 'counts': self.counts}
+                'exclusions': self.exclusions, 'images': self.images, 'problems': self.problems, 'counts': self.counts,
+                'name_candidates': self.name_candidates}
 
     def spans(self) -> list[str]:
         """Every fact the served page must show, as the customer wrote it (content/facts.json; the fixed test asserts
@@ -225,6 +228,29 @@ def _prices(text: str) -> tuple[list[dict], list[dict]]:
             known['words'] += [w for w in price_words(label) if w not in known['words']]
     page_spans = {p['span'] for p in out}
     return out, [w for w in withheld if w['span'] not in page_spans]
+
+
+_QUOTED_NAME = re.compile(r'["“„]([^"“”„\n]{2,60})["”]')
+_NAME_PARTS = re.compile(r'\s+[–—|-]\s+')
+
+
+def name_candidates(customer: str, outline_items) -> list[str]:
+    """With no declared name ("שם העסק:"), the names the business may carry: every span the customer quoted, except
+    a span quoted inside an outline section (a hero title, a button text: "לתיאום פגישת ייעוץ"). The model's name must
+    equal one of these, or the part of one before its ' – ' (validate NAME_NOT_GIVEN); none at all sends the build to
+    the legacy path as name_not_declared (site_content.decide)."""
+    inside = {' '.join(m.group(1).split()) for _, body in outline_items or () for m in _QUOTED_NAME.finditer(body)}
+    out = []
+    for m in _QUOTED_NAME.finditer(customer or ''):
+        span = ' '.join(m.group(1).split())
+        if span not in inside and span not in out:
+            out.append(span)
+    return out
+
+
+def name_allowed(name: str, candidates: list[str]) -> bool:
+    name = ' '.join((name or '').split())
+    return any(name == c or name == _NAME_PARTS.split(c, 1)[0] for c in candidates)
 
 
 def _reviews(canon) -> list[dict]:
@@ -321,13 +347,15 @@ def fact_sheet(prompt: str, *, asset_plan=None, images=()) -> FactSheet:
         problems.append('name_not_one')
     placed, image_problems = _images(asset_plan, images)
     prices, withheld = _prices(customer)
+    sections = outline(prompt)
     hours = [v for k, v in F.facts_to_show(prompt) if k == 'hours']
     return FactSheet(
         prompt_sha256=hashlib.sha256((prompt or '').encode('utf-8')).hexdigest(), canon_hash=canon.hash,
         name=names[0] if len(names) == 1 else None, phone=mains[0] if len(mains) == 1 else None,
         whatsapp=whatsapp, whatsapp_basis=basis, email=emails[0] if len(emails) == 1 else None,
         address=addresses[0] if len(addresses) == 1 else None, hours=hours, reviews=_reviews(canon),
-        prices=prices, withheld_prices=withheld, numbers=_numbers(customer), customer=customer, outline=outline(prompt),
+        prices=prices, withheld_prices=withheld, numbers=_numbers(customer), customer=customer, outline=sections,
+        name_candidates=[] if len(names) == 1 else name_candidates(customer, sections),
         exclusions=[x['key'] for x in read_customer_exclusions(prompt)], images=placed,
         problems=problems + image_problems,
         counts={k: sorted(canon.values(k)) for k in ('reviewCount', 'rating', 'customerCount', 'count')

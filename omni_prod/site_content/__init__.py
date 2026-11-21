@@ -171,6 +171,8 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
     sheet = Fx.fact_sheet(prompt)
     if sheet.problems:
         return Route(LEGACY, sheet.problems[0])
+    if not sheet.name and not sheet.name_candidates:
+        return Route(LEGACY, 'name_not_declared')          # the model never chooses the business name
     order, titles, why = map_outline(sheet.outline)
     if why:
         return Route(LEGACY, why)

@@ -216,6 +216,20 @@ class TheValidator(unittest.TestCase):
         doc['sections']['faq']['items'][1]['a'] = 'ייעוץ טלפוני קצר חינם, ובפגישה נעריך את לוח הזמנים.'
         self.assertEqual(V.validate(doc, sheet, self.offered, TITLES, claim_mode='warn'), [])
 
+    def test_with_no_declared_name_the_name_is_one_the_customer_quoted(self):
+        self.assertIsNone(self.sheet.name)
+        self.assertEqual(self.sheet.name_candidates, ['כהן ושות׳ – דיני עבודה'])
+        for name in ('כהן ושות׳', 'כהן ושות׳ – דיני עבודה'):
+            doc = self.doc()
+            doc['name'] = name
+            self.assertEqual(self.problems(doc), [], name)
+        # part of the customer's text, not their business name: a city, a button text quoted in the outline
+        for name in ('תל אביב', 'לתיאום פגישת ייעוץ', 'דיני עבודה', 'מייצגים עובדים ומעסיקים בדיני עבודה מאז 2008'):
+            doc = self.doc()
+            doc['name'] = name
+            with self.subTest(name):
+                self.assertIn(('name', 'NAME_NOT_GIVEN'), self.codes(doc))
+
     def test_the_claim_check_warns_while_it_is_calibrating_and_blocks_when_switched(self):
         doc = self.doc()
         doc['sections']['hero']['lead'] = 'המשרד המוביל בדיני עבודה, משיחת הייעוץ ועד סיום ההליך.'

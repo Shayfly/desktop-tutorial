@@ -403,6 +403,40 @@
    "expect_failed": [
     "test_the_fixed_tests_pass_against_the_fixed_server"
    ]
+  },
+  {
+   "id": "NC23",
+   "what": "any substring of the customer's text may be the business name again: 'תל אביב' becomes the title, logo and og:title",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "        if not name_allowed(name, sheet.name_candidates):",
+     "new": "        if ' '.join(name.split()) not in ' '.join(sheet.customer.split()):"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_with_no_declared_name_the_name_is_one_the_customer_quoted"
+   ]
+  },
+  {
+   "id": "NC24",
+   "what": "a brief with no declared and no quoted name takes the route, and the model chooses the name",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    if not sheet.name and not sheet.name_candidates:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py"
+   ],
+   "expect_failed": [
+    "test_every_legacy_reason"
+   ]
   }
  ]
 }

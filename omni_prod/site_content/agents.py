@@ -67,7 +67,7 @@ _CONTENT_SYSTEM = (
     "- Every number you write -- in digits or in words (שלושה, עשרים, מאות) -- is one of numbers_you_may_use, as the "
     "customer wrote it, and it counts what that number 'counts' (3 lawyers stay lawyers, a year stays a year). Never "
     "add a year, a count, a percentage, '24/7', a duration or a size ('מאות לקוחות') the customer did not write.\n"
-    "- The business name is written exactly as the customer wrote it (a part of the customer's text).\n"
+    "- The business name is one of business_names_quoted exactly (or the part of one before its ' – ').\n"
     "- No superlatives or promises no fact supports (מוביל, הטוב ביותר, מס׳ 1, מובטח).\n"
     "- Natural, correct Hebrew: gender and number agreement, no translationese, no filler, no placeholders. Address "
     "visitors in the plural (אתם).\n"

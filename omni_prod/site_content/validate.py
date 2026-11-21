@@ -28,7 +28,9 @@ Codes (every one has a failing document in tests/test_site_content_validate.py):
                       priced "ייעוץ ראשון"); a FAQ answer is read with its question, a price-list item by its name
   PRICE_CONTRADICTED  "free" (חינם, ללא עלות, ללא תשלום) while the customer gave a price, unless the customer wrote
                       that word; with no price at all it is an UNSUPPORTED_DETAIL (warn)
-  NAME_NOT_GIVEN      the business name is not part of the customer's text (or differs from the declared name)
+  NAME_NOT_GIVEN      the business name differs from the declared name; with none declared, it is not one of the names
+                      the customer quoted (or the part of one before its ' – '): "תל אביב" or a button text quoted
+                      in the outline is part of the customer's text, not their business name
   PLACEHOLDER         template text (the copy_placeholder unit's patterns, a blanked fact label «...»)
   UNVERIFIABLE_CLAIM  a superlative no fact supports ("המוביל", "הטוב ביותר", "מס׳ 1"), warn until calibrated
   UNSUPPORTED_DETAIL  a detail written as words that the customer's text does not hold -- a quotation that is not the
@@ -345,8 +347,10 @@ def validate(doc, sheet, offered: dict, outline_titles: dict | None = None, *, l
         out.append(Problem('name', 'SCHEMA_SHAPE', 'the business name is required'))
     else:
         _shape(name, K.TOP['name'], 'name', out)
-        if ' '.join(name.split()) not in ' '.join(sheet.customer.split()):
-            out.append(Problem('name', 'NAME_NOT_GIVEN', 'the business name must be written as the customer wrote it'))
+        from .facts import name_allowed
+        if not name_allowed(name, sheet.name_candidates):
+            out.append(Problem('name', 'NAME_NOT_GIVEN', 'the business name must be one the customer quoted: '
+                               + ', '.join(repr(c) for c in sheet.name_candidates[:4])))
     layout = doc.get('layout')
     if layout is not None:
         if not isinstance(layout, dict):

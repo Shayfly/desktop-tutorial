@@ -105,6 +105,8 @@ class TheDecisionTable(unittest.TestCase):
             'outline_hero_not_first': PROMPT.replace('1. פתיח:', '1. תחומי עיסוק:', 1).replace(
                 '2. תחומי התמחות:', '2. פתיח:', 1),
             'outline_without_basis: ': PROMPT.replace('4. איך זה עובד:', '4. המלצות:', 1),
+            # no declared name and no name the customer quoted: the model never chooses one
+            'name_not_declared': PROMPT.replace('"כהן ושות׳ – דיני עבודה"', 'כהן ושות׳ – דיני עבודה'),
         }
         got = {}
         with on():
