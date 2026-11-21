@@ -312,7 +312,7 @@ Home, services, practitioners, fees and insurers, what to expect on a first visi
 
 - Staff, as soon as anything is stored.
 - Patients should not need an account to book. A phone number and a personal link are enough.
-- A patient portal (results, records, messages with the doctor, prescriptions) is a medical-records system. It is outside what this product builds. Three US references offer one through their own app (observed 2026-11-21); the right move for a small clinic is to link to the system it already has.
+- A patient portal (results, records, messages with the doctor, prescriptions) is a medical-records system. It is outside what this product builds. Three US references offer one through their own app or member portal (observed 2026-11-21); the right move for a small clinic is to link to the system it already has.
 
 ### Needs payments
 
