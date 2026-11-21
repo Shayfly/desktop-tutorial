@@ -957,12 +957,12 @@ def decide_windows(brief: 'Brief', decisions: dict) -> bool:
 
 
 def window_offer(brief: 'Brief', lang: str = 'he') -> list[dict]:
-    """What the approval screen offers: every catalogue window with its benefit and the current decision, for a
-    website brief; nothing for other products."""
+    """What the approval screen offers: the catalogue windows the request gives a reason for (and every one already
+    decided), each with its benefit and the current decision, for a website brief; nothing for other products."""
     if not is_website(brief):
         return []
     from .window_catalog import offer
-    return offer(lang, approved_windows(brief), rejected_windows(brief))
+    return offer(lang, approved_windows(brief), rejected_windows(brief), text=brief.prompt)   # only what fits
 
 
 def requirements_text(brief: Brief) -> str:
