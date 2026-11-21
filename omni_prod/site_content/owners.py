@@ -37,6 +37,7 @@ OWNER = {
     'BROWSER': 'platform',
     'VISUAL': 'platform',
     'AUTH_FORM': 'platform',
+    'AUTHFORM': 'platform',                   # the same stage as the group names it (verification_group.layer_id)
     'REVIEW': BY_FINDING,
     'QUALITY': 'platform',
     'DESIGN': 'advisory',                     # design_review: the critic's must_fix (blocks once in the legacy loop)

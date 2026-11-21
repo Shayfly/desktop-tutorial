@@ -5,9 +5,11 @@ installs (skill_units/gate.WORKER_GATES), every failure-id constant in omni_prod
 `ACCEPTANCE_PREFIX`, ...), the spec requirement ids the worker's wrappers add, the layer suffixes of the post-build group.
 A new gate or a new failure id with no owner in site_content/owners.OWNER fails this test: there is no default bucket.
 """
+import os
 import re
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from omni_prod.site_content import owners as O
 from omni_prod.skill_units.gate import WORKER_GATES, gate_units
@@ -20,7 +22,20 @@ _CONSTANT = re.compile(r"^(?:[A-Z_]*FAILURE_ID|ACCEPTANCE_ID|ACCEPTANCE_PREFIX|M
 _INLINE = {'uploaded-logo': 'omni_prod/uploaded_assets.py', 'NO_PROGRESS': 'omni_prod/autonomous_core.py',
            'TEST_EDIT_REVERTED': 'omni_prod/autonomous_core.py', 'REPAIR_REGRESSION': 'omni_prod/autonomous_core.py',
            'accept-': 'omni_prod/product_architect.py'}
-_LAYERS = ('PREVIEW', 'BEHAVIOR', 'BROWSER', 'VISUAL', 'REVIEW', 'AUTH_FORM')
+
+
+def group_layers() -> tuple[str, ...]:
+    """The layer ids the post-build group gives its stages (verification_group.layer_id), READ from the production
+    chain itself (investor_app._verification_executor, with every flag that adds a stage switched on): a crash, an
+    empty or a contradictory report of a stage is '<layer>_EXCEPTION' / '_unspecified' / '_contradictory'."""
+    from omni_prod import feature_flags, investor_app
+    from omni_prod.behavior_acceptance import find_in_chain
+    from omni_prod.verification_group import VerificationGroup, layer_id
+    env = {'OMNI_SANDBOX_RUNNER_URL': 'http://local-sandbox.invalid', 'OMNI_SANDBOX_SHARED_SECRET': 'l' * 40}
+    with mock.patch.dict(os.environ, env), mock.patch.object(feature_flags, 'SITE_AUTH_V2', True):
+        chain = investor_app._verification_executor(object())
+    group = find_in_chain(chain, VerificationGroup)
+    return tuple(layer_id(stage) for stage in group._stages)
 
 
 def produced_ids() -> dict[str, str]:
@@ -40,7 +55,8 @@ def produced_ids() -> dict[str, str]:
         if aid not in source:
             raise AssertionError(f'{aid!r} is no longer produced in {rel}: update this test')
         out[aid] = rel
-    for layer in _LAYERS:
+    for layer in group_layers():
+        out[layer] = 'verification_group (the stage itself)'
         for suffix in O.LAYER_SUFFIXES:
             out[layer + suffix] = 'verification_group / verification_verdict'
     out['window-legal_cookies'] = 'window_catalog (a window id after the prefix)'
@@ -64,6 +80,11 @@ class EveryCheckHasAnOwner(unittest.TestCase):
                 continue
             self.assertIn(owner, O.OWNERS + (O.BY_FINDING,), aid)
         self.assertEqual(unowned, {})
+
+    def test_the_group_names_every_stage_the_chain_appends(self):
+        layers = group_layers()
+        self.assertEqual(layers, ('PREVIEW', 'BEHAVIOR', 'BROWSER', 'VISUAL', 'AUTHFORM', 'REVIEW'))
+        self.assertEqual(O.owner_of('AUTHFORM_EXCEPTION'), 'platform')     # the sign-in check crashed: not the copy
 
     def test_the_table_names_only_the_four_owners(self):
         self.assertEqual({v for v in O.OWNER.values()} - set(O.OWNERS), {O.BY_FINDING})
