@@ -38,7 +38,6 @@ _NEGATION = re.compile(r"^(?:ו?(?:אין|בלי|ללא|לא|בלא)|no|not|with
 _CLAUSE = re.compile(r'[,.;:!?\n()]')
 _PRICE = re.compile(r'(?:₪\s*\d[\d,.]*\d|₪\s*\d|\d[\d,.]*\d\s*(?:₪|ש["״]ח|שקלים|שקל|NIS)|\d\s*(?:₪|ש["״]ח|שקלים|שקל|NIS))',
                     re.I)
-_DIGITS = re.compile(r'\d[\d,.]*\d|\d')
 _ENUMERATOR = re.compile(r'(?m)^\s*\d{1,2}[.)]\s+')
 _LABEL = {'phone': '«טלפון»', 'email': '«דוא״ל»', 'address': '«כתובת»', 'hours': '«שעות פעילות»'}
 MAX_CONTEXT = 30
@@ -59,10 +58,7 @@ def customer_text(prompt: str) -> str:
     return '\n'.join(x for x in lines if x)
 
 
-def norm_number(raw: str) -> str:
-    """A digit run as a reader compares it: digits folded, thousands separators and a trailing full stop dropped."""
-    s = F.fold_digits(raw).rstrip('.')
-    return re.sub(r'(?<=\d),(?=\d{3}\b)', '', s)
+from .numbers import norm_number  # noqa: E402  (re-exported: validate and the tests read it from here)
 
 
 def _fact_spans(text: str) -> list[tuple[str, str]]:
@@ -109,6 +105,10 @@ class FactSheet:
     def allowed_numbers(self) -> set[str]:
         return {n['value'] for n in self.numbers}
 
+    def numbers_for(self, value: str) -> list[dict]:
+        """The customer's numbers with this value, each with what it counted ('noun') and its kind."""
+        return [n for n in self.numbers if n['value'] == value]
+
     def price(self, ref: str) -> dict | None:
         return next((p for p in self.prices if p['id'] == ref), None)
 
@@ -128,7 +128,8 @@ class FactSheet:
         return {
             'customer_text': self.model_text(self.customer),
             'outline': [{'title': t, 'customer_wrote': self.model_text(b)} for t, b in self.outline],
-            'numbers_you_may_use': [{'value': n['value'], 'context': self.model_text(n['context'])} for n in self.numbers],
+            'numbers_you_may_use': [{'value': n['value'], 'counts': ('a year' if n['kind'] == 'year' else n['noun']),
+                                     'context': self.model_text(n['context'])} for n in self.numbers],
             'prices': [{'id': p['id'], 'context': self.model_text(p['context'])} for p in self.prices],
             'reviews': [{'id': r['id'], 'author': r['author']} for r in self.reviews],
             'business_name_given': self.name,
@@ -155,14 +156,24 @@ def _context(text: str, start: int, end: int) -> str:
 
 
 def _numbers(text: str) -> list[dict]:
-    """Every digit run of the customer's words that is not part of a fact span, normalised, with its context."""
+    """Every number of the customer's words -- digit runs and Hebrew number words -- that is not part of a fact span
+    and not a price, normalised, with WHAT IT COUNTED: 'noun' is the customer's words right after it ("3 עורכי דין" ->
+    'עורכי דין'), kind 'year' for a year ("מאז 2008"), else 'count'. A price is the customer's span, reachable only as
+    its @price:N reference, so its digits are not a number the copy may use (250 of "250 ₪" never becomes
+    "250 שנות ניסיון")."""
+    from . import numbers as N
     clean = _ENUMERATOR.sub('', blank_facts(text))      # "3. על המשרד": a list's numbering is not a number given
+    masked = _PRICE.sub(lambda m: ' ' * len(m.group(0)), clean)
     out, seen = [], set()
-    for m in _DIGITS.finditer(F.fold_digits(clean)):
-        value = norm_number(m.group(0))
-        if value and value not in seen:
-            seen.add(value)
-            out.append({'value': value, 'context': _context(clean, m.start(), m.end())})
+    for m in N.mentions(masked):
+        if m.value is None:
+            continue
+        kind = 'year' if N.is_year(m.value) and m.kind == 'digits' else 'count'
+        noun = ' '.join(m.after) or None
+        if (m.value, noun) in seen:
+            continue
+        seen.add((m.value, noun))
+        out.append({'value': m.value, 'noun': noun, 'kind': kind, 'context': _context(clean, m.start, m.end)})
     return out
 
 

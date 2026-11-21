@@ -67,7 +67,10 @@ class TheProductionRow(unittest.TestCase):
                          ('03-5551234', '050-5551234', 'office@cohen-law.co.il', 'דרך מנחם בגין 132, תל אביב',
                           ['א׳–ה׳ 09:00–18:00']))
         self.assertEqual([p['span'] for p in sheet.prices], ['250 ₪'])
-        self.assertEqual(sorted(sheet.allowed_numbers()), ['1500', '2008', '250', '3'])
+        # 250 is the customer's price ("250 ₪"): reachable only as @price:1, never a number the copy may use
+        self.assertEqual(sorted(sheet.allowed_numbers()), ['1500', '2008', '3'])
+        self.assertEqual({(n['value'], n['noun'], n['kind']) for n in sheet.numbers},
+                         {('2008', None, 'year'), ('3', 'עורכי דין', 'count'), ('1500', 'תיקים', 'count')})
 
     def test_the_model_never_sees_a_fact_value(self):
         seen = json.dumps(Fx.fact_sheet(PROMPT).for_model(), ensure_ascii=False)
@@ -117,9 +120,9 @@ class ThePage(unittest.TestCase):
         self.assertEqual(set(F._EMAIL.findall(self.html)), {sheet.email})
         for span in sheet.spans():
             self.assertIn(span, visible(self.html))
-        # every number a visitor reads is one the customer wrote, a fact span's, or the footer year
+        # every number a visitor reads is one the customer wrote, a fact span's, a price span's, or the footer year
         allowed = sheet.allowed_numbers() | {Fx.norm_number(n) for s in sheet.spans() for n in re.findall(r'\d+', s)} \
-            | {'2026'}
+            | {n for p in sheet.prices for n in re.findall(r'\d+', p['span'])} | {'2026'}
         shown = {Fx.norm_number(n) for n in re.findall(r'\d+(?:,\d{3})*', visible(self.html))}
         self.assertEqual(shown - allowed, set())
 

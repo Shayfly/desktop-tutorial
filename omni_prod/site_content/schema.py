@@ -89,7 +89,7 @@ def offered_sections(sheet, palette: dict, order: list[str] | None, outline_titl
                      ) -> tuple[dict, list[tuple[str, str]]]:
     """({section: 'required' | 'optional'}, [(section, why it is not offered)])."""
     outline_titles = outline_titles or {}
-    basis = {'stats': len(sheet.numbers) >= 2, 'testimonials': bool(sheet.reviews), 'pricelist': bool(sheet.prices),
+    basis = {'stats': len(sheet.allowed_numbers()) >= 2, 'testimonials': bool(sheet.reviews), 'pricelist': bool(sheet.prices),
              'contact': True}
     reason = {'stats': 'fewer than two numbers the customer wrote', 'testimonials': 'no review the customer gave',
               'pricelist': 'no price the customer gave'}
@@ -119,7 +119,8 @@ def _describe(spec) -> object:
     if isinstance(spec, Str):
         return f"string, at most {spec.max} characters, Hebrew" + (' (optional)' if spec.optional else '')
     if isinstance(spec, Num):
-        return ('one of numbers_you_may_use, written as the customer wrote it (may start with "+")'
+        return ('one of numbers_you_may_use, written as the customer wrote it (may start with "+"); its caption or '
+                'label names what that number counts'
                 + (' (optional)' if spec.optional else ''))
     if isinstance(spec, Ref):
         return f'a reference "{spec.prefix}:N" from the list you were given' + (' (optional)' if spec.optional else '')

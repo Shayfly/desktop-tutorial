@@ -61,8 +61,9 @@ _CONTENT_SYSTEM = (
     "their own places. The customer's text shows them blanked («טלפון», «כתובת» ...); never copy a blanked label.\n"
     "- A price is written only as its reference, e.g. \"ייעוץ ראשון: @price:1\". A review is never written: "
     "testimonials list review references only.\n"
-    "- Every number you write is one of numbers_you_may_use, as the customer wrote it. Never add a year, a count, a "
-    "percentage, '24/7' or a duration the customer did not write.\n"
+    "- Every number you write -- in digits or in words (שלושה, עשרים, מאות) -- is one of numbers_you_may_use, as the "
+    "customer wrote it, and it counts what that number 'counts' (3 lawyers stay lawyers, a year stays a year). Never "
+    "add a year, a count, a percentage, '24/7', a duration or a size ('מאות לקוחות') the customer did not write.\n"
     "- The business name is written exactly as the customer wrote it (a part of the customer's text).\n"
     "- No superlatives or promises no fact supports (מוביל, הטוב ביותר, מס׳ 1, מובטח).\n"
     "- Natural, correct Hebrew: gender and number agreement, no translationese, no filler, no placeholders. Address "
@@ -141,7 +142,9 @@ class ContentRepairAgent:
     def rewrite(self, doc: dict, paths: dict[str, str], findings: list[str], sheet) -> dict[str, str]:
         self.calls += 1
         user = json.dumps({'paths': paths, 'findings': findings[:12],
-                           'numbers_you_may_use': [n['value'] for n in sheet.numbers],
+                           'numbers_you_may_use': [{'value': n['value'],
+                                                    'counts': 'a year' if n['kind'] == 'year' else n['noun']}
+                                                   for n in sheet.numbers],
                            'prices': [p['id'] for p in sheet.prices]}, ensure_ascii=False)
         data = _complete(self.gateway, system=_CONTENT_REPAIR_SYSTEM, user=user, max_tokens=MAX_REWRITE_TOKENS,
                          guard=rewrite_shape_guard)

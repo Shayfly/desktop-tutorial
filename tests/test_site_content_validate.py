@@ -98,6 +98,48 @@ class TheValidator(unittest.TestCase):
         doc['sections']['about']['paragraphs'][1] = 'עד היום ליווינו יותר מ-1,500 תיקים, ואנחנו 3 עורכי דין.'
         self.assertEqual(self.problems(doc), [])
 
+    def test_a_customer_number_counts_only_what_the_customer_counted(self):
+        def at(path, mutate):
+            doc = self.doc()
+            mutate(doc)
+            return [p.why for p in self.problems(doc) if p.path == path and p.code == 'INVENTED_NUMBER']
+        sec = lambda d: d['sections']                                                        # noqa: E731
+        para = 'sections.about.paragraphs[1]'
+        cases = {
+            # the price 250 ("250 ₪") is not a number the copy may use, and 3 counted lawyers, not years
+            'price as years': ('sections.hero.panel_figure.value', lambda d: sec(d)['hero']['panel_figure'].update(
+                value='250', caption='שנות ניסיון בדיני עבודה')),
+            'lawyers as years': ('sections.hero.panel_figure.value', lambda d: sec(d)['hero']['panel_figure'].update(
+                value='3', caption='שנות ניסיון')),
+            '3 decades': (para, lambda d: sec(d)['about']['paragraphs'].__setitem__(
+                1, 'ניסיון של 3 עשורים בדיני עבודה.')),
+            '250 cases won': (para, lambda d: sec(d)['about']['paragraphs'].__setitem__(
+                1, 'יותר מ-250 תיקים שהסתיימו בזכייה.')),
+            'a year as clients': (para, lambda d: sec(d)['about']['paragraphs'].__setitem__(1, 'יותר מ-2008 לקוחות.')),
+            'seniority 250 years': ('sections.about.facts[0].value', lambda d: sec(d)['about'].update(
+                facts=[{'label': 'ותק', 'value': '250 שנה'}])),
+        }
+        for label, (path, mutate) in cases.items():
+            with self.subTest(label):
+                self.assertTrue(at(path, mutate), label)
+        doc = self.doc()
+        sec(doc)['about']['paragraphs'][1] = 'שלושה עורכי דין, יותר מ-1,500 תיקים, ומאז 2008 בדיני עבודה.'
+        sec(doc)['about']['facts'] = [{'label': 'שנת הקמה', 'value': 'מאז 2008'}]
+        self.assertEqual(self.problems(doc), [])
+
+    def test_a_number_written_in_words_is_a_number(self):
+        doc = self.doc()
+        doc['sections']['about']['paragraphs'][1] = 'שישה עורכי דין, עשרים שנות ניסיון ומאות לקוחות מרוצים.'
+        found = [p.why for p in self.problems(doc) if p.code == 'INVENTED_NUMBER']
+        self.assertEqual(found, ['number(s) the customer never wrote: שישה, עשרים, ומאות'])
+        # the section's own count in its title is the page's ("שלושה שלבים" over three steps), and "אחד" is a word
+        self.assertEqual(self.doc()['sections']['process']['title'], 'שלושה שלבים, ליווי אחד')
+        doc = self.doc()
+        doc['sections']['services']['title'] = 'ארבעה תחומי ייצוג'
+        self.assertEqual(self.problems(doc), [])
+        doc['sections']['services']['title'] = 'חמישה תחומי ייצוג'
+        self.assertIn(('sections.services.title', 'INVENTED_NUMBER'), self.codes(doc))
+
     def test_the_claim_check_warns_while_it_is_calibrating_and_blocks_when_switched(self):
         doc = self.doc()
         doc['sections']['hero']['lead'] = 'המשרד המוביל בדיני עבודה, משיחת הייעוץ ועד סיום ההליך.'

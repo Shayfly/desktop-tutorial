@@ -11,7 +11,8 @@
   "omni_prod/site_content/render.py",
   "omni_prod/site_content/owners.py",
   "omni_prod/site_content/__init__.py",
-  "omni_prod/autonomous_core.py"
+  "omni_prod/autonomous_core.py",
+  "omni_prod/site_content/numbers.py"
  ],
  "controls": [
   {
@@ -46,8 +47,10 @@
     "tests/test_site_content_validate.py"
    ],
    "expect_failed": [
-    "test_every_code_has_a_failing_document",
-    "test_a_number_the_customer_never_wrote_is_refused_even_as_a_stat"
+    "test_a_customer_number_counts_only_what_the_customer_counted",
+    "test_a_number_the_customer_never_wrote_is_refused_even_as_a_stat",
+    "test_a_number_written_in_words_is_a_number",
+    "test_every_code_has_a_failing_document"
    ]
   },
   {
@@ -185,6 +188,62 @@
    ],
    "expect_failed": [
     "test_a_whatsapp_label_never_crosses_a_sentence_or_another_label"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a customer number is accepted for anything it is attached to (the bare-value check): the price-free 3 lawyers become '3 שנות ניסיון', '3 עשורים'",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "        elif not _bound(m, sheet, context):\n",
+     "new": "        elif False:\n"
+    },
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "        elif not _bound(N.Mention(number, 'digits', value, 0, 0, words, ()), sheet):\n",
+     "new": "        elif False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_a_customer_number_counts_only_what_the_customer_counted"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "Hebrew number words are not read: 'שישה עורכי דין' and 'עשרים שנות ניסיון' pass where the customer wrote 3",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/numbers.py",
+     "old": "            value, used = _parse_words(tokens, i)\n",
+     "new": "            value, used = None, 0\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_a_number_written_in_words_is_a_number"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "a price's digits are a number the copy may use again: 250 of '250 ₪' may be shown as anything",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "    masked = _PRICE.sub(lambda m: ' ' * len(m.group(0)), clean)\n",
+     "new": "    masked = clean\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_render.py::TheProductionRow"
+   ],
+   "expect_failed": [
+    "test_the_sheet_is_the_truth_gates_canon"
    ]
   }
  ]
