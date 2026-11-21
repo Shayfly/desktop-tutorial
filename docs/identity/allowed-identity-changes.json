@@ -88,6 +88,22 @@
    "reviewer": "shai",
    "reviewed_at": "2026-11-20",
    "signature_note": "Signed by the owner's instruction, 2026-11-19 (\"מאשר הכול תמשיך לעבוד\" on the professional-minimum gate and the generator guidance). The reviewer field was typed by the author (claude) on that instruction."
+  },
+  {
+   "id": "testimonials-one-rule",
+   "from_digest": "41a6e1345bc04d30d70ad98a05afccd0b75bf6002ed04fea1c1b19e0d4c34618",
+   "to_digest": "b287af442b65fe2ad5ed58fe10d2497794b1757ffa267e5cdb63afe7d3ab05a0",
+   "added": [],
+   "removed": [],
+   "changed": [
+    "omni_prod/skills_runtime.py"
+   ],
+   "data_changed": [],
+   "reason": "2026-11-21: skill.copy_quality told the generator that sample testimonials may carry a '(לדוגמה)' label while its reviewer checklist forbade any named testimonial the request did not give, so the repair loop could not converge (rehearsal run 44943528189: 3 review rounds, the reviewer rejected the labelled invented names, decision FAILED). Both texts now say the same: leave a requested-but-unsupplied reviews section out; a sample carries '(לדוגמה)' on its heading and names no person. Only the guidance and the checklist strings change; the static gate (Michael 2026-11-10, the frozen run) is unchanged.",
+   "author": "claude",
+   "reviewer": "shai",
+   "reviewed_at": "2026-11-21",
+   "signature_note": "Signed by the owner's instruction: standing autonomy grant (2026-11-16) and the owner's message of 2026-11-21 ('סומך עלייך מאשר לך הכול'). The reviewer field was typed by the author (claude) on that instruction."
   }
  ]
 }
