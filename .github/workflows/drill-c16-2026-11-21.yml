@@ -1,0 +1,56 @@
+name: Drill C16 2026-11-21 (merge on red, non-admin)
+
+# Monthly drill C16 (CONTROLS.json; designed 2026-10-21 with the #99 run). Order set by the owner on 2026-11-21:
+# C16, then C19, then C11, then C18 last; one file per drill so each is reported before the next starts.
+# Expected, stated before the run: the bot's GITHUB_TOKEN (a NON-ADMIN identity) tries to merge the red drill PR #484
+# with sha pinned to its red head -> HTTP 405 (required checks not passing) and main does not move. HTTP 200 = C16 is
+# broken for non-admins: the stop sign fires and only the no-op drill file lands on main.
+on:
+  push:
+    branches: [drill/monthly-2026-11-21]
+    paths: [.github/workflows/drill-c16-2026-11-21.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  c16-merge-on-red:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: "484"
+    steps:
+      - name: C16 -- the bot tries to merge the red drill PR
+        run: |
+          set -uo pipefail
+          repo="$GITHUB_REPOSITORY"
+          head=$(gh api "repos/$repo/pulls/$PR" --jq .head.sha)
+          state=$(gh api "repos/$repo/pulls/$PR" --jq .state)
+          main_before=$(gh api "repos/$repo/git/ref/heads/main" --jq .object.sha)
+          echo "::notice title=C16 drill PR::#$PR state=$state head=$head main=$main_before"
+          [ "$state" = "open" ] || { echo "::error title=C16 not run::drill PR #$PR is not open"; exit 1; }
+          c=""
+          for i in $(seq 1 10); do                     # bounded: the check is already finished red before this push
+            c=$(gh api "repos/$repo/commits/$head/check-runs?check_name=test" --jq '[.check_runs[] | .conclusion // "pending"] | join(",")')
+            case "$c" in *failure*) break;; esac
+            sleep 30
+          done
+          echo "::notice title=C16 required check test on the drill head::$c"
+          case "$c" in *failure*) ;; *) echo "::error title=C16 not run::the drill head has no red test check ($c)"; exit 1;; esac
+          code=$(curl -s -o "$RUNNER_TEMP/merge.json" -w '%{http_code}' -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$repo/pulls/$PR/merge" -d "{\"sha\":\"$head\",\"merge_method\":\"merge\"}")
+          msg=$(jq -r .message "$RUNNER_TEMP/merge.json" 2>/dev/null | tr '\n' ' ' | cut -c1-300)
+          main_after=$(gh api "repos/$repo/git/ref/heads/main" --jq .object.sha)
+          echo "::notice title=C16 merge attempt as the bot::HTTP $code: $msg"
+          echo "::notice title=C16 main before / after::$main_before / $main_after"
+          if [ "$code" = "405" ] && [ "$main_before" = "$main_after" ]; then
+            echo "::notice title=C16 PASS::a non-admin merge on red was refused (HTTP 405) and main did not move"
+          else
+            echo "::error title=C16 FAIL::expected HTTP 405 with main unchanged; got HTTP $code (main $main_before -> $main_after)"; exit 1
+          fi
