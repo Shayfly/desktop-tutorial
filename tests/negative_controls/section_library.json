@@ -85,6 +85,7 @@
     "test_the_owners_page_passes_the_design_contract_and_its_refusal_list",
     "test_the_page_carries_the_library_fingerprint_and_fits_the_truth_gate_window",
     "test_the_panel_facts_come_before_the_hero_photo_in_the_markup",
+    "test_the_production_visual_check_finds_nothing_it_enforces_on_a_phone_or_a_desktop",
     "test_the_purged_page_is_pixel_identical_to_the_full_stylesheet",
     "test_the_render_check_sees_every_element_settled_after_300ms",
     "test_the_richer_page_still_passes_the_contract_and_every_unit",
