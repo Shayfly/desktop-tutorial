@@ -55,6 +55,19 @@ def ea(s) -> str:
     return html.escape(str(s), quote=True)
 
 
+_TIME = re.compile(r'\d{1,2}:\d{2}')
+
+
+def _val(v) -> str:
+    """A fact's value; opening hours are kept whole per day (round 2: "ו׳ 06:30–" / "14:00" at 320px): each
+    segment between ' · ', ', ' or '; ' is one unbreakable span."""
+    v = str(v)
+    if not _TIME.search(v):
+        return e(v)
+    parts = re.split(r'(\s+·\s+|,\s+|;\s+)', v)
+    return ''.join(e(p) if i % 2 else f'<span class="hours-seg">{e(p)}</span>' for i, p in enumerate(parts))
+
+
 def font_links(contract: dict) -> str:
     """Google Fonts for the contract's body and heading fonts (each loaded once, weights 400 and 700, display=swap);
     a system font stack loads nothing."""
@@ -86,6 +99,7 @@ def _icon(name: str) -> str:
         'whatsapp': '<path d="M3 21l1.6-4.8A8.5 8.5 0 1 1 8 19.6z"/><path d="M9 9.5c.5 2 2 3.5 4 4l1.2-1.2 2 1-.6 1.7c-3.4.4-7-3.2-6.6-6.6l1.7-.6 1 2z"/>',
         'mail': '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
         'arrow': '<path d="M19 12H5"/><path d="m11 6-6 6 6 6"/>',
+        'menu': '<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>',
     }
     return (f'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
             f'stroke-linejoin="round" aria-hidden="true" focusable="false">{paths[name]}</svg>')
@@ -100,7 +114,7 @@ ARTS = {
                + ''.join(f'<rect x="{60 + i * 70}" y="176" width="34" height="320" rx="3"/>' for i in range(6)),
     'arches': ''.join(f'<path d="M{30 + i * 160} 330V170a70 70 0 0 1 140 0v160"/>'
                       f'<path d="M{55 + i * 160} 330V180a45 45 0 0 1 90 0v150"/>' for i in range(3))
-              + '<path d="M0 330h520"/><circle cx="430" cy="70" r="34"/>',
+              + '<circle cx="505" cy="28" r="44"/>',
     'diagonals': ''.join(f'<path d="M{-200 + i * 70} 360 {160 + i * 70} 0"/>' for i in range(11))
                  + '<path d="M300 0 520 220" stroke-width="18"/>',
 }
@@ -175,14 +189,20 @@ def header(c: dict, rendered: list[str]) -> str:
     long = len(items) > 5 or sum(len(t) for _, t in items) > _LONG_NAV
     tagline = f'<span>{e(c["tagline"])}</span>' if c.get('tagline') else ''
     nav = f'<nav class="nav" aria-label="ניווט ראשי">{links}</nav>' if items else ''
-    menu = (f'<details class="menu"><summary>תפריט</summary><nav aria-label="ניווט ראשי בטלפון">{links}</nav></details>'
+    menu = (f'<details class="menu"><summary aria-label="ניווט באתר">{_icon("menu")}</summary>'
+            f'<nav aria-label="ניווט ראשי בטלפון">{links}</nav></details>'
             if items else '')
     return (f'<header class="site-header{" site-header--long" if long else ""}"><div class="wrap">'
             f'<a class="brand" href="#top"><b>{e(c["name"])}</b>{tagline}</a>{nav}'
             f'<div class="header-actions">{_call(c, cls="btn btn-primary header-call")}{menu}</div></div></header>')
 
 
-def hero(c: dict, tone: str, direction: str) -> str:
+def has_panel(c: dict) -> bool:
+    h = c['hero']
+    return bool(h.get('image') or h.get('panel_figure') or h.get('panel_facts'))
+
+
+def hero(c: dict, tone: str, direction: str, merge_stats: bool = False) -> str:
     h = c['hero']
     _need(h, ('title', 'lead', 'cta'), 'hero')
     primary_href = '#contact' if c.get('contact') else tel(c['phone'])
@@ -191,15 +211,19 @@ def hero(c: dict, tone: str, direction: str) -> str:
     note = f'<p class="hero-note">{e(h["note"])}</p>' if h.get('note') else ''
     copy = (f'<div class="hero-copy">{eyebrow}<h1 id="hero-title">{e(h["title"])}</h1><p class="lead">{e(h["lead"])}</p>'
             f'<div class="actions"><a class="btn btn-primary" href="{primary_href}">{e(h["cta"])}</a>{second}</div>{note}</div>')
-    if not (h.get('image') or h.get('panel_figure') or h.get('panel_facts')):
+    if not has_panel(c):
         return (f'<section class="hero hero--solo" id="top" aria-labelledby="hero-title"><div class="wrap">{copy}</div>'
                 f'</section>')
-    facts = ''.join(f'<div><dt>{e(f[0])}</dt><dd>' + (f'<a href="{ea(f[2])}">{e(f[1])}</a>' if len(f) > 2 else e(f[1]))
+    facts = ''.join(f'<div><dt>{e(f[0])}</dt><dd>' + (f'<a href="{ea(f[2])}">{e(f[1])}</a>' if len(f) > 2 else _val(f[1]))
                     + '</dd></div>' for f in h.get('panel_facts', ()))
     art = h.get('art', DEFAULT_ART[direction])
     visual = img(h['image'], eager=True, cls='panel-photo') if h.get('image') else _art(None if art == 'none' else art)
     figure = (f'<p class="panel-figure">{e(h["panel_figure"])}</p><p class="panel-caption">{e(h.get("panel_caption", ""))}</p>'
               if h.get('panel_figure') else '')
+    if merge_stats:
+        # elegant (round 2): the panel figure and the numbers strip are one row in the first screen, not two bands
+        row = ([(h['panel_figure'], h.get('panel_caption', ''))] if h.get('panel_figure') else []) + stats_shown(c)
+        figure = '<dl class="panel-stats">' + ''.join(f'<div><dt>{e(k)}</dt><dd>{e(v)}</dd></div>' for v, k in row) + '</dl>'
     return (f'<section class="hero" id="top" aria-labelledby="hero-title"><div class="wrap">{copy}'
             f'<div class="panel{" panel--photo" if h.get("image") else ""}" role="group" '
             f'aria-label="{ea(h.get("panel_label") or c["name"])}">{"" if h.get("image") else visual}{figure}'
@@ -224,12 +248,41 @@ def services(c: dict, tone: str) -> str:
     return _section('services', tone, f'{_head(s, "services")}<div class="cards">{cards}</div>')
 
 
-def about(c: dict, tone: str) -> str:
+def _norm(v) -> str:
+    """A value as a reader compares it: whitespace collapsed; digits only when digits make up half of it."""
+    v = ' '.join(str(v).split())
+    digits = re.sub(r'\D', '', v)
+    return digits if digits and 2 * len(digits) >= len(re.sub(r'\s', '', v)) else v
+
+
+def _runs(v) -> set:
+    return {r.replace(',', '') for r in re.findall(r'\d[\d,]{2,}', str(v))}
+
+
+def about_facts(c: dict, rendered: list[str]) -> tuple[list, list]:
+    """(kept, dropped labels): an about fact the page already said -- the hero panel's figure and facts, the numbers
+    strip when it is shown -- is not said again (round 2: the café's "2014" three times, its address four)."""
+    h, said = c['hero'], []
+    if h.get('panel_figure'):
+        said += [h['panel_figure'], f"{h['panel_figure']} {h.get('panel_caption', '')}"]
+    said += [f[1] for f in h.get('panel_facts', ())]
+    if 'stats' in rendered or 'stats' in c.get('_merged', ()):
+        said += [x for v, label in stats_shown(c) for x in (v, f'{v} {label}')]
+    norms, runs = {_norm(x) for x in said}, set().union(set(), *(_runs(x) for x in said))
+    kept, dropped = [], []
+    for k, v in c['about'].get('facts') or ():
+        same = _norm(v) in norms or _norm(str(v).split(',')[0]) in norms or bool(_runs(v) & runs)
+        (dropped.append(k) if same else kept.append((k, v)))
+    return kept, dropped
+
+
+def about(c: dict, tone: str, facts: list | None = None) -> str:
     a = c['about']
+    facts = a.get('facts') or [] if facts is None else facts
     paras = ''.join(f'<p>{e(p)}</p>' for p in a.get('paragraphs', ()))
     side = (f'<figure class="about-photo">{img(a["image"])}</figure>' if a.get('image') else
-            f'<dl class="facts">{"".join(f"<div><dt>{e(k)}</dt><dd>{e(v)}</dd></div>" for k, v in a["facts"])}</dl>'
-            if a.get('facts') else '')
+            f'<dl class="facts">{"".join(f"<div><dt>{e(k)}</dt><dd>{_val(v)}</dd></div>" for k, v in facts)}</dl>'
+            if facts else '')
     return _section('about', tone, f'<div>{_head(a, "about")}{paras}</div>{side}', 'split')
 
 
@@ -316,7 +369,7 @@ def contact(c: dict, tone: str) -> str:
         rows.append(('כתובת', e(c['address']) + f'<span class="directions">ניווט: <a href="https://waze.com/ul?q={q}">Waze</a>'
                      f' · <a href="https://www.google.com/maps/search/?api=1&amp;query={q}">Google Maps</a></span>'))
     if c.get('hours'):
-        rows.append(('שעות פעילות', e(c['hours'])))
+        rows.append(('שעות פעילות', _val(c['hours'])))
     info = ''.join(f'<div><dt>{t}</dt><dd>{v}</dd></div>' for t, v in rows)
     form = ''
     if c.get('whatsapp'):                       # the form hands the message to WhatsApp; no number -> no form
@@ -342,8 +395,12 @@ def footer(c: dict, rendered: list[str]) -> str:
     reach = [f'<a href="{tel(c["phone"])}">{e(c["phone"])}</a>']
     if c.get('email'):
         reach.append(f'<a href="mailto:{ea(c["email"])}">{e(c["email"])}</a>')
+    if c.get('whatsapp'):
+        reach.append(f'<a href="{ea(wa(c["whatsapp"]))}">וואטסאפ</a>')
     if c.get('address'):
         reach.append(e(c['address']))
+    if c.get('hours'):
+        reach.append(_val(c['hours']))
     tagline = f'<p>{e(c["tagline"])}</p>' if c.get('tagline') else ''
     year = f'{e(c["year"])} ' if c.get('year') else ''
     return (f'<footer class="site-footer"><div class="wrap"><div><b>{e(c["name"])}</b>{tagline}</div>{nav}'
@@ -380,11 +437,11 @@ REQUIRED = ('title', 'description', 'name', 'phone', 'direction', 'hero')
 
 
 def tones(keys: list[str], direction: str) -> dict[str, str]:
-    """Background tone of every rendered section, from its position: plain and tint alternate (the first section after
-    the hero is tinted), the process is the page's one primary-coloured beat (not in the restrained elegant
+    """Background tone of every rendered section, from its position: plain and tint alternate (the numbers strip, when
+    shown, is the first tinted beat; otherwise the first section after the hero is tinted), the process is the page's one primary-coloured beat (not in the restrained elegant
     direction), the call-to-action band sits on plain. Two neighbours on the same tone share their padding
     (section--flush), so no gap is ever doubled."""
-    out, prev, n = {}, None, 0
+    out, prev, n = {}, None, (1 if 'stats' in keys else 0)   # the numbers strip counts as the first tinted beat
     for k in keys:
         if k in ('hero', 'stats'):
             continue
@@ -430,17 +487,24 @@ def page(content: dict, contract: dict, order: list[str] | None = None) -> tuple
     direction = c['direction']
     if direction not in DIRECTIONS['directions']:
         raise ValueError(f'unknown art direction {direction!r}')
+    merge = direction == 'elegant' and has_panel(c) and bool(stats_shown(c)) and (order is None or 'stats' in order)
     rendered, skipped = [], []
     for key, fn in sequence:
-        if (order is None or key in order or key == 'hero') and c.get(key) and (key != 'stats' or stats_shown(c)):
+        if key == 'stats' and merge:
+            skipped.append('stats:merged into the hero panel (elegant)')
+        elif (order is None or key in order or key == 'hero') and c.get(key) and (key != 'stats' or stats_shown(c)):
             rendered.append(key)
         else:
             skipped.append(key)
+    c = dict(c, _merged=('stats',) if merge else ())
+    kept, dropped = about_facts(c, rendered) if c.get('about') else ([], [])
+    skipped += [f'about.facts:{k} (already shown)' for k in dropped]
     # a number the panel already shows is said once; the strip's copy is left out and reported
     skipped += [f'stats:{v} (shown in the hero panel)' for v, _ in c.get('stats') or () if v == c['hero'].get('panel_figure')]
     tone = tones(rendered, direction)
     fns = dict(sequence)
-    body = ''.join(hero(c, '', direction) if k == 'hero' else fns[k](c, tone.get(k, '')) for k in rendered)
+    special = {'hero': lambda: hero(c, '', direction, merge), 'about': lambda: about(c, tone.get('about', ''), kept)}
+    body = ''.join(special[k]() if k in special else fns[k](c, tone.get(k, '')) for k in rendered)
     if not c['hero'].get('image'):
         # no hero photo: the page's first image is still the first one the browser meets -- it is not deferred
         body = body.replace(' loading="lazy"', ' loading="eager"', 1)

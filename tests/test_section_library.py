@@ -49,7 +49,10 @@ class TheLibrary(unittest.TestCase):
         content = copy.deepcopy(D.CONTENT)
         del content['faq'], content['stats']
         doc, skipped = L.page(content, self.contract)
-        self.assertEqual(skipped, ['stats', 'pricelist', 'gallery', 'team', 'testimonials', 'faq'])   # not in the brief
+        sections = [k for k in skipped if ':' not in k]
+        self.assertEqual(sections, ['stats', 'pricelist', 'gallery', 'team', 'testimonials', 'faq'])   # not in the brief
+        # round 2: an about fact the hero panel already showed (the address) is not said again, and the drop is said
+        self.assertEqual([k for k in skipped if ':' in k], ['about.facts:מיקום (already shown)'])
         self.assertNotIn('id="faq"', doc)
 
     def test_the_customers_text_is_escaped(self):
@@ -176,6 +179,53 @@ class WiringReadiness(unittest.TestCase):
         self.assertIn(f'data-148-kit="section-library/{L.LIBRARY_VERSION}"', doc)
         self.assertLess(len(doc), 45_000)
         self.assertNotIn('/*', L.CSS)
+
+
+class RoundTwo(unittest.TestCase):
+    """Round 2 of the design critique (seven businesses, 20 fixes the design editor measured), 2026-11-21."""
+    def setUp(self):
+        self.contract = D.build()[1]
+        self.c = copy.deepcopy(D.CONTENT)
+
+    def test_the_numbers_strip_is_the_first_tinted_beat_and_no_two_neighbours_share_a_tone(self):
+        keys = ['hero', 'stats', 'services', 'about', 'process', 'cta', 'faq', 'contact']
+        t = L.tones(keys, 'formal')
+        self.assertEqual(t['services'].split()[:1], [])                       # plain right after the tinted strip
+        bands = ['section--tint'] + [t[k].replace(' section--flush', '') for k in keys[2:]]
+        pairs = [(a, b) for a, b in zip(bands, bands[1:]) if a == b and a]
+        self.assertEqual(pairs, [])
+
+    def test_opening_hours_are_kept_whole_per_day(self):
+        self.c['hours'] = 'א׳–ה׳ 09:00–18:00 · ו׳ 09:00–13:00'
+        doc, _ = L.page(self.c, self.contract)
+        self.assertIn('<span class="hours-seg">ו׳ <bdi dir="ltr">09:00–13:00</bdi></span>', doc)
+        self.assertIn('bdi, .hours-seg{white-space: nowrap;}', L.CSS)
+
+    def test_the_elegant_hero_carries_the_numbers_in_one_row_and_says_so(self):
+        self.c['direction'] = 'elegant'
+        doc, skipped = L.page(self.c, self.contract)
+        self.assertIn('<dl class="panel-stats">', doc)
+        self.assertNotIn('<section class="stats"', doc)
+        self.assertIn('stats:merged into the hero panel (elegant)', skipped)
+
+    def test_the_menu_toggle_is_an_icon_not_a_third_button_or_the_word_menu(self):
+        doc = L.page(self.c, self.contract)[0]
+        self.assertIn('<summary aria-label="ניווט באתר"><svg', doc)
+        self.assertNotIn('<summary>תפריט</summary>', doc)
+
+    def test_no_drawing_puts_a_circle_on_an_arch_head_like_a_person(self):
+        for name, art in L.ARTS.items():
+            apexes = [(float(x) + 70, float(y) - 70) for x, y in re.findall(r'M(\d+) \d+V(\d+)a70', art)]
+            for cx, cy, r in re.findall(r'<circle cx="(\d+)" cy="(\d+)" r="(\d+)"', art):
+                for ax, ay in apexes:
+                    with self.subTest(name=name, circle=(cx, cy)):
+                        self.assertGreater(abs(float(cx) - ax), float(r) + 40)
+
+    def test_the_footer_carries_the_hours_and_whatsapp_when_given(self):
+        doc = L.page(self.c, self.contract)[0]
+        footer = re.search(r'<footer.*?</footer>', doc).group(0)
+        self.assertIn('wa.me/972505551234', footer)
+        self.assertIn('09:00–18:00', footer)
 
 
 if __name__ == '__main__':

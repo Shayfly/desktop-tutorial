@@ -164,5 +164,63 @@ class Conformance(unittest.TestCase):
         self.assertEqual(over, {})
 
 
+MEASURE = """() => {
+  const lum = c => { const m = c.match(/[\\d.]+/g).slice(0, 3).map(Number).map(v => v / 255)
+    .map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)); return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]; };
+  const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const bg = el => { for (; el; el = el.parentElement) { const c = getComputedStyle(el).backgroundColor;
+    if (c && !c.endsWith(', 0)') && c !== 'transparent') return c; } return 'rgb(255, 255, 255)'; };
+  const px = el => el ? parseFloat(getComputedStyle(el).fontSize) : 0;
+  const out = {};
+  const sec = document.querySelector('.band .btn-secondary');
+  if (sec) out.bandSecondary = ratio(getComputedStyle(sec).color, bg(sec));
+  out.flush = [...document.querySelectorAll('.section--flush')].map(s => parseFloat(getComputedStyle(s).paddingTop));
+  const h1 = px(document.querySelector('h1'));
+  out.hierarchy = [...document.querySelectorAll('section[id]')].flatMap(s => { const h2 = s.querySelector('h2');
+    if (!h2) return []; const bad = []; if (px(h2) >= h1) bad.push(s.id + ': h2 >= h1');
+    s.querySelectorAll('h3').forEach(h3 => { if (px(h3) >= px(h2)) bad.push(s.id + ': h3 >= h2'); }); return bad; });
+  const rows = {}; document.querySelectorAll('.stat dd').forEach(dd => { const r = dd.closest('.stat').getBoundingClientRect();
+    const k = Math.round(r.top); (rows[k] = rows[k] || []).push(Math.round(dd.getBoundingClientRect().top)); });
+  out.statRowsUneven = Object.values(rows).filter(t => Math.max(...t) - Math.min(...t) > 1).length;
+  const legal = document.querySelector('.site-footer .legal'), wrap = document.querySelector('.site-footer .wrap');
+  out.legalShort = legal ? Math.round(wrap.getBoundingClientRect().width - legal.getBoundingClientRect().width) : 0;
+  return out; }"""
+
+
+class RoundTwoMeasured(unittest.TestCase):
+    """Round 2's measured fixes, measured again in the browser on every palette (the design editor, 2026-11-21)."""
+    maxDiff = None
+
+    def test_round_two_holds_on_every_palette_at_phone_and_desktop_width(self):
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:  # pragma: no cover
+            self.skipTest('playwright is required to render the page')
+        problems = {}
+        with sync_playwright() as p:
+            b = p.chromium.launch()
+            pg = b.new_page(viewport={'width': 390, 'height': 844})
+            for palette in L.DIRECTIONS['palettes']:
+                content = dict(shapes()['full'], direction=L.direction_for(palette)['direction'])
+                doc, _ = L.page(content, contract_for(palette))
+                pg.set_content(re.sub(r'<link[^>]+fonts\.g[^>]+>', '', doc))
+                for w in (390, 1440):
+                    pg.set_viewport_size({'width': w, 'height': 900})
+                    m, found = pg.evaluate(MEASURE), []
+                    if m.get('bandSecondary', 99) < 4.5:
+                        found.append(f"band outline button {m['bandSecondary']:.2f}:1 < 4.5")
+                    if any(m['flush']):
+                        found.append(f"flush padding {m['flush']}")
+                    found += m['hierarchy']
+                    if m['statRowsUneven']:
+                        found.append(f"{m['statRowsUneven']} numbers row(s) not on one line")
+                    if m['legalShort'] > 1:
+                        found.append(f"legal line {m['legalShort']}px short of the footer")
+                    if found:
+                        problems[f'{palette}/{w}'] = found
+            b.close()
+        self.assertEqual(problems, {})
+
+
 if __name__ == '__main__':
     unittest.main()
