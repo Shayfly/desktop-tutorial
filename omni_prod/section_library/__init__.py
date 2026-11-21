@@ -483,7 +483,9 @@ def footer(c: dict, rendered: list[str]) -> str:
 
 
 def mobile_bar(c: dict) -> str:
-    return (f'<nav class="mobile-bar" aria-label="פעולות מהירות">{_call(c, "התקשרו")}{_whatsapp(c)}</nav>')
+    # away while the first screen (which carries the same actions) is on screen: the production visual check reads a
+    # fixed bar over the hero's own links as an overlap (the content route's real chain, 2026-11-21)
+    return (f'<nav class="mobile-bar is-away" aria-label="פעולות מהירות">{_call(c, "התקשרו")}{_whatsapp(c)}</nav>')
 
 
 # the form opens WhatsApp with the message ready; the menu closes on a link, a tap outside it or Escape; the phone action
@@ -500,7 +502,8 @@ SCRIPT = ('<script>document.querySelectorAll("form[data-wa]").forEach(function(f
           'var bar=document.querySelector(".mobile-bar");if(bar&&"IntersectionObserver" in window){var on=new Set();'
           'var io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting)on.add(x.target);'
           'else on.delete(x.target);});bar.classList.toggle("is-away",on.size>0);});'
-          'document.querySelectorAll(".band, #contact form").forEach(function(t){io.observe(t);});}</script>')
+          'document.querySelectorAll("#top, .band, #contact form").forEach(function(t){io.observe(t);});}'
+          'else if(bar){bar.classList.remove("is-away");}</script>')
 
 # order on the page; a section whose key is missing from the content is skipped, never filled with invention. The
 # call-to-action band sits in the middle, after the process, so the action is offered again before the long tail.
