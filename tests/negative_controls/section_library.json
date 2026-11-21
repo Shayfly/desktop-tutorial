@@ -187,8 +187,8 @@
    "mutations": [
     {
      "file": "omni_prod/section_library/__init__.py",
-     "old": "document.querySelectorAll(\"#top, .band, #contact form\")",
-     "new": "document.querySelectorAll(\".band, #contact form\")"
+     "old": "on.size>0||!!hero&&window.scrollY<hero.offsetHeight",
+     "new": "on.size>0"
     }
    ],
    "targets": [

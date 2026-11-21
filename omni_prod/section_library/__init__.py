@@ -489,7 +489,8 @@ def mobile_bar(c: dict) -> str:
 
 
 # the form opens WhatsApp with the message ready; the menu closes on a link, a tap outside it or Escape; the phone action
-# bar steps aside while the page's own call-to-action band or the form is on screen
+# bar steps aside while the page's own call-to-action band or the form is on screen, and until the visitor has scrolled
+# past the first screen (read from the scroll position, so a full-page screenshot never flips it)
 SCRIPT = ('<script>document.querySelectorAll("form[data-wa]").forEach(function(f){f.addEventListener("submit",function(ev){'
           'ev.preventDefault();var d=new FormData(f),t="שלום, שמי "+d.get("name")+". טלפון: "+d.get("phone")'
           '+(d.get("topic")?". נושא: "+d.get("topic"):"")+(d.get("message")?". "+d.get("message"):"");'
@@ -499,10 +500,13 @@ SCRIPT = ('<script>document.querySelectorAll("form[data-wa]").forEach(function(f
           'document.addEventListener("click",function(ev){if(m.open&&!m.contains(ev.target))m.removeAttribute("open");});'
           'document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&m.open){m.removeAttribute("open");'
           'm.querySelector("summary").focus();}});}'
-          'var bar=document.querySelector(".mobile-bar");if(bar&&"IntersectionObserver" in window){var on=new Set();'
+          'var bar=document.querySelector(".mobile-bar"),hero=document.getElementById("top");'
+          'if(bar&&"IntersectionObserver" in window){var on=new Set();'
+          'var show=function(){bar.classList.toggle("is-away",on.size>0||!!hero&&window.scrollY<hero.offsetHeight);};'
           'var io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting)on.add(x.target);'
-          'else on.delete(x.target);});bar.classList.toggle("is-away",on.size>0);});'
-          'document.querySelectorAll("#top, .band, #contact form").forEach(function(t){io.observe(t);});}'
+          'else on.delete(x.target);});show();});'
+          'document.querySelectorAll(".band, #contact form").forEach(function(t){io.observe(t);});'
+          'window.addEventListener("scroll",show,{passive:true});}'
           'else if(bar){bar.classList.remove("is-away");}</script>')
 
 # order on the page; a section whose key is missing from the content is skipped, never filled with invention. The
