@@ -129,7 +129,7 @@ jobs:
               sys.exit(1)
       - name: keep the record (branch -> full SHA)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: branch-cleanup-${{ github.run_id }}
           path: branch-cleanup.json
