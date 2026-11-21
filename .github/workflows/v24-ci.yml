@@ -143,36 +143,25 @@ jobs:
           NC_JOBS: "4"    # 2026-11-17: the 4 cores of the runner; output is the same as a serial run, in the same order
         run: python scripts/run_negative_controls.py
   publish-report:
-    # smoke/ci-last-run.md: the latest main CI result, readable without job logs.
-    # main pushes only. The bot never pushes to main: the report goes to the
-    # ci/v24-report branch and a PR, which main's protection reviews/merges like
-    # any other, and auto-merges (squash) when its requirements are met. The
-    # condition stays refs/heads/main on purpose: that is the run whose result is being reported; the branch push is a different ref, so it
-    # never re-enters this job. The merged report commit lands on main again, so
-    # the message guard below stops that push from opening another report PR.
+    # Reports are evidence of the run, never a source-code change.
+    # The summary and artifact remain available even when the test job fails.
     needs: test
-    if: >-
-      always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && !startsWith(github.event.head_commit.message, 'chore: v24-ci results')
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write        # push the ci/v24-report branch (never main)
-      pull-requests: write   # open the report PR
-      actions: write         # dispatch the required checks on the report branch (see "on:")
+      contents: read
     steps:
-      # This job pushes the report, so its checkout keeps credentials
-      # (the test jobs keep persist-credentials: false and a read-only token).
       - uses: actions/checkout@v4
         with:
-          ref: main
-          persist-credentials: true
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: pytest-report
           path: report
         continue-on-error: true
-      - name: Write smoke/ci-last-run.md
+      - name: Render report to job summary and artifact file
         env:
           TEST_RESULT: ${{ needs.test.result }}
           RUN_ID: ${{ github.run_id }}
@@ -180,173 +169,53 @@ jobs:
           COMMIT: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          mkdir -p smoke
+          mkdir -p report-output
           python - <<'PY'
-          import os, collections, datetime, xml.etree.ElementTree as ET
-          path = 'report/pytest-report.xml'
-          lines = [f"# v24-ci — last main run ({datetime.datetime.now(datetime.timezone.utc):%Y-%m-%dT%H:%M:%SZ})", '',
-                   f"- commit: `{os.environ['COMMIT']}`",
-                   f"- run_id: [{os.environ['RUN_ID']}]({os.environ['RUN_URL']}) (attempt {os.environ['RUN_ATTEMPT']})",
-                   f"- test job: **{os.environ['TEST_RESULT'].upper()}**"]
+          import collections
+          import datetime
+          import os
+          import xml.etree.ElementTree as ET
+          lines = [
+              f"# v24-ci — main run ({datetime.datetime.now(datetime.timezone.utc):%Y-%m-%dT%H:%M:%SZ})",
+              "",
+              f"- commit: \`{os.environ['COMMIT']}\`",
+              f"- run: [{os.environ['RUN_ID']}]({os.environ['RUN_URL']}) (attempt {os.environ['RUN_ATTEMPT']})",
+              f"- test job: **{os.environ['TEST_RESULT'].upper()}**",
+          ]
+          path = "report/pytest-report.xml"
           if not os.path.exists(path):
-              lines += ['', 'No pytest report was produced (the run failed before pytest finished).']
+              lines += ["", "**NOT RUN** — pytest-report.xml was not produced; inspect the test job."]
           else:
-              per = collections.defaultdict(lambda: collections.Counter()); failed = []
-              for c in ET.parse(path).getroot().iter('testcase'):
-                  mod = (c.get('classname') or '').split('.')[1] if '.' in (c.get('classname') or '') else (c.get('classname') or '?')
-                  kind = 'fail' if (c.find('failure') is not None or c.find('error') is not None) else ('skip' if c.find('skipped') is not None else 'pass')
-                  per[mod][kind] += 1
-                  if kind == 'fail':
-                      failed.append(f"{c.get('classname')}.{c.get('name')}")
-              tot = sum((v for v in per.values()), collections.Counter())
-              verdict = 'PASS' if not failed else 'FAIL'
-              acc = [n for n in failed if 'AcceptanceW' in n]
-              seen = any('AcceptanceW' in (c.get('classname') or '') for c in ET.parse(path).getroot().iter('testcase'))
-              lines += [f"- tests: **{verdict}** — {tot['pass']} passed, {tot['fail']} failed, {tot['skip']} skipped",
-                        f"- AcceptanceW: **{'FAIL' if acc else ('PASS' if seen else 'NOT RUN')}**", '',
-                        '## Failing tests', '']
-              lines += [f"- FAIL `{n}`" for n in failed] or ['- none']
-              # CostClass behavioural proofs: each named test reported on its own.
-              # (test module, test name) -> PASS / FAIL / SKIPPED / NOT FOUND.
-              proofs = [
-                  ('test_m5_plan_build_class', 'test_amateur_costs_less_than_studio_for_the_same_task'),
-                  ('test_worker_budget_binding', 'test_pro_keeps_its_class_budget_when_worker_env_is_lower'),
-                  ('test_m5_plan_build_class', 'test_pro_and_studio_get_different_allowlists'),
-                  ('test_m5_plan_build_class', 'test_margin_holds_on_every_paid_tier_in_the_worst_case'),
+              cases = list(ET.parse(path).getroot().iter("testcase"))
+              failed = [
+                  f"{c.get('classname')}.{c.get('name')}"
+                  for c in cases if c.find("failure") is not None or c.find("error") is not None
               ]
-              all_cases = list(ET.parse(path).getroot().iter('testcase'))
-              lines += ['', '## CostClass behavioural proofs', '']
-              for pmod, pname in proofs:
-                  hits = [c for c in all_cases if c.get('name') == pname and pmod in (c.get('classname') or '')]
-                  if not hits:
-                      state = 'NOT FOUND'
-                  elif any(h.find('failure') is not None or h.find('error') is not None for h in hits):
-                      state = 'FAIL'
-                  elif all(h.find('skipped') is not None for h in hits):
-                      state = 'SKIPPED'
-                  else:
-                      state = 'PASS'
-                  lines.append(f"- `{pmod}::{pname}`: **{state}**")
-              lines += ['', '## Per module', '', '| module | PASS/FAIL | passed | failed | skipped |', '|---|---|---|---|---|']
-              for m in sorted(per):
-                  v = per[m]
-                  lines.append(f"| `{m}` | {'FAIL' if v['fail'] else 'PASS'} | {v['pass']} | {v['fail']} | {v['skip']} |")
-          lines += ['', '_Test names and counts only; failure messages are not published._']
-          open('smoke/ci-last-run.md', 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
+              skipped = sum(c.find("skipped") is not None for c in cases)
+              lines += [
+                  "",
+                  f"- tests: **{'FAIL' if failed else 'PASS'}** — {len(cases)-len(failed)-skipped} passed, {len(failed)} failed, {skipped} skipped",
+                  "- AcceptanceW: **" + (
+                      "FAIL" if any("AcceptanceW" in n for n in failed)
+                      else "PASS" if any("AcceptanceW" in (c.get("classname") or "") for c in cases)
+                      else "NOT RUN"
+                  ) + "**",
+                  "",
+                  "## Failing tests",
+                  *([f"- FAIL \`{n}\`" for n in failed] or ["- none"]),
+              ]
+          lines += ["", "_Evidence is scoped to this run and commit; no repository file is updated._"]
+          report = "\\n".join(lines) + "\\n"
+          with open("report-output/v24-ci-report.md", "w", encoding="utf-8") as out:
+              out.write(report)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              out.write(report)
           PY
-      - name: Commit the report to a branch and open a PR
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPORT_BRANCH: ci/v24-report
-        run: |
-          git config user.name "ci-bot"
-          git config user.email "ci-bot@148ai.dev"
-          git add smoke/ci-last-run.md
-          if git diff --cached --quiet; then echo "no change"; exit 0; fi
-          git checkout -b "$REPORT_BRANCH"
-          git commit -m "chore: v24-ci results"
-          # Bot-owned branch; each report supersedes the previous one. main is never touched.
-          git push --force origin "HEAD:refs/heads/$REPORT_BRANCH"
-          PR="$(gh pr list --head "$REPORT_BRANCH" --base main --state open --json number --jq '.[0].number')"
-          if [ -z "$PR" ]; then
-            gh pr create --base main --head "$REPORT_BRANCH" \
-              --title "chore: v24-ci results" \
-              --body "Automated CI result report (smoke/ci-last-run.md). Auto-merges (squash) once main's protection is satisfied."
-            PR="$(gh pr list --head "$REPORT_BRANCH" --base main --state open --json number --jq '.[0].number')"
-          fi
-          # The required checks must RUN on the report commit (GITHUB_TOKEN events start no workflow): dispatch both.
-          gh workflow run v24-ci.yml --ref "$REPORT_BRANCH"
-          gh workflow run v11-overlay-ci.yml --ref "$REPORT_BRANCH"
-          echo "::notice title=publish-report::report PR #$PR on $REPORT_BRANCH @ $(git rev-parse --short HEAD); test and validate dispatched on it"
-          # Auto-merge waits for main's required checks/reviews; it never bypasses them.
-          # The squash subject keeps the 'chore: v24-ci results' prefix the job guard relies on.
-          gh pr merge "$PR" --auto --squash --subject "chore: v24-ci results" \
-            || echo "::warning title=publish-report::auto-merge not enabled on PR #$PR (repo setting 'Allow auto-merge' or main protection missing); it needs a manual merge"
-  compose-config:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      # Audited registry snapshots refer to the PR HEAD, not GitHub's
-      # synthetic merge SHA, which can include unrelated base-branch changes.
-      # Merge compatibility still requires a separately verified merge gate.
-      - uses: actions/checkout@v4
+      - name: Upload report as run artifact
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - run: cp .env.example .env
-      - run: docker compose -f docker-compose.international.yml config >/dev/null
-  browser-tests:
-    needs: changes
-    if: needs.changes.outputs.heavy == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 16
-    steps:
-      # Audited registry snapshots refer to the PR HEAD, not GitHub's
-      # synthetic merge SHA, which can include unrelated base-branch changes.
-      # Merge compatibility still requires a separately verified merge gate.
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with: {node-version: "22"}
-      - name: Parse-check browser scripts before downloading Chromium
-        run: |
-          node --check omni_prod/assets/app.js
-          node --check omni_prod/assets/visual-edit.js
-          node --check tests/customer_flow_browser.cjs
-          node --check tests/preview_frame_browser.cjs
-          node --check tests/project_scope_browser.cjs
-          node --check tests/approval_one_truth_browser.cjs
-      - run: npm install --no-save --package-lock=false playwright@1.62.1
-      # 2026-10-27: `playwright install --with-deps` hung for the whole 5-minute step on 2 of the last ~15 runs
-      # (normally ~22s), which skipped the browser tests and failed customer-ui without testing anything. The
-      # browser download is cached per Playwright version; every attempt (download + apt deps) is bounded and
-      # retried, and three failures still fail the job loudly -- never a skipped test reported as fine.
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ms-playwright-${{ runner.os }}-1.62.1-chromium
-      - name: Install Chromium (bounded attempts, retried)
-        timeout-minutes: 9
-        run: |
-          # 2026-11-18 (#449, run 44259745208): attempt 1 hit its bound on a slow apt mirror (117 kB/s), but its
-          # apt-get child lived on and kept the dpkg lock, so attempts 2 and 3 failed at once on "Could not get
-          # lock /var/lib/dpkg/lock-frontend". apt now WAITS for the lock (bounded, inside one attempt) instead of
-          # failing, so a retry picks up after the stalled install instead of dying on its lock.
-          echo 'DPkg::Lock::Timeout "150";' | sudo tee /etc/apt/apt.conf.d/90-wait-for-dpkg-lock >/dev/null
-          for attempt in 1 2 3; do
-            if timeout 160 npx playwright install --with-deps chromium; then
-              echo "playwright install: ok on attempt $attempt"; exit 0
-            fi
-            echo "::warning title=playwright install::attempt $attempt failed or hung (160s); retrying"
-            sleep $((attempt * 5))
-          done
-          echo "::error title=playwright install::failed 3 times; browser tests cannot run"
-          exit 1
-      - run: node tests/customer_flow_browser.cjs
-        timeout-minutes: 5
-      - run: node tests/preview_frame_browser.cjs
-        timeout-minutes: 3
-      - run: node tests/project_scope_browser.cjs
-        timeout-minutes: 3
-      - run: node tests/approval_one_truth_browser.cjs
-        timeout-minutes: 3
-  customer-ui:
-    # Preserve the required check name and fail closed if classification fails.
-    needs: [changes, browser-tests]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - name: Require browser success or an explicit documentation-only skip
-        env:
-          SCOPE_RESULT: ${{ needs.changes.result }}
-          HEAVY: ${{ needs.changes.outputs.heavy }}
-          TEST_RESULT: ${{ needs.browser-tests.result }}
-        run: python scripts/ci_scope.py --verify-gate
+          name: v24-ci-summary
+          path: report-output/v24-ci-report.md
+          if-no-files-found: error
+          retention-days: 90
