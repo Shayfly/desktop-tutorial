@@ -77,7 +77,7 @@ class TheContentRouteIsInstalledAsInTheWorker(unittest.TestCase):
         rehearsal = (ROOT / 'omni_prod' / 'rehearsal.py').read_text(encoding='utf-8')
         worker = (ROOT / 'omni_prod' / 'worker_tasks.py').read_text(encoding='utf-8')
         self.assertLess(rehearsal.index('engine, gateway = _live_components()'), rehearsal.index('site_content.install('))
-        self.assertLess(rehearsal.index('site_content.install('), rehearsal.index('install_page_locale(engine, prompt)'))
+        self.assertLess(rehearsal.index('site_content.install('), rehearsal.index('from .page_locale import install'))
         self.assertLess(worker.index('engine, gateway = components_factory()'), worker.index('site_content.install('))
         self.assertLess(worker.index('site_content.install('), worker.index('install_uploaded_assets(engine'))
         self.assertLess(worker.index('site_content.install('), worker.index('install_page_locale(engine, prompt)'))

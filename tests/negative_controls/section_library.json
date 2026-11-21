@@ -183,12 +183,12 @@
   },
   {
    "id": "NC10",
-   "what": "the action bar starts on screen: it covers the hero panel's phone link on a phone",
+   "what": "the action bar does not wait for the first screen: it covers the hero panel's phone link on a phone",
    "mutations": [
     {
      "file": "omni_prod/section_library/__init__.py",
-     "old": "<nav class=\"mobile-bar is-away\"",
-     "new": "<nav class=\"mobile-bar\""
+     "old": "document.querySelectorAll(\"#top, .band, #contact form\")",
+     "new": "document.querySelectorAll(\".band, #contact form\")"
     }
    ],
    "targets": [
