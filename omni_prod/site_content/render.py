@@ -292,7 +292,7 @@ FACTS = json.load(open(os.path.join(ROOT, "content", "facts.json"), encoding="ut
 
 
 def visible(page):
-    page = re.sub(r"(?s)<(script|style)\\\\b.*?</\\\\1>", " ", page)
+    page = re.sub(r"(?s)<(script|style)\\b.*?</\\1>", " ", page)
     return " ".join(html.unescape(re.sub(r"<[^>]+>", "", page)).split())
 
 
@@ -304,7 +304,10 @@ class Site(unittest.TestCase):
         threading.Thread(target=cls.server.serve_forever, daemon=True).start()
         with urllib.request.urlopen(cls.base + "/", timeout=10) as r:
             cls.status, cls.ctype, cls.page = r.status, r.headers.get("Content-Type", ""), r.read().decode("utf-8")
-        cls.text = visible(cls.page)
+        # what a visitor reads: the body only (the head's JSON-LD and meta tags repeat the facts), scripts removed
+        cls.text = visible(cls.page.split("</head>", 1)[-1])
+        main = re.search(r"(?s)<main\\b.*?</main>", cls.page)
+        cls.main = visible(main.group(0)) if main else ""
 
     @classmethod
     def tearDownClass(cls):
@@ -322,7 +325,8 @@ class Site(unittest.TestCase):
         self.assertEqual(missing, [])
 
     def test_the_customers_sections_are_in_the_customers_order(self):
-        at = [self.text.find(name) for name in FACTS["order"]]
+        # read inside <main>: the header menu lists every name in order whatever the sections' order is
+        at = [self.main.find(name) for name in FACTS["order"]]
         self.assertNotIn(-1, at)
         self.assertEqual(at, sorted(at))
 

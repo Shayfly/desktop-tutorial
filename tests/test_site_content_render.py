@@ -202,7 +202,48 @@ class TheServedCut(unittest.TestCase):
         self.assertFalse(any('invented' in f.problem for f in cut_only))
 
 
+def run_fixed_tests(files: dict) -> subprocess.CompletedProcess:
+    """The repository's own fixed tests, run for real against the fixed server."""
+    with tempfile.TemporaryDirectory() as tmp:
+        for path, text in files.items():
+            target = Path(tmp) / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text, encoding='utf-8')
+        return subprocess.run([sys.executable, '-m', 'pytest', '-q', '-p', 'no:cacheprovider', 'tests'], cwd=tmp,
+                              capture_output=True, text=True, timeout=120)
+
+
+def fixed_repository(html=None):
+    c = contract()
+    html = html or render(c=c)[0]
+    sheet = Fx.fact_sheet(PROMPT)
+    spec = SimpleNamespace(acceptance=[SimpleNamespace(id=i) for i in ('accept-site-content', 'CUSTOMER-FACTS')])
+    return R.repository(FIXTURE['scripted_content'], sheet, html, spec=spec, contract=c,
+                        bound=R.binds(sheet, c, '2026'), order_names=[TITLES[k] for k in ORDER[1:]])
+
+
 class TheRepositoryRunsItsOwnTests(unittest.TestCase):
+    def test_the_fixed_tests_can_fail(self):
+        """The fixed tests judge what a visitor reads: a fact left only in the head's JSON-LD or in a script, and
+        sections out of the customer's order (the header menu still lists them in order), each fail them."""
+        html = fixed_repository()[R.PAGE]
+        head, body = html.split('</head>', 1)
+        self.assertIn('03-5551234', head)                       # the JSON-LD repeats the facts
+        no_facts = head + '</head>' + body.replace('03-5551234', '03-0000000').replace(
+            'office@cohen-law.co.il', 'x@example.org').replace('דרך מנחם בגין 132, תל אביב', 'רחוב אחר')
+        # the same facts left only inside a script in the body: a script is not what a visitor reads
+        jsonld = re.search(r'(?s)<script type="application/ld\+json">.*?</script>', head).group(0)
+        in_script = no_facts.replace(jsonld, '', 1).replace('</body>', jsonld + '</body>', 1)
+        about, faq = (re.search(rf'(?s)<section[^>]*\bid="{k}".*?</section>', html).group(0) for k in ('about', 'faq'))
+        swapped = html.replace(about, '\0').replace(faq, about).replace('\0', faq)
+        self.assertNotEqual(swapped, html)
+        for label, page in (('a fact only in the head', no_facts), ('a fact only in a body script', in_script),
+                            ('sections out of order', swapped)):
+            with self.subTest(label):
+                run = run_fixed_tests(fixed_repository(page))
+                self.assertNotEqual(run.returncode, 0, label)
+                self.assertIn('1 failed', run.stdout, run.stdout[-1500:])
+
     def test_the_fixed_tests_pass_against_the_fixed_server(self):
         c = contract()
         html, _ = render(c=c)
