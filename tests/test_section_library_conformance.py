@@ -222,5 +222,104 @@ class RoundTwoMeasured(unittest.TestCase):
         self.assertEqual(problems, {})
 
 
+class PurgingChangesNothingVisible(unittest.TestCase):
+    """The page ships only the rules it can use (section_library.purge). The proof that nothing that can match was
+    removed: every direction, the richest and the barest shape, and every layout variant render pixel-identical with
+    the full stylesheet and with the purged one, on a phone and on a wide screen (motion reduced, so no frame of the
+    entrance animation is compared)."""
+
+    def test_the_purged_page_is_pixel_identical_to_the_full_stylesheet(self):
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:  # pragma: no cover
+            self.skipTest('playwright is required to render the page')
+        sample = {'formal': 'counsel', 'warm': 'hearth', 'bold': 'trade', 'elegant': 'blush'}
+        variants = [dict(zip(L.LAYOUTS, combo)) for combo in zip(*[opts for opts in L.LAYOUTS.values()])] + \
+                   [dict(zip(L.LAYOUTS, combo)) for combo in zip(*[opts[::-1] for opts in L.LAYOUTS.values()])]
+        differ = []
+        with sync_playwright() as p:
+            b = p.chromium.launch()
+            pg = b.new_page(viewport={'width': 390, 'height': 844}, reduced_motion='reduce')
+            for direction, palette in sample.items():
+                for name in ('full', 'minimal'):
+                    for layout in variants:
+                        content = dict(shapes()[name], direction=direction, layout=layout)
+                        shots = {}
+                        for purged in (True, False):
+                            L.PURGE = purged
+                            try:
+                                doc, _ = L.page(content, contract_for(palette))
+                            finally:
+                                L.PURGE = True
+                            pg.set_content(re.sub(r'<link[^>]+fonts\.g[^>]+>', '', doc))
+                            for w in (390, 1440):
+                                pg.set_viewport_size({'width': w, 'height': 900})
+                                shots[(purged, w)] = pg.screenshot(full_page=True)
+                        for w in (390, 1440):
+                            if shots[(True, w)] != shots[(False, w)]:
+                                differ.append(f'{direction}/{name}/{layout}/{w}')
+            b.close()
+        self.assertEqual(differ, [])
+
+    def test_the_richest_page_leaves_room_under_the_truth_gate_window(self):
+        biggest = max(len(L.page(dict(c, direction=L.direction_for(pal)['direction']), contract_for(pal))[0])
+                      for pal in L.DIRECTIONS['palettes'] for c in shapes().values())
+        self.assertLess(biggest, PREVIEW_CUT - 5_000)          # 5,000 characters of headroom for longer copy
+
+
+class Variety(unittest.TestCase):
+    """The owner, 2026-11-20: "מגוון בהכול ברמה הכי גבוהה". Each section with more than one designed layout; a business
+    gets its own combination, stable across builds; every combination passes every gate."""
+    maxDiff = None
+
+    def test_a_business_keeps_its_layout_and_businesses_on_one_palette_differ(self):
+        names = ['סטודיו אורן', 'כהן ושות׳', 'שקדייה', 'זרם אינסטלציה', 'מרפאת גפן', 'סטודיו ענבר', 'כוח', 'בוטיק לילך']
+        combos = [L.layout_for({'name': n, 'direction': 'formal'}) for n in names]
+        self.assertEqual(combos, [L.layout_for({'name': n, 'direction': 'formal'}) for n in names])
+        self.assertGreaterEqual(len({tuple(x.values()) for x in combos}), 4)
+
+    def test_a_layout_the_library_does_not_have_raises(self):
+        for bad in ({'hero': 'carousel'}, {'sidebar': 'left'}):
+            with self.assertRaises(ValueError):
+                L.layout_for({'name': 'x', 'direction': 'formal', 'layout': bad})
+
+    def test_the_content_can_name_its_layout_and_the_page_says_which_it_used(self):
+        content = dict(shapes()['full'], direction='bold', layout={'services': 'list', 'faq': 'stacked'})
+        doc, _ = L.page(content, contract_for('trade'))
+        self.assertIn('<ol class="svc-list">', doc)
+        self.assertIn('faq faq--stacked', doc)
+        self.assertRegex(doc, r'data-layout="[^"]*services:list[^"]*faq:stacked')
+
+    def test_every_variant_in_every_direction_passes_every_gate_and_never_scrolls_sideways(self):
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:  # pragma: no cover
+            self.skipTest('playwright is required to render the page')
+        sample = {'formal': 'counsel', 'warm': 'hearth', 'bold': 'trade', 'elegant': 'blush'}
+        problems = {}
+        with sync_playwright() as p:
+            b = p.chromium.launch()
+            pg = b.new_page(viewport={'width': 320, 'height': 800})
+            for direction, palette in sample.items():
+                contract = contract_for(palette)
+                for axis, opts in L.LAYOUTS.items():
+                    for opt in opts:
+                        content = dict(shapes()['full'], direction=direction, layout={axis: opt})
+                        doc, _ = L.page(content, contract)
+                        key, found = f'{direction}/{axis}:{opt}', []
+                        found += [f"g_apple {f['code']}" for f in static.check(doc, contract)]
+                        found += [f'unit {u}' for u in UNITS if U.run(u, doc).get('status') != 'pass']
+                        pg.set_content(re.sub(r'<link[^>]+fonts\.g[^>]+>', '', doc))
+                        for w in (320, 820, 1440):
+                            pg.set_viewport_size({'width': w, 'height': 800})
+                            o = pg.evaluate('document.documentElement.scrollWidth - window.innerWidth')
+                            if o:
+                                found.append(f'{w}px overflow {o}')
+                        if found:
+                            problems[key] = found
+            b.close()
+        self.assertEqual(problems, {})
+
+
 if __name__ == '__main__':
     unittest.main()

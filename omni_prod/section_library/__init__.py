@@ -20,6 +20,7 @@ designed sections and fills them with the customer's content. This module is tha
 """
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import re
@@ -36,10 +37,65 @@ def _minify(css: str) -> str:
     page must fit the 45,000 characters the truth gate reads (preview_smoke)."""
     css = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
     css = re.sub(r'\s+', ' ', css)
-    return re.sub(r'\s*([{};])\s*', r'\1', css).strip()
+    css = re.sub(r'\s*([{};,>])\s*', r'\1', css)       # never inside calc(): + and - keep their spaces
+    css = re.sub(r':\s+', ':', css)                      # "prop: value", "(max-width: 960px)"; a selector has no ": "
+    return css.replace(';}', '}').strip()
 
 
 CSS = _minify((HERE / 'library.css').read_text(encoding='utf-8'))
+# classes the page's own script adds at run time (they are in no markup the library writes)
+_SCRIPT_CLASSES = frozenset({'is-away'})
+PURGE = True        # the screenshot test turns it off to compare
+
+
+def _blocks(css: str) -> list[tuple[str, str]]:
+    """Top-level (prelude, body) pairs of minified CSS (no comments; braces only as block delimiters)."""
+    out, i = [], 0
+    while i < len(css):
+        j = css.index('{', i)
+        depth, k = 1, j + 1
+        while depth:
+            depth += {'{': 1, '}': -1}.get(css[k], 0)
+            k += 1
+        out.append((css[i:j], css[j + 1:k - 1]))
+        i = k
+    return out
+
+
+def _selectors(prelude: str) -> list[str]:
+    parts, depth, cur = [], 0, ''
+    for ch in prelude:
+        depth += {'(': 1, ')': -1}.get(ch, 0)
+        if ch == ',' and depth == 0:
+            parts.append(cur)
+            cur = ''
+        else:
+            cur += ch
+    return parts + [cur]
+
+
+def purge(css: str, classes: set, attrs: dict) -> str:
+    """The rules this page can use: a selector naming a class no element on the page carries, or a body attribute value
+    the page does not have (another art direction), cannot match anything and is left out -- so the page carries only
+    its own style and its text stays inside the 45,000 characters the truth gate and the reviewer read. Nothing that
+    can match is removed (a screenshot test compares the page with and without purging)."""
+    def alive(sel: str) -> bool:
+        if any(c not in classes and c not in _SCRIPT_CLASSES for c in re.findall(r'\.([A-Za-z_][\w-]*)', sel)):
+            return False
+        return all(attrs.get(k) == v for k, v in re.findall(r'\[(data-[\w-]+)="([^"]*)"\]', sel))
+    out = []
+    for prelude, body in _blocks(css):
+        if prelude.startswith('@keyframes'):
+            out.append(f'{prelude}{{{body}}}')
+        elif prelude.startswith('@'):
+            inner = purge(body, classes, attrs)
+            if inner:
+                out.append(f'{prelude}{{{inner}}}')
+        else:
+            sels = [x for x in _selectors(prelude) if alive(x)]
+            if sels:
+                out.append(f'{",".join(sels)}{{{body}}}')
+    return ''.join(out)
 DIRECTIONS = json.loads((HERE / 'directions.json').read_text(encoding='utf-8'))
 NBSP = ' '
 
@@ -224,7 +280,8 @@ def hero(c: dict, tone: str, direction: str, merge_stats: bool = False) -> str:
         # elegant (round 2): the panel figure and the numbers strip are one row in the first screen, not two bands
         row = ([(h['panel_figure'], h.get('panel_caption', ''))] if h.get('panel_figure') else []) + stats_shown(c)
         figure = '<dl class="panel-stats">' + ''.join(f'<div><dt>{e(k)}</dt><dd>{e(v)}</dd></div>' for v, k in row) + '</dl>'
-    return (f'<section class="hero" id="top" aria-labelledby="hero-title"><div class="wrap">{copy}'
+    banner = ' hero--banner' if _layout(c, 'hero') == 'banner' else ''
+    return (f'<section class="hero{banner}" id="top" aria-labelledby="hero-title"><div class="wrap">{copy}'
             f'<div class="panel{" panel--photo" if h.get("image") else ""}" role="group" '
             f'aria-label="{ea(h.get("panel_label") or c["name"])}">{"" if h.get("image") else visual}{figure}'
             f'{f"<dl>{facts}</dl>" if facts else ""}{visual if h.get("image") else ""}</div></div></section>')
@@ -242,8 +299,15 @@ def stats(c: dict, tone: str) -> str:
     return f'<section class="stats" aria-label="{ea(label)}"><div class="wrap"><dl>{items}</dl></div></section>'
 
 
+def _layout(c: dict, axis: str) -> str:
+    return c['_layout'][axis] if '_layout' in c else LAYOUTS[axis][0]
+
+
 def services(c: dict, tone: str) -> str:
     s = c['services']
+    if _layout(c, 'services') == 'list':           # an editorial numbered list: rows on hairlines, no boxes
+        rows = ''.join(f'<li><h3>{e(t)}</h3><p>{e(d)}</p></li>' for t, d in s['items'])
+        return _section('services', tone, f'{_head(s, "services")}<ol class="svc-list">{rows}</ol>')
     cards = ''.join(f'<article class="card"><h3>{e(t)}</h3><p>{e(d)}</p></article>' for t, d in s['items'])
     return _section('services', tone, f'{_head(s, "services")}<div class="cards">{cards}</div>')
 
@@ -311,7 +375,8 @@ def testimonials(c: dict, tone: str) -> str:
     t = c['testimonials']
     quotes = ''.join(f'<figure class="quote"><blockquote><p>{e(q["text"])}</p></blockquote>'
                      f'<figcaption>{e(q["name"])}</figcaption></figure>' for q in t['items'])
-    return _section('testimonials', tone, f'{_head(t, "testimonials")}<div class="quotes">{quotes}</div>')
+    feature = ' quotes--feature' if _layout(c, 'testimonials') == 'feature' and len(t['items']) > 1 else ''
+    return _section('testimonials', tone, f'{_head(t, "testimonials")}<div class="quotes{feature}">{quotes}</div>')
 
 
 def pricelist(c: dict, tone: str) -> str:
@@ -339,12 +404,16 @@ def gallery(c: dict, tone: str) -> str:
 def process(c: dict, tone: str) -> str:
     p = c['process']
     steps = ''.join(f'<li><h3>{e(t)}</h3><p>{e(d)}</p></li>' for t, d in p['steps'])
+    if _layout(c, 'process') == 'timeline':       # a vertical rail beside the heading
+        return _section('process', tone, f'{_head(p, "process")}<ol class="steps steps--timeline">{steps}</ol>', 'aside-layout')
     return _section('process', tone, f'{_head(p, "process")}<ol class="steps">{steps}</ol>')
 
 
 def faq(c: dict, tone: str) -> str:
     f = c['faq']
     items = ''.join(f'<details><summary>{e(q)}</summary><div><p>{e(a)}</p></div></details>' for q, a in f['items'])
+    if _layout(c, 'faq') == 'stacked':             # the heading above one full-width column of questions
+        return _section('faq', tone, f'{_head(f, "faq")}<div class="faq faq--stacked">{items}</div>')
     return _section('faq', tone, f'{_head(f, "faq")}<div class="faq">{items}</div>', 'faq-layout')
 
 
@@ -435,6 +504,25 @@ ORDER = (('hero', hero), ('stats', stats), ('services', services), ('pricelist',
          ('faq', faq), ('contact', contact))
 REQUIRED = ('title', 'description', 'name', 'phone', 'direction', 'hero')
 
+# Variety (the owner, 2026-11-20: "מגוון בהכול ברמה הכי גבוהה"): every section with more than one designed layout. The
+# first option is the default; elegant keeps its centred hero. A business gets its own combination, stable across builds:
+# what the content names wins, the rest comes from its name -- two businesses on one palette do not look alike.
+LAYOUTS = {'hero': ('split', 'banner'), 'services': ('cards', 'list'), 'process': ('steps', 'timeline'),
+           'faq': ('aside', 'stacked'), 'testimonials': ('grid', 'feature')}
+
+
+def layout_for(c: dict) -> dict:
+    """{axis: variant}. A named axis or variant the library does not have raises (never a silent default)."""
+    given = c.get('layout') or {}
+    bad = {k: v for k, v in given.items() if k not in LAYOUTS or v not in LAYOUTS[k]}
+    if bad:
+        raise ValueError(f'unknown layout {bad!r}; the library has {LAYOUTS!r}')
+    seed = hashlib.sha256(str(c['name']).encode('utf-8')).digest()
+    out = {k: given.get(k) or opts[seed[i] % len(opts)] for i, (k, opts) in enumerate(LAYOUTS.items())}
+    if c['direction'] == 'elegant':
+        out['hero'] = 'split'       # elegant's hero is its centred block; a banner would undo the direction
+    return out
+
 
 def tones(keys: list[str], direction: str) -> dict[str, str]:
     """Background tone of every rendered section, from its position: plain and tint alternate (the numbers strip, when
@@ -496,7 +584,7 @@ def page(content: dict, contract: dict, order: list[str] | None = None) -> tuple
             rendered.append(key)
         else:
             skipped.append(key)
-    c = dict(c, _merged=('stats',) if merge else ())
+    c = dict(c, _merged=('stats',) if merge else (), _layout=layout_for(c))
     kept, dropped = about_facts(c, rendered) if c.get('about') else ([], [])
     skipped += [f'about.facts:{k} (already shown)' for k in dropped]
     # a number the panel already shows is said once; the strip's copy is left out and reported
@@ -508,16 +596,19 @@ def page(content: dict, contract: dict, order: list[str] | None = None) -> tuple
     if not c['hero'].get('image'):
         # no hero photo: the page's first image is still the first one the browser meets -- it is not deferred
         body = body.replace(' loading="lazy"', ' loading="eager"', 1)
+    single = any(n in contract['tokens'].get('--font-display', '') for n in DIRECTIONS['single_weight_display'])
+    markup = (f'<a class="skip" href="#main">דלגו לתוכן</a>{header(c, rendered)}<main id="main">{body}</main>'
+              f'{footer(c, rendered)}{mobile_bar(c)}{SCRIPT}')
+    classes = {k for m in re.findall(r'class="([^"]*)"', markup) for k in m.split()}
+    attrs = {'data-direction': direction, **({'data-display-weight': 'regular'} if single else {})}
     head = (f'<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
             f'<title>{e(c["title"])}</title><meta name="description" content="{ea(c["description"])}">'
             f'<meta property="og:title" content="{ea(c["title"])}"><meta property="og:description" content="{ea(c["description"])}">'
             f'<meta property="og:type" content="website"><meta property="og:locale" content="he_IL">'
-            f'{font_links(contract)}<style>{contract["css"]}\n{CSS}</style>{_schema(c)}')
-    single = any(n in contract['tokens'].get('--font-display', '') for n in DIRECTIONS['single_weight_display'])
+            f'{font_links(contract)}<style>{contract["css"]}\n{purge(CSS, classes, attrs) if PURGE else CSS}</style>{_schema(c)}')
     doc = (f'<!doctype html><html lang="he" dir="rtl"><head>{head}</head>'
-           f'<body data-direction="{direction}" data-148-kit="section-library/{LIBRARY_VERSION}"'
-           f'{" data-display-weight=regular" if single else ""}>'
-           f'<a class="skip" href="#main">דלגו לתוכן</a>{header(c, rendered)}<main id="main">{body}</main>'
-           f'{footer(c, rendered)}{mobile_bar(c)}{SCRIPT}</body></html>')
+           f'<body data-direction="{direction}" data-148-kit="section-library/{LIBRARY_VERSION}" '
+           f'data-layout="{" ".join(f"{k}:{v}" for k, v in c["_layout"].items())}"'
+           f'{" data-display-weight=regular" if single else ""}>{markup}</body></html>')
     from ..bidi_ranges import wrap_ranges        # "09:00–18:00" stays in its order on a right-to-left page
     return wrap_ranges(doc), skipped

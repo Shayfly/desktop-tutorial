@@ -199,7 +199,7 @@ class RoundTwo(unittest.TestCase):
         self.c['hours'] = 'א׳–ה׳ 09:00–18:00 · ו׳ 09:00–13:00'
         doc, _ = L.page(self.c, self.contract)
         self.assertIn('<span class="hours-seg">ו׳ <bdi dir="ltr">09:00–13:00</bdi></span>', doc)
-        self.assertIn('bdi, .hours-seg{white-space: nowrap;}', L.CSS)
+        self.assertRegex(L.CSS, r'bdi,\s*\.hours-seg\{white-space:\s*nowrap')
 
     def test_the_elegant_hero_carries_the_numbers_in_one_row_and_says_so(self):
         self.c['direction'] = 'elegant'
