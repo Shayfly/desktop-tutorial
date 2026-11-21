@@ -27,14 +27,21 @@ class TheValidator(unittest.TestCase):
         cls.sheet = Fx.fact_sheet(FIXTURE['prompt'])
         cls.offered, _ = K.offered_sections(cls.sheet, DIRECTIONS['palettes']['counsel'], ORDER, TITLES)
 
-    def problems(self, doc, **kw):
-        return V.validate(doc, self.sheet, self.offered, TITLES, claim_mode=kw.get('claim_mode', 'warn'))
+    def problems(self, doc, sheet=None, **kw):
+        return V.validate(doc, sheet or self.sheet, self.offered, TITLES, claim_mode=kw.get('claim_mode', 'warn'))
+
+    def without(self, *facts):
+        """The production sheet with these facts not given (the customer gave no e-mail, no WhatsApp...)."""
+        sheet = copy.copy(self.sheet)
+        for f in facts:
+            setattr(sheet, f, None)
+        return sheet
 
     def doc(self):
         return copy.deepcopy(FIXTURE['scripted_content'])
 
-    def codes(self, doc, **kw):
-        return {(p.path, p.code) for p in self.problems(doc, **kw)}
+    def codes(self, doc, sheet=None, **kw):
+        return {(p.path, p.code) for p in self.problems(doc, sheet=sheet, **kw)}
 
     def test_the_owners_brief_passes_clean(self):
         self.assertEqual(self.problems(self.doc()), [])
@@ -42,10 +49,10 @@ class TheValidator(unittest.TestCase):
     def test_every_code_has_a_failing_document(self):
         cases = {}
 
-        def case(code, path, mutate, **kw):
+        def case(code, path, mutate, sheet=None, **kw):
             doc = self.doc()
             mutate(doc)
-            cases[code] = (path, self.codes(doc, **kw))
+            cases[code] = (path, self.codes(doc, sheet=sheet, **kw))
 
         sec = lambda d: d['sections']                                                        # noqa: E731
         case('SCHEMA_SHAPE', 'sections.services.icon', lambda d: sec(d)['services'].update(icon='⚖'))
@@ -68,6 +75,15 @@ class TheValidator(unittest.TestCase):
             0, '"ליווי מקצועי ואנושי לאורך כל הדרך" – דנה'))
         case('PRICE_NOT_GIVEN', 'sections.faq.items[0].a', lambda d: sec(d)['faq']['items'][0].update(
             a='פגישת ייעוץ ראשונה עולה 250 ש"ח.'))
+        case('PRICE_NOT_SHOWN', 'sections', lambda d: (sec(d)['hero'].pop('note'), sec(d)['faq']['items'][0].update(
+            a='העלות נקבעת לפי סוג התיק.')))
+        case('PRICE_CONTEXT', 'sections.hero.note', lambda d: sec(d)['hero'].update(note='ליווי תיק מלא: @price:1'))
+        case('PRICE_CONTRADICTED', 'sections.faq.items[1].a', lambda d: sec(d)['faq']['items'][1].update(
+            a='פגישת הייעוץ הראשונה ללא עלות.'))
+        case('CHANNEL_NOT_GIVEN', 'sections.about.paragraphs[0]', lambda d: sec(d)['about']['paragraphs'].__setitem__(
+            0, 'כתבו לנו במייל, ונחזור אליכם.'), sheet=self.without('email'))
+        case('UNSUPPORTED_DETAIL', 'sections.about.paragraphs[0]', lambda d: sec(d)['about']['paragraphs'].__setitem__(
+            0, 'המשרד פועל גם בירושלים ובחיפה.'))
         case('NAME_NOT_GIVEN', 'name', lambda d: d.update(name='כהן ושות׳ עורכי דין ונוטריונים'))
         case('PLACEHOLDER', 'sections.contact.lead', lambda d: sec(d)['contact'].update(lead='כתבו לנו ל«דוא״ל»'))
         case('UNVERIFIABLE_CLAIM', 'sections.hero.lead', lambda d: sec(d)['hero'].update(
@@ -139,6 +155,66 @@ class TheValidator(unittest.TestCase):
         self.assertEqual(self.problems(doc), [])
         doc['sections']['services']['title'] = 'חמישה תחומי ייצוג'
         self.assertIn(('sections.services.title', 'INVENTED_NUMBER'), self.codes(doc))
+
+    def test_facts_written_as_words_are_caught(self):
+        """The reviewer's combined document (factlens a7/a1/a8): every fact written as words is refused (block) or,
+        where the pattern has real false positives, recorded (warn, SITE_CLAIMS calibrating)."""
+        block = {
+            'שישה עורכי דין ליוו אתכם.': 'INVENTED_NUMBER',
+            'עשרים שנות ניסיון בדיני עבודה.': 'INVENTED_NUMBER',
+            'מאות לקוחות מרוצים בכל הארץ.': 'INVENTED_NUMBER',
+            'זמינים בכל שעות היממה, כל ימות השבוע.': 'FACT_IN_COPY',
+            'פתוחים גם בשבת לפגישות דחופות.': 'FACT_IN_COPY',
+            'דירוג ★★★★★ מלקוחותינו.': 'INVENTED_COUNT',
+            'פגישת הייעוץ הראשונה ללא עלות.': 'PRICE_CONTRADICTED',
+        }
+        warn = {
+            '"ליווי מקצועי ואנושי לאורך כל הדרך", אמרה לנו לקוחה.': 'quotation',
+            'עו״ד דנה כהן מובילה את תחום הפיטורים.': 'person',
+            'בראש המשרד עומדת שופטת לשעבר.': 'credential',
+            'יש לנו סניפים בירושלים ובחיפה.': 'place',
+            'פגישות גם ביום שישי בבוקר.': 'day',
+        }
+        for text, code in block.items():
+            with self.subTest(text):
+                doc = self.doc()
+                doc['sections']['about']['paragraphs'][0] = text
+                found = [p for p in self.problems(doc) if p.path == 'sections.about.paragraphs[0]']
+                self.assertIn((code, 'block'), {(p.code, p.severity) for p in found})
+        for text, what in warn.items():
+            with self.subTest(text):
+                doc = self.doc()
+                doc['sections']['about']['paragraphs'][0] = text
+                found = [p for p in self.problems(doc) if p.code == 'UNSUPPORTED_DETAIL']
+                self.assertEqual([p.severity for p in found], ['warn'])
+                self.assertIn(f'a {what}', found[0].why)
+                self.assertEqual([p.severity for p in self.problems(doc, claim_mode='block')
+                                  if p.code == 'UNSUPPORTED_DETAIL'], ['block'])
+        # WhatsApp in copy while the customer gave no WhatsApp (factlens a8)
+        self.assertIn(('sections.contact.lead', 'CHANNEL_NOT_GIVEN'), self.codes(self.doc(), sheet=self.without('whatsapp')))
+        self.assertEqual(self.problems(self.doc()), [])                     # with the customer's WhatsApp it passes
+
+    def test_every_page_price_is_shown_next_to_its_own_label(self):
+        self.assertEqual([(p['id'], p['words']) for p in self.sheet.prices], [('@price:1', ['ייעוץ', 'ראשון'])])
+        doc = self.doc()
+        doc['sections']['faq']['items'][0]['a'] = 'זה עולה @price:1.'           # the question carries the label
+        self.assertEqual(self.problems(doc), [])
+        doc['sections']['faq']['items'][2]['a'] = 'ליווי תיק מלא עולה @price:1.'
+        self.assertIn(('sections.faq.items[2].a', 'PRICE_CONTEXT'), self.codes(doc))
+
+    def test_a_build_budget_is_never_a_page_price_and_the_customers_own_free_is_theirs(self):
+        prompt = FIXTURE['prompt']
+        end = prompt.index('--- Approved project brief')
+        prompt = prompt[:end] + 'התקציב שלי לבניית האתר הוא עד 3,000 ₪. ייעוץ טלפוני קצר חינם.\n' + prompt[end:]
+        sheet = Fx.fact_sheet(prompt)
+        self.assertEqual([p['span'] for p in sheet.prices], ['250 ₪'])
+        self.assertEqual([p['span'] for p in sheet.withheld_prices], ['3,000 ₪'])
+        seen = json.dumps(sheet.for_model(), ensure_ascii=False)
+        self.assertNotIn('3,000', seen)
+        self.assertNotIn('3000', sheet.allowed_numbers())
+        doc = self.doc()
+        doc['sections']['faq']['items'][1]['a'] = 'ייעוץ טלפוני קצר חינם, ובפגישה נעריך את לוח הזמנים.'
+        self.assertEqual(V.validate(doc, sheet, self.offered, TITLES, claim_mode='warn'), [])
 
     def test_the_claim_check_warns_while_it_is_calibrating_and_blocks_when_switched(self):
         doc = self.doc()

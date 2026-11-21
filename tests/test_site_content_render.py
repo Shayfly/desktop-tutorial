@@ -212,6 +212,12 @@ class TheRepositoryRunsItsOwnTests(unittest.TestCase):
                              bound=R.binds(sheet, c, '2026'), order_names=[TITLES[k] for k in ORDER[1:]])
         manifest = json.loads(files['.omni/project.json'])
         self.assertEqual(manifest['verify'][0]['acceptance_ids'], ['accept-site-content', 'CUSTOMER-FACTS'])
+        # the customer's price is a fact the page must show: in facts.json (the fixed tests) and in the plan's S1, as
+        # the library writes it (a no-break space keeps the shekel sign with its number)
+        self.assertIn('250 ₪', json.loads(files[R.FACTS_JSON])['spans'])
+        s1 = manifest['web_saas_acceptance']['personas'][0]['steps'][0]['expect_text_contains']
+        self.assertIn('250\u00a0₪', s1)
+        self.assertEqual([n for n in s1 if n not in html], [])
         with tempfile.TemporaryDirectory() as tmp:
             for path, text in files.items():
                 target = Path(tmp) / path

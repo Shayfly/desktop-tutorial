@@ -364,7 +364,9 @@ def facts_json(sheet, spec_ids: list[str], contract: dict, order_names: list[str
 def project_json(sheet, spec_ids: list[str], contract: dict) -> str:
     """The build and verification contract: one verify entry (the fixed tests) covering every acceptance id, and a
     behaviour plan of the three kinds a content-only site has (data_read, responsive, api_smoke)."""
-    literal = [s for s in sheet.spans() if not _TIME.search(s)]        # a time range is wrapped in <bdi> on the page
+    # each fact as the library writes it in a text node (L.e: "250 ₪" keeps its shekel sign with a no-break space);
+    # a time range is wrapped in <bdi> on the page, so it is asserted by the fixed tests on the visible text instead
+    literal = [L.e(s) for s in sheet.spans() if not _TIME.search(s)]
     token = f"--color-primary: {contract['tokens']['--color-primary']}"
     steps = [
         {'id': 'S1', 'kind': 'data_read', 'acceptance_ids': spec_ids, 'method': 'GET', 'path': '/',

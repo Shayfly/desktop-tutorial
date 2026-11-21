@@ -50,7 +50,8 @@
     "test_a_customer_number_counts_only_what_the_customer_counted",
     "test_a_number_the_customer_never_wrote_is_refused_even_as_a_stat",
     "test_a_number_written_in_words_is_a_number",
-    "test_every_code_has_a_failing_document"
+    "test_every_code_has_a_failing_document",
+    "test_facts_written_as_words_are_caught"
    ]
   },
   {
@@ -226,7 +227,8 @@
     "tests/test_site_content_validate.py"
    ],
    "expect_failed": [
-    "test_a_number_written_in_words_is_a_number"
+    "test_a_number_written_in_words_is_a_number",
+    "test_facts_written_as_words_are_caught"
    ]
   },
   {
@@ -244,6 +246,162 @@
    ],
    "expect_failed": [
     "test_the_sheet_is_the_truth_gates_canon"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "always-open claims in words are not hours: 'בכל שעות היממה, כל ימות השבוע' reaches a page whose customer gave Sun-Thu 09-18",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "            or F._HOURS.search(plain) or _LINK.search(plain) or _ALWAYS_OPEN.search(plain)):",
+     "new": "            or F._HOURS.search(plain) or _LINK.search(plain)):"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_facts_written_as_words_are_caught"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "a star rating the customer never gave is allowed (★★★★★)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "        bad += [m.group(0) for m in _STARS.finditer(plain)]\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_facts_written_as_words_are_caught"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "copy may send visitors to a WhatsApp the customer does not have ('ונמשיך את השיחה בוואטסאפ')",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    if not sheet.whatsapp and _WHATSAPP_WORD.search(plain):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_facts_written_as_words_are_caught"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "details written as words are not recorded: an invented attorney, a former judge, branches in other cities",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    details = _details(plain, sheet)\n",
+     "new": "    details = []\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_facts_written_as_words_are_caught",
+    "test_every_code_has_a_failing_document"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "a price the customer gave may vanish from the page (PRICE_NOT_SHOWN dropped)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    if missing:\n        out.append(Problem('sections', 'PRICE_NOT_SHOWN',",
+     "new": "    if False:\n        out.append(Problem('sections', 'PRICE_NOT_SHOWN',"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_every_code_has_a_failing_document"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "a price may be attached to a service the customer never priced ('ליווי תיק מלא: 250 ₪')",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "        elif not _price_in_context(sheet.price(ref), text[:m.start()], context):",
+     "new": "        elif False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_every_code_has_a_failing_document",
+    "test_every_page_price_is_shown_next_to_its_own_label"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "copy may call free what the customer priced ('ללא עלות' over 250 ₪)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    if free and sheet.prices:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_every_code_has_a_failing_document",
+    "test_facts_written_as_words_are_caught"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "the customer's budget for the build becomes a page price the model sees and must show",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "        if _BUILD_PRICE.search(label) or _BUILD_PRICE.search(clause.split('.')[0]):",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_a_build_budget_is_never_a_page_price_and_the_customers_own_free_is_theirs"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "a price is no longer a fact the served page must show (spans without prices)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "        return [s for s in (self.phone, self.whatsapp, self.email, self.address, *self.hours,\n                            *(p['span'] for p in self.prices)) if s]",
+     "new": "        return [s for s in (self.phone, self.whatsapp, self.email, self.address, *self.hours) if s]"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_render.py::TheRepositoryRunsItsOwnTests"
+   ],
+   "expect_failed": [
+    "test_the_fixed_tests_pass_against_the_fixed_server"
    ]
   }
  ]

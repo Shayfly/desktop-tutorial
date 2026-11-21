@@ -9,19 +9,35 @@ Codes (every one has a failing document in tests/test_site_content_validate.py):
   LAYOUT_UNKNOWN      a layout axis or variant the library does not have (section_library.LAYOUTS)
   TOO_LONG / TOO_FEW / TOO_MANY / EMPTY_TEXT
   NOT_HEBREW          a copy string with no Hebrew letter
-  FACT_IN_COPY        a phone, e-mail, street address, opening hours or link in copy: facts are the platform's slots
+  FACT_IN_COPY        a phone, e-mail, street address, opening hours or link in copy: facts are the platform's slots;
+                      an always-open claim in words ("בכל שעות היממה", "מסביב לשעון", "24/7", "כולל שבת") is hours
   INVENTED_NUMBER     a number the customer never wrote -- a digit run or a Hebrew number word ("שישה", "עשרים"), or a
                       vague magnitude ("מאות", "אלפי", "עשורים") the customer did not use -- OR a customer number
                       that counts something else: each number carries what the customer's number counted ("3 עורכי
                       דין" may be "שלושה עורכי דין", never "3 עשורים"; a year stays a year). A count of the section's
                       own items in its title ("שלושה שלבים" over three steps) is the page's, and passes
-  INVENTED_COUNT      a typed count (reviews, rating, customers) the canon does not hold (fact_canon.count_facts)
+  INVENTED_COUNT      a typed count (reviews, rating, customers) the canon does not hold (fact_canon.count_facts), a
+                      star rating (★★★★★) or a rating in words ("דירוג 5 כוכבים") the customer never gave
+  CHANNEL_NOT_GIVEN   a contact channel the page does not have: WhatsApp with no WhatsApp in the sheet ("נמשיך
+                      בוואטסאפ"), e-mail with no e-mail
   REF_UNKNOWN         a @price:N / @review:N the sheet does not have, or a review reference outside testimonials
   REVIEW_TEXT_WRITTEN a quote with a dash and a name in copy: reviews are the customer's, by reference only
   PRICE_NOT_GIVEN     a currency sign or word in copy: prices are the customer's spans, by reference only
+  PRICE_NOT_SHOWN     a price the customer gave for the page is referenced nowhere ("show the prices exactly as given")
+  PRICE_CONTEXT       a @price:N next to words that are not its own label ("ליווי תיק מלא: @price:1" when the customer
+                      priced "ייעוץ ראשון"); a FAQ answer is read with its question, a price-list item by its name
+  PRICE_CONTRADICTED  "free" (חינם, ללא עלות, ללא תשלום) while the customer gave a price, unless the customer wrote
+                      that word; with no price at all it is an UNSUPPORTED_DETAIL (warn)
   NAME_NOT_GIVEN      the business name is not part of the customer's text (or differs from the declared name)
   PLACEHOLDER         template text (the copy_placeholder unit's patterns, a blanked fact label «...»)
   UNVERIFIABLE_CLAIM  a superlative no fact supports ("המוביל", "הטוב ביותר", "מס׳ 1"), warn until calibrated
+  UNSUPPORTED_DETAIL  a detail written as words that the customer's text does not hold -- a quotation that is not the
+                      customer's, a day name, a title and a name ("עו״ד דנה כהן"), a credential ("שופטת לשעבר"), a
+                      city -- warn until calibrated (SITE_CLAIMS, like UNVERIFIABLE_CLAIM: these have real false
+                      positives, e.g. a bakery's "חלות לשבת")
+
+Facts written as words are read as far as the patterns above go; free prose that states a fact in other words (a
+service the customer never offered, an award) is not checked here -- said in STATUS.md.
 """
 from __future__ import annotations
 
@@ -32,8 +48,9 @@ from .. import fact_canon as F
 from . import schema as K
 
 CODES = ('SCHEMA_SHAPE', 'LAYOUT_UNKNOWN', 'TOO_LONG', 'TOO_FEW', 'TOO_MANY', 'EMPTY_TEXT', 'NOT_HEBREW',
-         'FACT_IN_COPY', 'INVENTED_NUMBER', 'INVENTED_COUNT', 'REF_UNKNOWN', 'REVIEW_TEXT_WRITTEN', 'PRICE_NOT_GIVEN',
-         'NAME_NOT_GIVEN', 'PLACEHOLDER', 'UNVERIFIABLE_CLAIM')
+         'FACT_IN_COPY', 'INVENTED_NUMBER', 'INVENTED_COUNT', 'CHANNEL_NOT_GIVEN', 'REF_UNKNOWN', 'REVIEW_TEXT_WRITTEN',
+         'PRICE_NOT_GIVEN', 'PRICE_NOT_SHOWN', 'PRICE_CONTEXT', 'PRICE_CONTRADICTED', 'NAME_NOT_GIVEN', 'PLACEHOLDER',
+         'UNVERIFIABLE_CLAIM', 'UNSUPPORTED_DETAIL')
 CLAIMS_GATE = 'SITE_CLAIMS'
 _HEBREW = re.compile('[א-ת]')
 _REF = re.compile(r'@(price|review):(\d{1,3})')
@@ -43,6 +60,29 @@ _BLANKED = re.compile(r'«[^»]{1,20}»')
 _CLAIM = re.compile(r'(?<![א-ת])(?:ו?ה?מוביל(?:ה|ים|ות)?|ה?טוב(?:ה|ים|ות)? ביותר|הכי (?:טוב|טובה|טובים|זול|מקצועי)'
                     r'|מס[׳\'"]?\s*1|מספר 1|מספר אחת|ה?גדול(?:ה|ים)? ביותר|ה?זול(?:ה|ים)? ביותר|מובטח(?:ת|ים)?'
                     r'|ללא תחרות|אין כמונו)(?![א-ת])')
+_NB = r'(?<![א-ת])'              # not inside a Hebrew word (a prefix letter is matched explicitly)
+_NE = r'(?![א-ת])'
+_ALWAYS_OPEN = re.compile(_NB + r'[ובל]?(?:כל שעות היממה|מסביב לשעון|24\s*/\s*7|24\s*שעות ביממה|כל ימות השבוע|'
+                          r'כל יום בשבוע|כולל שבת|כולל בשבת|פתוח(?:ים|ה)? (?:ב)?שבת|גם בשבת)' + _NE)
+_STARS = re.compile(r'[★⭐✩✪✭✮✯☆]{2,}|[★⭐]\s*\d|\d\s*[★⭐]')
+_RATING_WORDS = re.compile(_NB + r'[ובל]?(?:דירוג|כוכבים|כוכב)' + _NE)
+_WHATSAPP_WORD = re.compile(r'וואטסאפ|ווטסאפ|וואצאפ|ווצאפ|whats\s*app', re.I)
+_EMAIL_WORD = re.compile(_NB + r'[ובלמה]?(?:מייל|אימייל|דוא["״]ל|דואר אלקטרוני)' + _NE + r'|\be-?mail\b', re.I)
+_DAY = re.compile(_NB + r'(?:[ובל]?(?:יום|ימי|בימי)\s+(?:ראשון|שני|שלישי|רביעי|חמישי|שישי)|[ובלמה]{0,2}(?:שבת|שבתות))'
+                  + _NE)
+_TITLE_NAME = re.compile(_NB + r'(?:עו["״]ד|ד["״]ר|רו["״]ח|פרופ[׳\']|פרופסור|עורכת הדין|עורך הדין|רואת החשבון|'
+                         r'רואה החשבון|הד["״]ר)\s+([א-ת]{2,}(?:\s+[א-ת]{2,})?)')
+_CREDENTIAL = re.compile(_NB + r'[ובלמה]?(?:לשעבר|דוקטורט|פרופסור|חבר(?:ת|י)? (?:ב)?לשכת|זוכ(?:ה|ת) פרס|פרס|'
+                         r'מוסמכ(?:ת|ים)?|בוגר(?:ת|י)?|מרצה|מרצים)' + _NE)
+_FREE = re.compile(_NB + r'[ובל]?(?:חינם|בחינם|ללא עלות|ללא תשלום|ללא תשלום נוסף|בלי עלות|בלי תשלום|מתנה|ללא חיוב)' + _NE)
+_QUOTED = re.compile(r'[“"„]([^”"\n]{8,})[”"]')
+CITIES = ('תל אביב', 'ירושלים', 'חיפה', 'באר שבע', 'ראשון לציון', 'פתח תקווה', 'פתח תקוה', 'אשדוד', 'נתניה', 'חולון',
+          'בני ברק', 'רמת גן', 'אשקלון', 'רחובות', 'בת ים', 'הרצליה', 'כפר סבא', 'חדרה', 'מודיעין', 'נצרת', 'רעננה',
+          'לוד', 'רמלה', 'עפולה', 'אילת', 'טבריה', 'קריית שמונה', 'נהריה', 'עכו', 'הוד השרון', 'גבעתיים',
+          'רמת השרון', 'ראש העין', 'יבנה', 'קריית גת', 'צפת', 'דימונה', 'ערד', 'כרמיאל', 'קריית אתא', 'קריית ביאליק',
+          'נס ציונה', 'אור יהודה', 'יהוד', 'אריאל', 'מעלה אדומים', 'רהט', 'שפרעם', 'זכרון יעקב', 'קיסריה',
+          'גבעת שמואל', 'קריית אונו', 'אור עקיבא', 'שדרות', 'אופקים', 'נתיבות', 'קריית מוצקין', 'קריית ים')
+_CITY = re.compile(_NB + r'[ובלמה]{0,2}(' + '|'.join(sorted(map(re.escape, CITIES), key=len, reverse=True)) + ')' + _NE)
 _NUM_VALUE = re.compile(r'^\+?\d[\d,]*$')
 _NUMBER_PATH = re.compile(r'(?:stats\.items\[\d+\]|hero\.panel_figure)\.value$')     # a customer number, not copy
 
@@ -180,24 +220,40 @@ def _text_problems(path: str, text: str, sheet, claim_severity: str, *, context:
         out.append(Problem(path, 'NOT_HEBREW', 'a copy string with no Hebrew letter'))
     shown, odd = F.page_phones(plain)
     if (shown or odd or F._EMAIL.search(plain) or F._STREET.search(plain) or hour_spans(plain)
-            or F._HOURS.search(plain) or _LINK.search(plain)):
+            or F._HOURS.search(plain) or _LINK.search(plain) or _ALWAYS_OPEN.search(plain)):
         out.append(Problem(path, 'FACT_IN_COPY', 'a phone, e-mail, address, opening hours or link in copy: the '
                                                  'platform shows the facts in their own places; leave them out'))
+    if not sheet.whatsapp and _WHATSAPP_WORD.search(plain):
+        out.append(Problem(path, 'CHANNEL_NOT_GIVEN', 'WhatsApp in copy: the customer gave no WhatsApp, the page has none'))
+    if not sheet.email and _EMAIL_WORD.search(plain):
+        out.append(Problem(path, 'CHANNEL_NOT_GIVEN', 'e-mail in copy: the customer gave no e-mail, the page has none'))
     out += _number_problems(path, plain, sheet, context=context, implied=implied)
     counts = sheet.counts or {}
     bad = [ref for kind, value, ref in F.count_facts(plain) if value not in (counts.get(kind) or ())]
+    if not counts.get('rating'):
+        bad += [m.group(0) for m in _STARS.finditer(plain)]
+        if _RATING_WORDS.search(plain) and (re.search(r'\d', plain) or any(
+                mm.kind == 'word' for mm in _mentions(plain))):
+            bad.append(_RATING_WORDS.search(plain).group(0))
     if bad:
         out.append(Problem(path, 'INVENTED_COUNT', f'count(s) the customer never gave: {", ".join(bad)}'))
     if F._QUOTE.search(plain):
         out.append(Problem(path, 'REVIEW_TEXT_WRITTEN', 'a quote with a name: reviews are the customer\'s, by reference'))
     if _CURRENCY.search(plain):
         out.append(Problem(path, 'PRICE_NOT_GIVEN', 'a price in copy: write the customer\'s price as its @price:N'))
+    free = [m.group(0) for m in _FREE.finditer(plain) if not _said(sheet, m.group(0))]
+    if free and sheet.prices:
+        out.append(Problem(path, 'PRICE_CONTRADICTED', f'"{free[0]}": the customer gave a price ('
+                           + ', '.join(f"{p['label']} {p['span']}" for p in sheet.prices[:3]) + ')'))
     for m in _REF.finditer(text):
         kind, ref = m.group(1), m.group(0)
         if kind == 'review':
             out.append(Problem(path, 'REF_UNKNOWN', f'{ref} in copy: a review is shown only in testimonials'))
         elif sheet.price(ref) is None:
             out.append(Problem(path, 'REF_UNKNOWN', f'{ref} is not one of the customer\'s prices'))
+        elif not _price_in_context(sheet.price(ref), text[:m.start()], context):
+            out.append(Problem(path, 'PRICE_CONTEXT', f'{ref} is the customer\'s price for "{sheet.price(ref)["label"]}"; '
+                               'write it right after those words'))
     from ..skill_units.copy_placeholder.probe import _TEXT as _PLACEHOLDER
     if _PLACEHOLDER.search(plain) or _BLANKED.search(plain):
         out.append(Problem(path, 'PLACEHOLDER', 'template text or a blanked fact label left in copy'))
@@ -205,7 +261,58 @@ def _text_problems(path: str, text: str, sheet, claim_severity: str, *, context:
     if m:
         out.append(Problem(path, 'UNVERIFIABLE_CLAIM', f'"{m.group(0)}": a claim no fact the customer gave supports',
                            claim_severity))
+    details = _details(plain, sheet)
+    if details:
+        out.append(Problem(path, 'UNSUPPORTED_DETAIL', 'details the customer\'s text does not hold: '
+                           + '; '.join(details[:6]), claim_severity))
     return out
+
+
+def _price_in_context(price: dict, before: str, context: str = '') -> bool:
+    """True when the words right before a price reference (back to the clause's start), or the leaf's context (a FAQ
+    answer's question), share a content word with the price's own label. A price whose label has no content word
+    cannot be bound and passes (said in the docstring of facts._prices)."""
+    from . import numbers as N
+    words = price.get('words') or []
+    if not words:
+        return True
+    clause = re.split(r'[,;.!?\n]', before.rstrip(' \t:–—-'))[-1]
+    near = clause.split() + (context or '').split()
+    return any(N.same_noun(a, b) for a in near for b in words if len(a) > 1)
+
+
+def _mentions(text: str):
+    from . import numbers as N
+    return N.mentions(text)
+
+
+def _said(sheet, phrase: str) -> bool:
+    """The phrase (spaces folded) is in the customer's words or the customer's address."""
+    norm = lambda t: ' '.join((t or '').split())                                    # noqa: E731
+    return norm(phrase) in norm(sheet.customer) or norm(phrase) in norm(sheet.address)
+
+
+def _details(plain: str, sheet) -> list[str]:
+    found = []
+    for m in _QUOTED.finditer(plain):
+        if not _said(sheet, m.group(1).strip()):
+            found.append(f'a quotation that is not the customer\'s: "{m.group(1)[:40]}"')
+    for m in _DAY.finditer(plain):
+        if not _said(sheet, m.group(0).lstrip('ובלמה') if 'יום' not in m.group(0) else m.group(0)):
+            found.append(f'a day: "{m.group(0)}"')
+    for m in _TITLE_NAME.finditer(plain):
+        if not all(_said(sheet, w) for w in m.group(1).split()):
+            found.append(f'a person: "{m.group(0)}"')
+    for m in _CREDENTIAL.finditer(plain):
+        word = m.group(0)
+        if not (_said(sheet, word) or _said(sheet, word[1:])):
+            found.append(f'a credential: "{word}"')
+    for m in _CITY.finditer(plain):
+        if not _said(sheet, m.group(1)):
+            found.append(f'a place: "{m.group(1)}"')
+    if not sheet.prices:
+        found += [f'a price: "{m.group(0)}"' for m in _FREE.finditer(plain) if not _said(sheet, m.group(0))]
+    return found
 
 
 def validate(doc, sheet, offered: dict, outline_titles: dict | None = None, *, layouts: dict | None = None,
@@ -282,7 +389,25 @@ def validate(doc, sheet, offered: dict, outline_titles: dict | None = None, *, l
         if (value.startswith('@price') and sheet.price(value) is None) or \
                 (value.startswith('@review') and sheet.review(value) is None):
             out.append(Problem(path, 'REF_UNKNOWN', f'{value} is not in the customer\'s facts'))
+        elif value.startswith('@price'):
+            name = _pricelist_name(sections, path)
+            if not _price_in_context(sheet.price(value), '', name):
+                out.append(Problem(path, 'PRICE_CONTEXT', f'{value} is the customer\'s price for '
+                                   f'"{sheet.price(value)["label"]}", not for "{name}"'))
+    used = {m.group(0) for _, text in leaves(doc) for m in _REF.finditer(text)} | {v for _, v in _refs(sections)}
+    missing = [p for p in sheet.prices if p['id'] not in used]
+    if missing:
+        out.append(Problem('sections', 'PRICE_NOT_SHOWN', 'prices the customer gave are on no section: '
+                           + ', '.join(f"{p['id']} ({p['label']} {p['span']})" for p in missing)))
     return out
+
+
+def _pricelist_name(sections: dict, path: str) -> str:
+    m = re.match(r'sections\.pricelist\.groups\[(\d+)\]\.items\[(\d+)\]\.price$', path)
+    try:
+        return str(sections['pricelist']['groups'][int(m.group(1))]['items'][int(m.group(2))].get('name') or '')
+    except (TypeError, KeyError, IndexError, AttributeError):
+        return ''
 
 
 def _number_values(sections: dict):

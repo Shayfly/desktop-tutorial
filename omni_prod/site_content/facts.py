@@ -101,6 +101,7 @@ class FactSheet:
     images: dict = field(default_factory=dict)
     problems: list[str] = field(default_factory=list)
     counts: dict = field(default_factory=dict)          # typed counts the customer gave (fact_canon.count_facts)
+    withheld_prices: list = field(default_factory=list)  # prices of the build itself (a budget): never on the page
 
     def allowed_numbers(self) -> set[str]:
         return {n['value'] for n in self.numbers}
@@ -120,6 +121,8 @@ class FactSheet:
         out = text or ''
         for p in sorted(self.prices, key=lambda p: -len(p['span'])):
             out = out.replace(p['span'], p['id'])
+        for p in sorted(self.withheld_prices, key=lambda p: -len(p['span'])):
+            out = out.replace(p['span'], '«מחיר שאינו לאתר»')
         return blank_facts(out)
 
     def for_model(self) -> dict:
@@ -130,7 +133,8 @@ class FactSheet:
             'outline': [{'title': t, 'customer_wrote': self.model_text(b)} for t, b in self.outline],
             'numbers_you_may_use': [{'value': n['value'], 'counts': ('a year' if n['kind'] == 'year' else n['noun']),
                                      'context': self.model_text(n['context'])} for n in self.numbers],
-            'prices': [{'id': p['id'], 'context': self.model_text(p['context'])} for p in self.prices],
+            'prices': [{'id': p['id'], 'label': p['label'], 'context': self.model_text(p['context'])}
+                       for p in self.prices],
             'reviews': [{'id': r['id'], 'author': r['author']} for r in self.reviews],
             'business_name_given': self.name,
             'facts_the_platform_shows': [k for k in ('phone', 'whatsapp', 'email', 'address', 'hours')
@@ -142,13 +146,15 @@ class FactSheet:
         return {'prompt_sha256': self.prompt_sha256, 'canon_hash': self.canon_hash, 'name': self.name,
                 'phone': self.phone, 'whatsapp': self.whatsapp, 'whatsapp_basis': self.whatsapp_basis,
                 'email': self.email, 'address': self.address, 'hours': list(self.hours), 'reviews': self.reviews,
-                'prices': self.prices, 'numbers': self.numbers, 'outline': [list(x) for x in self.outline],
+                'prices': self.prices, 'withheld_prices': self.withheld_prices, 'numbers': self.numbers,
+                'outline': [list(x) for x in self.outline],
                 'exclusions': self.exclusions, 'images': self.images, 'problems': self.problems, 'counts': self.counts}
 
     def spans(self) -> list[str]:
         """Every fact the served page must show, as the customer wrote it (content/facts.json; the fixed test asserts
-        each one appears in GET /)."""
-        return [s for s in (self.phone, self.whatsapp, self.email, self.address, *self.hours) if s]
+        each one appears in GET /): the contact facts, the hours and every price the customer gave for the page."""
+        return [s for s in (self.phone, self.whatsapp, self.email, self.address, *self.hours,
+                            *(p['span'] for p in self.prices)) if s]
 
 
 def _context(text: str, start: int, end: int) -> str:
@@ -177,14 +183,48 @@ def _numbers(text: str) -> list[dict]:
     return out
 
 
-def _prices(text: str) -> list[dict]:
+# a clause that names the build itself: its price is the customer's budget for 148AI, not a price for the page
+_BUILD_PRICE = re.compile(r'תקציב|בניית האתר|לבניית|עלות האתר|מחיר האתר|לאתר עצמו|\bbudget\b', re.I)
+_LABEL_CUT = re.compile(r'[:,;.!?()\n]|(?<!\d)\d{1,2}[.)]\s')
+PRICE_STOPWORDS = frozenset({'כמה', 'עולה', 'עולים', 'עולות', 'עלות', 'מחיר', 'מחירים', 'המחיר', 'של', 'את', 'עם', 'על',
+                             'זה', 'הוא', 'היא', 'האם', 'רק', 'גם', 'עד', 'כל', 'לכל', 'בערך', 'החל', 'מ-', 'ב-', 'ל-'})
+
+
+def price_words(label: str) -> list[str]:
+    """The content words of a price's label ("כמה עולה ייעוץ ראשון" -> ['ייעוץ', 'ראשון'])."""
+    return [w for w in re.findall(r'[א-תA-Za-z"״׳\']{2,}', label or '') if w not in PRICE_STOPWORDS]
+
+
+def _label(clean: str, start: int) -> str:
+    """The customer's words before a price, inside its clause: "5. שאלות נפוצות: כמה עולה ייעוץ ראשון (250 ₪)" ->
+    'כמה עולה ייעוץ ראשון'."""
+    before = clean[max(0, start - 120):start].rstrip(' \t(:–—-')
+    return ' '.join(_LABEL_CUT.split(before)[-1].split())
+
+
+def _prices(text: str) -> tuple[list[dict], list[dict]]:
+    """(the prices the customer gave for the page, the prices of the build itself). A page price is shown by its
+    reference @price:N, next to its own label ('label', 'words'); the same span written twice is one price whose
+    words are every label it was written with."""
     clean = blank_facts(text)
     out: list[dict] = []
+    withheld: list[dict] = []
     for m in _PRICE.finditer(clean):
         span = ' '.join(m.group(0).split())
-        if not any(p['span'] == span for p in out):
-            out.append({'id': f'@price:{len(out) + 1}', 'span': span, 'context': _context(clean, m.start(), m.end())})
-    return out
+        label = _label(clean, m.start())
+        clause = label + ' ' + clean[m.end():m.end() + 60].split('\n')[0]
+        if _BUILD_PRICE.search(label) or _BUILD_PRICE.search(clause.split('.')[0]):
+            if not any(p['span'] == span for p in withheld):
+                withheld.append({'span': span, 'label': label})
+            continue
+        known = next((p for p in out if p['span'] == span), None)
+        if known is None:
+            out.append({'id': f'@price:{len(out) + 1}', 'span': span, 'label': label,
+                        'words': price_words(label), 'context': _context(clean, m.start(), m.end())})
+        else:
+            known['words'] += [w for w in price_words(label) if w not in known['words']]
+    page_spans = {p['span'] for p in out}
+    return out, [w for w in withheld if w['span'] not in page_spans]
 
 
 def _reviews(canon) -> list[dict]:
@@ -280,13 +320,14 @@ def fact_sheet(prompt: str, *, asset_plan=None, images=()) -> FactSheet:
     if len(names) > 1:
         problems.append('name_not_one')
     placed, image_problems = _images(asset_plan, images)
+    prices, withheld = _prices(customer)
     hours = [v for k, v in F.facts_to_show(prompt) if k == 'hours']
     return FactSheet(
         prompt_sha256=hashlib.sha256((prompt or '').encode('utf-8')).hexdigest(), canon_hash=canon.hash,
         name=names[0] if len(names) == 1 else None, phone=mains[0] if len(mains) == 1 else None,
         whatsapp=whatsapp, whatsapp_basis=basis, email=emails[0] if len(emails) == 1 else None,
         address=addresses[0] if len(addresses) == 1 else None, hours=hours, reviews=_reviews(canon),
-        prices=_prices(customer), numbers=_numbers(customer), customer=customer, outline=outline(prompt),
+        prices=prices, withheld_prices=withheld, numbers=_numbers(customer), customer=customer, outline=outline(prompt),
         exclusions=[x['key'] for x in read_customer_exclusions(prompt)], images=placed,
         problems=problems + image_problems,
         counts={k: sorted(canon.values(k)) for k in ('reviewCount', 'rating', 'customerCount', 'count')
