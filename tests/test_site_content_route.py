@@ -27,9 +27,10 @@ def on(**extra):
     return mock.patch.dict(os.environ, {'OMNI_SITE_LIBRARY': 'on', **extra})
 
 
-def with_request(text: str) -> str:
+def with_request(text: str, prompt: str = PROMPT) -> str:
     """The prompt with `text` added to the customer's request (before the approved brief)."""
-    return PROMPT[:REQUEST_END] + text + '\n' + PROMPT[REQUEST_END:]
+    end = prompt.index('--- Approved project brief')
+    return prompt[:end] + text + '\n' + prompt[end:]
 
 
 def with_brief_line(line: str) -> str:
@@ -130,6 +131,47 @@ class TheDecisionTable(unittest.TestCase):
         unnamed = PROMPT.replace('וכפתור וואטסאפ', 'וכפתור חיוג').replace('וואטסאפ: 050-5551234', 'נייד')
         sheet = Fx.fact_sheet(unnamed)
         self.assertEqual((sheet.whatsapp, sheet.whatsapp_basis), (None, None))
+
+    def test_a_whatsapp_the_customer_says_no_to_takes_the_legacy_path(self):
+        from omni_prod.site_content import facts as Fx
+        no_button = PROMPT.replace('וכפתור וואטסאפ', 'וכפתור חיוג')
+        negated = {
+            # the brief's own evidence line still labels 050-5551234 WhatsApp: the customer's "no" wins
+            'no whatsapp': with_request('אין לנו וואטסאפ.', no_button),
+            'an affirmative and a negated mention': with_request('בלי כפתור וואטסאפ בראש העמוד.'),
+        }
+        with on():
+            for label, prompt in negated.items():
+                with self.subTest(label):
+                    self.assertEqual(decide(prompt).reason, 'whatsapp_negated')
+                    sheet = Fx.fact_sheet(prompt)
+                    self.assertEqual((sheet.whatsapp, sheet.whatsapp_basis), (None, 'negated'))
+        only_mobile = Fx.fact_sheet('בלי וואטסאפ, רק שיחות טלפון. נייד: 050-7654321.')
+        self.assertEqual((only_mobile.whatsapp, only_mobile.problems[:1]), (None, ['whatsapp_negated']))
+        english = Fx.fact_sheet('A site for my shop. We have no WhatsApp. Mobile 050-7654321.')
+        self.assertEqual(english.whatsapp_basis, 'negated')
+
+    def test_a_landline_labelled_whatsapp_is_never_sent_to_wa_me(self):
+        from omni_prod.site_content import facts as Fx
+        landline = PROMPT.replace('וואטסאפ: 050-5551234', 'נייד').replace('| 050-5551234', '')
+        prompt = with_request('וואטסאפ: 03-5551234.', landline)
+        with on():
+            self.assertEqual(decide(prompt).reason, 'whatsapp_landline')
+        sheet = Fx.fact_sheet(prompt)
+        self.assertEqual((sheet.whatsapp, sheet.whatsapp_basis), (None, 'landline'))
+
+    def test_a_whatsapp_label_never_crosses_a_sentence_or_another_label(self):
+        from omni_prod import fact_canon as F
+        from omni_prod.site_content import facts as Fx
+
+        def whatsapp(text):
+            return Fx._whatsapp(text, F.build_canon(text), Fx.customer_text(text))[:2]
+        # the landline after the full stop is not labelled; the only mobile is WhatsApp's
+        self.assertEqual(whatsapp('אפשר גם בוואטסאפ. 03-5551234 במשרד, 050-7654321 בנייד.'),
+                         ('050-7654321', 'only_mobile'))
+        # another fact's label inside the gap: the phone is that fact's
+        self.assertEqual(whatsapp('כפתור וואטסאפ טלפון 03-5551234, נייד 050-7654321'), ('050-7654321', 'only_mobile'))
+        self.assertEqual(whatsapp('וואטסאפ: 050-7654321. טלפון: 03-5551234.'), ('050-7654321', 'labelled'))
 
     def test_every_decision_is_logged_and_kept_for_the_evidence(self):
         engine = SimpleNamespace()

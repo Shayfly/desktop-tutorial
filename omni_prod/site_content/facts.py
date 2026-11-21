@@ -6,10 +6,14 @@ so the canon hash in the content document and in the evidence is the one the gat
 the phone, the WhatsApp number, the e-mail, the address, the hours, the reviews and the prices from here, in the
 customer's own spans; the model writes copy only and sees none of these values (`for_model` blanks them).
 
-WhatsApp is a fact: it is on the page only when the customer's own words name WhatsApp, and its number is the phone the
-customer labelled WhatsApp ("וואטסאפ: 050-...") or, with no label, the customer's only mobile number. A WhatsApp that is
-named and has no such number is a route problem (the build takes the legacy path and says why), never a guess -- a
-landline is never sent to wa.me.
+WhatsApp is a fact: it is on the page only when the customer's own words name WhatsApp AFFIRMATIVELY, and its number
+is the mobile phone the customer labelled WhatsApp ("וואטסאפ: 050-...") or, with no label, the customer's only mobile
+number. Each of these is a route problem (the build takes the legacy path and says why), never a guess:
+  whatsapp_negated         the customer's words say no WhatsApp ("אין לנו וואטסאפ", "בלי וואטסאפ", "without WhatsApp"),
+                           anywhere -- one negated mention outweighs an affirmative one
+  whatsapp_landline        the number labelled WhatsApp is a landline: a landline is never sent to wa.me
+  whatsapp_number_unknown  WhatsApp is named and no mobile number is labelled, or there are several
+A label never crosses a sentence or another fact's label ("וואטסאפ. טלפון: 050-..." labels nothing).
 """
 from __future__ import annotations
 
@@ -25,8 +29,13 @@ BRIEF_MARKER = '--- Approved project brief'
 # wording (rules, decisions, the design line with its hex colours) and is not the customer's text.
 CUSTOMER_LINES = ('Customer facts', 'Audience:', 'Main action:', 'Screens:', 'Initial content:')
 _WHATSAPP = re.compile(r'וואטסאפ|ווטסאפ|וואצאפ|ווצאפ|whats\s*app', re.I)
-# the WhatsApp word, then at most 15 characters of label punctuation/words, then a phone span
-_WA_LABEL = re.compile(r'(?:וואטסאפ|ווטסאפ|וואצאפ|ווצאפ|whats\s*app)[^\d\n]{0,15}?(?=[+\d])', re.I)
+# the WhatsApp word, then at most 15 characters of label punctuation/words inside the same sentence, then a phone span
+_WA_LABEL = re.compile(r'(?:וואטסאפ|ווטסאפ|וואצאפ|ווצאפ|whats\s*app)([^\d\n.!?;]{0,15}?)(?=[+\d])', re.I)
+# another fact's label inside that gap: the phone after it is that fact's, not WhatsApp's
+_OTHER_LABEL = re.compile(r'טלפון|נייד|מייל|דוא["״]?ל|כתובת|phone|mobile|e-?mail|address', re.I)
+# a negation within the three words before a WhatsApp mention, inside its clause
+_NEGATION = re.compile(r"^(?:ו?(?:אין|בלי|ללא|לא|בלא)|no|not|without|don'?t|doesn'?t)$", re.I)
+_CLAUSE = re.compile(r'[,.;:!?\n()]')
 _PRICE = re.compile(r'(?:₪\s*\d[\d,.]*\d|₪\s*\d|\d[\d,.]*\d\s*(?:₪|ש["״]ח|שקלים|שקל|NIS)|\d\s*(?:₪|ש["״]ח|שקלים|שקל|NIS))',
                     re.I)
 _DIGITS = re.compile(r'\d[\d,.]*\d|\d')
@@ -178,20 +187,39 @@ def _reviews(canon) -> list[dict]:
     return out
 
 
+def negated(text: str, start: int) -> bool:
+    """True when one of the three words before position `start`, inside its clause, is a negation ("אין לנו
+    וואטסאפ", "בלי כפתור וואטסאפ", "no WhatsApp")."""
+    before = _CLAUSE.split(text[max(0, start - 80):start])[-1]
+    words = [w.strip('"\'״׳-') for w in before.split()][-3:]
+    return any(_NEGATION.match(w) for w in words if w)
+
+
 def _whatsapp(prompt: str, canon, customer: str) -> tuple[str | None, str | None, list[str]]:
-    """(WhatsApp span, basis, phones left as the main phone(s)) -- None when the customer's words do not name it."""
+    """(WhatsApp span, basis, phones left as the main phone(s)) -- None when the customer's words do not name it.
+    basis: 'labelled' | 'only_mobile' | None (not named) | 'negated' | 'landline' | 'unknown' (the last three are
+    route problems, said by fact_sheet)."""
     phones = [f for f in canon.facts if f.key == 'phone']
-    if not _WHATSAPP.search(customer) and not _WHATSAPP.search(prompt.split(BRIEF_MARKER, 1)[0]):
-        return None, None, [f.source_ref for f in phones]
+    every = [f.source_ref for f in phones]
+    said = [F.decode_entities(customer), F.decode_entities(request_text(prompt))]
+    mentions = [(text, m.start()) for text in said for m in _WHATSAPP.finditer(text)]
+    if not mentions:
+        return None, None, every
+    if any(negated(text, at) for text, at in mentions):
+        return None, 'negated', every
     text = F.decode_entities(prompt)
     labelled = []
     for m in _WA_LABEL.finditer(text):
+        if _OTHER_LABEL.search(m.group(1)):
+            continue
         span = F._PHONE.match(text, m.end())
         parsed = F.parse_phone(span.group(0)) if span else None
         if parsed is not None and parsed.ok and parsed.e164 not in labelled:
             labelled.append(parsed.e164)
     by_value = {f.value: f.source_ref for f in phones}
     if len(labelled) == 1 and labelled[0] in by_value:
+        if F.parse_phone(by_value[labelled[0]]).kind != 'mobile':
+            return None, 'landline', every
         rest = [f.source_ref for f in phones if f.value != labelled[0]] or [by_value[labelled[0]]]
         return by_value[labelled[0]], 'labelled', rest
     mobiles = [f for f in phones if F.parse_phone(f.source_ref).kind == 'mobile']
@@ -216,6 +244,9 @@ def _images(asset_plan, images) -> tuple[dict, list[str]]:
     return out, problems
 
 
+_WHATSAPP_PROBLEM = {'negated': 'whatsapp_negated', 'landline': 'whatsapp_landline', 'unknown': 'whatsapp_number_unknown'}
+
+
 def fact_sheet(prompt: str, *, asset_plan=None, images=()) -> FactSheet:
     """The sheet for one build, from the approved prompt (the truth gate's own text)."""
     from ..page_outline import outline
@@ -224,8 +255,8 @@ def fact_sheet(prompt: str, *, asset_plan=None, images=()) -> FactSheet:
     customer = customer_text(prompt)
     whatsapp, basis, mains = _whatsapp(prompt, canon, customer)
     problems = []
-    if basis == 'unknown':
-        problems.append('whatsapp_number_unknown')
+    if basis in _WHATSAPP_PROBLEM:
+        problems.append(_WHATSAPP_PROBLEM[basis])
     if len(mains) != 1:
         problems.append('phone_not_one')
     emails = [f.source_ref for f in canon.facts if f.key == 'email']

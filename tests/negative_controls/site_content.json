@@ -56,8 +56,8 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/facts.py",
-     "old": "    if not _WHATSAPP.search(customer) and not _WHATSAPP.search(prompt.split(BRIEF_MARKER, 1)[0]):",
-     "new": "    if False:"
+     "old": "    if not mentions:\n        return None, None, every\n",
+     "new": "    if False:\n        return None, None, every\n"
     }
    ],
    "targets": [
@@ -134,6 +134,57 @@
    "expect_failed": [
     "test_every_id_the_chain_can_produce_has_an_owner",
     "test_the_copy_gates_are_content_and_the_layout_gates_are_the_platforms"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the negation check is removed: a customer who said 'אין לנו וואטסאפ' gets a wa.me link on their page",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "    if any(negated(text, at) for text, at in mentions):\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py"
+   ],
+   "expect_failed": [
+    "test_a_whatsapp_the_customer_says_no_to_takes_the_legacy_path"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the labelled branch accepts a landline: a landline is sent to wa.me",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "        if F.parse_phone(by_value[labelled[0]]).kind != 'mobile':\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py"
+   ],
+   "expect_failed": [
+    "test_a_landline_labelled_whatsapp_is_never_sent_to_wa_me"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the WhatsApp label crosses a sentence again: the next sentence's landline is 'labelled' WhatsApp",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "([^\\d\\n.!?;]{0,15}?)",
+     "new": "([^\\d\\n]{0,15}?)"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py"
+   ],
+   "expect_failed": [
+    "test_a_whatsapp_label_never_crosses_a_sentence_or_another_label"
    ]
   }
  ]
