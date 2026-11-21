@@ -78,6 +78,33 @@ class TheLibrary(unittest.TestCase):
             b.close()
         self.assertEqual(over, {320: 0, 390: 0, 1440: 0})
 
+    def test_the_production_visual_check_finds_nothing_it_enforces_on_a_phone_or_a_desktop(self):
+        # the content route's real chain (2026-11-21): visual_qa's enforced rules failed the page on a phone -- the
+        # closed menu's links were measured off-screen and over the hero, and the fixed action bar covered the hero
+        # panel's phone link. The same audit, in the same viewports, after the same settle time.
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:  # pragma: no cover
+            self.skipTest('playwright is required to render the page')
+        from omni_prod import visual_qa as VQ
+        audit_js = re.search(r'AUDIT = r"""(.*?)"""', VQ.SCRIPT, re.S).group(1)       # the sandbox script's own audit
+        page_html = re.sub(r'<link[^>]+fonts\.g[^>]+>', '', self.doc)
+        found = {}
+        with sync_playwright() as p:
+            b = p.chromium.launch()
+            for name, v in VQ.VIEWPORTS.items():
+                ctx = b.new_context(viewport={'width': v['width'], 'height': v['height']}, is_mobile=v['mobile'],
+                                    has_touch=v['mobile'], device_scale_factor=1, locale='he-IL')
+                pg = ctx.new_page()
+                pg.set_content(page_html)
+                pg.wait_for_timeout(1200)
+                audit = pg.evaluate(audit_js, v['mobile'])
+                found[name] = [f"{f['kind']} {f['at']} {f['detail']}" for f in audit['findings']
+                               if f['kind'] in VQ.DEFAULT_ENFORCED]
+                ctx.close()
+            b.close()
+        self.assertEqual(found, {'desktop': [], 'mobile': []})
+
     def test_the_render_check_sees_every_element_settled_after_300ms(self):
         # g_apple/render.py screenshots 300ms after load: the hero entrance must be over by then, and nothing below the
         # first screen may wait for a scroll to appear (the platform's own reviewers would see a blank page)

@@ -77,6 +77,8 @@ a:active { opacity: 0.8; }
   padding: var(--space-16) var(--space-24) var(--space-24); background: var(--color-bg); border-block-end: 1px solid var(--color-border);
   max-height: calc(100dvh - 4.5rem); overflow-y: auto; overscroll-behavior: contain;
   box-shadow: 0 var(--space-24) var(--space-48) color-mix(in srgb, var(--color-text) 15%, transparent); }
+/* a closed menu's links take no place on the page (the production visual check measures them otherwise) */
+.menu:not([open]) nav { display: none; }
 .menu nav a { padding: var(--space-16) 0; color: var(--color-text); text-decoration: none; font-size: var(--text-20);
   border-block-end: 1px solid var(--color-border); }
 
