@@ -95,6 +95,7 @@ class FactSheet:
     exclusions: list[str]
     images: dict = field(default_factory=dict)
     problems: list[str] = field(default_factory=list)
+    counts: dict = field(default_factory=dict)          # typed counts the customer gave (fact_canon.count_facts)
 
     def allowed_numbers(self) -> set[str]:
         return {n['value'] for n in self.numbers}
@@ -132,7 +133,7 @@ class FactSheet:
                 'phone': self.phone, 'whatsapp': self.whatsapp, 'whatsapp_basis': self.whatsapp_basis,
                 'email': self.email, 'address': self.address, 'hours': list(self.hours), 'reviews': self.reviews,
                 'prices': self.prices, 'numbers': self.numbers, 'outline': [list(x) for x in self.outline],
-                'exclusions': self.exclusions, 'images': self.images, 'problems': self.problems}
+                'exclusions': self.exclusions, 'images': self.images, 'problems': self.problems, 'counts': self.counts}
 
     def spans(self) -> list[str]:
         """Every fact the served page must show, as the customer wrote it (content/facts.json; the fixed test asserts
@@ -245,7 +246,9 @@ def fact_sheet(prompt: str, *, asset_plan=None, images=()) -> FactSheet:
         address=addresses[0] if len(addresses) == 1 else None, hours=hours, reviews=_reviews(canon),
         prices=_prices(customer), numbers=_numbers(customer), customer=customer, outline=outline(prompt),
         exclusions=[x['key'] for x in read_customer_exclusions(prompt)], images=placed,
-        problems=problems + image_problems)
+        problems=problems + image_problems,
+        counts={k: sorted(canon.values(k)) for k in ('reviewCount', 'rating', 'customerCount', 'count')
+                if canon.values(k)})
 
 
 def fingerprint(value) -> str:
