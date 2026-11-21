@@ -163,6 +163,40 @@
     "test_the_first_screen_image_is_eager_and_every_other_is_lazy",
     "test_the_richer_page_still_passes_the_contract_and_every_unit"
    ]
+  },
+  {
+   "id": "NC9",
+   "what": "a closed phone menu keeps its links on the page: the production visual check measures them off-screen and over the hero",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": ".menu:not([open]) nav { display: none; }\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py"
+   ],
+   "expect_failed": [
+    "test_the_production_visual_check_finds_nothing_it_enforces_on_a_phone_or_a_desktop"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the action bar starts on screen: it covers the hero panel's phone link on a phone",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "<nav class=\"mobile-bar is-away\"",
+     "new": "<nav class=\"mobile-bar\""
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py"
+   ],
+   "expect_failed": [
+    "test_the_production_visual_check_finds_nothing_it_enforces_on_a_phone_or_a_desktop"
+   ]
   }
  ]
 }
