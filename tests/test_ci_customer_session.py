@@ -119,6 +119,140 @@ class AgainstALiveServer(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 'UNEXPECTED')
 
 
+class _Site(BaseHTTPRequestHandler):
+    """Answers like production (investor_app.py): register creates the account or, for an existing one with the right
+    password, logs it in (existing_account); a wrong password is 409; /me needs the session; logout revokes it."""
+    accounts = {}
+    sessions = {}
+    revoked = []
+
+    def _send(self, code, body):
+        data = json.dumps(body).encode()
+        self.send_response(code)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))) or b'{}')
+        token_in = self.headers.get('Cookie', '').partition('148ai_session=')[2]
+        if self.path == '/api/v28/auth/register':
+            email, password = body['email'], body['password']
+            known = _Site.accounts.get(email)
+            if known and known[0] != password:
+                return self._send(409, {'detail': 'account already exists'})
+            existing = known is not None
+            if not existing:
+                known = (password, FOUNDER if email.startswith('founder') else f'usr_{len(_Site.accounts) + 1}')
+                _Site.accounts[email] = known
+            token = f'tok-{len(_Site.sessions) + len(_Site.revoked) + 1}'
+            _Site.sessions[token] = known[1]
+            return self._send(200, {'token': token, **({'existing_account': True} if existing else {})})
+        if self.path == '/api/v28/auth/logout':
+            _Site.revoked.append(token_in)
+            _Site.sessions.pop(token_in, None)
+            return self._send(200, {'revoked': True})
+        self._send(404, {})
+
+    def do_GET(self):
+        token = self.headers.get('Cookie', '').partition('148ai_session=')[2]
+        account = _Site.sessions.get(token) if self.path == '/api/v28/me' else None
+        self._send(*((200, {'id': account, 'email': 'shop@example.com'}) if account else (401, {'detail': 'invalid'})))
+
+    def log_message(self, *a):
+        pass
+
+
+class LoggingInByItself(unittest.TestCase):
+    """2026-11-21: with CUSTOMER_TEST_EMAIL and CUSTOMER_TEST_PASSWORD the check logs in fresh every run (a stored
+    session expires after 7 days), through the real HTTP client against a server that answers like production."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.server = ThreadingHTTPServer(('127.0.0.1', 0), _Site)
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+        cls.base = f'http://127.0.0.1:{cls.server.server_port}'
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+
+    def setUp(self):
+        _Site.accounts.clear(), _Site.sessions.clear(), _Site.revoked.clear()
+
+    def run_main(self, email=None, password=None, stored=None):
+        env = {'BASE_URL': self.base}
+        out = io.StringIO()
+        with mock.patch.dict(os.environ, env, clear=False), contextlib.redirect_stdout(out):
+            for name, value in ((C.EMAIL_VAR, email), (C.PASSWORD_VAR, password), (C.STORED_SESSION_VAR, stored)):
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+            code = C.main()
+        return code, out.getvalue()
+
+    def test_the_first_run_creates_the_account_and_revokes_its_session(self):
+        code, out = self.run_main('shop+test@example.com', 'S3cret-only-for-tests')
+        self.assertEqual(code, 0, out)
+        self.assertIn('PASS account usr_1', out)
+        self.assertIn('the account was created on this run', out)
+        self.assertIn('the session was revoked', out)
+        self.assertEqual(_Site.sessions, {})                       # nothing left open on production
+        self.assertEqual(len(_Site.revoked), 1)
+
+    def test_a_later_run_logs_in_to_the_same_account(self):
+        _Site.accounts['shop+test@example.com'] = ('S3cret-only-for-tests', 'usr_existing')
+        _Site.sessions['tok-old'] = 'usr_existing'                 # an earlier session of the same account
+        code, out = self.run_main('shop+test@example.com', 'S3cret-only-for-tests')
+        self.assertEqual(code, 0, out)
+        self.assertIn('PASS account usr_existing', out)
+        self.assertNotIn('created on this run', out)
+
+    def test_a_wrong_password_fails_out_loud(self):
+        _Site.accounts['shop+test@example.com'] = ('the-right-one', 'usr_existing')
+        code, out = self.run_main('shop+test@example.com', 'a-wrong-one')
+        self.assertEqual(code, 1)
+        self.assertIn('::error title=customer session UNAUTHORIZED::the test customer already exists', out)
+        self.assertIn('does not match', out)
+
+    def test_the_founder_is_refused_and_its_session_still_revoked(self):
+        code, out = self.run_main('founder@example.com', 'whatever-1')
+        self.assertEqual(code, 1)
+        self.assertIn('customer session FOUNDER', out)
+        self.assertEqual(_Site.sessions, {})
+        self.assertEqual(len(_Site.revoked), 1)
+
+    def test_only_one_of_the_two_secrets_is_a_readable_failure(self):
+        for email, password in (('shop+test@example.com', None), (None, 'S3cret-only-for-tests')):
+            with self.subTest(email=bool(email)):
+                code, out = self.run_main(email, password)
+                self.assertEqual(code, 1)
+                self.assertIn('customer session MISSING::only one of CUSTOMER_TEST_EMAIL and CUSTOMER_TEST_PASSWORD', out)
+
+    def test_the_login_is_preferred_over_a_stored_session(self):
+        code, out = self.run_main('shop+test@example.com', 'S3cret-only-for-tests', stored=state('tok-expired'))
+        self.assertEqual(code, 0, out)
+        self.assertIn('(logged in fresh', out)
+
+    def test_nothing_set_says_how_to_fix_it_with_both_ways(self):
+        code, out = self.run_main()
+        self.assertEqual(code, 1)
+        for name in ('CUSTOMER_TEST_EMAIL', 'CUSTOMER_TEST_PASSWORD', 'CUSTOMER_STORAGE_STATE', 'storage_state'):
+            self.assertIn(name, out)
+
+    def test_neither_the_address_nor_the_password_nor_the_token_is_printed(self):
+        _, out = self.run_main('shop+test@example.com', 'S3cret-only-for-tests')
+        for secret in ('shop+test', 'S3cret-only-for-tests', 'tok-1'):
+            self.assertNotIn(secret, out)
+        _Site.accounts['shop+test@example.com'] = ('the-right-one', 'usr_existing')
+        _, out = self.run_main('shop+test@example.com', 'a-wrong-one')
+        for secret in ('shop+test', 'a-wrong-one', 'the-right-one'):
+            self.assertNotIn(secret, out)
+
+
 class TheJob(unittest.TestCase):
     def setUp(self):
         self.text = WORKFLOW.read_text(encoding='utf-8')
@@ -126,6 +260,8 @@ class TheJob(unittest.TestCase):
     def test_the_job_gives_the_secret_to_the_check_and_cannot_skip(self):
         self.assertIn('CUSTOMER_STORAGE_STATE: ${{ secrets.CUSTOMER_STORAGE_STATE }}', self.text)
         self.assertIn('run: python3 scripts/customer_session_check.py', self.text)
+        self.assertIn('CUSTOMER_TEST_EMAIL: ${{ secrets.CUSTOMER_TEST_EMAIL }}', self.text)
+        self.assertIn('CUSTOMER_TEST_PASSWORD: ${{ secrets.CUSTOMER_TEST_PASSWORD }}', self.text)
         for skip in ('continue-on-error', 'if:', '|| true', 'exit 0'):
             self.assertNotIn(skip, self.text)
 

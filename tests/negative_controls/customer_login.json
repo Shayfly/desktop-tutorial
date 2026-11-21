@@ -1,0 +1,83 @@
+{
+  "pr": "customer-login",
+  "sha256": [
+    "scripts/customer_session_check.py",
+    "tests/test_ci_customer_session.py",
+    ".github/workflows/customer-session.yml"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "a wrong password for the test customer (409) is not reported as such",
+      "mutations": [
+        {
+          "file": "scripts/customer_session_check.py",
+          "old": "    if status == 409:",
+          "new": "    if False:  # NEGATIVE CONTROL"
+        }
+      ],
+      "targets": [
+        "tests/test_ci_customer_session.py"
+      ],
+      "expect_failed": [
+        "test_a_wrong_password_fails_out_loud"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "the session the check opened is left open on production (no logout)",
+      "mutations": [
+        {
+          "file": "scripts/customer_session_check.py",
+          "old": "                revoked = logout(base, token)",
+          "new": "                revoked = True  # NEGATIVE CONTROL"
+        }
+      ],
+      "targets": [
+        "tests/test_ci_customer_session.py"
+      ],
+      "expect_failed": [
+        "test_the_first_run_creates_the_account_and_revokes_its_session",
+        "test_the_founder_is_refused_and_its_session_still_revoked"
+      ]
+    },
+    {
+      "id": "NC3",
+      "what": "the two login secrets are ignored and the expiring stored session is used instead",
+      "mutations": [
+        {
+          "file": "scripts/customer_session_check.py",
+          "old": "        if email and password:                            # preferred",
+          "new": "        if False:  # NEGATIVE CONTROL"
+        }
+      ],
+      "targets": [
+        "tests/test_ci_customer_session.py"
+      ],
+      "expect_failed": [
+        "test_a_later_run_logs_in_to_the_same_account",
+        "test_a_wrong_password_fails_out_loud",
+        "test_the_first_run_creates_the_account_and_revokes_its_session",
+        "test_the_founder_is_refused_and_its_session_still_revoked",
+        "test_the_login_is_preferred_over_a_stored_session"
+      ]
+    },
+    {
+      "id": "NC4",
+      "what": "the PASS line prints the test customer's password",
+      "mutations": [
+        {
+          "file": "scripts/customer_session_check.py",
+          "old": "            how = ('logged in fresh' +",
+          "new": "            how = ('logged in fresh ' + password +"
+        }
+      ],
+      "targets": [
+        "tests/test_ci_customer_session.py"
+      ],
+      "expect_failed": [
+        "test_neither_the_address_nor_the_password_nor_the_token_is_printed"
+      ]
+    }
+  ]
+}
