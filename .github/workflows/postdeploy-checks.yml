@@ -34,6 +34,11 @@ on:
   push:
     branches: [milestone/pre-staging-2026-10-05]
     paths: [.github/workflows/postdeploy-checks.yml]
+  # 2026-11-21 (critical path freshness): verify-replay -- no model calls, no stopped worker, a one-off container --
+  # runs by itself every day; every other stage stays manual (on a schedule inputs.stage is empty, so only the
+  # verify-replay steps, which default to it, run). Last green before this: 2026-10-20; run 44941296147 green 2026-11-21.
+  schedule:
+    - cron: '43 2 * * *'
 
 concurrency:
   group: postdeploy-checks
@@ -41,7 +46,7 @@ concurrency:
 
 jobs:
   checks:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: [self-hosted, omni-worker]
     timeout-minutes: 45
     defaults:
@@ -186,10 +191,10 @@ jobs:
           PY
 
       - name: Re-verify stored versions through the production chain (no model calls)
-        if: inputs.stage == 'verify-replay'
+        if: (inputs.stage || 'verify-replay') == 'verify-replay'
         timeout-minutes: 50
         env:
-          N: ${{ inputs.versions }}
+          N: ${{ inputs.versions || '10' }}
         run: |
           set -euo pipefail
           case "$N" in ''|*[!0-9]*) echo "versions must be a number"; exit 1;; esac
@@ -210,7 +215,7 @@ jobs:
           PY
 
       - name: Confirm replay completed with successful version evidence
-        if: inputs.stage == 'verify-replay'
+        if: (inputs.stage || 'verify-replay') == 'verify-replay'
         run: |
           set -euo pipefail
           python3 - "$RUNNER_TEMP/verify.txt" <<'PY'
@@ -230,7 +235,7 @@ jobs:
           PY
 
       - name: Upload replay screenshots (desktop/mobile)
-        if: inputs.stage == 'verify-replay'
+        if: (inputs.stage || 'verify-replay') == 'verify-replay'
         uses: actions/upload-artifact@v4
         with:
           name: visual-replay-screenshots
@@ -239,7 +244,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Remove replay screenshots from the runner (container-owned files)
-        if: always() && inputs.stage == 'verify-replay'
+        if: always() && (inputs.stage || 'verify-replay') == 'verify-replay'
         run: docker run --rm -v "$RUNNER_TEMP:/t" alpine:3.20 rm -rf /t/visual || true
 
       - name: Unit economics from the ledgers (read-only, internal)
