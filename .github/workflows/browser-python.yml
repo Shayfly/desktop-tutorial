@@ -22,7 +22,7 @@ permissions:
 jobs:
   browser-python:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 27
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,7 +66,9 @@ jobs:
           PY
       - name: Negative controls (browser)
         if: always()
-        timeout-minutes: 6
+        # 2026-11-21 (run 44954125388): 24 controls since the library merge; 21 ran and passed in 6 minutes and the
+        # step was cut at its limit. Measured there: about 16 s a control with 2 workers, so 24 need about 6.5 minutes.
+        timeout-minutes: 13
         env:
           NC_ENV: browser
           NC_JOBS: "2"
