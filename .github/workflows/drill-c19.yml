@@ -52,8 +52,9 @@ jobs:
               out['policy'] = {'zero_cost_mode': p.zero_cost_mode, 'allow_external_fallback': p.allow_external_fallback,
                                'external_budget_usd': str(p.external_budget_usd), 'calls': p.max_external_calls_per_build}
               # a probe endpoint, never contacted (authorize_model_call makes no request); the placeholder is not a key
+              probe = 'drill-placeholder-not-a-key'    # never sent anywhere; ModelEndpoint only requires a value
               ep = mp.ModelEndpoint(name='drill', base_url='https://drill.invalid/v1', model='drill',
-                                    api_key='drill-placeholder-not-a-key', external=True)
+                                    api_key=probe, external=True)
               try:
                   mp.authorize_model_call(endpoint=ep, policy=p, state=mp.ModelUseState(),
                                           estimated_cost_usd=Decimal('0.001'))
