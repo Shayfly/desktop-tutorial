@@ -4,7 +4,8 @@ name: Drill C11 2026-11-21 (drain refuses without a verified rollback)
 # image can be kept. Third in the owner's order of 2026-11-21 (C16 PASS run 44932418710; C19 PASS run 44932702825).
 # Expected, stated before the run: drain.sh exits 1 with "NOT draining, nothing was stopped" and "cannot save a rollback
 # image", writes drain-failed, attempts no stop/kill/rm/up/run/restart/down (the wrapper refuses and records every one),
-# and the same containers run before and after. Anything else = FAIL, and the drills stop here.
+# and the same containers run before and after. Anything else = FAIL, and the drills stop here. A drill-setup error
+# (the preflight cannot list the worker) is NOT RUN, never PASS or FAIL.
 on:
   push:
     branches: [drill/monthly-2026-11-21]
@@ -39,7 +40,13 @@ jobs:
               || { echo "::error title=C11 not run::cannot fetch $f"; exit 1; }
           done
           : > "$D/.env"                                   # compose needs the file; `ps` needs no values
-          export OMNI_SANDBOX_SHARED_SECRET=drill-placeholder
+          # Attempt 2 (Claude's bug in attempt 1, run 44932757080): only OMNI_SANDBOX_SHARED_SECRET got a placeholder;
+          # compose also requires OMNI_PREVIEW_RUNTIME_HOST (docker-compose.yml:144), so `docker compose ps` failed and
+          # drain.sh refused at "cannot list container" before the rollback check. Every ${VAR:?} the compose file
+          # requires now gets a placeholder (values are never read by `ps`), and a preflight proves the listing works.
+          for v in $(grep -oE '\$\{[A-Z0-9_]+:\?' "$D/docker-compose.yml" | sed -E 's/^\$\{//; s/:\?$//' | sort -u); do
+            export "$v=drill-placeholder"; echo "placeholder for required compose variable $v"
+          done
           REAL=$(command -v docker)
           SHIM="$RUNNER_TEMP/drillbin"; mkdir -p "$SHIM"
           cat > "$SHIM/docker" <<EOF
@@ -53,6 +60,11 @@ jobs:
           exec "$REAL" "\$@"
           EOF
           chmod +x "$SHIM/docker"
+          pre=$(cd "$D" && PATH="$SHIM:$PATH" docker compose ps -q worker 2>"$RUNNER_TEMP/pre.err"); pre_rc=$?
+          if [ "$pre_rc" -ne 0 ] || [ -z "$pre" ]; then
+            echo "::error title=C11 NOT RUN (drill setup)::docker compose cannot list the worker from the drill directory (exit $pre_rc): $(tr '\n' ' ' < "$RUNNER_TEMP/pre.err" | cut -c1-300)"; exit 1
+          fi
+          echo "::notice title=C11 preflight::the drill directory lists the live worker container ${pre:0:12} (project omni-worker)"
           before=$(docker ps --format '{{.Names}} {{.Status}}' | sort | cut -d' ' -f1 | tr '\n' ' ')
           set +e
           (cd "$D" && PATH="$SHIM:$PATH" DEPLOY_STATE_DIR="$RUNNER_TEMP/drill-state" ACTIVE_JOBS_CMD=true bash ./drain.sh) > "$RUNNER_TEMP/drain.out" 2>&1
