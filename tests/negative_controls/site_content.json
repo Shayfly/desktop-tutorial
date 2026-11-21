@@ -12,7 +12,13 @@
   "omni_prod/site_content/owners.py",
   "omni_prod/site_content/__init__.py",
   "omni_prod/autonomous_core.py",
-  "omni_prod/site_content/numbers.py"
+  "omni_prod/site_content/numbers.py",
+  "tests/test_site_content_agents.py",
+  "omni_prod/site_content/agents.py",
+  "omni_prod/worker_tasks.py",
+  "omni_prod/rehearsal.py",
+  "tests/test_rehearsal_installs_the_request.py",
+  "omni_prod/site_content/schema.py"
  ],
  "controls": [
   {
@@ -436,6 +442,351 @@
    ],
    "expect_failed": [
     "test_every_legacy_reason"
+   ]
+  },
+  {
+   "id": "NC25",
+   "what": "the library's bare skips are dropped from the evidence again: an offered section the model left out vanishes",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "                      skipped=skipped_report(skipped, lib_skipped, offered, doc),",
+     "new": "                      skipped=[f'{k}: {why}' for k, why in skipped] + [s for s in lib_skipped if ':' in s],"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheGenerator"
+   ],
+   "expect_failed": [
+    "test_every_section_the_page_does_not_show_is_said_with_its_reason"
+   ]
+  },
+  {
+   "id": "NC26",
+   "what": "a refused rewrite after a verified round raises again: the verified work is thrown away as site_content_invalid",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            raise RepairDeclined('site_content_invalid', str(exc), paid_call=self.agent.calls > called) from exc",
+     "new": "            raise"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheRepairer"
+   ],
+   "expect_failed": [
+    "test_a_refused_rewrite_ends_the_loop_on_its_best_version"
+   ]
+  },
+  {
+   "id": "NC27",
+   "what": "a round declined before any model call is counted as a repair round again ('after 1 repair round(s) ... no paid round')",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "                if not exc.paid_call:\n                    rounds -= 1          # declined before any model call: this repair round did not run\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_engine.py::TheLoopStopsOnADecline"
+   ],
+   "expect_failed": [
+    "test_a_declined_repair_ends_on_the_best_version_with_its_reason"
+   ]
+  },
+  {
+   "id": "NC28",
+   "what": "the advisory filter sits outside the quality gate again: a round it passes skips the quality assessment",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "        quality._inner = A.AdvisoryFilterExecutor(quality._inner, core, recorder)\n        core.executor = A.SiteParityExecutor(core.executor, core, parity_mode)\n",
+     "new": "        core.executor = A.SiteParityExecutor(A.AdvisoryFilterExecutor(core.executor, core, recorder), core,\n                                             parity_mode)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheAdvisoryFilter"
+   ],
+   "expect_failed": [
+    "test_a_reviewer_finding_never_fails_the_release"
+   ]
+  },
+  {
+   "id": "NC29",
+   "what": "a pass made of advisory findings carries no test count: the release policy reads the sandbox tests as UNKNOWN",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            tests = base.tests_executed if base is not None and base.passed else report.tests_executed\n",
+     "new": "            tests = report.tests_executed\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheAdvisoryFilter"
+   ],
+   "expect_failed": [
+    "test_a_reviewer_finding_never_fails_the_release"
+   ]
+  },
+  {
+   "id": "NC30",
+   "what": "the review record still counts the reviewer's advisory finding as blocking: the release policy fails the build",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        self._reconcile_review(record=report.passed)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheAdvisoryFilter"
+   ],
+   "expect_failed": [
+    "test_a_reviewer_finding_never_fails_the_release"
+   ]
+  },
+  {
+   "id": "NC31",
+   "what": "the rehearsal swallows an install error and builds the legacy path the route was meant to replace",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "    if site_error is None:\n",
+     "new": "    if True:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_installs_the_request.py::TheContentRouteIsInstalledAsInTheWorker"
+   ],
+   "expect_failed": [
+    "test_an_unknown_flag_value_stops_the_rehearsal_as_it_stops_the_worker"
+   ]
+  },
+  {
+   "id": "NC32",
+   "what": "install changes the engine before a setting that can raise is read: a half-installed route",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    parity_mode = G.mode('SITE_PARITY')\n",
+     "new": "    core.architect = A.ContentSpecArchitect(core, route)\n    parity_mode = G.mode('SITE_PARITY')\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_installs_the_request.py::TheContentRouteIsInstalledAsInTheWorker"
+   ],
+   "expect_failed": [
+    "test_a_route_that_cannot_be_installed_leaves_the_engine_untouched"
+   ]
+  },
+  {
+   "id": "NC33",
+   "what": "the sign-in stage's crash id as the group names it (AUTHFORM) has no owner",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/owners.py",
+     "old": "    'AUTHFORM': 'platform',                   # the same stage as the group names it (verification_group.layer_id)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_owners.py"
+   ],
+   "expect_failed": [
+    "test_every_id_the_chain_can_produce_has_an_owner",
+    "test_the_group_names_every_stage_the_chain_appends"
+   ]
+  },
+  {
+   "id": "NC34",
+   "what": "the generated tests' script/style regex is escaped twice again: a fact inside a script counts as shown",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/render.py",
+     "old": "    page = re.sub(r\"(?s)<(script|style)\\\\b.*?</\\\\1>\", \" \", page)",
+     "new": "    page = re.sub(r\"(?s)<(script|style)\\\\\\\\b.*?</\\\\\\\\1>\", \" \", page)"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_render.py::TheRepositoryRunsItsOwnTests"
+   ],
+   "expect_failed": [
+    "test_the_fixed_tests_can_fail"
+   ]
+  },
+  {
+   "id": "NC35",
+   "what": "the generated order test reads the whole page again: the header menu passes sections out of order",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/render.py",
+     "old": "        at = [self.main.find(name) for name in FACTS[\"order\"]]",
+     "new": "        at = [self.text.find(name) for name in FACTS[\"order\"]]"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_render.py::TheRepositoryRunsItsOwnTests"
+   ],
+   "expect_failed": [
+    "test_the_fixed_tests_can_fail"
+   ]
+  },
+  {
+   "id": "NC36",
+   "what": "the pre-pass truth gate reads the rendered page instead of the page as served (images inlined, cut at 45,000)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "    served = transform({R.PAGE: html})[R.PAGE] if callable(transform) else html\n",
+     "new": "    served = html\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::ThePrepass"
+   ],
+   "expect_failed": [
+    "test_the_truth_gate_reads_the_page_as_served_cut_at_45000",
+    "test_an_invented_fact_past_the_cut_is_caught_on_the_whole_page"
+   ]
+  },
+  {
+   "id": "NC37",
+   "what": "a gate in warn mode blocks before the sandbox",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            out['block' if mode == 'block' else 'warn'].append({**failure, 'owner': O.owner_of(failure['acceptance_id'])})",
+     "new": "            out['block'].append({**failure, 'owner': O.owner_of(failure['acceptance_id'])})"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::ThePrepass"
+   ],
+   "expect_failed": [
+    "test_a_gate_in_warn_mode_never_blocks"
+   ]
+  },
+  {
+   "id": "NC38",
+   "what": "a rewrite may set paths it was not given",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        if outside:\n            raise SiteContentInvalid(f'the rewrite set paths it was not given: {outside}')\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheRepairer"
+   ],
+   "expect_failed": [
+    "test_a_rewrite_of_a_path_it_was_not_given_is_refused",
+    "test_a_refused_rewrite_ends_the_loop_on_its_best_version"
+   ]
+  },
+  {
+   "id": "NC39",
+   "what": "a document still invalid after its one correction is rendered",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            if V.blocking(problems):\n                report['problems']",
+     "new": "            if False:\n                report['problems']"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheGenerator"
+   ],
+   "expect_failed": [
+    "test_a_document_still_invalid_after_its_one_correction_fails_loudly"
+   ]
+  },
+  {
+   "id": "NC40",
+   "what": "a finding the customer owns ends as a platform defect instead of asking the customer",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        if by_owner['customer']:",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheRepairer"
+   ],
+   "expect_failed": [
+    "test_a_finding_the_customer_owns_asks_the_customer"
+   ]
+  },
+  {
+   "id": "NC41",
+   "what": "SITE_PARITY never finds a served page that is not the rendered one",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            if pages['/'] != str(repository.get(R.PAGE, ''))[:PREVIEW_CUT]:",
+     "new": "            if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheParityCheck"
+   ],
+   "expect_failed": [
+    "test_the_served_page_is_the_rendered_page_and_the_only_page"
+   ]
+  },
+  {
+   "id": "NC42",
+   "what": "the worker reports site_content_invalid as a generic failure",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "    if isinstance(exc, SiteContentInvalid):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheWorker"
+   ],
+   "expect_failed": [
+    "test_the_failure_codes"
+   ]
+  },
+  {
+   "id": "NC43",
+   "what": "the release message no longer says the failure is the platform's renderer",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        platform_defect = getattr(result, 'stop_reason', '') in ('platform_render_defect', 'unowned_finding')",
+     "new": "        platform_defect = False"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheWorker",
+    "tests/test_site_content_engine.py::TheLoopStopsOnADecline"
+   ],
+   "expect_failed": [
+    "test_the_release_message_of_a_declined_round",
+    "test_a_declined_repair_ends_on_the_best_version_with_its_reason"
+   ]
+  },
+  {
+   "id": "NC44",
+   "what": "a build that raised loses its 'site_route' evidence",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "'site_route': _site_route_evidence(engine),",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheWorker"
+   ],
+   "expect_failed": [
+    "test_the_site_route_evidence_on_both_paths"
    ]
   }
  ]
