@@ -68,5 +68,46 @@ class TheReviewGetsTheRequest(unittest.TestCase):
                         source.index('install_review_request(engine, prompt)'))
 
 
+class TheContentRouteIsInstalledAsInTheWorker(unittest.TestCase):
+    """The content-document route (omni_prod/site_content) is decided in the rehearsal exactly where the worker decides
+    it -- right after the components, before any install that wraps the architect -- so a calibration build exercises
+    the route a customer's build takes."""
+
+    def test_it_is_installed_first_in_the_rehearsal_and_in_the_worker(self):
+        rehearsal = (ROOT / 'omni_prod' / 'rehearsal.py').read_text(encoding='utf-8')
+        worker = (ROOT / 'omni_prod' / 'worker_tasks.py').read_text(encoding='utf-8')
+        self.assertLess(rehearsal.index('engine, gateway = _live_components()'), rehearsal.index('site_content.install('))
+        self.assertLess(rehearsal.index('site_content.install('), rehearsal.index('install_page_locale(engine, prompt)'))
+        self.assertLess(worker.index('engine, gateway = components_factory()'), worker.index('site_content.install('))
+        self.assertLess(worker.index('site_content.install('), worker.index('install_uploaded_assets(engine'))
+        self.assertLess(worker.index('site_content.install('), worker.index('install_page_locale(engine, prompt)'))
+
+    def test_with_the_flag_off_the_rehearsal_says_legacy_and_why(self):
+        import os
+        with mock.patch.dict(os.environ, {'OMNI_SITE_LIBRARY': 'off'}):
+            engine, _, report = run_until_the_build(BUTCHER)
+        self.assertEqual((report['site_route']['route'], report['site_route']['reason']), ('legacy', 'flag_off'))
+        self.assertIsNone(engine.architect)
+
+    def test_with_the_flag_on_the_owners_brief_takes_the_route_and_the_wrappers_go_around_it(self):
+        import json
+        import os
+        from omni_prod.site_content.agents import ContentSiteGenerator, ContentSpecArchitect
+        prompt = json.loads((ROOT / 'tests' / 'fixtures' / 'site_content_bld_b0eb47a5.json')
+                            .read_text(encoding='utf-8'))['prompt']
+        with mock.patch.dict(os.environ, {'OMNI_SITE_LIBRARY': 'on'}):
+            engine, _, report = run_until_the_build(prompt)
+        self.assertEqual(report['site_route']['route'], 'section_library')
+        self.assertIsInstance(engine.generator, ContentSiteGenerator)
+        architect, seen = engine.architect, []
+        for _ in range(12):                        # the request installs wrap the route's architect, as in the worker
+            seen.append(type(architect).__name__)
+            if isinstance(architect, ContentSpecArchitect):
+                break
+            architect = architect._inner
+        self.assertEqual(seen[-1], 'ContentSpecArchitect')
+        self.assertIn('FactsArchitect', seen)
+
+
 if __name__ == '__main__':
     unittest.main()

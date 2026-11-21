@@ -60,6 +60,13 @@ def run(prompt: str) -> dict:
     started = time.monotonic()
     engine, gateway = _live_components()
     report: dict = {'prompt': prompt}
+    # The content-document route, in the worker's order: right after the components, before any install that wraps
+    # the architect (worker_tasks._run_live_build_job). The rehearsal has no account: OMNI_SITE_LIBRARY=on exercises it.
+    try:
+        from . import site_content
+        report['site_route'] = site_content.install(engine, prompt=prompt, gateway=gateway, request=None).to_dict()
+    except Exception as exc:
+        report['site_route_error'] = f'{type(exc).__name__}: {exc}'[:300]
     # Same requirements-aware acceptance scope a real build gets from its contract.
     try:
         from .product_architect import ProductArchitect
@@ -143,6 +150,8 @@ def run(prompt: str) -> dict:
     report['runtime_load'] = runtime_load_report(engine)
     from .game_runtime import report as game_runtime_report
     report['game_runtime'] = game_runtime_report(engine)
+    from .site_content import report as site_route_report
+    report['site_route'] = site_route_report(engine) or report.get('site_route')
     report['failure_taxonomy'] = getattr(engine, 'failure_taxonomy', [])
     report['first_pass'] = getattr(engine, 'first_pass', None)
     spent, calls = spend_snapshot(gateway)
