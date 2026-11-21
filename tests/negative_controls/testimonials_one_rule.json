@@ -1,0 +1,24 @@
+{
+  "pr": "testimonials-one-rule",
+  "sha256": ["omni_prod/skills_runtime.py", "tests/test_testimonials_one_rule.py"],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "the reviewer checklist goes back to forbidding every unsupplied testimonial while the generator may label samples (the contradiction of run 44943528189)",
+      "mutations": [{"file": "omni_prod/skills_runtime.py",
+                     "old": "               'No phone number or address that the request did not give; no testimonial that the request did not '\n               'give unless its heading says \"(לדוגמה)\" and it names no person.',",
+                     "new": "               'No phone number, address or named testimonial that the request did not give.',"}],
+      "targets": ["tests/test_testimonials_one_rule.py"],
+      "expect_failed": ["test_the_reviewer_checklist_says_the_same"]
+    },
+    {
+      "id": "NC2",
+      "what": "the generator is again allowed named sample testimonials (no 'names no person', no 'leave it out')",
+      "mutations": [{"file": "omni_prod/skills_runtime.py",
+                     "old": "        'those the request gives, quoted as given. When the request asks for reviews but gives none, leave that '\n        'section out (the owner adds real ones later); if a sample is shown instead, its heading carries '\n        '\"(לדוגמה)\" and it names no person -- no invented first names (2026-11-21: the generator and the reviewer '\n        'read the same rule).'),",
+                     "new": "        'those the request gives; sample ones carry a visible \"(לדוגמה)\" label.'),"}],
+      "targets": ["tests/test_testimonials_one_rule.py"],
+      "expect_failed": ["test_the_generator_is_told_to_leave_the_section_out_or_label_it_without_names"]
+    }
+  ]
+}
