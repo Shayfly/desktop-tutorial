@@ -1,0 +1,140 @@
+{
+ "pr": "site-content",
+ "sha256": [
+  "tests/test_site_content_validate.py",
+  "tests/test_site_content_route.py",
+  "tests/test_site_content_render.py",
+  "tests/test_site_content_owners.py",
+  "tests/test_site_content_engine.py",
+  "omni_prod/site_content/validate.py",
+  "omni_prod/site_content/facts.py",
+  "omni_prod/site_content/render.py",
+  "omni_prod/site_content/owners.py",
+  "omni_prod/site_content/__init__.py",
+  "omni_prod/autonomous_core.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a phone the model wrote in copy is allowed (FACT_IN_COPY no longer reads phones)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    if (shown or odd or F._EMAIL.search(plain) or",
+     "new": "    if (F._EMAIL.search(plain) or"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_every_code_has_a_failing_document",
+    "test_a_model_written_phone_is_refused_wherever_it_is"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "INVENTED_NUMBER is dropped: a number the customer never wrote reaches the page",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    if invented:\n",
+     "new": "    if False and invented:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_every_code_has_a_failing_document",
+    "test_a_number_the_customer_never_wrote_is_refused_even_as_a_stat"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "wa.me is emitted without WhatsApp: the only mobile becomes WhatsApp though the customer never named it",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "    if not _WHATSAPP.search(customer) and not _WHATSAPP.search(prompt.split(BRIEF_MARKER, 1)[0]):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py"
+   ],
+   "expect_failed": [
+    "test_a_named_whatsapp_goes_to_the_labelled_number_or_the_only_mobile_never_a_landline"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the design contract's fingerprint is not checked: a page is rendered against another contract",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/render.py",
+     "old": "    if contract.get('fingerprint') != expect_fp:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_render.py"
+   ],
+   "expect_failed": [
+    "test_a_contract_or_a_bind_that_does_not_match_is_refused"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "content_only_approved is ignored: a brief that is not content-only takes the route",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    if not content_only_approved(prompt):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py"
+   ],
+   "expect_failed": [
+    "test_every_legacy_reason"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the RepairDeclined catch is removed: a platform defect crashes the build instead of ending it on its best version",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "            except RepairDeclined as exc:\n                # the content route (omni_prod/site_content): a platform-owned failure stops without a paid round\n                self.trace.append({'round': rounds, 'repair_declined': exc.stop_reason, 'detail': exc.detail[:400]})\n                stop_reason = exc.stop_reason\n                break\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_engine.py::TheLoopStopsOnADecline"
+   ],
+   "expect_failed": [
+    "test_a_declined_repair_ends_on_the_best_version_with_its_reason"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "an OWNER table entry is removed: a gate unit the chain produces has no owner",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/owners.py",
+     "old": "    'gate-G4-perf_inline_image_weight': 'platform',\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_owners.py"
+   ],
+   "expect_failed": [
+    "test_every_id_the_chain_can_produce_has_an_owner",
+    "test_the_copy_gates_are_content_and_the_layout_gates_are_the_platforms"
+   ]
+  }
+ ]
+}
