@@ -293,5 +293,43 @@ class TheRouteThroughTheRealChain(unittest.TestCase):
         self.assertTrue(any(f['acceptance_id'] == 'DESIGN' for f in feedback), feedback)
 
 
+class TheLoopStopsOnADecline(unittest.TestCase):
+    """autonomous_core: a repairer's RepairDeclined ends the loop on its best version with the declined stop reason
+    (no browser needed; the chain above proves it end to end)."""
+
+    def test_a_declined_repair_ends_on_the_best_version_with_its_reason(self):
+        from omni_prod.autonomous_core import (AcceptanceFailure, AutonomousProductEngine, ExecutionReport,
+                                               RepairDeclined)
+        from omni_prod.repository_patch import FilePatch
+
+        class Architect:
+            def create_spec(self, prompt):
+                from omni_prod.product_architect import ProductArchitect
+                return ProductArchitect._content_only_spec(prompt, 'x')
+
+        class Generator:
+            def generate(self, spec):
+                return (FilePatch('public/index.html', '<p>v0</p>'),)
+
+        class Declines:
+            calls = 0
+
+            def repair(self, **_):
+                Declines.calls += 1
+                raise RepairDeclined('platform_render_defect', 'gate-G3-a11y_alt_text: an image without alt')
+
+        class Fails:
+            def execute(self, *, repository, spec):
+                return ExecutionReport(False, (AcceptanceFailure('gate-G3-a11y_alt_text', 'no alt'),), '')
+
+        engine = AutonomousProductEngine(architect=Architect(), generator=Generator(), repairer=Declines(),
+                                         executor=Fails(), max_repair_rounds=6, repair_ceiling=6)
+        result = engine.build('a prompt')
+        self.assertEqual((result.status, result.stop_reason), ('failed', 'platform_render_defect'))
+        self.assertEqual(result.repository, {'public/index.html': '<p>v0</p>'})
+        self.assertEqual(Declines.calls, 1)
+        self.assertEqual(engine.trace[-1]['repair_declined'], 'platform_render_defect')
+
+
 if __name__ == '__main__':
     unittest.main()
