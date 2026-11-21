@@ -151,6 +151,15 @@ class WiringReadiness(unittest.TestCase):
         self.assertIn('action="https://wa.me/972505551234"', form)
         self.assertIn('method="get"', form)
 
+    def test_a_whatsapp_number_of_its_own_is_shown_as_written_and_can_be_dialled(self):
+        # the content route: the customer's WhatsApp number (050-5551234) is a fact the page must show as written
+        contact = re.search(r'<dl class="contact-list">.*?</dl>', L.page(self.c, self.contract)[0]).group(0)
+        self.assertIn('<a href="tel:0505551234">050-5551234</a>', contact)
+        self.assertIn('https://wa.me/972505551234', contact)
+        self.c['whatsapp'] = self.c['phone']                                 # the same number: said once
+        contact = re.search(r'<dl class="contact-list">.*?</dl>', L.page(self.c, self.contract)[0]).group(0)
+        self.assertNotIn('וואטסאפ</dt>', contact)
+
     def test_the_panel_facts_come_before_the_hero_photo_in_the_markup(self):
         # the truth gate reads the first 45,000 characters; an inlined photo must not push the facts past them
         self.c['hero']['image'] = {'src': 'data:image/webp;base64,' + 'A' * 60_000, 'alt': 'המשרד'}

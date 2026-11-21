@@ -431,6 +431,11 @@ FORM_NOTE = 'השליחה פותחת את וואטסאפ עם ההודעה מו�
 def contact(c: dict, tone: str) -> str:
     k = c['contact']
     rows = [('טלפון', f'<a href="{tel(c["phone"])}">{e(c["phone"])}</a>')]
+    if c.get('whatsapp') and c['whatsapp'] != c['phone']:
+        # a WhatsApp number of its own is a fact the customer gave: shown as written, not only behind a button; a phone
+        # the page shows can be dialled (G11 links_tel)
+        rows.append(('וואטסאפ', f'<a href="{tel(c["whatsapp"])}">{e(c["whatsapp"])}</a> · '
+                                f'<a href="{ea(wa(c["whatsapp"]))}">שליחת הודעה</a>'))
     if c.get('email'):
         rows.append(('דוא״ל', f'<a href="mailto:{ea(c["email"])}">{e(c["email"])}</a>'))
     if c.get('address'):
