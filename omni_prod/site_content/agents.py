@@ -301,6 +301,28 @@ def prepass(core, route, html: str, sheet) -> dict:
     return out
 
 
+def skipped_report(skipped: list[tuple[str, str]], lib_skipped: list[str], offered: dict, doc: dict) -> list[str]:
+    """Every section the page does not show, each with its reason: the sections never offered (schema.offered_sections
+    says why), and every section the library left out -- an offered optional section the model did not write, a
+    numbers strip whose numbers are all in the hero panel, the library's own notes ('about.facts:...'). A section the
+    library left out with no known reason is a platform defect, raised: never an unexplained gap."""
+    said = {k for k, _ in skipped}
+    given = doc.get('sections') or {}
+    out = [f'{k}: {why}' for k, why in skipped]
+    for s in lib_skipped:
+        if ':' in s:
+            out.append(s)
+        elif s in said:
+            continue
+        elif offered.get(s) == 'optional' and s not in given:
+            out.append(f'{s}: offered, the model left it out')
+        elif s == 'stats' and 'stats' in given:
+            out.append('stats: every number is already shown in the hero panel')
+        else:
+            raise SiteRenderDefect(f'the section library left out {s!r} with no known reason')
+    return out
+
+
 class ContentSiteGenerator:
     def __init__(self, core, agent: ContentAgent, repair_agent: ContentRepairAgent):
         self.core, self.agent, self.repair_agent = core, agent, repair_agent
@@ -377,7 +399,7 @@ class ContentSiteGenerator:
                 raise SiteContentInvalid('the copy still fails a blocking check after the one correction: '
                                          + '; '.join(f['message'][:160] for f in found['block'])[:1500])
         report.update(prepass=found, warnings=[p.to_dict() for p in problems if p.severity == 'warn'],
-                      skipped=[f'{k}: {why}' for k, why in skipped] + [s for s in lib_skipped if ':' in s],
+                      skipped=skipped_report(skipped, lib_skipped, offered, doc),
                       content_calls=self.agent.calls + self.repair_agent.calls,
                       content_sha256=Fx.fingerprint(doc), canon_hash=sheet.canon_hash, page_chars=len(html))
         core.site_sheet = sheet

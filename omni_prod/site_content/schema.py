@@ -111,6 +111,8 @@ def offered_sections(sheet, palette: dict, order: list[str] | None, outline_titl
                 offered[key] = 'optional'
             else:
                 skipped.append((key, reason[key]))
+        said = {k for k, _ in skipped}
+        skipped += [(k, "not one of this palette's sections") for k in SECTIONS if k not in offered and k not in said]
     skipped += [(k, why) for k, why in NEVER.items()]
     return offered, skipped
 
