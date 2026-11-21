@@ -1,3 +1,14 @@
+# 2026-11-20 — the window approval screen offers only the windows that fit the business (Claude Code)
+
+- **What broke (the owner, 2026-11-19, law-firm site):** "בחלונות באתר שום דבר לא קשור למה הוא מציע". `offer()` listed
+  all eight catalogue windows for every website -- a cart drawer, filter chips and an age gate for a law firm.
+- **Fix:** `window_catalog.relevant(text)` reads the customer's request (whole words, Hebrew prefixes): cookies and a
+  question widget for every site; cart / chips / mega menu only for a shop; age gate only for alcohol or tobacco;
+  promotion bar and entry popup only with a sale or a shop. A decided window is always shown; a new window with no
+  offer rule raises.
+- **Evidence:** `tests/test_windows_fit_the_business.py` 7 passed (law firm: 2 windows; butcher with sales: 4; wine
+  shop: all 8); window approval tests updated (a cafe is offered 2); controls `windows_fit` 4/4 (NC4 first exposed a
+  guard that never ran alone -- fixed).
 # 2026-11-20 — the conversation agent never guesses the customer's gender (Claude Code)
 
 - **What broke:** rehearsal 44650878701 (luna on the production path, 3/3 passed) -- the agent wrote "תרצי להציג

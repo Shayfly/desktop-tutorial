@@ -95,14 +95,44 @@ BENEFITS: dict[str, tuple[str, str]] = {
 }
 
 
-def offer(lang: str = 'he', approved=(), rejected=()) -> list[dict]:
+# Which windows fit which business (the owner, 2026-11-19, on the law-firm site: "בחלונות באתר שום דבר לא קשור למה
+# הוא מציע" -- every site was offered all eight). Read from the customer's own request, whole words with Hebrew
+# prefixes. Every site may want the cookie banner and the question widget; the rest need a reason in the request.
+_PREFIX = r'(?:^|(?<=[\s"\'(,.:;!?\-–—]))(?:[ובלמשהכ]{0,3})'
+_SHOP = (r'חנות|חנויות|סל|עגלה|קנייה|קניות|לקנות|רכישה|הזמנה אונליין|הזמנות אונליין|משלוח|משלוחים|מוצר|מוצרים|'
+         r'קטלוג|מלאי|shop|store|cart|checkout|e-?commerce|products?')
+_PROMO = r'מבצע|מבצעים|הנחה|הנחות|קופון|קופונים|sale|discount|coupon|promo(?:tion)?s?'
+_DEPARTMENTS = r'מחלקה|מחלקות|קטגוריה|קטגוריות|departments?|categor(?:y|ies)'
+_AGE = (r'אלכוהול|יין|יינות|בירה|בירות|וויסקי|ויסקי|וודקה|משקאות חריפים|טבק|סיגריות|סיגרים|סיגר|וייפ|נרגילה|'
+        r'alcohol|wine|beer|whisk(?:e)?y|vodka|liquor|spirits|tobacco|cigar(?:ette)?s?|vape')
+_ALWAYS = ('cookie_banner', 'question_widget')
+_NEEDS = {'mega_menu': (_SHOP + '|' + _DEPARTMENTS,), 'age_gate': (_AGE,), 'entry_popup': (_PROMO, _SHOP),
+          'cart_drawer': (_SHOP,), 'promo_bar': (_PROMO, _SHOP), 'chips': (_SHOP + '|' + _DEPARTMENTS,)}
+
+
+def _says(text: str, words: str) -> bool:
+    return re.search(_PREFIX + r'(?:' + words + r')(?=$|[\s"\'),.:;!?\-–—])', text or '', re.I) is not None
+
+
+def relevant(text: str) -> list[str]:
+    """The catalogue windows this request gives a reason for, in catalogue order. A window not listed in _ALWAYS or
+    _NEEDS raises: a new window must say when it is offered."""
+    missing = set(CATALOG) - set(_ALWAYS) - set(_NEEDS)
+    if missing:
+        raise KeyError(f'windows with no offer rule: {sorted(missing)}')
+    return [w for w in CATALOG if w in _ALWAYS or any(_says(text, words) for words in _NEEDS.get(w, ()))]
+
+
+def offer(lang: str = 'he', approved=(), rejected=(), text: str | None = None) -> list[dict]:
     """The windows the approval screen offers, in catalogue order, each with its one-sentence benefit and the
-    customer's current decision ('approved', 'rejected' or None)."""
+    customer's current decision ('approved', 'rejected' or None). With the request's `text`, only the windows it gives
+    a reason for (`relevant`) -- and every window the customer already decided on, so a decision is never hidden."""
     he = lang != 'en'
     approved, rejected = set(approved), set(rejected)
+    shown = set(CATALOG) if text is None else set(relevant(text)) | approved | rejected
     return [{'id': w.id, 'label': w.he if he else w.en, 'benefit': BENEFITS[w.id][0 if he else 1],
              'state': 'approved' if w.id in approved else 'rejected' if w.id in rejected else None}
-            for w in CATALOG.values()]
+            for w in CATALOG.values() if w.id in shown]
 
 
 def known(window_id: str) -> WindowSpec:
