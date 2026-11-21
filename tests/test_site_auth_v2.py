@@ -28,7 +28,9 @@ BASELINE_SHA = '2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49'
 # removed from page_locale; the bdi rule and the visible-text test helper are in the prompt.
 # 2026-11-20 (design-minimum-pro, declared in docs/identity/allowed-identity-changes.json, signed by the owner's
 # instruction): the PRO gate's unit and LANDING_CONVERSION's professional-shape guidance.
-BASELINE_DIGEST = '41a6e1345bc04d30d70ad98a05afccd0b75bf6002ed04fea1c1b19e0d4c34618'
+# 2026-11-21 (testimonials-one-rule, declared in docs/identity/allowed-identity-changes.json, signed by the owner's
+# instruction): skill.copy_quality's testimonial guidance and checklist say the same rule.
+BASELINE_DIGEST = 'b287af442b65fe2ad5ed58fe10d2497794b1757ffa267e5cdb63afe7d3ab05a0'
 
 
 def _digest(flag: str) -> str:
