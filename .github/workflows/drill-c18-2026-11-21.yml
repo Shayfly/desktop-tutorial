@@ -1,0 +1,77 @@
+name: Drill C18 2026-11-21 (the alert fires)
+
+# Monthly drill C18 (CONTROLS.json): kill the build worker; queued builds stop; recovery under 2 minutes; tested: the
+# alert arrives. LAST in the owner's order of 2026-11-21 (C16 PASS 44932418710, C19 PASS 44932702825, C11 PASS
+# 44933990232). The owner's conditions, which are not recommendations:
+#   1. "no active build" is decided by a query, not assumed: build_requests JOIN build_jobs had 0 queued/running at
+#      2026-11-21T18:29:14Z (Neon), and here, seconds before the kill, the deploy's own fail-closed gate
+#      (python -m omni_prod.active_jobs, inside the live worker) must exit 0 -- anything else = NOT RUN, no kill;
+#   2. the recovery commands are written (and printed) BEFORE the kill;
+#   3. a 30-second ceiling: the restart policy gets 30 s, then recovery 1 runs; recovery 2 at 60 s; if the worker is
+#      not running by 120 s the job says MANUAL RESTORE NOW (recovery 3), it does not wait;
+#   4. expected, stated before the run: the worker is back within the ceiling, and C18 FAILS on the alert -- no monitor,
+#      scheduled job or notification exists for a dead build worker (2026-11-21 search: the only 10-minute job probes
+#      repo-control on Render). That failure is the finding; the alert is built next and gets a warehouse number.
+on:
+  push:
+    branches: [drill/monthly-2026-11-21]
+    paths: [.github/workflows/drill-c18-2026-11-21.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker-host-drills
+  cancel-in-progress: false
+
+jobs:
+  c18-alert:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 8
+    steps:
+      - name: C18 -- recovery first, gate, kill, 30 s ceiling, restore by 2 min, look for the alert
+        run: |
+          set -uo pipefail
+          W=omni-worker-worker-1
+          docker inspect "$W" >/dev/null 2>&1 || { echo "::error title=C18 NOT RUN::no container $W"; exit 1; }
+          WD=$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' "$W")
+          running() { [ "$(docker inspect -f '{{.State.Running}}' "$W" 2>/dev/null)" = "true" ]; }
+          # (2) the recovery commands, BEFORE the kill
+          REC1="docker start $W"
+          REC2="cd '$WD' && docker compose up -d --no-deps worker"
+          echo "::notice title=C18 recovery 1 (written before the kill)::$REC1"
+          echo "::notice title=C18 recovery 2 (if 1 has not brought it back by 60 s)::$REC2"
+          echo "::notice title=C18 recovery 3 (manual, if not back by 120 s)::dispatch deploy-worker.yml on main (the deployed SHA)"
+          # (1) no active build: the deploy's own fail-closed gate, seconds before the kill
+          docker exec "$W" python -m omni_prod.active_jobs --wait-minutes 0 > "$RUNNER_TEMP/gate.out" 2>&1; g=$?
+          echo "::notice title=C18 gate (exit $g)::$(tail -n 3 "$RUNNER_TEMP/gate.out" | tr '\n' ' ' | cut -c1-400)"
+          [ "$g" -eq 0 ] || { echo "::error title=C18 NOT RUN::the gate did not verify quiet (exit $g); nothing was killed"; exit 1; }
+          echo "::notice title=C18 before::$(docker inspect -f 'status={{.State.Status}} restarts={{.RestartCount}} policy={{.HostConfig.RestartPolicy.Name}} started={{.State.StartedAt}}' "$W")"
+          # the kill
+          t0=$(date +%s); killed_at=$(date -u +%FT%TZ)
+          docker kill "$W" >/dev/null || { echo "::error title=C18 NOT RUN::docker kill failed"; exit 1; }
+          echo "::notice title=C18 killed::$killed_at"
+          # (3) 30 s ceiling for the restart policy, then recovery 1; recovery 2 at 60 s; manual at 120 s
+          back=""; how=""; tried2=""
+          while [ $(( $(date +%s) - t0 )) -lt 30 ]; do
+            sleep 2; if running; then back=$(( $(date +%s) - t0 )); how="restart policy"; break; fi
+          done
+          if [ -z "$back" ]; then
+            echo "::notice title=C18 ceiling::not back after 30 s; recovery 1"; eval "$REC1" >/dev/null 2>&1; how="recovery 1 at 30 s"
+          fi
+          while [ -z "$back" ] && [ $(( $(date +%s) - t0 )) -lt 120 ]; do
+            if running; then back=$(( $(date +%s) - t0 )); break; fi
+            if [ -z "$tried2" ] && [ $(( $(date +%s) - t0 )) -ge 60 ]; then
+              echo "::warning title=C18 recovery 2::still down at 60 s"; eval "$REC2" >/dev/null 2>&1; tried2=1; how="recovery 2 at 60 s"
+            fi
+            sleep 2
+          done
+          if [ -z "$back" ]; then
+            echo "::error title=C18 WORKER NOT BACK IN 120 s::MANUAL RESTORE NOW: recovery 3 (dispatch deploy-worker.yml on main)"; exit 2
+          fi
+          echo "::notice title=C18 recovery::running again ${back}s after the kill, by $how; $(docker inspect -f 'status={{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}}' "$W")"
+          sleep 10
+          echo "::notice title=C18 worker log since the restart::$(docker logs --since "$killed_at" "$W" 2>&1 | tail -n 6 | tr '\n' ' ' | cut -c1-600)"
+          # (4) the alert
+          echo "::error title=C18 FAIL (alert)::the worker was down ${back}s and nothing raised an alert -- no monitor, scheduled job or notification exists for a dead build worker; only this drill noticed"
+          exit 1
