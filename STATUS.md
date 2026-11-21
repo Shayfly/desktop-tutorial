@@ -1,3 +1,38 @@
+# 2026-11-21 — warehouse 118 (+114): the main image is a file the page references, not base64 in the page (Claude Code)
+
+- **What broke:** the butcher (bld_83529c13, 2026-11-14): the generated hero was inlined as 1,735,408 base64 characters;
+  the page was heavy and the facts after the hero fell past the 45,000 characters of GET / the preview smoke keeps.
+  The five points of row 118 were text-only. Every image path inlined a data URI: `generated_images.GeneratedImage.uri`
+  (D5 default hero and every generated image), `uploaded_assets._MainImage.uri` (customer photos) and
+  `uploaded_assets.logo_transform` (the logo).
+- **Design (option b, text-only pipeline):** `omni_prod/repository_assets.py`. An image is one repository entry at its
+  real path `assets/148ai-<kind>-<n>.<ext>` holding a checked envelope (`148ai-binary:v1;mime;sha256;base64,`); the page
+  references the path. Every point that writes files decodes it: `sandbox_service.run` (write_bytes(file_bytes)),
+  `sandbox_executor` and `preview_runtime` (`materialize`), `UnifiedOmniEngine._zip` (all v25-v28 export routes) and
+  `investor_app.download_version`. `validate_snapshot` checks every envelope (place, type, digest). The saved version
+  (`workspace.py`) is unchanged: it carries the envelope as text. The model's view (repair summary, G5 as written,
+  failure text) has the marker and no image file; the transform rewrites the verified file after every repair.
+  `preview_smoke` fails loudly unless the server serves each `assets/` image with 200, its Content-Type and its bytes.
+- **Evidence (commands run in the worktree, 2026-11-21):**
+  - `python3 -m pytest -q tests/test_images_as_files.py` 18 passed: on the real smoke path the butcher page with the
+    real image has no data:image, each file served with image/webp / image/png / image/jpeg, every fact within 45,000
+    (control: inlined, "שבת סגור" is past it); the real workspace save/load, `DockerPreviewProvider.start` work
+    directory and `export_zip` each carry and serve the file; a page with no image writes the same bytes as before.
+  - the 44 test modules that import a changed module: 730 passed, 11 skipped, 0 failed.
+  - `python3 scripts/run_negative_controls.py images_as_files` 8/8 PASS; the existing specs whose targets include a
+    changed file: a4_asset_plan 10/10, contract_prompt_readers 10/10, lens11_image_match 9/9, photo_weight 8/8,
+    skill_gate_rights 20/20, uploaded_main_image 15/15, and the investor_app specs (conversation_limit,
+    item3_preview_route_full_reserve, item4_allowance_message, plan_price_said_once, pr154_two_gates,
+    pr176_approval_action, preview_durable_backend) all PASS.
+  - Two existing controls lost their bite and were repaired, not weakened: photo_weight NC6 (the weight unit now
+    judges the rendition's bytes explicitly) and skill_gate_rights NC5 (the tests now assert what G5 reads as written).
+- **G4 / perf_inline_image_weight: stays warn.** Mode is per gate (`gate.DEFAULT_MODE['G4']`), so block would also
+  block the five other perf units; the 2026-11-19 calibration data has G4 failing 1 of 5 builds on SCRIPT_BLOCKING
+  (perf_blocking_script), and no production build has run with this change. Rule 4 needs three builds. Proposal:
+  per-unit modes, then this unit alone to block after three builds.
+- **Not verified:** `sandbox_service.run` and `download_version` themselves (FastAPI not installed here; the runner's
+  write is checked in source, CI runs the rest); a real production build (warehouse 115); og:image (now possible).
+
 # 2026-11-20 — the window approval screen offers only the windows that fit the business (Claude Code)
 
 - **What broke (the owner, 2026-11-19, law-firm site):** "בחלונות באתר שום דבר לא קשור למה הוא מציע". `offer()` listed
