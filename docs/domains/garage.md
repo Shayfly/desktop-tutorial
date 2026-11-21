@@ -333,7 +333,7 @@ Many garages already run workshop-management software that produces estimates, i
 
 **How these were checked.** Each URL was fetched on 2026-11-21 with a page-extraction tool that returns the page's text and image references. No browser was used and no screenshot was taken. Section order and wording are observed; visual quality, layout and the image-to-text ratio are **not** observed, and every ratio below is an estimate from counts in the extracted text. Image counts include logos, icons and badges. Character counts are after removing link targets.
 
-**Curation.** Chosen by the author from independent repair shops he believed to be real businesses with their own sites, then kept only if the page loaded and read as the business's own. No awwwards.com category was consulted; garages are rarely featured there, and none of these is claimed as a design-award site.
+**Curation.** Chosen by the author from independent repair shops believed to be real businesses with their own sites, then kept only if the page loaded and read as the business's own. No awwwards.com category was consulted; garages are rarely featured there, and none of these is claimed as a design-award site.
 
 **Limit.** All eight are in the United States or Canada. No UK, EU or Israeli garage site was verified: the UK and German candidates tried did not load. Design quality is ordinary trade-site quality, not high design. The skeletons are a picture of what working garages actually publish, not a design ceiling.
 
