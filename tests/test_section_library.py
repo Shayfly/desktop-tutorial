@@ -155,8 +155,9 @@ class WiringReadiness(unittest.TestCase):
         # the truth gate reads the first 45,000 characters; an inlined photo must not push the facts past them
         self.c['hero']['image'] = {'src': 'data:image/webp;base64,' + 'A' * 60_000, 'alt': 'המשרד'}
         doc, _ = L.page(self.c, self.contract)
-        self.assertLess(doc.index('דרך מנחם בגין 132'), doc.index('data:image/webp'))
-        self.assertLess(doc.index('09:00'), doc.index('data:image/webp'))
+        body = doc[doc.index('<body'):]            # the head's structured data carries the facts too; the page is the body
+        self.assertLess(body.index('דרך מנחם בגין 132'), body.index('data:image/webp'))
+        self.assertLess(body.index('09:00'), body.index('data:image/webp'))
 
     def test_the_customers_outline_sets_the_order_and_leaves_out_what_it_does_not_name(self):
         doc, skipped = L.page(self.c, self.contract, order=['faq', 'services', 'contact'])

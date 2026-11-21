@@ -2,6 +2,7 @@
  "pr": "section-library",
  "sha256": [
   "tests/test_section_library.py",
+  "tests/test_section_library_conformance.py",
   "omni_prod/section_library/__init__.py",
   "omni_prod/section_library/library.css"
  ],
@@ -17,9 +18,12 @@
     }
    ],
    "targets": [
-    "tests/test_section_library.py"
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
    ],
    "expect_failed": [
+    "test_every_palette_and_shape_passes_every_gate_and_invents_nothing",
+    "test_opening_hours_are_kept_whole_per_day",
     "test_time_ranges_keep_their_order_on_a_right_to_left_page"
    ]
   },
@@ -29,12 +33,13 @@
    "mutations": [
     {
      "file": "omni_prod/section_library/__init__.py",
-     "old": "e = html.escape\n",
-     "new": "e = str\n"
+     "old": "    return html.escape(str(s), quote=False).replace(' ₪', NBSP + '₪')",
+     "new": "    return str(s).replace(' ₪', NBSP + '₪')"
     }
    ],
    "targets": [
-    "tests/test_section_library.py"
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
    ],
    "expect_failed": [
     "test_the_customers_text_is_escaped"
@@ -46,26 +51,44 @@
    "mutations": [
     {
      "file": "omni_prod/section_library/__init__.py",
-     "old": "        if c.get(key):\n",
-     "new": "        if True:\n"
+     "old": "        elif (order is None or key in order or key == 'hero') and c.get(key) and (key != 'stats' or stats_shown(c)):",
+     "new": "        elif True:"
     }
    ],
    "targets": [
-    "tests/test_section_library.py"
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
    ],
    "expect_failed": [
+    "test_a_number_the_hero_panel_shows_is_not_repeated_in_the_strip_and_the_drop_is_said",
     "test_a_section_with_no_content_is_skipped_and_said_never_invented",
     "test_a_team_of_three_is_not_a_row_of_three_icon_cards",
     "test_an_image_without_alt_text_is_refused",
+    "test_every_palette_and_shape_passes_every_gate_and_invents_nothing",
     "test_it_passes_the_professional_minimum_and_every_skill_unit",
+    "test_no_drawing_puts_a_circle_on_an_arch_head_like_a_person",
+    "test_nothing_scrolls_sideways_in_any_direction_or_shape",
     "test_nothing_scrolls_sideways_on_a_phone_or_a_wide_screen",
     "test_one_h1_and_the_main_action_at_the_top_and_again_at_the_end",
+    "test_opening_hours_are_kept_whole_per_day",
+    "test_quotes_in_the_customers_text_appear_as_typed_and_are_escaped_inside_attributes",
+    "test_the_customers_outline_sets_the_order_and_leaves_out_what_it_does_not_name",
     "test_the_customers_text_is_escaped",
+    "test_the_elegant_hero_carries_the_numbers_in_one_row_and_says_so",
     "test_the_first_screen_image_is_eager_and_every_other_is_lazy",
+    "test_the_footer_carries_the_hours_and_whatsapp_when_given",
+    "test_the_form_reaches_whatsapp_even_without_javascript_and_never_the_sites_server",
     "test_the_library_css_uses_only_the_contracts_tokens",
+    "test_the_menu_toggle_is_an_icon_not_a_third_button_or_the_word_menu",
+    "test_the_minimal_shape_says_what_it_left_out",
+    "test_the_numbers_strip_is_the_first_tinted_beat_and_no_two_neighbours_share_a_tone",
     "test_the_owners_page_passes_the_design_contract_and_its_refusal_list",
+    "test_the_page_carries_the_library_fingerprint_and_fits_the_truth_gate_window",
+    "test_the_panel_facts_come_before_the_hero_photo_in_the_markup",
+    "test_the_purged_page_is_pixel_identical_to_the_full_stylesheet",
     "test_the_render_check_sees_every_element_settled_after_300ms",
     "test_the_richer_page_still_passes_the_contract_and_every_unit",
+    "test_the_richest_page_leaves_room_under_the_truth_gate_window",
     "test_time_ranges_keep_their_order_on_a_right_to_left_page"
    ]
   },
@@ -75,14 +98,17 @@
    "mutations": [
     {
      "file": "omni_prod/section_library/library.css",
-     "old": "  border-radius: var(--radius); cursor: pointer;\n",
-     "new": "  border-radius: var(--radius); border: 2px solid var(--color-border); cursor: pointer;\n"
+     "old": "white-space: nowrap; border-radius: var(--radius); cursor: pointer;",
+     "new": "white-space: nowrap; border-radius: var(--radius); border: 2px solid var(--color-border); cursor: pointer;"
     }
    ],
    "targets": [
-    "tests/test_section_library.py"
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
    ],
    "expect_failed": [
+    "test_every_palette_and_shape_passes_every_gate_and_invents_nothing",
+    "test_every_variant_in_every_direction_passes_every_gate_and_never_scrolls_sideways",
     "test_the_owners_page_passes_the_design_contract_and_its_refusal_list",
     "test_the_richer_page_still_passes_the_contract_and_every_unit"
    ]
@@ -93,19 +119,22 @@
    "mutations": [
     {
      "file": "omni_prod/section_library/library.css",
-     "old": "  width: 100%; min-width: 0;\n",
-     "new": ""
+     "old": "min-height: 3rem; width: 100%; min-width: 0; padding:",
+     "new": "min-height: 3rem; padding:"
     },
     {
      "file": "omni_prod/section_library/library.css",
-     "old": "  .hero .wrap, .split, .contact, .band { grid-template-columns: minmax(0, 1fr); }",
-     "new": "  .hero .wrap, .split, .contact, .band { grid-template-columns: 1fr; }"
+     "old": "  .hero .wrap, .split, .contact, .band, .faq-layout, .aside-layout { grid-template-columns: minmax(0, 1fr); }",
+     "new": "  .hero .wrap, .split, .contact, .band, .faq-layout, .aside-layout { grid-template-columns: 1fr; }"
     }
    ],
    "targets": [
-    "tests/test_section_library.py"
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
    ],
    "expect_failed": [
+    "test_every_variant_in_every_direction_passes_every_gate_and_never_scrolls_sideways",
+    "test_nothing_scrolls_sideways_in_any_direction_or_shape",
     "test_nothing_scrolls_sideways_on_a_phone_or_a_wide_screen"
    ]
   },
@@ -120,9 +149,12 @@
     }
    ],
    "targets": [
-    "tests/test_section_library.py"
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
    ],
    "expect_failed": [
+    "test_every_palette_and_shape_passes_every_gate_and_invents_nothing",
+    "test_every_variant_in_every_direction_passes_every_gate_and_never_scrolls_sideways",
     "test_the_library_css_uses_only_the_contracts_tokens",
     "test_the_owners_page_passes_the_design_contract_and_its_refusal_list",
     "test_the_richer_page_still_passes_the_contract_and_every_unit"
@@ -139,10 +171,13 @@
     }
    ],
    "targets": [
-    "tests/test_section_library.py"
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
    ],
    "expect_failed": [
     "test_a_team_of_three_is_not_a_row_of_three_icon_cards",
+    "test_every_palette_and_shape_passes_every_gate_and_invents_nothing",
+    "test_every_variant_in_every_direction_passes_every_gate_and_never_scrolls_sideways",
     "test_the_richer_page_still_passes_the_contract_and_every_unit"
    ]
   },
@@ -157,11 +192,277 @@
     }
    ],
    "targets": [
-    "tests/test_section_library.py"
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
    ],
    "expect_failed": [
+    "test_every_palette_and_shape_passes_every_gate_and_invents_nothing",
+    "test_every_variant_in_every_direction_passes_every_gate_and_never_scrolls_sideways",
     "test_the_first_screen_image_is_eager_and_every_other_is_lazy",
     "test_the_richer_page_still_passes_the_contract_and_every_unit"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "without a hero photo the page's first image stays lazy (the perf gate fails on 20 of 40 pages)",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "        body = body.replace(' loading=\"lazy\"', ' loading=\"eager\"', 1)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_every_palette_and_shape_passes_every_gate_and_invents_nothing",
+    "test_every_variant_in_every_direction_passes_every_gate_and_never_scrolls_sideways"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "quotes in the customer's text are escaped in text nodes: בע\"מ shows as an entity",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    return html.escape(str(s), quote=False).replace(' ₪', NBSP + '₪')",
+     "new": "    return html.escape(str(s), quote=True).replace(' ₪', NBSP + '₪')"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_quotes_in_the_customers_text_appear_as_typed_and_are_escaped_inside_attributes"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the form has no action: without JavaScript it posts to the site's own server",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "<form class=\"form\" action=\"{ea(wa(c[\"whatsapp\"]))}\" method=\"get\" data-wa=",
+     "new": "<form class=\"form\" data-wa="
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_the_form_reaches_whatsapp_even_without_javascript_and_never_the_sites_server"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the hero photo comes before the panel facts: an inlined photo pushes the address past the truth gate's window",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "{\"\" if h.get(\"image\") else visual}{figure}",
+     "new": "{visual}{figure}"
+    },
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "{visual if h.get(\"image\") else \"\"}</div></div></section>')",
+     "new": "</div></div></section>')"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_the_panel_facts_come_before_the_hero_photo_in_the_markup"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "every section heading is an h1: the page has many main headings",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "<h2 class=\"title\" id=\"{key}-title\">{e(d[\"title\"])}</h2>",
+     "new": "<h1 class=\"title\" id=\"{key}-title\">{e(d[\"title\"])}</h1>"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_every_palette_and_shape_passes_every_gate_and_invents_nothing",
+    "test_every_variant_in_every_direction_passes_every_gate_and_never_scrolls_sideways",
+    "test_it_passes_the_professional_minimum_and_every_skill_unit",
+    "test_one_h1_and_the_main_action_at_the_top_and_again_at_the_end",
+    "test_the_richer_page_still_passes_the_contract_and_every_unit"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the navigation links to sections that were left out",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    items = [(i, t) for i, t in c.get('nav', ()) if i in rendered]",
+     "new": "    items = list(c.get('nav', ()))"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_every_palette_and_shape_passes_every_gate_and_invents_nothing",
+    "test_the_customers_outline_sets_the_order_and_leaves_out_what_it_does_not_name"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "the numbers strip repeats the figure the hero panel already shows",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    return [(v, label) for v, label in c.get('stats') or () if v != figure]",
+     "new": "    return [(v, label) for v, label in c.get('stats') or ()]"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_a_number_the_hero_panel_shows_is_not_repeated_in_the_strip_and_the_drop_is_said"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "the about facts repeat what the page already said",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "        same = _norm(v) in norms or _norm(str(v).split(',')[0]) in norms or bool(_runs(v) & runs)",
+     "new": "        same = False"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_a_section_with_no_content_is_skipped_and_said_never_invented"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "the outline button is transparent again: on the CTA band its label falls under AA (trade 4.12:1)",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": ".btn-secondary { background: var(--color-bg); color:",
+     "new": ".btn-secondary { background: transparent; color:"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_round_two_holds_on_every_palette_at_phone_and_desktop_width"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "the flush padding loses to the phone rule: two same-tone neighbours get a doubled gap",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": ".section.section--flush { padding-block-start: 0; }",
+     "new": ".section--flush { padding-block-start: 0; }"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_round_two_holds_on_every_palette_at_phone_and_desktop_width"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "purging removes a rule that can match (the buttons lose their style)",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "        if any(c not in classes and c not in _SCRIPT_CLASSES for c in",
+     "new": "        if any((c not in classes or c == 'btn') and c not in _SCRIPT_CLASSES for c in"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_the_purged_page_is_pixel_identical_to_the_full_stylesheet"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "every business gets the same layout: no variety",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    out = {k: given.get(k) or opts[seed[i] % len(opts)] for i, (k, opts) in enumerate(LAYOUTS.items())}",
+     "new": "    out = {k: given.get(k) or opts[0] for k, opts in LAYOUTS.items()}"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_a_business_keeps_its_layout_and_businesses_on_one_palette_differ"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "an unknown layout is silently ignored instead of raising",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "        raise ValueError(f'unknown layout {bad!r}; the library has {LAYOUTS!r}')",
+     "new": "        given = {}"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_a_layout_the_library_does_not_have_raises"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "the library's own text carries a number the customer never gave",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "היא נשלחת רק כשתלחצו שם על שליחה, ולא נשמרת באתר.",
+     "new": "היא נשלחת רק כשתלחצו שם על שליחה, ונענה תוך 24 שעות."
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_every_palette_and_shape_passes_every_gate_and_invents_nothing"
    ]
   }
  ]
