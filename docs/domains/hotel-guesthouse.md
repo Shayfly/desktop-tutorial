@@ -93,7 +93,7 @@ A hotel sells **one room for one night**. A room that was empty last night can n
 | Extra | name, price, per stay or per night or per person | Dinner, cot, dog fee, late check-out, parking |
 | Whole-property hire | capacity, minimum nights, enquiry contact | An enquiry, not a booking |
 | Restaurant, bar, treatments, activities | own hours, own booking, open to non-guests or not | Each is a small business inside the property; see `restaurant.md` |
-| Event at the property | date, name, price | Reference 5 and 7 list them |
+| Event at the property | date, name, price | References 3, 4 and 7 list dated events |
 | Nearby | walks, beaches, towns, with distance | Content. Distances as the customer states them |
 | Frequently asked question | question, answer | Reference 2 answers "what is included", "how do I book" and practical details this way |
 | Gift voucher | value or a named stay, expiry | Involves payments |
