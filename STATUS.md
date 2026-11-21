@@ -1,9 +1,36 @@
+# 2026-11-21 — the content-document route, slice 1: independent review fixed (Claude Code)
+
+- **What broke, and the root:** 15 findings, each reproduced by a skeptic. Three roots: (1) the copy checks read digit
+  runs and fixed patterns only, so facts could ride in as words or attach to the wrong noun -- a WhatsApp the customer
+  refused, a landline sent to wa.me, '250 שנות ניסיון' from a 250 ₪ price, 'שישה עורכי דין', 'ללא עלות', a vanished
+  price, 'תל אביב' as the business name; (2) the route's executors were placed outside the quality gate and the group,
+  so an advisory finding gave an engine 'ready' that the worker's release policy FAILED, and a refused rewrite after a
+  verified round raised and threw the verified work away; (3) the tests checked the good path only -- the generated
+  site tests could not fail (double-escaped regex, order read from the header menu), and the browser-dependent tests
+  and controls never ran in CI.
+- **Fixed (commits 0eae688..422f929):** WhatsApp only when named affirmatively, on a labelled mobile, inside its sentence
+  (`whatsapp_negated`, `whatsapp_landline`); every number -- digits, Hebrew number words, vague magnitudes -- must be
+  the customer's AND count the same noun (a year stays a year; a price's digits are not a number); always-open hours,
+  star ratings, 'free' over a price, absent channels block; quotes, people, credentials, cities, days warn
+  (`UNSUPPORTED_DETAIL`, SITE_CLAIMS calibrating); every page price shown next to its own label (a build budget is
+  withheld); with no declared name, only a name the customer quoted (`name_not_declared` otherwise); every skipped
+  section said; the advisory filter inside the quality gate with the threshold's test count and the review record
+  reconciled; post-sandbox refusals are `RepairDeclined` (an unpaid decline is no round); install is atomic and the
+  rehearsal stops before spend on a route error; `AUTHFORM` owned; the generated tests can fail; a `browser-python`
+  CI job for the Chromium tests and browser-only controls.
+- **Evidence:** `pytest` of the touched files (list in the report), `site_content` controls 44/44 (default env, and
+  again with playwright blocked as in CI), `section_library` 7/7 default (playwright blocked) and 10/10 browser; the
+  real-chain engine tests with Chromium 6/6 including the worker's release report READY for the reviewer + critic and
+  the critic alone. Pipeline identity unchanged.
+- **Not checked:** the `browser-python` job on GitHub (not pushed); a live build on the route; the prose limit above.
+
 # 2026-11-21 — the content-document route, slice 1: the model writes copy, the platform renders the library (Claude Code)
 
 - **What:** `omni_prod/site_content` (behind `OMNI_SITE_LIBRARY` = off | accounts | on, default off; an unknown value
   raises). For an approved content-only Hebrew site the model writes ONE JSON document of copy, validated before
-  rendering (16 codes; one corrective call, then `site_content_invalid`); the platform fills every fact from the fact
-  sheet (fact_canon on the approved prompt, the truth gate's own canon), renders the section library with the build's
+  rendering (21 codes; one corrective call, then `site_content_invalid`); the platform fills every structured fact
+  slot (phone, WhatsApp, e-mail, address, hours, reviews, prices, number slots) from the fact sheet (fact_canon on the
+  approved prompt, the truth gate's own canon), renders the section library with the build's
   contract, and writes a fixed GET-only app.py, fixed tests and a manifest covering every acceptance id. Repair is
   owned by an exhaustive OWNER table: content -> a rewrite of the named JSON paths only; platform ->
   `RepairDeclined('platform_render_defect')` (new in autonomous_core), no paid round; customer -> needs_customer_input;
@@ -12,16 +39,21 @@
 - **Evidence (verified here, 2026-11-21):** the owner's brief bld_b0eb47a5 (production row read read-only, prompt
   sha256 `41d10d63...5db61`) takes the route (palette counsel, its outline mapped to library sections) and, through
   the REAL production chain (`investor_app._verification_executor`, local sandbox transport, local Chromium) and the
-  worker's installs, is READY in round 0 with one content call (`tests/test_site_content_engine.py`, 5 passed). Every
+  worker's installs, is READY in round 0 with one content call (`tests/test_site_content_engine.py`, 5 passed --
+  locally, where Chromium is installed; CI's test job has no Python playwright and skips them: they run in the new
+  `browser-python` job, not yet run on GitHub). Every
   WORKER_GATES unit, G-APPLE static and the truth gate pass on the page; with a 480,000-character hero inlined, the
   truth gate's facts and the hero copy are inside the 45,000-character cut. Flag off: byte-identical engine build.
-  Controls: `site_content` 7/7, `section_library` NC9-NC10 (new) PASS. Pipeline identity unchanged
+  Controls: `site_content` 7/7 then (after the review below) 44/44; `section_library` was 5/10 even with Chromium
+  (NC1-NC5 stale), now 7/7 in the default env and 10/10 with `NC_ENV=browser`. Pipeline identity unchanged
   (`41a6e134...4618`).
 - **Found and fixed:** the real visual QA failed the library page on a phone (the closed menu's links measured
   off-screen, the fixed action bar over the hero's phone link) -- every route build would have stopped.
 - **Not checked:** a live rehearsal on the owner's account (needs `OMNI_SITE_LIBRARY` set in the worker), other
   palettes end to end through the chain, change requests on a route-built site, gallery/products images, the
-  production sandbox's own Chromium. Headings use the body font (the display-font change is deferred).
+  production sandbox's own Chromium. Headings use the body font (the display-font change is deferred). Facts written
+  as words in copy are checked by pattern only (see the review entry above); a fact stated in other prose -- a service
+  the customer never offered, an award, a guarantee in words the claim list does not know -- is not checked.
 
 # 2026-11-20 — the section library: designed sections the generator will assemble (Claude Code)
 
