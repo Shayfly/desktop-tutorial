@@ -79,7 +79,8 @@ def test_verify_replay_evidence_step_requires_positive_completed_versions(tmp_pa
     workflow = yaml.safe_load((root / '.github/workflows/postdeploy-checks.yml').read_text())
     _, name = STEPS['Post-deploy verify-replay']
     step = next(s for s in workflow['jobs']['checks']['steps'] if s.get('name') == name)
-    assert step['if'] == "inputs.stage == 'verify-replay'"
+    # 2026-11-21: the daily schedule has no inputs; the stage defaults to verify-replay (tests/test_replay_runs_daily.py)
+    assert step['if'] == "(inputs.stage || 'verify-replay') == 'verify-replay'"
     (tmp_path / 'verify.txt').write_text('VERIFY_REPLAY ' + json.dumps({
         'results': [{'version': f'v{i}', 'status': status} for i, status in enumerate(statuses)]
     }) + '\n')
