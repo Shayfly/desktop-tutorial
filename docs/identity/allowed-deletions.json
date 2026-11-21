@@ -62,6 +62,7 @@
    "reviewed_at": "2026-11-13"
   },
   "tests/test_site_auth_v2.py": [
+   {"reason": "testimonials-one-rule: the pinned flag-off pipeline digest moves from 41a6e13 to b287af4, declared in docs/identity/allowed-identity-changes.json.", "deleted_sha256": "17da93ad98c008949f2a75dce3c91dfa72e305d41592fa385641b12bfd3e2ea6", "pr": "testimonials-one-rule", "author": "claude", "reviewer": "shai", "reviewed_at": "2026-11-16", "signature_note": "Signed by the owner's instruction, standing autonomy grant, 2026-11-16. The reviewer field was typed by the author (claude) on that instruction."},
    {"reason": "design-minimum-pro: BASELINE_DIGEST moves to the declared flag-off digest (docs/identity/allowed-identity-changes.json, design-minimum-pro); the replaced line is the previous digest.", "deleted_sha256": "918fe8445aff9489cfa3d2d92475d340530fa8df0085aeb1b7849fc2f4330c41", "pr": "design-minimum-pro", "author": "claude", "reviewer": "shai", "reviewed_at": "2026-11-16", "signature_note": "Signed by the owner's instruction, standing autonomy grant, 2026-11-16. The reviewer field was typed by the author (claude) on that instruction."},
    {"reason": "bdi-in-the-prompt: the BASELINE_DIGEST line is replaced (35d613d8 -> 80008d63), declared in allowed-identity-changes.json as bdi-in-the-prompt.", "deleted_sha256": "7abaa8dea884af8ebb81cdc52aa858233248a564d481cfc44032a58b65c8a852", "pr": "bdi-in-the-prompt", "author": "claude", "reviewer": "shai", "reviewed_at": "2026-11-15", "signature_note": "Signed by the owner's instruction in the chat, 2026-11-15 21:29 Asia/Jerusalem, relayed by Shay. The reviewer field was typed by the author (claude) on that instruction."},
    {
@@ -138,7 +139,7 @@
    "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction.",
    "deleted_sha256": "d610d4c0a4259860f9485fa30e769b77c92c32f86f04bf0e08a5d43f6fcd7c82",
    "pr": 371
-  }],
+  }, {"reason": "testimonials-one-rule: skill.copy_quality's testimonial sentence in the guidance (samples with a label) and its checklist line (no named testimonial at all) contradicted each other and failed rehearsal run 44943528189; both are replaced by the same rule (leave the section out; a sample carries '(לדוגמה)' and names no person). No other line changes.", "deleted_sha256": "953e8109e9a921fcdfd30ba562b58bfcc1ed3bdc06cfcf413c9becd29fbd04a0", "pr": "testimonials-one-rule", "author": "claude", "reviewer": "shai", "reviewed_at": "2026-11-21", "signature_note": "Signed by the owner's instruction, standing autonomy grant, 2026-11-16, and the owner's message of 2026-11-21 ('סומך עלייך מאשר לך הכול'). The reviewer field was typed by the author (claude) on that instruction."}],
   "tests/test_frozen_run_conditions_20261110.py": {
    "reason": "rtl-time-ranges-bdi (#371): two fixture lines of correct pages are replaced so their given hours are isolated with <bdi dir=\"ltr\">; without it the new probe correctly blocks them as reversed hours. What each test asserts is unchanged.",
    "author": "claude",
