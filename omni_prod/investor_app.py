@@ -736,11 +736,12 @@ def project_history(project_id:str)->dict:
 
 @app.get('/api/projects/{project_id}/versions/{version_id}/download')
 def download_version(project_id:str,version_id:str):
+    from .repository_assets import file_bytes
     try: version=_workspace.get(project_id=project_id,version_id=version_id)
     except KeyError as exc: raise HTTPException(404,'version not found') from exc
     buf=io.BytesIO()
     with zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as z:
-        for path,content in version.files: z.writestr(path,content)
+        for path,content in version.files: z.writestr(path,file_bytes(path,content))   # warehouse 118: images as files
     buf.seek(0)
     headers={'Content-Disposition':f'attachment; filename="{project_id}-{version_id}.zip"','X-Omni-Repository-SHA256':version.checksum}
     return StreamingResponse(buf,media_type='application/zip',headers=headers)

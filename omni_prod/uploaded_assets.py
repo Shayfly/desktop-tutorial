@@ -1,7 +1,8 @@
 """Bind the approved, owner-checked raster logo into generated text sources.
 
 No vision call and no base64 sent to a model. Existing text-only repository
-storage is preserved: the image is embedded as a data URI before verification.
+storage is preserved. Warehouse 118: the image is a file in the repository (assets/, a text envelope that the
+sandbox, the preview and the export write as bytes), and the page references its path -- no data URI in the page.
 """
 import base64
 import hashlib
@@ -20,19 +21,16 @@ _BINDING = re.compile(r'Uploaded logo attachment: (att_[a-f0-9]{32}); sha256=([a
 def logo_transform(data: bytes, mime: str, digest: str):
     if mime not in EXT or hashlib.sha256(data).hexdigest() != digest:
         raise ValueError('approved logo integrity mismatch')
-    encoded = base64.b64encode(data).decode('ascii')
-    uri = f'data:{mime};base64,' + encoded
+    # Warehouse 118: the logo is a file the page references (assets/148ai-logo.<ext>), not a data URI in the page.
+    from .repository_assets import CarriedImage, asset_path
+    carried = CarriedImage(MARKER, asset_path('logo', '', mime), data, mime)
+    uri = carried.path
     def transform(repository):
-        return {p:c.replace(MARKER,uri) for p,c in repository.items()}
+        return carried.place(repository)
     transform.uri = uri
-    def redact_text(text):
-        text = text.replace(uri, MARKER)
-        # Sandbox evidence can be truncated in the middle of the URI. Remove
-        # long fragments of this known image too, without stripping code.
-        return re.sub(r'[A-Za-z0-9+/]{32,}={0,2}',
-                      lambda m: MARKER if m.group(0) in encoded else m.group(0), text)
-    transform.redact_text = redact_text
-    transform.redact = lambda repository: {p:c.replace(uri,MARKER) for p,c in repository.items()}
+    transform.carried = carried
+    transform.redact_text = carried.redact_text
+    transform.redact = carried.unplace
     return transform
 
 
@@ -121,7 +119,10 @@ class _MainImage:
         self.rendition.update(bytes=len(r['data']), mime=r['mime'])
         if r['changed']:
             self.data, self.mime, self.width, self.height = r['data'], r['mime'], r['width'], r['height']
-        self.uri = f'data:{self.mime};base64,' + base64.b64encode(self.data).decode('ascii')
+        # warehouse 118: the page references the photo as a file (assets/148ai-upload-<n>.<ext>), never its bytes
+        from .repository_assets import CarriedImage, asset_path
+        self.carried = CarriedImage(self.marker, asset_path('upload', index, self.mime), self.data, self.mime)
+        self.uri = self.carried.path
 
 
 # The owner, 2026-11-16 00:18 / 00:49: a photo placed in "the story" must sit INSIDE a story section, not anywhere on
@@ -219,7 +220,7 @@ def install_main_image(engine, *, prompt, pool, store, project_id, account_id):
             raise ValueError(f'uploaded image {m[1]}: digest changed')
         images.append(_MainImage(repo.read(row), row['mime'], m[3], m[7], row.get('width'), row.get('height'),
                                  index=int(m[1]), place=m[5]))
-    from .generated_images import _Transform
+    from .generated_images import _Transform, ASSET_SERVING
     core = getattr(engine, 'core', engine)
     core.repository_transform = _Transform(getattr(core, 'repository_transform', None), images)
     core.executor = MainImageExecutor(core.executor, images)
@@ -229,8 +230,9 @@ def install_main_image(engine, *, prompt, pool, store, project_id, account_id):
                   img.rendition['changed'], img.rendition['bytes'], img.rendition['original_bytes'], img.width,
                   img.height, img.rendition['step'])
     lines = ["Uploaded images (verified by 148AI): use each one, in its place, with its exact src and alt. Size each "
-             'element to its proportions; it must stay responsive (max-width: 100%; height: auto).']
+             'element to its proportions; it must stay responsive (max-width: 100%; height: auto).', ASSET_SERVING]
     for img in images:
         size = f'{img.width}x{img.height} px' if img.width and img.height else 'size unknown'
-        lines.append(f'- image {img.index}: src="{img.marker}"; place: {img.place}; {size}; {img.mime}; alt="{img.alt}"')
+        lines.append(f'- image {img.index}: src="{img.marker}"; place: {img.place}; {size}; {img.mime}; alt="{img.alt}"; '
+                     f'file: {img.uri}')
     return prompt + '\n\n' + '\n'.join(lines)

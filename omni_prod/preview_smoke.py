@@ -27,7 +27,9 @@ PREVIEW_SHAPE = (
     'use only the Python standard library (no install step runs), write only under /tmp (the rest is '
     'read-only), and answer HTTP 200 on health_path within a few seconds of starting. GET / must return the '
     'product\'s full user interface as an HTML page (Content-Type text/html) with real controls (forms, '
-    'buttons, tables) wired to the app\'s JSON endpoints -- never a placeholder or a health string.'
+    'buttons, tables) wired to the app\'s JSON endpoints -- never a placeholder or a health string. '
+    'Image files under assets/ must be served at GET /assets/<name> with their bytes (read in binary mode) and their '
+    'Content-Type (image/webp, image/jpeg, image/png).'
 )
 
 # Runs inside the sandbox. Starts the declared server, polls its health path.
@@ -85,6 +87,41 @@ if verdict == "OK":
                        "(%%d chars of HTML, %%d chars of linked scripts/styles; starts %%r)" %% (len(page.strip()), len(assets.strip()), page.strip()[:160]))
     except Exception as e:
         verdict = "GET / failed: %%s" %% e
+if verdict == "OK":
+    # Warehouse 118: the images the platform carries are files under assets/ (the runner wrote their bytes). The
+    # product's server must serve each one at /assets/<name>: 200, the image's Content-Type, the same bytes.
+    import hashlib
+    kinds = {".webp": "image/webp", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
+    names = sorted(os.listdir("assets"))[:50] if os.path.isdir("assets") else []
+    for name in names:
+        want = kinds.get(os.path.splitext(name)[1].lower())
+        if not want or not os.path.isfile(os.path.join("assets", name)):
+            continue
+        body = open(os.path.join("assets", name), "rb").read()
+        if not ((want == "image/webp" and body[:4] == b"RIFF" and body[8:12] == b"WEBP")
+                or (want == "image/jpeg" and body[:3] == b"\xff\xd8\xff")
+                or (want == "image/png" and body[:8] == b"\x89PNG\r\n\x1a\n")):
+            verdict = "assets/%%s is not a %%s file in the work directory (%%d bytes)" %% (name, want, len(body))
+            break
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:%%d/assets/%%s" %% (port, name), timeout=3) as a:
+                got, ctype = a.read(len(body) + 1), a.headers.get("Content-Type", "")
+        except urllib.error.HTTPError as e:
+            verdict = "GET /assets/%%s answered HTTP %%s: the server must serve the image files under assets/" %% (name, e.code)
+            break
+        except Exception as e:
+            verdict = "GET /assets/%%s failed: %%s" %% (name, e)
+            break
+        if not ctype.lower().startswith(want):
+            verdict = "GET /assets/%%s answered Content-Type %%r, not %%s" %% (name, ctype, want)
+            break
+        if hashlib.sha256(got).hexdigest() != hashlib.sha256(body).hexdigest():
+            verdict = ("GET /assets/%%s answered %%d bytes that are not the image file (%%d bytes): serve it in "
+                       "binary mode" %% (name, len(got), len(body)))
+            break
+    else:
+        if names:
+            print("PREVIEW-ASSETS " + json.dumps(names))
 if p.poll() is None:
     p.terminate()
 try:

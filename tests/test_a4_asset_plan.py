@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def gen(index, purpose='hero/brand visual', size=2000):
-    data = b'\x89PNG' + bytes([index]) * size
+    data = b'\x89PNG\r\n\x1a\n' + bytes([index]) * size      # the full PNG signature: a carried file is sniffed (118)
     return GeneratedImage(index=index, requirement_id='r1', purpose=purpose, mime='image/png', width=1600, height=900,
                           sha256=hashlib.sha256(data).hexdigest(), alt=f'תמונה {index}', data=data)
 
