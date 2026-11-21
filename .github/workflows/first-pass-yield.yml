@@ -1,0 +1,46 @@
+name: first_pass_yield daily
+
+# The founder's business metric (2026-10-19): first_pass_yield = builds that passed with no repair / finished builds.
+# The worker records first_pass on every build (build_jobs.evidence_json, C24/#95), but until 2026-11-21 nothing read
+# it back; the last number anywhere was a month-old rehearsal record. Every day this job reads production in a READ
+# ONLY transaction (tools/first_pass_yield.py) and reports the last 1, 7 and 30 days, with what stopped each build's
+# first pass. Status is derived, never hand-written: the result goes to the run summary and an artifact; nothing is
+# committed and no branch or PR is opened. A red run means the metric could not be read (exit 2) or the worker's
+# evidence stopped reaching the database (exit 1); a yield of 0% is a finding and stays green.
+on:
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: first-pass-yield
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install the database client the platform runs
+        run: python -m pip install -q "psycopg[binary]==3.3.6"
+      - name: Read first_pass_yield from production (read-only)
+        env:
+          OMNI_DATABASE_URL: ${{ secrets.OMNI_DATABASE_URL }}
+        run: python tools/first_pass_yield.py --out first-pass-yield.json --summary "$GITHUB_STEP_SUMMARY"
+      - name: Keep the numbers as a run artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: first-pass-yield
+          path: first-pass-yield.json
+          if-no-files-found: warn
+          retention-days: 90
