@@ -66,6 +66,15 @@ class Counting(unittest.TestCase):
         self.assertEqual(top, {'sandbox:remote_verification_failed': 2})
 
 
+    def test_a_preflight_plan_repair_is_not_what_stopped_the_first_pass(self):
+        # 2026-11-21: preflight_plan_coverage topped the list (18 builds) although it costs no round and every one
+        # of those builds also failed round 0 on a real chain failure
+        rows = [row(1, 'failed', taxonomy=[blocker('preflight', 'preflight_plan_coverage'),
+                                           blocker('sandbox', 'remote_verification_failed')])]
+        top = dict(FPY.summarize(rows, NOW)['windows']['7']['top_failure_categories'])
+        self.assertEqual(top, {'sandbox:remote_verification_failed': 1})
+
+
 class Verdict(unittest.TestCase):
     def test_finished_builds_with_no_record_at_all_is_a_broken_wiring(self):
         s = FPY.summarize([row(1, 'failed', recorded=False), row(2, 'ready', recorded=False)], NOW)

@@ -126,8 +126,8 @@
    "mutations": [
     {
      "file": "tools/first_pass_yield.py",
-     "old": "        if isinstance(t, dict) and t.get('round_index', 0) == 0:",
-     "new": "        if isinstance(t, dict):  # NEGATIVE CONTROL"
+     "old": "        if isinstance(t, dict) and t.get('round_index', 0) == 0 and t.get('layer') != 'preflight':",
+     "new": "        if isinstance(t, dict) and t.get('layer') != 'preflight':  # NEGATIVE CONTROL"
     }
    ],
    "targets": [
@@ -155,6 +155,23 @@
    ],
    "envs": [
     "pg"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a preflight plan repair is ranked as what stopped the first pass",
+   "mutations": [
+    {
+     "file": "tools/first_pass_yield.py",
+     "old": " and t.get('layer') != 'preflight':",
+     "new": ":  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_first_pass_yield.py"
+   ],
+   "expect_failed": [
+    "test_a_preflight_plan_repair_is_not_what_stopped_the_first_pass"
    ]
   }
  ]

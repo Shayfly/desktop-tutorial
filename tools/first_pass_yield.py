@@ -45,7 +45,9 @@ def first_round_blockers(taxonomy) -> set[str]:
     taxonomy items, omni_prod/failure_taxonomy.py). Counted once per build, so one noisy build cannot dominate."""
     out = set()
     for t in taxonomy or []:
-        if isinstance(t, dict) and t.get('round_index', 0) == 0:
+        # a preflight event is a pre-round plan repair: it costs no round and first_pass ignores it
+        # (autonomous_core: first_pass reads the chain failures of round 0 only), so it is not a blocker
+        if isinstance(t, dict) and t.get('round_index', 0) == 0 and t.get('layer') != 'preflight':
             out.add(f"{t.get('layer') or '?'}:{t.get('failure_type') or '?'}")
     return out
 
