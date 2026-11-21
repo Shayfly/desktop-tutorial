@@ -1,0 +1,62 @@
+"""The Python checks that need a real Chromium run in CI (2026-11-21, the review of the content-document route): v24-ci
+installs no Python playwright, so the section library's visual check and the content route's real-chain engine tests
+skipped there, and the library's browser-only negative controls ran nowhere. browser-python runs them with a
+bounded, retried Chromium install, fails on any skipped test, and runs the browser-only controls."""
+import json
+import pathlib
+import re
+import unittest
+
+import yaml
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+BROWSER_ONLY = ('test_nothing_scrolls_sideways_on_a_phone_or_a_wide_screen',
+                'test_the_production_visual_check_finds_nothing_it_enforces_on_a_phone_or_a_desktop',
+                'test_the_render_check_sees_every_element_settled_after_300ms')
+
+
+class TheBrowserJob(unittest.TestCase):
+    def setUp(self):
+        wf = yaml.safe_load((ROOT / '.github/workflows/browser-python.yml').read_text(encoding='utf-8'))
+        self.events = wf.get('on') or wf.get(True)
+        self.job = wf['jobs']['browser-python']
+        self.steps = self.job['steps']
+
+    def run_of(self, name):
+        return next(s for s in self.steps if s.get('name') == name)
+
+    def test_it_runs_on_every_pull_request_within_the_ci_cost_limit(self):
+        self.assertIn('pull_request', self.events)
+        self.assertLessEqual(self.job['timeout-minutes'], 20)
+        install = self.run_of('Install Chromium (bounded attempts, retried)')
+        per_try = int(re.search(r'timeout (\d+) python -m playwright install --with-deps chromium', install['run']).group(1))
+        self.assertLessEqual(per_try * 3 + 30, install['timeout-minutes'] * 60)
+        wait = int(re.search(r'DPkg::Lock::Timeout "(\d+)"', install['run']).group(1))
+        self.assertLess(wait, per_try)
+        self.assertLess(install['run'].index('DPkg::Lock::Timeout'), install['run'].index('for attempt in 1 2 3'))
+        self.assertTrue(install['run'].rstrip().endswith('exit 1'))
+        self.assertLessEqual(sum(s.get('timeout-minutes', 0) for s in self.steps) + 1, self.job['timeout-minutes'])
+
+    def test_the_browser_tests_run_and_none_may_be_skipped(self):
+        tests = self.run_of('Browser tests')['run']
+        self.assertIn('tests/test_section_library.py', tests)
+        self.assertIn('tests/test_site_content_engine.py', tests)
+        self.assertIn('--junitxml=browser.xml', tests)
+        guard = self.run_of('No test may be skipped')
+        self.assertEqual(guard['if'], 'always()')
+        self.assertIn("sys.exit(1 if skipped or failed or not cases else 0)", guard['run'])
+
+    def test_the_browser_only_controls_run_here(self):
+        step = self.run_of('Negative controls (browser)')
+        self.assertEqual(step['env']['NC_ENV'], 'browser')
+        self.assertIn('run_negative_controls.py section_library', step['run'])
+        spec = json.loads((ROOT / 'tests/negative_controls/section_library.json').read_text(encoding='utf-8'))
+        for control in spec['controls']:
+            needs_browser = set(control['expect_failed']) <= set(BROWSER_ONLY)
+            with self.subTest(control=control['id']):
+                # a control that only a browser test can catch runs only where the browser is
+                self.assertEqual(control.get('envs') == ['browser'], needs_browser)
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -20,6 +20,7 @@
     "tests/test_section_library.py"
    ],
    "expect_failed": [
+    "test_opening_hours_are_kept_whole_per_day",
     "test_time_ranges_keep_their_order_on_a_right_to_left_page"
    ]
   },
@@ -29,8 +30,8 @@
    "mutations": [
     {
      "file": "omni_prod/section_library/__init__.py",
-     "old": "e = html.escape\n",
-     "new": "e = str\n"
+     "old": "    return html.escape(str(s), quote=False).replace(' ₪', NBSP + '₪')\n",
+     "new": "    return str(s).replace(' ₪', NBSP + '₪')\n"
     }
    ],
    "targets": [
@@ -46,24 +47,38 @@
    "mutations": [
     {
      "file": "omni_prod/section_library/__init__.py",
-     "old": "        if c.get(key):\n",
-     "new": "        if True:\n"
+     "old": "        elif (order is None or key in order or key == 'hero') and c.get(key) and (key != 'stats' or stats_shown(c)):\n",
+     "new": "        elif (order is None or key in order or key == 'hero'):\n"
     }
    ],
    "targets": [
     "tests/test_section_library.py"
    ],
    "expect_failed": [
+    "test_a_number_the_hero_panel_shows_is_not_repeated_in_the_strip_and_the_drop_is_said",
     "test_a_section_with_no_content_is_skipped_and_said_never_invented",
     "test_a_team_of_three_is_not_a_row_of_three_icon_cards",
+    "test_a_whatsapp_number_of_its_own_is_shown_as_written_and_can_be_dialled",
     "test_an_image_without_alt_text_is_refused",
     "test_it_passes_the_professional_minimum_and_every_skill_unit",
+    "test_no_drawing_puts_a_circle_on_an_arch_head_like_a_person",
     "test_nothing_scrolls_sideways_on_a_phone_or_a_wide_screen",
     "test_one_h1_and_the_main_action_at_the_top_and_again_at_the_end",
+    "test_opening_hours_are_kept_whole_per_day",
+    "test_quotes_in_the_customers_text_appear_as_typed_and_are_escaped_inside_attributes",
+    "test_the_customers_outline_sets_the_order_and_leaves_out_what_it_does_not_name",
     "test_the_customers_text_is_escaped",
+    "test_the_elegant_hero_carries_the_numbers_in_one_row_and_says_so",
     "test_the_first_screen_image_is_eager_and_every_other_is_lazy",
+    "test_the_footer_carries_the_hours_and_whatsapp_when_given",
+    "test_the_form_reaches_whatsapp_even_without_javascript_and_never_the_sites_server",
     "test_the_library_css_uses_only_the_contracts_tokens",
+    "test_the_menu_toggle_is_an_icon_not_a_third_button_or_the_word_menu",
+    "test_the_numbers_strip_is_the_first_tinted_beat_and_no_two_neighbours_share_a_tone",
     "test_the_owners_page_passes_the_design_contract_and_its_refusal_list",
+    "test_the_page_carries_the_library_fingerprint_and_fits_the_truth_gate_window",
+    "test_the_panel_facts_come_before_the_hero_photo_in_the_markup",
+    "test_the_production_visual_check_finds_nothing_it_enforces_on_a_phone_or_a_desktop",
     "test_the_render_check_sees_every_element_settled_after_300ms",
     "test_the_richer_page_still_passes_the_contract_and_every_unit",
     "test_time_ranges_keep_their_order_on_a_right_to_left_page"
@@ -75,8 +90,8 @@
    "mutations": [
     {
      "file": "omni_prod/section_library/library.css",
-     "old": "  border-radius: var(--radius); cursor: pointer;\n",
-     "new": "  border-radius: var(--radius); border: 2px solid var(--color-border); cursor: pointer;\n"
+     "old": "white-space: nowrap; border-radius: var(--radius); cursor: pointer;\n",
+     "new": "white-space: nowrap; border-radius: var(--radius); border: 2px solid var(--color-border); cursor: pointer;\n"
     }
    ],
    "targets": [
@@ -93,13 +108,13 @@
    "mutations": [
     {
      "file": "omni_prod/section_library/library.css",
-     "old": "  width: 100%; min-width: 0;\n",
-     "new": ""
+     "old": "min-height: 3rem; width: 100%; min-width: 0; padding: var(--space-8) var(--space-16);\n",
+     "new": "min-height: 3rem; padding: var(--space-8) var(--space-16);\n"
     },
     {
      "file": "omni_prod/section_library/library.css",
-     "old": "  .hero .wrap, .split, .contact, .band { grid-template-columns: minmax(0, 1fr); }",
-     "new": "  .hero .wrap, .split, .contact, .band { grid-template-columns: 1fr; }"
+     "old": "  .hero .wrap, .split, .contact, .band, .faq-layout, .aside-layout { grid-template-columns: minmax(0, 1fr); }",
+     "new": "  .hero .wrap, .split, .contact, .band, .faq-layout, .aside-layout { grid-template-columns: 1fr; }"
     }
    ],
    "targets": [
@@ -107,6 +122,9 @@
    ],
    "expect_failed": [
     "test_nothing_scrolls_sideways_on_a_phone_or_a_wide_screen"
+   ],
+   "envs": [
+    "browser"
    ]
   },
   {
@@ -179,6 +197,9 @@
    ],
    "expect_failed": [
     "test_the_production_visual_check_finds_nothing_it_enforces_on_a_phone_or_a_desktop"
+   ],
+   "envs": [
+    "browser"
    ]
   },
   {
@@ -196,6 +217,9 @@
    ],
    "expect_failed": [
     "test_the_production_visual_check_finds_nothing_it_enforces_on_a_phone_or_a_desktop"
+   ],
+   "envs": [
+    "browser"
    ]
   }
  ]
