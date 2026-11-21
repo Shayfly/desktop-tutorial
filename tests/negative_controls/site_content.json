@@ -111,7 +111,7 @@
    "mutations": [
     {
      "file": "omni_prod/autonomous_core.py",
-     "old": "            except RepairDeclined as exc:\n                # the content route (omni_prod/site_content): a platform-owned failure stops without a paid round\n                self.trace.append({'round': rounds, 'repair_declined': exc.stop_reason, 'detail': exc.detail[:400]})\n                stop_reason = exc.stop_reason\n                break\n",
+     "old": "            except RepairDeclined as exc:\n                # the content route (omni_prod/site_content): a platform-owned failure stops without a paid round\n                self.trace.append({'round': rounds, 'repair_declined': exc.stop_reason, 'detail': exc.detail[:400],\n                                   'paid_call': exc.paid_call})\n                if not exc.paid_call:\n                    rounds -= 1          # declined before any model call: this repair round did not run\n                stop_reason = exc.stop_reason\n                break\n",
      "new": ""
     }
    ],

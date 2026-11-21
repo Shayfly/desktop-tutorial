@@ -459,27 +459,48 @@ class ContentSiteRepairer:
         if not by_owner['content']:
             raise RepairDeclined('platform_render_defect', 'only advisory findings reached the repairer: the route\'s '
                                                            'advisory filter is not installed')
-        repository = repo_summary.get('_repository') or {}
-        stored = json.loads(repository[R.SITE_JSON])
-        route, sheet = core.site_route, core.site_sheet
-        R.check_binds(stored.get('binds') or {}, R.binds(sheet, route.contract, route.year))
-        doc = stored['document']
-        paths, missed = attribute(by_owner['content'], doc, sheet)
-        if missed:
-            detail = '; '.join(str(f.get('message', ''))[:200] for f in missed[:6])
-            self.trace.append({'declined': 'platform_render_defect', 'unattributed': detail[:1500]})
-            raise RepairDeclined('platform_render_defect', 'a copy finding points at no model-written text: ' + detail)
-        current = dict(V.leaves(doc))
-        changes = self.agent.rewrite(doc, {p: current[p] for p in paths}, [m for ms in paths.values() for m in ms],
-                                     sheet)
-        for path, text in changes.items():
-            doc = set_path(doc, path, text)
-        offered, _ = K.offered_sections(sheet, route.palette_entry, route.order, route.outline_titles)
-        problems = V.validate(doc, sheet, offered, route.outline_titles)
-        if V.blocking(problems):
-            raise SiteContentInvalid('the repair rewrite made the document invalid', problems)
-        html, _ = R.render(doc, sheet, route.contract, expect_fp=route.contract_fp, direction=route.direction,
-                           year=route.year, outline_titles=route.outline_titles, order=route.order)
+        # After verified rounds, a refusal never throws the verified work away: every refusal below ends the loop on
+        # its best version through RepairDeclined (a model fault -> 'site_content_invalid'; a bind or render fault ->
+        # 'platform_render_defect'), with the round's real checks kept. Before the sandbox the generator still raises
+        # SiteContentInvalid: nothing has been verified there.
+        from ..model_gateway import ModelJSONRejected
+        called = self.agent.calls
+        try:
+            repository = repo_summary.get('_repository') or {}
+            stored = json.loads(repository[R.SITE_JSON])
+            route, sheet = core.site_route, core.site_sheet
+            R.check_binds(stored.get('binds') or {}, R.binds(sheet, route.contract, route.year))
+            doc = stored['document']
+            paths, missed = attribute(by_owner['content'], doc, sheet)
+            if missed:
+                detail = '; '.join(str(f.get('message', ''))[:200] for f in missed[:6])
+                self.trace.append({'declined': 'platform_render_defect', 'unattributed': detail[:1500]})
+                raise RepairDeclined('platform_render_defect', 'a copy finding points at no model-written text: '
+                                     + detail)
+            current = dict(V.leaves(doc))
+            changes = self.agent.rewrite(doc, {p: current[p] for p in paths},
+                                         [m for ms in paths.values() for m in ms], sheet)
+            for path, text in changes.items():
+                doc = set_path(doc, path, text)
+            offered, _ = K.offered_sections(sheet, route.palette_entry, route.order, route.outline_titles)
+            problems = V.validate(doc, sheet, offered, route.outline_titles)
+            if V.blocking(problems):
+                raise SiteContentInvalid('the repair rewrite made the document invalid', problems)
+            html, _ = R.render(doc, sheet, route.contract, expect_fp=route.contract_fp, direction=route.direction,
+                               year=route.year, outline_titles=route.outline_titles, order=route.order)
+        except SiteRenderDefect as exc:
+            self.trace.append({'declined': 'platform_render_defect', 'why': str(exc)[:1500]})
+            raise RepairDeclined('platform_render_defect', str(exc), paid_call=self.agent.calls > called) from exc
+        except SiteContentInvalid as exc:
+            self.trace.append({'declined': 'site_content_invalid', 'why': str(exc)[:1500], 'problems': exc.problems[:12]})
+            raise RepairDeclined('site_content_invalid', str(exc), paid_call=self.agent.calls > called) from exc
+        except ModelJSONRejected as exc:                       # a rewrite that is not {"set": {...}} (plain gateway)
+            self.trace.append({'declined': 'site_content_invalid', 'why': str(exc)[:1500]})
+            raise RepairDeclined('site_content_invalid', str(exc), paid_call=True) from exc
+        except (KeyError, ValueError, TypeError) as exc:      # a stored document the platform cannot read back
+            self.trace.append({'declined': 'platform_render_defect', 'why': f'{type(exc).__name__}: {exc}'[:1500]})
+            raise RepairDeclined('platform_render_defect', f'content/site.json cannot be read back: '
+                                 f'{type(exc).__name__}: {exc}', paid_call=self.agent.calls > called) from exc
         self.trace.append({'rewrote': sorted(changes)})
         core.site_report['repairs'] = core.site_report.get('repairs', 0) + 1
         core.site_report['content_calls'] = core.site_report.get('content_calls', 0) + 1

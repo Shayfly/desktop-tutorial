@@ -329,6 +329,14 @@ class TheLoopStopsOnADecline(unittest.TestCase):
         self.assertEqual(result.repository, {'public/index.html': '<p>v0</p>'})
         self.assertEqual(Declines.calls, 1)
         self.assertEqual(engine.trace[-1]['repair_declined'], 'platform_render_defect')
+        # declined before any model call: no repair round ran, and the customer is told so
+        self.assertEqual(result.repair_rounds, 0)
+        from types import SimpleNamespace
+        from omni_prod.worker_tasks import evaluate_release_gates
+        ok = SimpleNamespace(passed=True, score=90, minimum_score=80, blockers=(), publish_allowed=True)
+        _, code, message = evaluate_release_gates(result=result, quality=ok, security=ok, rights=ok)
+        self.assertEqual(code, 'verification_failed')
+        self.assertIn('after 0 repair round(s) (stopped repairing', message)
 
 
 if __name__ == '__main__':

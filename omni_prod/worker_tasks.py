@@ -889,12 +889,15 @@ def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, 
         out_of_time = getattr(result, 'stop_reason', '') == 'time_budget'
         no_repair_model = getattr(result, 'stop_reason', '') == 'repair_model_unavailable'
         platform_defect = getattr(result, 'stop_reason', '') in ('platform_render_defect', 'unowned_finding')
+        content_refused = getattr(result, 'stop_reason', '') == 'site_content_invalid'
         return False, 'verification_failed', (
             f'build did not pass sandbox verification after {getattr(result, "repair_rounds", "?")} repair round(s)'
             + (' (stopped repairing: the build was out of time)' if out_of_time else '')
             + (' (stopped repairing: no model returned a valid repair)' if no_repair_model else '')
             + (' (stopped repairing: the failure is in the platform\'s own page renderer, not in the written content; '
-               'no paid repair round was spent on it)' if platform_defect else '')
+               'no repair model was asked to fix it)' if platform_defect else '')
+            + (' (stopped repairing: the repair model\'s rewrite of the copy was refused by the content checks)'
+               if content_refused else '')
             + (f'; still failing: {last}' if last else ''))[:2000]
     if not quality.passed:
         blockers = '; '.join(getattr(quality, 'blockers', ()) or ()) or 'no blocker detail'
