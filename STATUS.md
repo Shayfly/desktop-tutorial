@@ -1,3 +1,28 @@
+# 2026-11-21 — the content-document route, slice 1: the model writes copy, the platform renders the library (Claude Code)
+
+- **What:** `omni_prod/site_content` (behind `OMNI_SITE_LIBRARY` = off | accounts | on, default off; an unknown value
+  raises). For an approved content-only Hebrew site the model writes ONE JSON document of copy, validated before
+  rendering (16 codes; one corrective call, then `site_content_invalid`); the platform fills every fact from the fact
+  sheet (fact_canon on the approved prompt, the truth gate's own canon), renders the section library with the build's
+  contract, and writes a fixed GET-only app.py, fixed tests and a manifest covering every acceptance id. Repair is
+  owned by an exhaustive OWNER table: content -> a rewrite of the named JSON paths only; platform ->
+  `RepairDeclined('platform_render_defect')` (new in autonomous_core), no paid round; customer -> needs_customer_input;
+  advisory (design critic, model reviewer) -> library feedback, never a decline. AgenticRepairAgent is off on the
+  route. Worker and rehearsal install it right after the components; evidence `site_route`.
+- **Evidence (verified here, 2026-11-21):** the owner's brief bld_b0eb47a5 (production row read read-only, prompt
+  sha256 `41d10d63...5db61`) takes the route (palette counsel, its outline mapped to library sections) and, through
+  the REAL production chain (`investor_app._verification_executor`, local sandbox transport, local Chromium) and the
+  worker's installs, is READY in round 0 with one content call (`tests/test_site_content_engine.py`, 5 passed). Every
+  WORKER_GATES unit, G-APPLE static and the truth gate pass on the page; with a 480,000-character hero inlined, the
+  truth gate's facts and the hero copy are inside the 45,000-character cut. Flag off: byte-identical engine build.
+  Controls: `site_content` 7/7, `section_library` NC9-NC10 (new) PASS. Pipeline identity unchanged
+  (`41a6e134...4618`).
+- **Found and fixed:** the real visual QA failed the library page on a phone (the closed menu's links measured
+  off-screen, the fixed action bar over the hero's phone link) -- every route build would have stopped.
+- **Not checked:** a live rehearsal on the owner's account (needs `OMNI_SITE_LIBRARY` set in the worker), other
+  palettes end to end through the chain, change requests on a route-built site, gallery/products images, the
+  production sandbox's own Chromium. Headings use the body font (the display-font change is deferred).
+
 # 2026-11-20 — the section library: designed sections the generator will assemble (Claude Code)
 
 - **Why:** the owner's law-firm build (bld_b0eb47a5) was bare; the model designed every site from nothing. The owner
