@@ -194,21 +194,42 @@ def install(engine, *, prompt: str, gateway, request=None, plan_governed: bool =
     The decision is logged (SITE_ROUTE) and kept on the engine for the evidence on every build."""
     core = getattr(engine, 'core', engine)
     route = decide(prompt, request, plan_governed=plan_governed, year=year)
+    if route.route != ROUTE:
+        core.site_route = route
+        _LOG.info('SITE_ROUTE route=%s reason=%s palette=%s contract=%s', route.route, route.reason, route.palette,
+                  route.contract_fp)
+        return route
+    # Everything that can raise is resolved before the engine is touched (a bad OMNI_GATE_SITE_PARITY value raises
+    # here, and the engine stays exactly as it was: never a half-installed route); then all parts are set together.
+    from ..attempt_ledger import TaskTaggedGateway
+    from ..behavior_acceptance import find_in_chain
+    from ..quality_gate import QualityAwareExecutor
+    from ..skill_units import gate as G
+    from ..verification_group import VerificationGroup
+    from . import agents as A
+    parity_mode = G.mode('SITE_PARITY')
+    writer = A.ContentAgent(TaskTaggedGateway(gateway, 'codegen'))
+    rewriter = A.ContentRepairAgent(TaskTaggedGateway(gateway, 'repair'))
+    architect = A.ContentSpecArchitect(core, route)
+    generator = A.ContentSiteGenerator(core, writer, rewriter)
+    repairer = A.ContentSiteRepairer(core, rewriter)
+    quality = find_in_chain(core.executor, QualityAwareExecutor)
+    group = find_in_chain(quality._inner if quality is not None else core.executor, VerificationGroup)
+    recorder = A.ThresholdRecorder(group._threshold) if group is not None else None
     core.site_route = route
     _LOG.info('SITE_ROUTE route=%s reason=%s palette=%s contract=%s', route.route, route.reason, route.palette,
               route.contract_fp)
-    if route.route != ROUTE:
-        return route
-    from ..attempt_ledger import TaskTaggedGateway
-    from ..skill_units import gate as G
-    from . import agents as A
     core.site_report, core.site_feedback, core.site_sheet = {}, [], None
-    writer = A.ContentAgent(TaskTaggedGateway(gateway, 'codegen'))
-    rewriter = A.ContentRepairAgent(TaskTaggedGateway(gateway, 'repair'))
-    core.architect = A.ContentSpecArchitect(core, route)
-    core.generator = A.ContentSiteGenerator(core, writer, rewriter)
-    core.repairer = A.ContentSiteRepairer(core, rewriter)
-    core.executor = A.SiteParityExecutor(A.AdvisoryFilterExecutor(core.executor, core), core, G.mode('SITE_PARITY'))
+    core.architect, core.generator, core.repairer = architect, generator, repairer
+    if group is not None:
+        group._threshold = recorder
+    if quality is not None:
+        # inside the quality gate, around the group: a round turned into a pass still meets the quality assessment
+        quality._inner = A.AdvisoryFilterExecutor(quality._inner, core, recorder)
+        core.executor = A.SiteParityExecutor(core.executor, core, parity_mode)
+    else:
+        core.executor = A.SiteParityExecutor(A.AdvisoryFilterExecutor(core.executor, core, recorder), core,
+                                             parity_mode)
     return route
 
 

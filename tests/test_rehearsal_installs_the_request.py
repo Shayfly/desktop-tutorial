@@ -82,6 +82,37 @@ class TheContentRouteIsInstalledAsInTheWorker(unittest.TestCase):
         self.assertLess(worker.index('site_content.install('), worker.index('install_uploaded_assets(engine'))
         self.assertLess(worker.index('site_content.install('), worker.index('install_page_locale(engine, prompt)'))
 
+    def test_an_unknown_flag_value_stops_the_rehearsal_as_it_stops_the_worker(self):
+        import os
+        from omni_prod import site_content
+        cases = {'yes': {'OMNI_SITE_LIBRARY': 'yes'},
+                 'accounts with none listed': {'OMNI_SITE_LIBRARY': 'accounts', 'OMNI_SITE_LIBRARY_ACCOUNTS': ''}}
+        for label, env in cases.items():
+            with self.subTest(label), mock.patch.dict(os.environ, env):
+                engine, _, report = run_until_the_build(BUTCHER)
+                self.assertFalse(hasattr(engine, 'given'), 'the build was reached: a legacy build was paid for')
+                self.assertEqual(report['outcome'], 'exception')
+                self.assertIn('ValueError: OMNI_SITE_LIBRARY', report['error'])
+                self.assertFalse(R.ready(report))
+                self.assertTrue(any(line.startswith('::error title=site route::') for line in R.annotations(report)))
+                # the worker raises on the same value (worker_tasks calls install with no catch)
+                with self.assertRaises(ValueError):
+                    site_content.install(SimpleNamespace(), prompt=BUTCHER, gateway=None, request=None)
+
+    def test_a_route_that_cannot_be_installed_leaves_the_engine_untouched(self):
+        import json
+        import os
+        from omni_prod import site_content
+        prompt = json.loads((ROOT / 'tests' / 'fixtures' / 'site_content_bld_b0eb47a5.json')
+                            .read_text(encoding='utf-8'))['prompt']
+        engine = SimpleNamespace(architect=object(), generator=object(), repairer=object(), executor=_Inner())
+        before = (engine.architect, engine.generator, engine.repairer, engine.executor)
+        with mock.patch.dict(os.environ, {'OMNI_SITE_LIBRARY': 'on', 'OMNI_GATE_SITE_PARITY': 'bogus'}):
+            with self.assertRaises(ValueError):
+                site_content.install(engine, prompt=prompt, gateway=None, request=None)
+        self.assertEqual((engine.architect, engine.generator, engine.repairer, engine.executor), before)
+        self.assertFalse(hasattr(engine, 'site_route'))
+
     def test_with_the_flag_off_the_rehearsal_says_legacy_and_why(self):
         import os
         with mock.patch.dict(os.environ, {'OMNI_SITE_LIBRARY': 'off'}):

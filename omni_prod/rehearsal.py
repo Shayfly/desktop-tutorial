@@ -62,11 +62,16 @@ def run(prompt: str) -> dict:
     report: dict = {'prompt': prompt}
     # The content-document route, in the worker's order: right after the components, before any install that wraps
     # the architect (worker_tasks._run_live_build_job). The rehearsal has no account: OMNI_SITE_LIBRARY=on exercises it.
+    # The worker fails a customer's build on any error here (an unknown OMNI_SITE_LIBRARY value, an empty account
+    # list): the rehearsal stops the same way, before any spend -- it never builds and judges the legacy path while the
+    # route was intended. install() changes nothing on the engine before everything that can raise is resolved.
+    site_error = None
     try:
         from . import site_content
         report['site_route'] = site_content.install(engine, prompt=prompt, gateway=gateway, request=None).to_dict()
     except Exception as exc:
-        report['site_route_error'] = f'{type(exc).__name__}: {exc}'[:300]
+        site_error = f'{type(exc).__name__}: {exc}'[:1500]
+        report.update(site_route_error=site_error[:300], outcome='exception', error=site_error)
     # Same requirements-aware acceptance scope a real build gets from its contract.
     try:
         from .product_architect import ProductArchitect
@@ -117,11 +122,13 @@ def run(prompt: str) -> dict:
                                     gateway=TaskTaggedGateway(getattr(gateway, '_inner', gateway), 'review'))
     except Exception as exc:
         report['g_apple_error'] = f'{type(exc).__name__}: {exc}'[:300]
-    try:
-        result = engine.build(prompt)
-    except Exception as exc:
-        report.update(outcome='exception', error=f'{type(exc).__name__}: {exc}'[:1500])
-        result = None
+    result = None
+    if site_error is None:
+        try:
+            result = engine.build(prompt)
+        except Exception as exc:
+            report.update(outcome='exception', error=f'{type(exc).__name__}: {exc}'[:1500])
+            result = None
     if result is not None:
         quality = assess_repository(spec=result.spec, repository=result.repository)
         report.update(
@@ -224,6 +231,9 @@ def annotations(report: dict) -> list[str]:
     lines.append(note('release policy', json.dumps(
         {k: policy.get(k) for k in ('decision', 'reason', 'blocking', 'rights_clear')}, ensure_ascii=False)
         + '\nnot run: ' + json.dumps([f"{n['stage']}/{n['check']}" for n in policy.get('not_run') or []])))
+    if report.get('site_route_error'):
+        lines.append('::error title=site route::the route could not be decided, so a customer\'s build would fail the '
+                     'same way; the rehearsal did not build: ' + str(report['site_route_error']).replace('\n', ' '))
     if policy.get('decision') not in (None, 'READY', 'NOT_RUN'):
         lines.append('::error title=release policy::a customer\'s build would FAIL: '
                      + '; '.join(policy.get('blocking') or [str(policy.get('reason'))]).replace('\n', ' ')[:1500])

@@ -277,6 +277,16 @@ class TheRouteThroughTheRealChain(unittest.TestCase):
         self.assertEqual(declined[0]['repair_declined'], 'platform_render_defect')
         self.assertTrue(issubclass(RepairDeclined, Exception))
 
+    def release(self, engine, gw, result):
+        """The worker's own release report for this build (worker_tasks.release_quality_report)."""
+        from types import SimpleNamespace
+        from omni_prod import worker_tasks as W
+        from omni_prod.quality_gate import assess_repository
+        quality = assess_repository(spec=result.spec, repository=result.repository, minimum_score=80)
+        rights = SimpleNamespace(publish_allowed=True, required_disclosures=())
+        report = W.release_quality_report('bld_test', engine, gw, result, quality, SimpleNamespace(passed=True), rights)
+        return report, [(c.stage, c.check, c.status, c.detail) for c in report.blocking]
+
     def test_advisory_findings_are_recorded_and_never_decline(self):
         from omni_prod import site_content
         review = {'findings': [{'skill': 'spec', 'severity': 'blocking', 'file': 'public/index.html',
@@ -291,6 +301,20 @@ class TheRouteThroughTheRealChain(unittest.TestCase):
         feedback = site_content.report(engine)['library_feedback']
         self.assertTrue(any(f['acceptance_id'] == 'REVIEW' and 'city' in f['message'] for f in feedback), feedback)
         self.assertTrue(any(f['acceptance_id'] == 'DESIGN' for f in feedback), feedback)
+        # and the worker's release policy does not fail the build on them (the reviewer's finding is counted as
+        # advisory; the round carries the fixed tests' count)
+        self.assertGreater(result.report.tests_executed or 0, 0)
+        report, blocking = self.release(engine, gw, result)
+        self.assertEqual((report.decision, blocking), ('READY', []))
+
+    def test_the_design_critic_alone_never_fails_the_release(self):
+        gw = ScriptedGateway()
+        engine, prompt = build_engine(gw, design_critic=True)
+        result = engine.build(prompt)
+        self.assertEqual((result.status, result.repair_rounds), ('ready', 0))
+        self.assertIn('design', gw.roles())
+        report, blocking = self.release(engine, gw, result)
+        self.assertEqual((report.decision, blocking), ('READY', []))
 
 
 class TheLoopStopsOnADecline(unittest.TestCase):

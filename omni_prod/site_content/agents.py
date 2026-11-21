@@ -508,17 +508,66 @@ class ContentSiteRepairer:
 
 
 # ---- route-level executors --------------------------------------------------------------------------------------------------
-class AdvisoryFilterExecutor:
-    """Takes advisory failures (the OWNER table) out of a round and records them as library feedback."""
+class ThresholdRecorder:
+    """Keeps the verification group's threshold report (the sandbox build and the fixed tests): when the advisory filter
+    turns a round whose only failures were advisory into a pass, the pass carries the threshold's own test count --
+    the group's failure report has none (release_policy would read the tests as UNKNOWN)."""
 
-    def __init__(self, inner, core):
-        self._inner, self._core = inner, core
+    def __init__(self, inner):
+        self._inner = inner
+        self.last = None
 
     def __getattr__(self, item):
+        if item in ('_inner', 'last'):
+            raise AttributeError(item)
         return getattr(self._inner, item)
 
     def execute(self, *, repository, spec):
+        self.last = self._inner.execute(repository=repository, spec=spec)
+        return self.last
+
+
+class AdvisoryFilterExecutor:
+    """Takes advisory failures (the OWNER table) out of a round and records them as library feedback. Installed
+    INSIDE the quality gate, around the verification group (site_content.install): a round it turns into a pass still
+    meets the in-loop quality assessment, and carries the threshold's test count. Every round it also reconciles the
+    QA review's record with the route's ownership: the model reviewer's blocking findings are counted as 'advisory',
+    not 'blocking', so the release policy does not fail a build on what the route records as library feedback."""
+
+    def __init__(self, inner, core, recorder: ThresholdRecorder | None = None):
+        self._inner, self._core, self._recorder = inner, core, recorder
+
+    def __getattr__(self, item):
+        if item in ('_inner', '_core', '_recorder'):
+            raise AttributeError(item)
+        return getattr(self._inner, item)
+
+    def _reconcile_review(self, *, record: bool) -> None:
+        from ..behavior_acceptance import find_in_chain
+        from ..product_review import ProductReviewExecutor
+        review = find_in_chain(self._inner, ProductReviewExecutor)
+        last = (getattr(review, 'reviews', None) or [None])[-1]
+        if not isinstance(last, dict) or last.get('route_reconciled'):
+            return
+        moved = []
+        for f in last.get('findings') or ():
+            if f.get('severity') != 'blocking' or f.get('source') != 'reviewer':
+                continue
+            message = f"QA review ({f.get('skill')}): {f.get('problem')}"
+            if O.review_owner(message, source='reviewer', missing_listed=False) == 'advisory':
+                f['route_owner'] = 'advisory'
+                moved.append(message)
+        last['route_reconciled'] = True
+        if moved:
+            last['blocking'] = max(0, int(last.get('blocking') or 0) - len(moved))
+            last['advisory'] = len(moved)
+            if record:
+                self._core.site_feedback.extend({'source': 'review', 'acceptance_id': 'REVIEW', 'message': m[:400]}
+                                                for m in moved)
+
+    def execute(self, *, repository, spec):
         report = self._inner.execute(repository=repository, spec=spec)
+        self._reconcile_review(record=report.passed)
         if report.passed:
             return report
         failures = expand(self._core, [dict(f.__dict__) for f in report.failures])
@@ -535,7 +584,9 @@ class AdvisoryFilterExecutor:
                                          'message': str(f.get('message', ''))[:400]} for f in advisory)
         _LOG.info('SITE_ADVISORY recorded=%d kept=%d', len(advisory), len(keep))
         if not keep:
-            return ExecutionReport(True, (), report.build_log, tests_executed=report.tests_executed)
+            base = getattr(self._recorder, 'last', None)
+            tests = base.tests_executed if base is not None and base.passed else report.tests_executed
+            return ExecutionReport(True, (), report.build_log, tests_executed=tests)
         return replace(report, failures=tuple(AcceptanceFailure(f['acceptance_id'], f.get('message', ''),
                                                                 f.get('evidence', '') or '') for f in keep))
 
