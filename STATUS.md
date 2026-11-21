@@ -4291,3 +4291,30 @@ GitHub Actions [manual run 44658425152](https://github.com/Shayfly/desktop-tutor
 The newer [worker deployment at `15a3657`](https://github.com/Shayfly/desktop-tutorial/actions/runs/44650631173/job/136004430513) failed at Apply database migrations with `applied migration missing from package: 45`. The recovery step reported that the previous consumers were restored, and the queue proof was skipped. This run is not counted as evidence of freshness.
 
 Follow-up after the manual check: migration 045 was merged in #474. The [worker deployment for `df37f4f`](https://github.com/Shayfly/desktop-tutorial/actions/runs/44665058956/job/136052265327) completed successfully and proved queue execution at 03:06:03 UTC on 2026-11-20.
+
+## 2026-11-21 — drills, the dead-worker alert, two critical paths, the business metric (Claude Code)
+
+**Implemented and independently verified (by CI on the exact SHA, mutations and real-infrastructure runs; no human reviewer):**
+- **Monthly drills,** recorded in CONTROLS.json `drills_run` (#483, `bed3fa6` -> `86dfb69`):
+  - C16 PASS, run 44932418710: HTTP 405, main unchanged;
+  - C19 PASS, run 44932702825;
+  - C11 PASS, run 44933990232;
+  - C18 FAIL on the alert, run 44935937685.
+  - C19 and C11 each needed a second attempt: both first attempts failed on Claude's own drill-instrument bug, recorded under `attempts`.
+- **Warehouse 121, the dead-worker alert** (#487, `6f5d1ff` -> `0625996`):
+  - drill run 44942838520: Redis read "no worker is registered", issue #489 opened and closed;
+  - live run 44942942630: "omni-builds: 1 live ... heartbeat 81s ago".
+- **Post-deploy verify-replay:** run 44941296147, "10 versions completed; at least one PASS". The first green run since 2026-10-20.
+
+**Implemented, awaiting merge:**
+- Customer session logs in by itself (#490);
+- the CI report moves to the run summary and an artifact (closes #146);
+- the rehearsal's publish-taxonomy never pushes to main.
+
+**Blocked by a named credential:** Customer session needs the secrets `CUSTOMER_TEST_EMAIL` and `CUSTOMER_TEST_PASSWORD`, which only the owner can create.
+
+**Finding (Neon, read-only, 2026-11-21): first_pass_yield, the founder's metric of 2026-10-19, was not recorded for a month.**
+- The rehearsal's publish job pushed to main, and main's protection rejects that; `smoke/rehearsal-builds.jsonl` holds one build, from 2026-10-19.
+- Computed from `build_jobs` for the last 35 days: 48 builds, 11 `ready` (23%), 0 first-pass.
+- In the last 21 days, `verification_failed` caused 21 of 33 failures (3.3 repair rounds on average).
+

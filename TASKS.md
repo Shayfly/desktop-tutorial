@@ -79,3 +79,13 @@
 | FINDING-ATTRIBUTION | Codex | Draft; independent review pending | scripts/check_finding_attribution.py and its negative control |
 | CRITICAL-PATH-FRESHNESS | Codex | Draft; independent review pending | scripts/check_critical_path_freshness.py |
 | OVERLAY-ACCEPTANCE-W | Codex | Draft; awaiting CI and independent review | GitHub run 44479691814, job 135408636414 |
+| DRILLS-2026-11 | Claude Code | Done | C16 PASS 44932418710; C19 PASS 44932702825; C11 PASS 44933990232; C18 FAIL on the alert 44935937685, alert half PASS 44942838520 after #487; recorded in #483 (`bed3fa6` -> `86dfb69`) |
+| WH-121 | Claude Code | Merged | #487 (`6f5d1ff` -> `0625996`) the dead-worker alert every 5 minutes; drill run 44942838520 opened and closed #489; live run 44942942630: 1 live worker |
+| CUST-LOGIN | Claude Code | PR #490 | Customer session logs in by itself; blocked on the owner's two secrets CUSTOMER_TEST_EMAIL / CUSTOMER_TEST_PASSWORD |
+| CI-REPORT-146 | Claude Code (was Codex) | Branch ready | the main CI report goes to the run summary and an artifact; #146 closes when it merges |
+| PATHS-FRESH | Claude Code (was Codex) | Branch ready | rehearsal publish-taxonomy never pushes to main; verify-replay run 44941296147 PASS (10 versions) |
+| ACCEPT-W-477 | Claude Code (was Codex) | In review | #477 AcceptanceW offline; the 600 s ceiling to be measured here |
+| DRILLS-AUTO | Claude Code (was Codex) | Not started | monthly C16/C19/C11 as scheduled workflows; an issue 7 days before a drill is due |
+| NODE24 | Claude Code (was Codex) | Not started | 39 workflow files on actions/checkout@v4, 16 on setup-python@v5 |
+| AGENTS-DRIFT | Claude Code (was Codex) | Not started | AGENTS.md rules 1 and 4 say NOT ENFORCED; C16 is live since 2026-10-20 and critical-path freshness runs daily |
+| YIELD-DB | Claude Code | Not started | first_pass_yield (the founder's metric, 2026-10-19) from build_jobs, daily: 11 of 48 builds ready in 35 days, 0 first-pass (Neon, read-only, 2026-11-21) |
