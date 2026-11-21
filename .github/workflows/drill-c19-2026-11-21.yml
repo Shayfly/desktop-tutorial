@@ -1,0 +1,63 @@
+name: Drill C19 2026-11-21 (kill switch)
+
+# Monthly drill C19 (CONTROLS.json): OMNI_ZERO_COST_MODE turned on blocks every external model call. Second in the
+# owner's order of 2026-11-21 (C16 PASS, run 44932418710). A separate process runs inside the live worker container
+# (its image, its code, its environment) twice: as deployed, and with OMNI_ZERO_COST_MODE=1. The worker's own process
+# is not touched.
+# Expected, stated before the run: as deployed (production has spend on) the call is ALLOWED -- the control half that
+# shows the switch is what changes the answer; with the switch ON external_spend_enabled() is false and the call is
+# BLOCKED (or ModelRuntimeConfig refuses to build). Either half different = FAIL, and the drills stop here.
+on:
+  push:
+    branches: [drill/monthly-2026-11-21]
+    paths: [.github/workflows/drill-c19-2026-11-21.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker-host-drills
+  cancel-in-progress: false
+
+jobs:
+  c19-kill-switch:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: C19 -- the kill switch, on the production image and environment
+        run: |
+          set -uo pipefail
+          W=omni-worker-worker-1
+          docker inspect "$W" >/dev/null 2>&1 || { echo "::error title=C19 not run::no container $W ($(docker ps --format '{{.Names}}' | tr '\n' ' '))"; exit 1; }
+          cat > "$RUNNER_TEMP/c19.py" <<'PY'
+          import json, os
+          from decimal import Decimal
+          import omni_prod.model_policy as mp
+          out = {'OMNI_ZERO_COST_MODE': os.environ.get('OMNI_ZERO_COST_MODE'),
+                 'OMNI_ALLOW_EXTERNAL_FALLBACK': os.environ.get('OMNI_ALLOW_EXTERNAL_FALLBACK'),
+                 'spend_enabled': mp.external_spend_enabled()}
+          try:
+              from omni_prod.model_runtime_config import ModelRuntimeConfig
+              cfg = ModelRuntimeConfig.from_env()
+              out['config'] = 'built'
+              ep = mp.ModelEndpoint(name='drill', base_url='https://drill.invalid/v1', model='drill', external=True)
+              try:
+                  mp.authorize_model_call(endpoint=ep, policy=cfg.policy, state=mp.ModelUseState(),
+                                          estimated_cost_usd=Decimal('0.001'))
+                  out['call'] = 'ALLOWED'
+              except mp.ModelPolicyViolation as e:
+                  out['call'] = 'BLOCKED: ' + str(e)
+          except ValueError as e:
+              out['config'] = 'REFUSED: ' + str(e)
+          print(json.dumps(out))
+          PY
+          echo "::notice title=C19 worker before::$(docker inspect -f 'status={{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}}' "$W")"
+          asis=$(docker exec -i "$W" python - < "$RUNNER_TEMP/c19.py" 2>&1 | tail -n 1)
+          echo "::notice title=C19 as deployed::$asis"
+          on=$(docker exec -i -e OMNI_ZERO_COST_MODE=1 "$W" python - < "$RUNNER_TEMP/c19.py" 2>&1 | tail -n 1)
+          echo "::notice title=C19 switch ON::$on"
+          echo "::notice title=C19 worker after (untouched)::$(docker inspect -f 'status={{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}}' "$W")"
+          case "$asis" in *'"call": "ALLOWED"'*) ;; *) echo "::warning title=C19 control half::as deployed the call is not ALLOWED ($asis): the switch is not the only thing deciding";; esac
+          case "$on" in *'"spend_enabled": false'*) ;; *) echo "::error title=C19 FAIL::external spend still enabled with OMNI_ZERO_COST_MODE=1"; exit 1;; esac
+          case "$on" in *BLOCKED*|*REFUSED*) echo "::notice title=C19 PASS::with OMNI_ZERO_COST_MODE=1 the production code and environment block the external call";;
+            *) echo "::error title=C19 FAIL::the external call was not blocked: $on"; exit 1;; esac
