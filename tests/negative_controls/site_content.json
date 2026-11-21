@@ -552,8 +552,8 @@
    "mutations": [
     {
      "file": "omni_prod/rehearsal.py",
-     "old": "    if site_error is None:\n",
-     "new": "    if True:\n"
+     "old": "        if site_error is not None:          # the worker fails here too: no build, no spend\n",
+     "new": "        if False:\n"
     }
    ],
    "targets": [

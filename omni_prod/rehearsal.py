@@ -122,13 +122,13 @@ def run(prompt: str) -> dict:
                                     gateway=TaskTaggedGateway(getattr(gateway, '_inner', gateway), 'review'))
     except Exception as exc:
         report['g_apple_error'] = f'{type(exc).__name__}: {exc}'[:300]
-    result = None
-    if site_error is None:
-        try:
-            result = engine.build(prompt)
-        except Exception as exc:
-            report.update(outcome='exception', error=f'{type(exc).__name__}: {exc}'[:1500])
-            result = None
+    try:
+        if site_error is not None:          # the worker fails here too: no build, no spend
+            raise RuntimeError(f'the content route could not be decided, so the build did not start: {site_error}')
+        result = engine.build(prompt)
+    except Exception as exc:
+        report.update(outcome='exception', error=f'{type(exc).__name__}: {exc}'[:1500])
+        result = None
     if result is not None:
         quality = assess_repository(spec=result.spec, repository=result.repository)
         report.update(
