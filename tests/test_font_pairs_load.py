@@ -107,7 +107,7 @@ class EveryPairLoads(unittest.TestCase):
             route = SC.decide(PROMPT, {'user_id': 'usr_owner_test'}, year='2026')
         doc, _ = R.render(FIXTURE['scripted_content'], Fx.fact_sheet(PROMPT), route.contract,
                           expect_fp=route.contract_fp, direction=route.direction, year='2026',
-                          outline_titles=route.outline_titles, order=route.order)
+                          outline_titles=route.outline_titles, order=route.order, windows=route.windows)
         p = T.pair(route.font_pair)
         with sync_playwright() as pw:
             browser = pw.chromium.launch()

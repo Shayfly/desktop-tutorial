@@ -47,7 +47,12 @@ jobs:
           exit 1
       - name: Browser tests
         timeout-minutes: 4
-        run: python -m pytest -q -rs --junitxml=browser.xml tests/test_section_library.py tests/test_section_library_conformance.py tests/test_site_content_engine.py tests/test_library_cookie_banner.py
+        # 2026-11-22 (warehouse 126): the font pairs load in a real browser, and the owner's brief builds READY through the
+        # real chain with its pair; both files skip without Chromium, so they run here.
+        run: >-
+          python -m pytest -q -rs --junitxml=browser.xml tests/test_section_library.py
+          tests/test_section_library_conformance.py tests/test_site_content_engine.py tests/test_library_cookie_banner.py
+          tests/test_font_pairs_load.py tests/test_font_pair_on_the_real_chain.py
       - name: No test may be skipped
         if: always()
         run: |
@@ -73,7 +78,10 @@ jobs:
           NC_ENV: browser
           NC_JOBS: "2"
         # 2026-11-22: the library's cookie banner (DECISIONS 14 b) has 3 browser-only controls of its own (NC7-NC9)
+        # 2026-11-22 (warehouse 126): of typography_126_129 only the 4 controls that need a browser run here
+        # (NC4/NC5 envs browser, NC1/NC16 expect_failed_browser); the other 12 run in v24-ci.
         run: |
           python scripts/run_negative_controls.py section_library; a=$?
           python scripts/run_negative_controls.py library_cookie_banner; b=$?
-          exit $(( a | b ))
+          NC_SCOPE=declared python scripts/run_negative_controls.py typography_126_129; c=$?
+          exit $(( a | b | c ))

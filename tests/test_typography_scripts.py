@@ -319,7 +319,7 @@ class TheRoute(unittest.TestCase):
         route = decide()
         doc, _ = R.render(FIXTURE['scripted_content'], Fx.fact_sheet(PROMPT), route.contract, expect_fp=route.contract_fp,
                           direction=route.direction, year='2026', outline_titles=route.outline_titles,
-                          order=route.order)
+                          order=route.order, windows=route.windows)
         p = T.pair(route.font_pair)
         self.assertIn(T.font_link(p), doc)
         self.assertEqual(len(re.findall(r'fonts\.googleapis\.com/css2', doc)), 1)

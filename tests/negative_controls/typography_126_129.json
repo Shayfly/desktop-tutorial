@@ -23,6 +23,11 @@
    "expect_failed": [
     "test_the_owners_brief_gets_a_pair_from_the_library",
     "test_the_rendered_page_carries_the_pair",
+    "test_the_gate_holds_the_contract_the_page_is_rendered_with"
+   ],
+   "expect_failed_browser": [
+    "test_the_owners_brief_gets_a_pair_from_the_library",
+    "test_the_rendered_page_carries_the_pair",
     "test_the_gate_holds_the_contract_the_page_is_rendered_with",
     "test_a_brief_that_locks_its_own_contract_is_built_ready_through_the_real_chain"
    ]
@@ -79,6 +84,9 @@
    "expect_failed": [
     "test_every_pair_of_the_library_loads_its_faces_for_its_script",
     "test_the_routes_page_for_the_owners_brief_loads_its_pair"
+   ],
+   "envs": [
+    "browser"
    ]
   },
   {
@@ -97,6 +105,9 @@
    "expect_failed": [
     "test_every_pair_of_the_library_loads_its_faces_for_its_script",
     "test_the_routes_page_for_the_owners_brief_loads_its_pair"
+   ],
+   "envs": [
+    "browser"
    ]
   },
   {
@@ -288,6 +299,9 @@
     "tests/test_font_pair_on_the_real_chain.py"
    ],
    "expect_failed": [
+    "test_the_gate_holds_the_contract_the_page_is_rendered_with"
+   ],
+   "expect_failed_browser": [
     "test_the_gate_holds_the_contract_the_page_is_rendered_with",
     "test_a_brief_that_locks_its_own_contract_is_built_ready_through_the_real_chain"
    ]
