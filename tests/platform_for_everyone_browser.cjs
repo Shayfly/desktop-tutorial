@@ -14,6 +14,8 @@
  *   targets    every control a finger can reach is at least 44x44px (warehouse 133), not only WCAG's 24px.
  *   size       "Text size" makes the text larger (16 -> 18 -> 20px), is kept after a reload, and at the largest size
  *              nothing scrolls sideways at 320px.
+ *   look       the owner's example (2026-11-23): on a computer the project rail is open on the first visit; the top bar
+ *              and the rail are dark, on a phone too.
  *
  * A check that never fails proves nothing: every run also serves deliberately broken copies (MUTATIONS) and requires
  * the matching check to fail on each. A mutation that is not caught fails the run.
@@ -53,6 +55,9 @@ const MUTATIONS = [
   { id: 'size_not_kept', check: 'size', file: 'app.js',
     old: "  try { localStorage.setItem('148ai_text', currentTextSize); } catch { /* see above */ }", new: '' },
   { id: 'size_does_nothing', check: 'size', file: 'app.css', append: '\nhtml[data-text] { font-size: 100% !important }' },
+  { id: 'rail_closed', check: 'look', file: 'visual-edit.js', width: 1440,
+    old: "    } catch { /* defaults */ }\n    syncSidebar();", new: "      ws().classList.add('sb-collapsed');\n    } catch { /* defaults */ }\n    syncSidebar();" },
+  { id: 'light_top_bar', check: 'look', file: 'app.css', append: '\n.workspace > .mobileWorkspaceHead { background: #ffffff !important }' },
 ];
 
 function served(mutation) {
@@ -172,7 +177,29 @@ async function screens(page, width, measure) {
   return found;
 }
 
+// relative luminance of an element's own background (WCAG formula); dark is under 0.05
+const DARK = () => { const lum = el => { const m = getComputedStyle(el).backgroundColor.match(/[\d.]+/g).map(Number);
+  const [r, g, b] = m.slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  return { head: lum(document.querySelector('.workspace > .mobileWorkspaceHead')), rail: lum(document.getElementById('sidebar')) }; };
+
 const CHECKS = {
+  async look(browser, lang, width, files) {
+    const fail = [];
+    const { page } = await open(browser, { lang, width, files, projects: [{ id: 'p1', title: lang === 'he' ? 'סטודיו נועה' : 'Noa Studio' }] });
+    if (width > 900) {
+      const rail = await page.evaluate(() => { const r = document.getElementById('sidebar').getBoundingClientRect();
+        return { w: Math.round(r.width), inView: r.left >= 0 && r.right <= window.innerWidth + 1, inert: document.getElementById('sidebar').inert }; });
+      if (rail.w < 200 || !rail.inView || rail.inert) fail.push(`the project rail is not open on a computer (${JSON.stringify(rail)})`);
+    } else {
+      await page.locator('#mobileMenuBtn').click(); await page.waitForTimeout(200);
+    }
+    const dark = await page.evaluate(DARK);
+    if (!(dark.head < 0.05)) fail.push(`the top bar is not dark (luminance ${dark.head.toFixed(3)})`);
+    if (!(dark.rail < 0.05)) fail.push(`the project rail is not dark (luminance ${dark.rail.toFixed(3)})`);
+    await page.close();
+    return fail;
+  },
   async first(browser, lang, width, files) {
     const { page, server } = await open(browser, { lang, width, files });
     const fail = [];
@@ -286,7 +313,7 @@ const CHECKS = {
     }
     for (const m of MUTATIONS) {
       const lang = m.lang || 'he';
-      const fail = await CHECKS[m.check](browser, lang, 390, served(m));
+      const fail = await CHECKS[m.check](browser, lang, m.width || 390, served(m));
       if (!fail.length) failures.push(`mutation ${m.id} was NOT caught by the "${m.check}" check`);
       else console.log(`::notice title=for everyone mutation::${m.id}: caught by "${m.check}" (${fail[0].slice(0, 120)})`);
     }
@@ -297,5 +324,5 @@ const CHECKS = {
     for (const f of failures) console.log(`::error title=for everyone::${f}`);
     process.exit(1);
   }
-  console.log(`::notice title=for everyone::5 checks x 2 languages hold; ${MUTATIONS.length}/${MUTATIONS.length} mutations caught`);
+  console.log(`::notice title=for everyone::${Object.keys(CHECKS).length} checks x 2 languages hold; ${MUTATIONS.length}/${MUTATIONS.length} mutations caught`);
 })().catch(e => { console.error(e); process.exit(1); });

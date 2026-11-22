@@ -117,7 +117,8 @@ const path=require('path');
     await page.locator('.welcomeChat').waitFor();
     assert.equal(await page.locator('#chatInput').evaluate(el=>document.activeElement===el),true,'new project accessible from drawer: an empty conversation, ready to type');
    }else{
-    await page.locator('#sbOpen').click();await page.locator('#sbCollapse').click();await page.locator('#sbOpen').click();
+    // the owner 2026-11-23: the project rail starts open on a computer; closing and opening it still works
+    await page.locator('#sbCollapse').click();await page.locator('#sbOpen').click();
     assert.equal(await page.locator('#sidebar').evaluate(el=>el.inert),false);
    }
    await page.close();console.log(`PASS customer edit flow ${width}px`);
