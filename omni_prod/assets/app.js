@@ -134,7 +134,7 @@ const T = {
     newChat:'שיחה חדשה · פרויקט חדש', searchProjects:'חיפוש פרויקטים', canBuildTitle:'מה אפשר לבנות היום', noMatches:'לא נמצאו פרויקטים',
     hideSidebar:'הסתרת הסרגל', showSidebar:'הצגת הסרגל', previewToggle:'תצוגה', expandPreview:'הגדלת התצוגה', shrinkPreview:'הקטנת התצוגה',
     hidePreview:'סגירת התצוגה', resizePreview:'גרירה לשינוי רוחב התצוגה', send:'שליחה',
-    chatPlaceholder:'כתבו מה תרצו לבנות או לשנות…', you:'אתם', assistant:'148AI',
+    chatPlaceholder:'כתבו מה תרצו לבנות או לשנות…', you:'אתם', assistant:'148AI', language:'שפה', docTitle:'148AI · סביבת יצירה',
     chatHelloTitle:'מה נבנה היום?', chatHello:'ספרו במילים שלכם מה אתם צריכים — אני אשאל רק מה שחשוב, אציע תוכנית ועלות, ושום דבר לא ייבנה בלי האישור שלכם.',
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
     actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאשר ולהתחיל לבנות', actApproveSpec:'כן, זה נכון',
@@ -271,7 +271,7 @@ const T = {
     newChat:'New chat · new project', searchProjects:'Search projects', canBuildTitle:'What can be built today', noMatches:'No projects found',
     hideSidebar:'Hide sidebar', showSidebar:'Show sidebar', previewToggle:'Preview', expandPreview:'Enlarge preview', shrinkPreview:'Restore preview size',
     hidePreview:'Close preview', resizePreview:'Drag to resize the preview', send:'Send',
-    chatPlaceholder:'Describe what you want to build or change…', you:'You', assistant:'148AI',
+    chatPlaceholder:'Describe what you want to build or change…', you:'You', assistant:'148AI', language:'Language', docTitle:'148AI · Creator workspace',
     aiFallback:'This reply was built from fixed rules, without an AI model.',
     chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
@@ -285,8 +285,13 @@ const T = {
   },
 };
 
+// the platform's languages (the owner, 2026-11-22: "תוצאות בהרבה שפות"); each is named in its own script, sets the
+// page direction, and formats dates and numbers. Arabic keeps Latin digits (ar-u-nu-latn), as the rest of the platform.
+const LANGS = { he: { name: 'עברית', dir: 'rtl', locale: 'he-IL' }, en: { name: 'English', dir: 'ltr', locale: 'en-GB' },
+                ar: { name: 'العربية', dir: 'rtl', locale: 'ar-u-nu-latn' } };
+const locale = () => (LANGS[S.lang] || LANGS.he).locale;
 const S = {
-  lang: localStorage.getItem('148ai_lang') || 'he',
+  lang: (l => (l in LANGS ? l : 'he'))(localStorage.getItem('148ai_lang') || 'he'),
   signedIn: false,
   me: null, projects: [], projectId: localStorage.getItem('148ai_project') || '',
   durable: false, plan: null, build: null, versions: [], previewId: null, preview: null,
@@ -400,7 +405,9 @@ function explain(err) {
     const count = Number.isFinite(used) && Number.isFinite(max) ? ` (${used}/${max})` : '';
     return S.lang === 'he'
       ? 'הגעתם למכסת הפרויקטים הפעילים' + count + '. ניתן לארכב פרויקט קיים או לשנות תוכנית. זו לא בעיה של יתרה.'
-      : 'Active project limit reached' + count + '. Archive an existing project or change plan. This is not a build-credit issue.';
+      : S.lang === 'ar'
+        ? 'وصلتم إلى الحد الأقصى للمشاريع النشطة' + count + '. يمكنكم أرشفة مشروع قائم أو تغيير الخطة. هذه ليست مشكلة في الرصيد.'
+        : 'Active project limit reached' + count + '. Archive an existing project or change plan. This is not a balance issue.';
   }
   if (err.detail && err.detail.error === 'attachments_not_ready') return t('attachmentSchema');
   if (err.detail && err.detail.error === 'capability_not_feasible') return capabilityBlockMessage(err.detail);
@@ -426,15 +433,18 @@ const pid = () => encodeURIComponent(S.projectId);
 /* ---------- language ---------- */
 function applyLang() {
   document.documentElement.lang = S.lang;
-  document.documentElement.dir = S.lang === 'he' ? 'rtl' : 'ltr';
+  document.documentElement.dir = (LANGS[S.lang] || LANGS.he).dir;
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-label]').forEach(el => { el.setAttribute('aria-label', t(el.dataset.i18nLabel)); el.title = t(el.dataset.i18nLabel); });
   if ($('passwordToggle')) { const label = t($('password').type === 'password' ? 'showPassword' : 'hidePassword'); $('passwordToggle').setAttribute('aria-label', label); $('passwordToggle').title = label; }
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
-  for (const b of [$('langBtn'), $('langBtn2')]) { b.textContent = S.lang === 'he' ? 'English' : 'עברית'; b.lang = S.lang === 'he' ? 'en' : 'he'; }
+  for (const pick of [$('langBtn'), $('langBtn2')]) {
+    if (!pick.options.length) pick.append(...Object.entries(LANGS).map(([code, l]) => h('option', { value: code, lang: code, dir: l.dir }, l.name)));
+    pick.value = S.lang;
+  }
   $('chatInput').placeholder = t('chatPlaceholder');
   $('publishNote').textContent = t('publishNotConfigured');
-  document.title = S.lang === 'he' ? '148AI · סביבת יצירה' : '148AI · Creator workspace';
+  document.title = t('docTitle');
   renderBanner(); renderDiscovery(); renderPlan(); renderTrack(); renderVersions(); renderEvidence(); renderPreview(); renderMod();
   renderProjects(); renderWorkspaceBalance(); renderChat(); renderArch(); renderTabs(); syncStageButtons();
   if (window.VE) VE.render();
@@ -543,7 +553,7 @@ function renderWorkspaceBalance() {
   const credits = S.me?.subscription?.credits_remaining;
   const balance = $('sbBalance');
   balance.hidden = !Number.isFinite(credits);
-  balance.textContent = balance.hidden ? '' : `${t('creditsRemaining')} · ${new Intl.NumberFormat(S.lang).format(credits)}`;
+  balance.textContent = balance.hidden ? '' : `${t('creditsRemaining')} · ${new Intl.NumberFormat(locale()).format(credits)}`;
 }
 async function refreshWorkspaceBalance() {
   const account = S.me;
@@ -1118,15 +1128,15 @@ function renderPlan() {
   }
   if (p.blockers.length) {
     const missingCapabilityNames = {
-      'ai.agent.tools': ['סוכן AI המבצע פעולות', 'Agent tool execution'],
-      'integration.maps': ['מפות אינטראקטיביות', 'Interactive maps'],
-      'media.audio.tts': ['יצירת קול וקריינות', 'Text-to-speech'],
-      'outbound': ['שליחת מיילים או התראות', 'Outgoing emails or notifications'],
-      'target.agent': ['מוצר מסוג סוכן AI', 'AI agent product'],
+      'ai.agent.tools': ['סוכן AI המבצע פעולות', 'Agent tool execution', 'وكيل ذكاء اصطناعي ينفّذ إجراءات'],
+      'integration.maps': ['מפות אינטראקטיביות', 'Interactive maps', 'خرائط تفاعلية'],
+      'media.audio.tts': ['יצירת קול וקריינות', 'Text-to-speech', 'تحويل النص إلى صوت وتعليق صوتي'],
+      'outbound': ['שליחת מיילים או התראות', 'Outgoing emails or notifications', 'إرسال رسائل بريد إلكتروني أو إشعارات'],
+      'target.agent': ['מוצר מסוג סוכן AI', 'AI agent product', 'منتج من نوع وكيل ذكاء اصطناعي'],
     };
     const nameForMissing = g => {
       const names = missingCapabilityNames[g.key];
-      return names ? names[S.lang === 'he' ? 0 : 1] : String(g.purpose || g.key || t('unknownBlocker'));
+      return names ? names[{ he: 0, en: 1, ar: 2 }[S.lang] ?? 1] : String(g.purpose || g.key || t('unknownBlocker'));
     };
     const title = b => blockerTitle(b, p);
     const titles = [...new Set(p.blockers.map(title))];
@@ -1261,7 +1271,7 @@ function renderLog() {
     return;
   }
   box.hidden = false;
-  const fmt = iso => { try { return new Date(iso).toLocaleTimeString(S.lang === 'he' ? 'he-IL' : 'en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return ''; } };
+  const fmt = iso => { try { return new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return ''; } };
   const rows = (b.log || []).slice(-60).map(e => h('li', { class: `ev ${e.kind}` }, h('time', {}, fmt(e.at)), ' ', e.message));
   const atEnd = list.scrollHeight - list.scrollTop - list.clientHeight < 24;
   list.replaceChildren(...(rows.length ? rows : [h('li', { class: 'ev muted' }, t('logEmpty'))]));
@@ -1501,8 +1511,8 @@ function friendlyError(b) {
   if (b.error_code === 'image_mismatch') {
     // Michael 2026-11-15: judged in seconds -- what was asked, and what the vision model saw
     const m = String(b.error_message || '').match(/asked "([^"]*)"; the image shows "([^"]*)"/);
-    if (m) return known + (S.lang === 'en' ? ` Asked: "${m[1]}". The image shows: "${m[2]}".`
-                                            : ` ביקשתם: "${m[1]}". בתמונה: "${m[2]}".`);
+    if (m) return known + ({ en: ` Asked: "${m[1]}". The image shows: "${m[2]}".`,
+                            ar: ` طلبتم: "${m[1]}". في الصورة: "${m[2]}".` }[S.lang] ?? ` ביקשתם: "${m[1]}". בתמונה: "${m[2]}".`);
     return known;
   }
   // 2026-11-08: 'all model routes failed: ... does not fit the remaining budget' is the build budget running out,
@@ -1583,7 +1593,7 @@ function renderBuilt() {
   $('builtSummary').textContent = v.summary || '';
   $('builtFeatures').replaceChildren(...(v.features || []).map((f) => h('li', {}, f)));
   let when = v.created_at;
-  try { when = new Intl.DateTimeFormat(S.lang === 'he' ? 'he-IL' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(v.created_at)); } catch { /* keep raw */ }
+  try { when = new Intl.DateTimeFormat(locale(), { dateStyle: 'short', timeStyle: 'short' }).format(new Date(v.created_at)); } catch { /* keep raw */ }
   $('builtMeta').replaceChildren(when,
     v.file_count ? ` · ${v.file_count} ${t('files')}` : '');
 }
@@ -1592,7 +1602,7 @@ function renderVersions() {
   panel.hidden = !S.projectId || !S.me;
   const list = $('versionsList');
   if (!S.versions.length) { list.replaceChildren(h('li', { class: 'meta' }, t('noVersions'))); return; }
-  const fmt = new Intl.DateTimeFormat(S.lang === 'he' ? 'he-IL' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' });
+  const fmt = new Intl.DateTimeFormat(locale(), { dateStyle: 'short', timeStyle: 'short' });
   list.replaceChildren(...S.versions.map((v, i) => {
     let when = v.created_at; try { when = fmt.format(new Date(v.created_at)); } catch { /* keep raw */ }
     return h('li', {},
@@ -2082,6 +2092,10 @@ const TT = {
     unit_tests:'בדיקות בסביבה מבודדת', repair:'תיקונים', preview_smoke:'הפעלת תצוגה', behavioural_acceptance:'בדיקות התנהגות',
     browser_flow:'בדיקת דפדפן', visual_qa:'בדיקה חזותית', security_scan:'סריקת אבטחה', code_review:'סקירת קוד',
     release_gate:'שער שחרור', version_release:'שמירת גרסה', cost_settlement:'חישוב עלות' },
+  ar: { requirements:'المتطلبات', plan_and_quote:'الخطة وعرض السعر', architecture:'تصميم البنية', implementation:'كتابة الكود',
+    unit_tests:'فحوصات في بيئة معزولة', repair:'إصلاحات', preview_smoke:'تشغيل المعاينة', behavioural_acceptance:'فحوصات السلوك',
+    browser_flow:'فحص في المتصفح', visual_qa:'فحص بصري', security_scan:'فحص الأمان', code_review:'مراجعة الكود',
+    release_gate:'بوابة الإطلاق', version_release:'حفظ النسخة', cost_settlement:'حساب التكلفة' },
 };
 const ttLabel = k => (TT[S.lang] && TT[S.lang][k]) || String(k).replace(/_/g, ' ');
 async function loadTasks() {
@@ -2198,7 +2212,7 @@ function wireWorkspace() {
   });
   syncSidebar();
   $('sbScrim').addEventListener('click', closeSidebarMobile);
-  $('langBtn2').addEventListener('click', () => $('langBtn').click());
+  $('langBtn2').addEventListener('change', e => { $('langBtn').value = e.target.value; $('langBtn').dispatchEvent(new Event('change')); });
   $('logoutBtn2').addEventListener('click', logout);
   $('togglePreviewBtn').addEventListener('click', () => {
     if (matchMedia('(max-width:900px)').matches) ws.classList.toggle('stage-mobile');
@@ -2246,7 +2260,7 @@ function wire() {
   });
   $('registerBtn').addEventListener('click', () => authSubmit('register'));
   $('logoutBtn').addEventListener('click', logout);
-  $('langBtn').addEventListener('click', () => { S.lang = S.lang === 'he' ? 'en' : 'he'; localStorage.setItem('148ai_lang', S.lang); applyLang(); });
+  $('langBtn').addEventListener('change', e => { if (!(e.target.value in LANGS)) return; S.lang = e.target.value; localStorage.setItem('148ai_lang', S.lang); applyLang(); });
   $('projectSelect').addEventListener('change', e => selectProject(e.target.value));
   $('projectMenuBtn').addEventListener('click', openProjectDialog);
   $('firstProjectForm').addEventListener('submit', async e => {

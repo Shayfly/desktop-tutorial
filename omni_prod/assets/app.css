@@ -632,3 +632,8 @@ body.signed-out .topbar :focus-visible{outline-color:var(--signal)}
 @media(min-width:901px){
   .workspace.stage-max>.stage{inset:12px;width:auto}
 }
+
+/* the language picker (2026-11-22): a native select, so every language is one keyboard or screen-reader choice away */
+.langPick{min-height:44px;width:auto;padding-inline:.6rem;border:1px solid var(--rule);border-radius:var(--radius-control);background:var(--surface);color:var(--ink);font:inherit}
+body.signed-out .topbar .langPick{background:transparent;color:#f2e9d8;border-color:#40392d}
+body.signed-out .topbar .langPick option{color:#171610;background:#fff}
