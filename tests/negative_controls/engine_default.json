@@ -1,0 +1,81 @@
+{
+ "pr": "engine-default",
+ "sha256": [
+  "infra/worker-host/docker-compose.yml",
+  "tests/test_engine_default_for_content_sites.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the new engine goes back to the owner only",
+   "mutations": [
+    {
+     "file": "infra/worker-host/docker-compose.yml",
+     "old": "      OMNI_SITE_LIBRARY: ${OMNI_SITE_LIBRARY:-on}\n",
+     "new": "      OMNI_SITE_LIBRARY: ${OMNI_SITE_LIBRARY:-accounts}\n      OMNI_SITE_LIBRARY_ACCOUNTS: ${OMNI_SITE_LIBRARY_ACCOUNTS:-usr_GCWlMxENgr9vpwph}\n"
+    }
+   ],
+   "targets": [
+    "tests/test_engine_default_for_content_sites.py"
+   ],
+   "expect_failed": [
+    "test_an_app_keeps_the_existing_path_and_says_why",
+    "test_no_account_is_turned_away_by_the_flag",
+    "test_the_worker_is_deployed_with_the_new_engine_on"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the new engine is off for everyone",
+   "mutations": [
+    {
+     "file": "infra/worker-host/docker-compose.yml",
+     "old": "${OMNI_SITE_LIBRARY:-on}",
+     "new": "${OMNI_SITE_LIBRARY:-off}"
+    }
+   ],
+   "targets": [
+    "tests/test_engine_default_for_content_sites.py"
+   ],
+   "expect_failed": [
+    "test_an_app_keeps_the_existing_path_and_says_why",
+    "test_no_account_is_turned_away_by_the_flag",
+    "test_the_worker_is_deployed_with_the_new_engine_on"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the fall-back switch is hard-coded (no host override)",
+   "mutations": [
+    {
+     "file": "infra/worker-host/docker-compose.yml",
+     "old": "      OMNI_SITE_LIBRARY: ${OMNI_SITE_LIBRARY:-on}\n",
+     "new": "      OMNI_SITE_LIBRARY: \"on\"\n"
+    }
+   ],
+   "targets": [
+    "tests/test_engine_default_for_content_sites.py"
+   ],
+   "expect_failed": [
+    "test_the_fall_back_switch_is_one_host_override_away"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "an app is taken by the new engine",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    if not content_only_approved(prompt):\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_engine_default_for_content_sites.py"
+   ],
+   "expect_failed": [
+    "test_an_app_keeps_the_existing_path_and_says_why"
+   ]
+  }
+ ]
+}
