@@ -115,6 +115,15 @@ class TheScreensFixture(unittest.TestCase):
         self.assertEqual(fixture['card'], owner_card())
 
 
+class PlainWords(unittest.TestCase):
+    def test_the_builders_default_is_said_in_plain_words(self):
+        default = 'אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו'
+        card = C.card(stage='שלב 1 מתוך 2', lang='he', excluded=[], canon_lines=[], price='', next_step='',
+                      rows=[('מסכים', default, False)])
+        self.assertEqual(card['rows'][0]['value'], 'רק החלקים שביקשתם, בלי מסכי ניהול שלא ביקשתם')
+        self.assertNotIn('CRUD', shown_text(card))
+
+
 class TheBrowserCheckRuns(unittest.TestCase):
     def test_the_browser_check_runs_in_ci(self):
         from pathlib import Path

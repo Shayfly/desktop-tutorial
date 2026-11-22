@@ -17,6 +17,14 @@ from __future__ import annotations
 from .. import fact_canon as F
 
 
+# A default the brief stores as an instruction to the builder, said to the customer in plain words (inbox 001 §6: zero
+# technical terms). Only the screen's wording changes; the brief, its fingerprint and the build keep the stored value.
+_PLAIN = {
+    'אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו':
+        'רק החלקים שביקשתם, בלי מסכי ניהול שלא ביקשתם',
+}
+
+
 def _facts_from_line(line: str, lang: str) -> list[dict] | None:
     """The canon line "<prefix>: label: value; label: value." as rows, or None when the line is not that line."""
     template = F._TEXT['he' if lang == 'he' else 'en']['facts']
@@ -53,7 +61,7 @@ def card(*, stage: str, rows: list[tuple[str, str, bool]], canon_lines: list[str
     details += [part.strip() for f in facts for part in f['value'].split(', ') if part.strip()]
     shown = []
     for label, value, default in rows:
-        rest = _without_repeats(value, details)
+        rest = _without_repeats(_PLAIN.get(str(value).strip(), value), details)
         if rest:
             shown.append({'label': label, 'value': rest, 'default': bool(default)})
     return {'stage': stage, 'rows': shown, 'facts': facts, 'notes': [*excluded, *notes], 'price': price,

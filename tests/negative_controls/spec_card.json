@@ -45,6 +45,19 @@
    "expect_failed": ["test_the_approval_carries_the_card"]
   },
   {
+   "id": "NC5",
+   "what": "the builder's default is shown to the customer as stored, with CRUD",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/spec_card.py",
+     "old": "        rest = _without_repeats(_PLAIN.get(str(value).strip(), value), details)",
+     "new": "        rest = _without_repeats(value, details)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_spec_card.py"],
+   "expect_failed": ["test_the_builders_default_is_said_in_plain_words"]
+  },
+  {
    "id": "NC4",
    "what": "the card's browser test is dropped from CI",
    "mutations": [
