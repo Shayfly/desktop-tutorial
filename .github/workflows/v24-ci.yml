@@ -272,7 +272,10 @@ jobs:
           node --check tests/preview_frame_browser.cjs
           node --check tests/project_scope_browser.cjs
           node --check tests/approval_one_truth_browser.cjs
-      - run: npm install --no-save --package-lock=false playwright@1.62.1
+          node --check tests/platform_a11y_browser.cjs
+          node --check tests/workspace_review_fixes_browser.cjs
+      # axe-core: the WCAG engine of the platform accessibility check (the owner, 2026-11-22: accessible to everyone)
+      - run: npm install --no-save --package-lock=false playwright@1.62.1 axe-core@4.10.3
       # 2026-10-27: `playwright install --with-deps` hung for the whole 5-minute step on 2 of the last ~15 runs
       # (normally ~22s), which skipped the browser tests and failed customer-ui without testing anything. The
       # browser download is cached per Playwright version; every attempt (download + apt deps) is bounded and
@@ -307,6 +310,14 @@ jobs:
         timeout-minutes: 3
       - run: node tests/approval_one_truth_browser.cjs
         timeout-minutes: 3
+      # WCAG 2.2 AA on every platform screen, in every UI language, at 320/390/1440 px; it also proves it catches
+      # seven deliberate faults on every run (tests/platform_a11y_browser.cjs)
+      - run: node tests/platform_a11y_browser.cjs
+        timeout-minutes: 8
+      # the platform design's review fixes (F1 preview after a failed rebuild, F2 project status, F3 who said what,
+      # F5 a late reply in another project); each scenario also fails with its fix taken out
+      - run: node tests/workspace_review_fixes_browser.cjs
+        timeout-minutes: 4
   customer-ui:
     # Preserve the required check name and fail closed if classification fails.
     needs: [changes, browser-tests]
