@@ -59,6 +59,7 @@ if verdict == "OK":
     try:
         with urllib.request.urlopen("http://127.0.0.1:%%d/" %% port, timeout=3) as r:
             ctype, page = r.headers.get("Content-Type", ""), r.read(200000).decode("utf-8", "replace")
+            base = r.geturl()
         low = page.lower()
         # The UI may live in same-origin scripts/styles the page loads
         # (bld_78e26994: a 382-char page was rejected without looking at them).
@@ -87,6 +88,7 @@ if verdict == "OK":
                        "(%%d chars of HTML, %%d chars of linked scripts/styles; starts %%r)" %% (len(page.strip()), len(assets.strip()), page.strip()[:160]))
     except Exception as e:
         verdict = "GET / failed: %%s" %% e
+names = []
 if verdict == "OK":
     # Warehouse 118: the images the platform carries are files under assets/ (the runner wrote their bytes). The
     # product's server must serve each one at /assets/<name>: 200, the image's Content-Type, the same bytes.
@@ -119,9 +121,68 @@ if verdict == "OK":
             verdict = ("GET /assets/%%s answered %%d bytes that are not the image file (%%d bytes): serve it in "
                        "binary mode" %% (name, len(got), len(body)))
             break
-    else:
-        if names:
-            print("PREVIEW-ASSETS " + json.dumps(names))
+if verdict == "OK" and names:
+    # Warehouse 118 (review 2026-11-21): /assets/<name> answering is not enough. The page's reference is relative, so
+    # it resolves against the URL of the document (after a redirect of GET /) or of the stylesheet that holds it. Every
+    # carried-image reference in the page and in its same-origin stylesheets is resolved the way a browser does and
+    # fetched: 200, the image's Content-Type, the same bytes -- else the user sees a broken image and the smoke says so.
+    import re, urllib.parse
+    origin = "http://127.0.0.1:%%d/" %% port
+    carried = re.compile(r"assets/148ai-[a-z]{2,12}(?:-[0-9]{1,3})?\.(?:webp|jpe?g|png)", re.I)
+    def references(text):
+        # the whole reference: the name plus what is written before it (../, /, a host), at most 200 characters back.
+        # Found from the name backwards so that a long token (an inline data: URI) costs nothing.
+        found = []
+        for m in list(carried.finditer(text))[:50]:
+            i = m.start()
+            while i > 0 and m.start() - i < 200 and text[i - 1] not in " \t\r\n\"'`()<>=,;":
+                i -= 1
+            found.append(text[i:m.end()])
+        return found
+    sources = [(base, page)]
+    for ref in re.findall(r"""<link[^>]*\shref\s*=\s*["']([^"'#?]+\.css)""", page, re.I)[:6]:
+        u = urllib.parse.urljoin(base, ref)
+        if u.startswith(origin):
+            try:
+                with urllib.request.urlopen(u, timeout=3) as a:
+                    sources.append((a.geturl(), a.read(200000).decode("utf-8", "replace")))
+            except Exception:
+                pass
+    seen, checked = set(), 0
+    for src_url, text in sources:
+        for ref in references(text):
+            u = urllib.parse.urljoin(src_url, ref)
+            if u in seen:
+                continue
+            seen.add(u)
+            name = ref.rsplit("/", 1)[-1]
+            if name not in names:
+                verdict = "%%s references %%s but assets/%%s is not in the work directory" %% (src_url, ref, name)
+                break
+            if not u.startswith(origin):
+                verdict = "%%s references %%s, which resolves off the product (%%s)" %% (src_url, ref, u)
+                break
+            body = open(os.path.join("assets", name), "rb").read()
+            want = kinds.get(os.path.splitext(name)[1].lower())
+            try:
+                with urllib.request.urlopen(u, timeout=3) as a:
+                    got, ctype = a.read(len(body) + 1), a.headers.get("Content-Type", "")
+            except Exception as e:
+                verdict = ("%%s references %%s, which resolves to %%s and failed (%%s): the visitor sees a broken "
+                           "image. Serve the page at / and the stylesheet from a URL that mirrors its file path, "
+                           "or serve the image at that URL too" %% (src_url, ref, u, e))
+                break
+            if not ctype.lower().startswith(want or "image/") or got != body:
+                verdict = ("%%s references %%s, which resolves to %%s and answered Content-Type %%r with %%d bytes, "
+                           "not the %%s file (%%d bytes)" %% (src_url, ref, u, ctype, len(got), want, len(body)))
+                break
+            checked += 1
+        if verdict != "OK":
+            break
+    if verdict == "OK":
+        # printed only now: on a failure the first line of the output is the verdict, which is what the repair reads
+        print("PREVIEW-ASSETS " + json.dumps(names))
+        print("PREVIEW-ASSET-REFS %%d" %% checked)
 if p.poll() is None:
     p.terminate()
 try:

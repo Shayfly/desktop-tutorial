@@ -39,7 +39,9 @@ ASSET_DIR = 'assets'
 MIME_EXT = {'image/webp': '.webp', 'image/jpeg': '.jpg', 'image/png': '.png'}
 EXT_MIME = {'.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png'}
 _HEAD = re.compile(r'148ai-binary:v1;mime=(image/(?:webp|jpeg|png));sha256=([0-9a-f]{64});base64,')
-MAX_ASSET_BYTES = 2_000_000          # one image; the web rendition keeps a photo under 360,000 bytes
+# One image. The web rendition keeps a photo under 360,000 bytes; a logo is carried as uploaded, so the bound is the
+# upload limit itself (review 2026-11-21: a 2.4 MB logo the upload accepted failed the build under a 2,000,000 bound).
+from .attachments import MAX_BYTES as MAX_ASSET_BYTES   # noqa: E402
 
 
 class AssetCarryError(ValueError):
@@ -147,13 +149,25 @@ class CarriedImage:
         self.envelope = envelope(data, mime)
         self.encoded = self.envelope.split(',', 1)[1]
 
+    def _reference(self, holder: str) -> str:
+        """What a file at `holder` writes to reach the image. Only a STYLESHEET resolves its url(...) against its own
+        URL: one in a sub-directory (static/style.css) gets one `../` per directory, else the plain relative path is
+        /static/assets/<name> there, a 404 (review 2026-11-21); a URL cannot climb above the root, so the extra `../`
+        is harmless when the stylesheet is served elsewhere. Every other file (a page, a template, JSX, a script, the
+        server's HTML string) is read against the DOCUMENT's URL, so it keeps `assets/<name>` as before, wherever the
+        file itself lives (src/App.jsx: the image checks compare the src with the path). The preview smoke fetches
+        every reference as a browser resolves it, so a page whose URL breaks the relative path fails loudly."""
+        if PurePosixPath(holder).suffix.lower() != '.css':
+            return self.path
+        return '../' * (len(PurePosixPath(holder).parts) - 1) + self.path
+
     def place(self, repo: dict) -> dict:
         """Marker -> path in every text file, and the file itself at its path (always rewritten: a repair cannot drop
         or change it)."""
         rx = re.compile(re.escape(self.marker) + r'(?![0-9])')
         out = {}
         for path, text in repo.items():
-            out[path] = rx.sub(self.path, text) if isinstance(text, str) and not is_envelope(text) else text
+            out[path] = rx.sub(self._reference(path), text) if isinstance(text, str) and not is_envelope(text) else text
         out[self.path] = self.envelope
         return out
 
@@ -163,7 +177,9 @@ class CarriedImage:
         for path, text in repo.items():
             if path == self.path:
                 continue
-            out[path] = text.replace(self.path, self.marker) if isinstance(text, str) and not is_envelope(text) else text
+            if isinstance(text, str) and not is_envelope(text):
+                text = text.replace(self._reference(path), self.marker).replace(self.path, self.marker)
+            out[path] = text
         return out
 
     def redact_text(self, text: str) -> str:
