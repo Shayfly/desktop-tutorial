@@ -1,0 +1,39 @@
+name: Domain reference sites alive
+
+# Warehouse 127, acceptance 5: a domain's reference site that stopped loading is flagged by name and replaced in its
+# docs/domains/<slug>.md, never left in the list. Once a week, from a GitHub-hosted runner, tools/domain_references.py
+# loads every reference once. Red: a dead reference, or a domain below 5 live references, or a runner that reached none
+# (then nothing was checked, and the run says so). Nothing is committed and no PR is opened.
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: domain-references
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Load every reference once
+        run: python tools/domain_references.py --out domain-references.json
+      - name: Keep the result as a run artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: domain-references
+          path: domain-references.json
+          if-no-files-found: warn
+          retention-days: 90

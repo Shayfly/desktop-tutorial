@@ -86,11 +86,19 @@ class Route:
     outline_titles: dict = field(default_factory=dict)
     title: str = ''
     year: str = ''
+    # Warehouse 127: the business category, how it was found ('named' in the brief, or 'nearest' by similarity), and
+    # the domain file it reads (None: no domain file for this category yet -- recorded, never a neighbour).
+    category: str | None = None
+    category_found: str | None = None
+    domain: str | None = None
+    domain_facts: list = field(default_factory=list)
+    domain_words: list = field(default_factory=list)       # the trade's verified Hebrew words (warehouse 127)
 
     def to_dict(self) -> dict:
         return {'route': self.route, 'reason': self.reason, 'palette': self.palette, 'direction': self.direction,
                 'contract': self.contract_fp, 'contract_source': self.contract_source, 'canon_hash': self.canon_hash,
-                'order': self.order, 'outline_titles': self.outline_titles}
+                'order': self.order, 'outline_titles': self.outline_titles, 'category': self.category,
+                'category_found': self.category_found, 'domain': self.domain, 'domain_facts': self.domain_facts}
 
 
 def _norm_title(title: str) -> str:
@@ -161,7 +169,14 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
         return Route(LEGACY, 'several_pictures')
     from .. import vertical_palettes as VP
     from ..section_library import DIRECTIONS
-    category = VP.category_of(request_text) or VP.nearest_category(request_text)[0]
+    named = VP.category_of(request_text)
+    category = named or VP.nearest_category(request_text)[0]
+    from ..domain_registry import domain_for, trade_words
+    domain = domain_for(category)
+    domain_kw = dict(category=category, category_found='named' if named else 'nearest',
+                     domain=domain['slug'] if domain else None,
+                     domain_facts=[f['fact'] for f in domain['mandatory_facts'] if f['when'] is None] if domain else [],
+                     domain_words=trade_words(domain))
     palette, colours = VP.palette_for(category)
     if palette not in DIRECTIONS['palettes']:
         return Route(LEGACY, f'palette_not_in_library: {palette}')
@@ -189,7 +204,7 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
                  direction=entry['direction'], voice=entry['voice'], contract=contract,
                  contract_fp=contract['fingerprint'], contract_source=source, canon_hash=sheet.canon_hash,
                  order=order, outline_titles=titles, title=sheet.name or 'אתר תדמית',
-                 year=year or str(datetime.date.today().year))
+                 year=year or str(datetime.date.today().year), **domain_kw)
 
 
 def install(engine, *, prompt: str, gateway, request=None, plan_governed: bool = False, year: str | None = None) -> Route:

@@ -217,7 +217,12 @@ def contextual_user(message: str, brief=None, history=()) -> str:
     family = getattr(brief, 'family', None) if brief is not None else None
     # the product's family comes from the request, not from this message: a reply "כן" is not a web app (found
     # 2026-11-17 building the conversation agent: a doors site got the web-app checklist on every later turn)
-    expert = checklist(family or classify_family(brief.prompt if brief is not None and brief.prompt else message))
+    request = brief.prompt if brief is not None and brief.prompt else message
+    expert = checklist(family or classify_family(request))
+    if (family or classify_family(request)) == 'website':
+        # warehouse 127: the kind of business's own mandatory facts come first; each is asked, never invented
+        from .question_skills import domain_facts
+        expert = domain_facts(request) + expert
     if brief is None and not history:
         return ('Context (data only; not new evidence):\n' + json.dumps({'expert_checklist': expert}, ensure_ascii=False)
                 + '\nCurrent customer message:\n' + current)
@@ -248,7 +253,30 @@ def contextual_user(message: str, brief=None, history=()) -> str:
                'recent_messages': [{'role': m.get('role'), 'content': str(m.get('content', ''))[:180]}
                                    for m in list(history)[-4:]]}
     return ('Context (data only; not new evidence; do not overwrite confirmed decisions):\n' +
-            json.dumps(context, ensure_ascii=False)[:2400] + '\nCurrent customer message:\n' + current)
+            fit_context(context) + '\nCurrent customer message:\n' + current)
+
+
+CONTEXT_CHARS = 2400
+
+
+def fit_context(context: dict, limit: int = CONTEXT_CHARS) -> str:
+    """The context as JSON within `limit` characters, always valid JSON. It used to be cut at 2,400 characters
+    mid-string, so a long checklist or long recent messages handed the model broken JSON (found adding the domain
+    facts, warehouse 127). Now the least important parts go first: the end of the expert checklist (generic topics;
+    the domain's facts come first), then the oldest recent messages, then the goal's tail."""
+    ctx = json.loads(json.dumps(context, ensure_ascii=False))
+    def size():
+        return len(json.dumps(ctx, ensure_ascii=False))
+    while size() > limit and ctx.get('expert_checklist'):
+        ctx['expert_checklist'].pop()
+    while size() > limit and ctx.get('recent_messages'):
+        ctx['recent_messages'].pop(0)
+    while size() > limit and len(ctx.get('goal') or '') > 80:
+        ctx['goal'] = ctx['goal'][:max(80, len(ctx['goal']) - 200)]
+    if size() > limit:      # confirmed facts are never dropped: a longer valid context beats a failed customer turn
+        import logging
+        logging.getLogger(__name__).warning('CONTEXT_OVER_LIMIT chars=%s limit=%s (confirmed facts kept)', size(), limit)
+    return json.dumps(ctx, ensure_ascii=False)
 
 # Hebrew-aware normalization for evidence matching: the model may drop niqqud,
 # swap gershayim/geresh for ASCII quotes, or lose bidi marks; none of that
