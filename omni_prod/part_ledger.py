@@ -1,4 +1,5 @@
-"""Every build carries a per-part provenance ledger (warehouse 122; the owner, 2026-11-22: build toward the vision).
+"""Every build carries a per-part provenance ledger (a vision slice, not a warehouse item; the owner, 2026-11-22
+16:00: "start developing ... toward the vision").
 
 NORTH_STAR principle 1: every requirement has a source -- approval, a default or an inference -- marked and bound to the
 build, and nothing the customer did not say is attributed to them. The ledger says, for each part of a build, where it

@@ -75,7 +75,7 @@ class BrandingEngine:
             raise PermissionError('white-label exports require Business/Enterprise')
 
         repo = dict(repository)
-        # Warehouse 122: the per-part provenance ledger, written BEFORE the signature so provenance.json covers it.
+        # The part ledger (omni_prod/part_ledger), written BEFORE the signature so provenance.json covers it.
         # One hook for every route that decorates (worker_tasks, v28_platform, investor_app).
         repo[PARTS_PATH] = self.parts_json(repo)
         signature_source = '\n'.join(f'{k}\0{repo[k]}' for k in sorted(repo)) + f'\0{project_id}\0{version_hint}'
@@ -110,7 +110,7 @@ class BrandingEngine:
     def parts_json(repository: dict[str, str]) -> str:
         """`.148ai/parts.json`: the customer view of the build's part ledger (omni_prod/part_ledger.py). In this slice
         the ledger never fails a build: an exception inside it is written as complete=false with its error and logged
-        at ERROR; blocking waits for the owner's calibration rule (warehouse 122)."""
+        at ERROR; blocking waits for the owner's calibration rule."""
         from .part_ledger import SCHEMA, customer_view, item_count, ledger
         try:
             view = customer_view(ledger(repository))
