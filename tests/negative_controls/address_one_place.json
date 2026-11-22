@@ -1,0 +1,46 @@
+{
+ "pr": "address-one-place",
+ "sha256": [
+  "tests/test_address_one_place.py",
+  "tests/fixtures/owner_brief_noa/brief.json"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the canon keeps the summary's spelling of the same address as a second place (the owner's build went to the old path)",
+   "mutations": [
+    {
+     "file": "omni_prod/fact_canon.py",
+     "old": "        if any(f.key == 'address' and same_place(f.source_ref, m.group(0)) for f in canon.facts):\n            continue",
+     "new": "        if False:  # NEGATIVE CONTROL\n            continue"
+    }
+   ],
+   "targets": [
+    "tests/test_address_one_place.py"
+   ],
+   "expect_failed": [
+    "test_no_route_problem_with_the_summarys_spelling",
+    "test_one_place_and_the_customers_spelling_stands",
+    "test_the_city_with_in_or_without_it",
+    "test_the_route_no_longer_says_address_not_one"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "every address with the same street and number is one place, whatever its city",
+   "mutations": [
+    {
+     "file": "omni_prod/fact_canon.py",
+     "old": "and min(len(ta) - na, len(tb) - nb) == 1:",
+     "new": "and True:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_address_one_place.py"
+   ],
+   "expect_failed": [
+    "test_another_place_stays_another_place"
+   ]
+  }
+ ]
+}
