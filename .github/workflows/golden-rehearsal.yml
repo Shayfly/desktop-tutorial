@@ -94,7 +94,7 @@ jobs:
           PY
           exit $rc
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: rehearsal-taxonomy
@@ -115,11 +115,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         continue-on-error: true            # a missing artifact is evidence too: the build is recorded as no_artifact
         with:
           name: rehearsal-taxonomy
@@ -150,7 +150,7 @@ jobs:
               out.write(f"## Rehearsal {os.environ['GITHUB_RUN_ID']}\n\n- {line}\n- taxonomy: "
                         + json.dumps({f'{l}/{t}': n for (l, t), n in sorted(dist.items())}) + "\n")
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: ${{ !cancelled() }}
         with:
           name: rehearsal-taxonomy-report

@@ -236,7 +236,7 @@ jobs:
 
       - name: Upload replay screenshots (desktop/mobile)
         if: (inputs.stage || 'verify-replay') == 'verify-replay'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: visual-replay-screenshots
           path: ${{ runner.temp }}/visual

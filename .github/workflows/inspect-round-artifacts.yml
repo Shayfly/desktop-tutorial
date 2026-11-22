@@ -232,7 +232,7 @@ jobs:
           PY
       - name: Upload the round zips
         if: always() && matrix.slice == 0
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: round-zips-${{ inputs.build_id }}
           path: ${{ runner.temp }}/rounds/zips/
