@@ -274,6 +274,8 @@ jobs:
           node --check tests/approval_one_truth_browser.cjs
           node --check tests/platform_a11y_browser.cjs
           node --check tests/workspace_review_fixes_browser.cjs
+          node --check tests/workspace_guards_browser.cjs
+          node --check tests/workspace_sidebar_local.cjs
       # axe-core: the WCAG engine of the platform accessibility check (the owner, 2026-11-22: accessible to everyone)
       - run: npm install --no-save --package-lock=false playwright@1.62.1 axe-core@4.10.3
       # 2026-10-27: `playwright install --with-deps` hung for the whole 5-minute step on 2 of the last ~15 runs
@@ -318,6 +320,36 @@ jobs:
       # F5 a late reply in another project); each scenario also fails with its fix taken out
       - run: node tests/workspace_review_fixes_browser.cjs
         timeout-minutes: 4
+      # the design's guards against late answers (a stale quote, a late plan, a restore after moving to another
+      # project), each scenario also run with its guard taken out, where it must fail (review item T2)
+      - run: node tests/workspace_guards_browser.cjs
+        timeout-minutes: 4
+      # Codex's sidebar test against the real development API (review item T1): a disposable server with in-memory
+      # accounts, the test, then the test once per mutation -- each must fail, and a mutation whose anchor is gone
+      # from the code is not counted as caught
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install -r requirements-production.txt
+      - name: Sidebar against the development API, and its mutations
+        timeout-minutes: 9
+        run: |
+          OMNI_ENV=development OMNI_CREATOR_PERSISTENCE=memory python -m uvicorn omni_prod.investor_app:app --host 127.0.0.1 --port 18749 --log-level warning > devserver.log 2>&1 &
+          for i in $(seq 1 40); do curl -fsS -o /dev/null http://127.0.0.1:18749/ && break; sleep 1; done
+          if ! curl -fsS -o /dev/null http://127.0.0.1:18749/; then
+            echo "::error title=sidebar::the development server did not start"; cat devserver.log; exit 1
+          fi
+          node tests/workspace_sidebar_local.cjs
+          missed=0
+          for m in $(WORKSPACE_LIST_MUTATIONS=1 node tests/workspace_sidebar_local.cjs); do
+            if WORKSPACE_MUTATION=$m node tests/workspace_sidebar_local.cjs > mutation.log 2>&1; then
+              echo "::error title=sidebar mutation::$m was NOT caught"; missed=1
+            elif grep -q -e 'mutation anchor missing' -e 'unknown mutation' mutation.log; then
+              echo "::error title=sidebar mutation::$m has no anchor in the code"; cat mutation.log; missed=1
+            else
+              echo "::notice title=sidebar mutation::$m caught: $(grep -m1 AssertionError mutation.log | cut -c1-160)"
+            fi
+          done
+          exit $missed
   customer-ui:
     # Preserve the required check name and fail closed if classification fails.
     needs: [changes, browser-tests]
