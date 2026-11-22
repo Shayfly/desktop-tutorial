@@ -4,14 +4,17 @@ from dataclasses import asdict, dataclass
 from hashlib import sha256
 import io
 import json
+import logging
 from pathlib import Path
 
+from .part_ledger import PARTS_PATH
 from .pricing import PLAN_CATALOG, PlanCode
 
 
 BRAND_NAME = '148AI'
 BRAND_DOMAIN = '148ailabs.com'
 TAGLINE = 'Build Anything.'
+_LOG = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -72,6 +75,9 @@ class BrandingEngine:
             raise PermissionError('white-label exports require Business/Enterprise')
 
         repo = dict(repository)
+        # Warehouse 122: the per-part provenance ledger, written BEFORE the signature so provenance.json covers it.
+        # One hook for every route that decorates (worker_tasks, v28_platform, investor_app).
+        repo[PARTS_PATH] = self.parts_json(repo)
         signature_source = '\n'.join(f'{k}\0{repo[k]}' for k in sorted(repo)) + f'\0{project_id}\0{version_hint}'
         signature = sha256(signature_source.encode('utf-8')).hexdigest()
         manifest = {
@@ -99,6 +105,23 @@ class BrandingEngine:
                 if path.lower().endswith(('.html', '.htm')) and '</body>' in content.lower():
                     repo[path] = self._inject_html_badge(content)
         return repo
+
+    @staticmethod
+    def parts_json(repository: dict[str, str]) -> str:
+        """`.148ai/parts.json`: the customer view of the build's part ledger (omni_prod/part_ledger.py). In this slice
+        the ledger never fails a build: an exception inside it is written as complete=false with its error and logged
+        at ERROR; blocking waits for the owner's calibration rule (warehouse 122)."""
+        from .part_ledger import SCHEMA, customer_view, item_count, ledger
+        try:
+            view = customer_view(ledger(repository))
+        except Exception as exc:
+            view = {'schema': SCHEMA, 'complete': False, 'error': f'{type(exc).__name__}: {exc}'[:500]}
+            _LOG.error('PART_LEDGER complete=False parts=0 unresolved=0 error=%s', view['error'])
+        else:
+            (_LOG.info if view['complete'] else _LOG.warning)(
+                'PART_LEDGER complete=%s parts=%d unresolved=%d', view['complete'], item_count(view),
+                len(view['unresolved']))
+        return json.dumps(view, ensure_ascii=False, indent=2, sort_keys=True)
 
     @staticmethod
     def _inject_html_badge(html: str) -> str:
