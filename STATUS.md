@@ -1,3 +1,29 @@
+# 2026-11-22 (night) — the platform UI after the release: four merges, three languages, the design's own tests (Claude Code)
+
+The owner, 2026-11-22 evening: the platform UI moves to Claude Code, "continue developing it"; "תוצאות בהרבה שפות".
+
+- **Implemented and independently verified (merged, CI green on the exact head, production READY):**
+  - #502 `90fd284` -> `473a820` [release]: a website is not offered for approval before the customer named the business.
+    Vercel `dpl_3mpTtvrCEMSx1cDqvTrEm65FQADP`.
+  - #503 `adea624` -> `e5bf2ac` [release]: Codex's design with its review fixes and a blocking WCAG 2.2 AA check (the
+    entry above). Vercel `dpl_Ax13GhrAyzxY4Bv7DcbHo9LY6MCk`, deploy-worker 45072002228.
+  - #504 `ebd34df` -> `396d571` [release]: a business we do not know is asked about its colours; a WhatsApp answer keeps
+    its role. Vercel `dpl_8tCnYrswwopYXpScShjYFQcxHvnt`.
+  - #505 `526928a` -> `e35f1b4` [release]: the platform in Hebrew, English and Arabic (`tests/ui_languages_browser.cjs`
+    in CI: no key falls back, no text in another script); the accessibility check in all three, `3 languages x 3 widths
+    clean; 8/8 faults caught`. Vercel `dpl_86kVjp5UbA22jsJZ8TyyLTSRfVeK`.
+- **Implemented, in review (this branch):** #503 review items T1-T3. `tests/workspace_sidebar_local.cjs` (Codex's) and
+  its mutations run in CI on a development server (uvicorn, in-memory accounts): `9/9 mutations caught` locally on the
+  exact CI step. Its status filter no longer passes on the in-memory server's 503 (T3). Codex's three guards against late
+  answers have a test (`tests/workspace_guards_browser.cjs`): `8 scenarios hold; 7/7 guards caught when taken out`.
+  Pinned by `tests/test_workspace_tests_in_ci.py`, controls 7/7. #506 (path ownership for `codex/` and `design/`
+  branches) is also in review.
+- **Not implemented:** the server's fixed texts (conversation sentences, approval, failures, the build announcement)
+  reach an Arabic customer in English; the translation is under way. The accent colour has no token in the G-APPLE
+  design contract, so the second colour a customer names is recorded but not rendered.
+- **Not verified:** no native Arabic speaker has read the Arabic (translated and reviewed by agents); no customer has
+  used the new design or the Arabic platform in production yet.
+
 # 2026-11-22 — 133, the platform design released with its review fixes (Claude Code)
 
 - **What this is.** Codex's design (black, yellow and white workspace) reached the repository as ONE commit, `4457710` on
