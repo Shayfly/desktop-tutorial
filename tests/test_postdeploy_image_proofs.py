@@ -109,3 +109,26 @@ class ThePaidStageRecordsTheProofs(unittest.TestCase):
         self.assertTrue(checks['118: the HTML weight dropped by an order of magnitude'])
         self.assertEqual(fetched.call_args[0][0], 'https://preview.example/p/assets/148ai-image-1.png')
         self.assertEqual(fetched.call_args[0][1], {'x-access': 'k'})     # the image is fetched with the page's access
+
+
+class TheQACapInput(unittest.TestCase):
+    """One build's QA cap is a workflow input for the 118 proof run, never above the platform's 2.00 per-build cap."""
+
+    def guard(self, value):
+        import re
+        import subprocess
+        wf = (ROOT / '.github' / 'workflows' / 'postdeploy-checks.yml').read_text(encoding='utf-8')
+        line = next(l for l in wf.splitlines() if "python3 -c 'import sys,decimal as d" in l)
+        code = re.search(r"python3 -c '([^']+)'", line).group(1)
+        return subprocess.run(['python3', '-c', code, value], capture_output=True).returncode
+
+    def test_the_cap_accepts_up_to_two_dollars_and_nothing_else(self):
+        self.assertEqual(self.guard('0.50'), 0)
+        self.assertEqual(self.guard('2.00'), 0)
+        for bad in ('2.01', '5', '0', '-1', 'abc', ''):
+            self.assertNotEqual(self.guard(bad), 0, bad)
+
+    def test_the_default_is_unchanged(self):
+        wf = (ROOT / '.github' / 'workflows' / 'postdeploy-checks.yml').read_text(encoding='utf-8')
+        self.assertIn('default: "0.50"', wf)
+        self.assertIn('-e OMNI_QA_BUILD_MAX_USD=${QA_BUILD_MAX:-0.50}', wf)

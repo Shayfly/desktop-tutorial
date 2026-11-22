@@ -123,6 +123,23 @@
    "expect_failed": [
     "test_a_file_that_is_not_served_fails"
    ]
+  },
+  {
+   "id": "NC8",
+   "what": "the QA cap input accepts more than the 2.00 per-build cap",
+   "mutations": [
+    {
+     "file": ".github/workflows/postdeploy-checks.yml",
+     "old": "sys.exit(0 if d.Decimal(\"0\") < v <= d.Decimal(\"2.00\") else 1)",
+     "new": "sys.exit(0 if d.Decimal(\"0\") < v else 1)"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_image_proofs.py"
+   ],
+   "expect_failed": [
+    "test_the_cap_accepts_up_to_two_dollars_and_nothing_else"
+   ]
   }
  ]
 }
