@@ -1,0 +1,145 @@
+{
+ "pr": "domain-registry-127",
+ "sha256": [
+  "tests/test_domain_registry.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a domain without mandatory facts passes",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    if not facts:\n        raise DomainError(f'{slug}: no mandatory facts')\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_no_mandatory_facts"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a fact without its question passes",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "            if len(cells) < 4 or not all(cells[1:4]):\n",
+     "new": "            if len(cells) < 4:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_fact_without_its_question"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "headings are compared as a set (order and names relaxed)",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    if tuple(sections) != HEADINGS:\n",
+     "new": "    if not set(HEADINGS) <= set(sections) and False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_heading",
+    "test_headings_out_of_order"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "an empty legal section passes",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "        if not sections[h].strip():\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_an_empty_legal_section"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the reference count is not bounded",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    if not MIN_REFERENCES <= len(refs) <= MAX_REFERENCES:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_too_few_references"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "an unknown category falls through to None",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "        raise DomainError(f'unknown category {category!r}')\n",
+     "new": "        return None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_category_is_an_error"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the check does not compare the committed file",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    if not DATA.exists() or DATA.read_text(encoding='utf-8') != text:\n",
+     "new": "    if not DATA.exists():  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_drift_fails_the_check"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a category may point at a domain with no file",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "        if slug is not None and slug not in domains:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_category_pointing_at_a_missing_file"
+   ]
+  }
+ ]
+}
