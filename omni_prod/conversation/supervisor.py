@@ -1211,6 +1211,12 @@ class ConversationSupervisor:
                 and agent.SUBJECT_ID in self._awaiting(project_id) and not agent.names_a_subject(new_brief.prompt)):
             # the answer to "what is this about?" is part of the request the build starts from, not a side remark
             new_brief.prompt = (new_brief.prompt.rstrip() + '\n' + message.strip()).strip()
+        if (agent.enabled() and row is not None and message and not answers
+                and agent.NAME_ID in self._awaiting(project_id) and not agent.declares_a_name(d.customer_text(new_brief))):
+            # the answer to "what is the business called?" joins the request as the customer's own "שם העסק:" line
+            line = agent.name_line(message)
+            if line:
+                new_brief.prompt = (new_brief.prompt.rstrip() + '\n' + line).strip()
         # Persist only schema- and evidence-validated model decisions in the same
         # brief revision. They remain reviewable and bind to the normal approval
         # fingerprint; deterministic fallback cannot silently invent exclusions.
@@ -1336,7 +1342,11 @@ class ConversationSupervisor:
         # the conversation agent asks what the product is about before anything else, and never offers the approval
         # of a request that does not say it (rehearsal 44126201300: "אתר" alone reached the approval in three turns)
         no_subject = agent.enabled() and not agent.names_a_subject(row.brief.prompt)
-        if row.complete and gap_q is None and not no_subject:
+        # 2026-11-22: a website is not offered for approval before the customer named the business (see NAME_QUESTION)
+        no_name = (agent.enabled() and not no_subject and d.is_website(row.brief)
+                   and not agent.declares_a_name(d.customer_text(row.brief))
+                   and self._times_asked(project_id, agent.NAME_ID) < agent.ASK_NAME_AT_MOST)
+        if row.complete and gap_q is None and not no_subject and not no_name:
             feas = self._feasibility(row)
             if feas.get('buildable'):
                 if recorded:
@@ -1386,7 +1396,8 @@ class ConversationSupervisor:
         # conflict), the customer sees the model's own reply and question, not the detector's question, the
         # "chosen for you" list or quick-reply buttons. The detector still records the brief and decides
         # completeness; the approval gates, cost and blockers above stay authoritative and unchanged.
-        listening = not (row.complete and gap_q is None and not no_subject) and not res.conflicts and not turn.blocked
+        listening = (not (row.complete and gap_q is None and not no_subject and not no_name) and not res.conflicts
+                     and not turn.blocked)
         model_reply = (interp is not None and str(getattr(interp, 'interpreter', '')).startswith('model')
                        and bool((interp.reply or '').strip()))
         if listening and model_reply:
@@ -1418,6 +1429,14 @@ class ConversationSupervisor:
             base = _no_question(interp.reply.strip()) if model_reply else ''   # the model's own words, never a card list
             turn.reply = ((base or '') + ' ' + agent.SUBJECT_QUESTION['he' if lang == 'he' else 'en']).strip()
             turn.questions, turn.asked_in_words = [], [agent.SUBJECT_ID]
+            return turn
+        # never over a model failure: "the model refused / is busy" is the truth of this turn (found by
+        # tests/test_venice_refusal_is_not_spend.py on this change)
+        model_failed = turn.reply in (T['model_refused'], T['model_unavailable'])
+        if no_name and not res.conflicts and not turn.blocked and not turn.questions and not model_failed:
+            said = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
+            turn.reply = ((said or '') + ' ' + agent.NAME_QUESTION['he' if lang == 'he' else 'en']).strip()
+            turn.asked_in_words = [agent.NAME_ID]
             return turn
         if agent.enabled() and turn.questions:
             # no card: the question is part of the reply, in words; it is still recorded as asked, so the next
@@ -1591,6 +1610,14 @@ class ConversationSupervisor:
             return turn.reply                     # the same short line over a NEW question card is progress, not a repeat
         alt = T['rephrase_q'] if turn.questions else T['rephrase']
         return alt if alt.strip() != (last.get('content') or '').strip() else alt + ' (' + T['ask_one'].rstrip(':') + ')'
+
+    def _times_asked(self, project_id, qid: str) -> int:
+        """How many assistant turns of this conversation asked `qid` (their stored `asked`), within the last 60 messages."""
+        try:
+            prev = self.store.messages_for(project_id, limit=60)
+        except Exception:
+            return 0
+        return sum(1 for m in prev if m.get('role') == 'assistant' and qid in ((m.get('interpretation') or {}).get('asked') or ()))
 
     def _awaiting(self, project_id) -> set:
         """What the last assistant turn waits for: the question ids it showed (`asked`) and the fields it said were

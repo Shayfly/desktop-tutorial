@@ -163,7 +163,7 @@ const VE = (() => {
     } else if (st.inspecting) {
       bar.hidden = false; bar.className = 'inspectBar';
       bar.replaceChildren(h('span', {}, t('picking')), h('button', { type: 'button', class: 'ghost', onclick: () => setInspect(false) }, t('stopPicking')));
-      if (mobile()) setPane('preview');
+      setPane('preview');
     } else bar.hidden = true;
     render();
   }
@@ -175,7 +175,7 @@ const VE = (() => {
   };
   async function onSelection(sel) {
     st.selection = sel; st.located = null; st.chosen = null; st.describe = false; $('edMsg').textContent = '';
-    if (mobile()) setPane('edit');
+    setPane('edit');
     render();
     const vid = currentVersionId(); if (!vid) return;
     try {
@@ -291,7 +291,7 @@ const VE = (() => {
     st.compare = !st.compare;
     const stage = $('stage'); stage.classList.toggle('comparing', st.compare);
     $('cmpPane').hidden = !st.compare; $('cmpAfterLabel').hidden = !st.compare;
-    if (mobile() && st.compare) setPane('preview');
+    if (st.compare) setPane('preview');
     renderResult();
     if (!st.compare || !S.lastChange) return;
     const wait = $('cmpWait'); wait.hidden = false; wait.textContent = t('cmpStarting'); $('compareFrame').hidden = true;
@@ -314,7 +314,18 @@ const VE = (() => {
   /* ---------- layout: panes, editor width, mobile tabs ---------- */
   function setPane(p) {
     st.pane = p; ws().dataset.pane = p;
-    document.querySelectorAll('#mobileTabs button[data-pane]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pane === p ? 'true' : 'false'));
+    const selected = p === 'edit' ? 'preview' : p;
+    const versions = p === 'versions';
+    $('chatCol').setAttribute('aria-labelledby', versions ? 'workspaceTabVersions' : 'workspaceTabChat');
+    $('workspaceTabVersions').setAttribute('aria-controls', 'chatCol');
+    $('workspaceTabPreview').setAttribute('aria-controls', p === 'edit' ? 'editor' : 'stage');
+    if (versions) { S.tab = 'versions'; renderTabs(); }
+    else if (S.tab === 'versions') { S.tab = null; renderTabs(); }
+    for (const button of document.querySelectorAll('#mobileTabs button[data-pane]')) {
+      const active = button.dataset.pane === selected;
+      button.setAttribute('aria-selected', String(active));
+      button.tabIndex = active ? 0 : -1;
+    }
   }
   function setEditWidth(px) {
     const v = Math.max(240, Math.min(480, px));
@@ -433,10 +444,23 @@ const VE = (() => {
     } catch { /* defaults */ }
     syncSidebar();
     $('sbOpen').addEventListener('click', () => { try { localStorage.setItem('148ai_sb_open', '1'); } catch { /* */ } });
-    // Mobile: Chat / Preview / Edit.
-    document.querySelectorAll('#mobileTabs button[data-pane]').forEach(b => b.addEventListener('click', () => setPane(b.dataset.pane)));
-    $('togglePreviewBtn').addEventListener('click', () => { if (mobile()) setPane(st.pane === 'preview' ? 'chat' : 'preview'); });
-    $('closePreviewBtn').addEventListener('click', () => { if (mobile()) setPane('chat'); });
+    $('previewEditBtn').addEventListener('click', () => setPane('edit'));
+    // Project navigation is shared between desktop and mobile.
+    const tabs = [...document.querySelectorAll('#mobileTabs button[data-pane]')];
+    tabs.forEach(b => b.addEventListener('click', () => setPane(b.dataset.pane)));
+    $('mobileTabs').addEventListener('keydown', event => {
+      const index = tabs.indexOf(event.target);
+      if (index < 0 || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+      event.preventDefault();
+      const rtl = document.documentElement.dir === 'rtl';
+      const step = (event.key === 'ArrowLeft') === rtl ? 1 : -1;
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + step + tabs.length) % tabs.length;
+      tabs[next].click();
+      tabs[next].focus();
+    });
+    $('togglePreviewBtn').addEventListener('click', () => setPane(st.pane === 'preview' ? 'chat' : 'preview'));
+    $('closePreviewBtn').addEventListener('click', () => setPane('chat'));
+    $('editorClose').addEventListener('click', () => setPane('preview'));
     setPane('chat');
     // The editor separator: drag (pointer) or arrow keys.
     const sp = $('editSplitter'); const rtl = () => document.documentElement.dir === 'rtl';
