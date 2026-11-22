@@ -94,7 +94,9 @@ class TheTool(unittest.TestCase):
             return Answer(json.dumps({'workflow_runs': RUNS}).encode())
         rc, out = self.run_tool(opener)
         self.assertEqual(rc, 0)
-        self.assertIn('backup-restore.yml/runs?branch=main', asked[0])
+        # 2026-11-21: C11, C16, C18 and C19 also run as workflows; every one is asked for its runs on main only
+        self.assertIn('backup-restore.yml/runs?branch=main', ' '.join(asked))
+        self.assertTrue(asked and all('/runs?branch=main&' in u for u in asked), asked)
         entries = json.loads(out.read_text())
         self.assertEqual(max(e['date'] for e in entries), '2026-11-14')
         self.assertTrue(all(e['source'] == 'github' for e in entries))
