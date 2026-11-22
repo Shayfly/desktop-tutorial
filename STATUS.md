@@ -21,6 +21,16 @@
      minimise (34px).
   5. *Text size*: "Text size: Normal / Large / Extra large" (16, 18, 20px), on the entry and in the drawer, kept on the
      device.
+- **The look of the owner's example** (2026-11-23, `create-148ai-vision`: "המראה זה מה שחשוב לי"). Its colours, radii and
+  shadows were measured in the browser and applied as one layer at the end of `app.css`: a dark top bar (#151410) and a
+  dark project rail (#1b1a17) in light and dark mode, the selected project marked with a yellow edge, white cards with a
+  light bar, cream answer and side cards, yellow primary buttons with a darker edge, tags as rounded labels, the first
+  screen as a card with a large title. On a computer the rail is open on the first visit: the rule that closed it under
+  1600px (`visual-edit.js`) served three side-by-side areas the shell no longer has. Kept against the example: 16px
+  text (the example uses 15px), the selected tab underlined in ink (its yellow line is 1.4:1 on white, review A11Y-4),
+  the preview's own frame (`tests/preview_frame_browser.cjs`). Not built yet from the example: the proposal as the
+  "זה מה שנבנה" card inside the conversation (it is the approval screen: the owner decides), build steps and checks
+  in plain words, the computer/phone switch on the preview; client review, publishing and handover are in the queue.
 - **Evidence.** `tests/platform_for_everyone_browser.cjs` (real Chromium, the real files, the boot path mocked): 5 checks
   x 2 languages hold on this branch; on main the same file fails first/words/text/targets in both languages (run
   2026-11-22, before/after in the PR). 7/7 deliberate faults caught. `tests/test_platform_for_everyone_in_ci.py` with
