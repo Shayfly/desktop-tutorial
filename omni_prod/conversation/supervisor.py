@@ -1069,6 +1069,15 @@ class ConversationSupervisor:
             line = agent.name_line(message)
             if line:
                 new_brief.prompt = (new_brief.prompt.rstrip() + '\n' + line).strip()
+        if (agent.enabled() and row is not None and message and not answers
+                and agent.COLOUR_ID in self._awaiting(project_id) and agent.colour_unknown_business(row.brief)):
+            # row.brief, not new_brief: the interpreter already read the colours in the order they were written
+            # the answer to the colour question is the customer's "color" answer (source "answer"): their colours, most
+            # space first, or "category" when they left it to us -- recorded, never inferred
+            chosen = agent.colour_answer(message)
+            if chosen:
+                new_brief = intake_agent.answer_question(new_brief, 'color', chosen)
+                logging.getLogger(__name__).info('COLOUR_CHOICE project=%s choice=%s', project_id, chosen)
         # Persist only schema- and evidence-validated model decisions in the same
         # brief revision. They remain reviewable and bind to the normal approval
         # fingerprint; deterministic fallback cannot silently invent exclusions.
@@ -1198,7 +1207,11 @@ class ConversationSupervisor:
         no_name = (agent.enabled() and not no_subject and d.is_website(row.brief)
                    and not agent.declares_a_name(d.customer_text(row.brief))
                    and self._times_asked(project_id, agent.NAME_ID) < agent.ASK_NAME_AT_MOST)
-        if row.complete and gap_q is None and not no_subject and not no_name:
+        # the owner, 2026-11-22: a business we do not know is asked about colours once (see COLOUR_QUESTION)
+        no_colour = (agent.enabled() and not no_subject and not no_name and d.is_website(row.brief)
+                     and agent.colour_unknown_business(row.brief)
+                     and self._times_asked(project_id, agent.COLOUR_ID) < agent.ASK_COLOUR_AT_MOST)
+        if row.complete and gap_q is None and not no_subject and not no_name and not no_colour:
             feas = self._feasibility(row)
             if feas.get('buildable'):
                 if recorded:
@@ -1248,7 +1261,7 @@ class ConversationSupervisor:
         # conflict), the customer sees the model's own reply and question, not the detector's question, the
         # "chosen for you" list or quick-reply buttons. The detector still records the brief and decides
         # completeness; the approval gates, cost and blockers above stay authoritative and unchanged.
-        listening = (not (row.complete and gap_q is None and not no_subject and not no_name) and not res.conflicts
+        listening = (not (row.complete and gap_q is None and not no_subject and not no_name and not no_colour) and not res.conflicts
                      and not turn.blocked)
         model_reply = (interp is not None and str(getattr(interp, 'interpreter', '')).startswith('model')
                        and bool((interp.reply or '').strip()))
@@ -1289,6 +1302,11 @@ class ConversationSupervisor:
             said = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
             turn.reply = ((said or '') + ' ' + agent.NAME_QUESTION['he' if lang == 'he' else 'en']).strip()
             turn.asked_in_words = [agent.NAME_ID]
+            return turn
+        if no_colour and not model_failed and not res.conflicts and not turn.blocked and not turn.questions:
+            words = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
+            turn.reply = ((words or '') + ' ' + agent.COLOUR_QUESTION['he' if lang == 'he' else 'en']).strip()
+            turn.asked_in_words = [agent.COLOUR_ID]
             return turn
         if agent.enabled() and turn.questions:
             # no card: the question is part of the reply, in words; it is still recorded as asked, so the next

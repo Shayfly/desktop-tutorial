@@ -140,7 +140,9 @@ GOLDEN = {
     'Build a team task tracker web app: users sign up and log in, create projects, add tasks with due dates':
         # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was 13cf3807...)
         # 2026-11-16: the contract keeps the approved text's line breaks instead of one long line (was 051707d1...)
-        'sha256:39ae8a91350e10671b66fd074937a51fe7b24d975c58edcb256e1aa63cc1bf5d',
+        # 2026-11-22 (the owner): nothing is near a task tracker, so its colours are the neutral palette we have
+        # instead of "choose a palette" (was 39ae8a91...)
+        'sha256:7e1cd81d9fc5672ae9a7300ab885ca18d66cf4a7ab5ca6876fd51a62e39b353a',
     'דף לבית קפה עם תפריט ותשלום אונליין בכרטיס אשראי':
         # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was 3eb15832...)
         # 2026-11-16: the contract keeps the approved text's line breaks instead of one long line (was 6ab2a7a3...)
