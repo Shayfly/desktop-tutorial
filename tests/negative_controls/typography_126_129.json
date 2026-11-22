@@ -1,0 +1,296 @@
+{
+ "pr": "typography-126-129",
+ "sha256": [
+  "tests/test_typography_scripts.py",
+  "tests/test_font_pairs_load.py",
+  "tests/test_font_pair_on_the_real_chain.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "126: the pair is not chosen from the library (the Design line's one font stays)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "        contract, source = render_contract(prompt, colours, fonts=T.contract_fonts(pair) if pair else None)\n",
+     "new": "        contract, source = render_contract(prompt, colours)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py",
+    "tests/test_font_pair_on_the_real_chain.py"
+   ],
+   "expect_failed": [
+    "test_the_owners_brief_gets_a_pair_from_the_library",
+    "test_the_rendered_page_carries_the_pair",
+    "test_the_gate_holds_the_contract_the_page_is_rendered_with",
+    "test_a_brief_that_locks_its_own_contract_is_built_ready_through_the_real_chain"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "126: two businesses in one category get the same pair (the business key is ignored)",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    digest = hashlib.sha256('|'.join((name, category.strip(), key)).encode('utf-8')).digest()\n",
+     "new": "    digest = hashlib.sha256('|'.join((name, category.strip())).encode('utf-8')).digest()\n"
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_two_businesses_in_one_category_get_different_pairs",
+    "test_two_businesses_in_one_category_get_different_pairs_on_the_route"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "126: the same business is not always the same pair (its key is not normalised)",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    key = ' '.join((business or '').split()).casefold()\n",
+     "new": "    key = business or ''\n"
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_the_same_business_always_gets_the_same_pair",
+    "test_a_pair_needs_a_business_a_category_and_a_known_tone"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "126: the display face is declared in the CSS but not loaded -- the page falls back silently",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    faces = [p['body']] + ([p['display']] if p['display']['family'] != p['body']['family'] else [])\n",
+     "new": "    faces = [p['body']]\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pairs_load.py"
+   ],
+   "expect_failed": [
+    "test_every_pair_of_the_library_loads_its_faces_for_its_script",
+    "test_the_routes_page_for_the_owners_brief_loads_its_pair"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "126: no font is loaded at all (a broken stylesheet address)",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "            f'<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?{families_q}&display=swap\">')\n",
+     "new": "            f'<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css3?{families_q}&display=swap\">')\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pairs_load.py"
+   ],
+   "expect_failed": [
+    "test_every_pair_of_the_library_loads_its_faces_for_its_script",
+    "test_the_routes_page_for_the_owners_brief_loads_its_pair"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "126: a font not in the library passes",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "        if family not in known and family not in GENERIC:\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_a_font_not_in_the_library_fails"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "126: a contract whose tokens are not its pair's passes",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    if (tokens.get('--font-family'), tokens.get('--font-display')) != (T.stack(p['body']), T.stack(p['display'])):\n        raise T.FontNotInLibrary(f\"the contract's font tokens are not those of pair {p['id']!r}\")\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_a_font_not_in_the_library_fails"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "129: an Arabic page comes out left to right",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/scripts.json",
+     "old": "   \"direction\": \"rtl\",\n   \"lang\": \"ar\",",
+     "new": "   \"direction\": \"ltr\",\n   \"lang\": \"ar\","
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_hebrew_and_arabic_pages_are_right_to_left_and_latin_left_to_right"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "129: Arabic gets a Hebrew font",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    eligible = sorted((p for p in pairs(name) if tone in p['tones']), key=lambda p: p['id'])\n",
+     "new": "    eligible = sorted((p for p in pairs('hebrew') if tone in p['tones']), key=lambda p: p['id'])\n"
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_an_arabic_business_gets_an_arabic_pair",
+    "test_two_businesses_in_one_category_get_different_pairs",
+    "test_a_declared_script_without_support_raises_and_never_falls_back_to_latin"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "129: an American date on a Hebrew page",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/scripts.json",
+     "old": "   \"date\": \"DD/MM/YYYY\",\n   \"number\": {\"group\": \",\", \"decimal\": \".\"},\n   \"currency\": {\"position\": \"after\", \"space\": true, \"symbols\": {\"ILS\": \"₪\", \"USD\": \"$\", \"EUR\": \"€\"}},",
+     "new": "   \"date\": \"MM/DD/YYYY\",\n   \"number\": {\"group\": \",\", \"decimal\": \".\"},\n   \"currency\": {\"position\": \"after\", \"space\": true, \"symbols\": {\"ILS\": \"₪\", \"USD\": \"$\", \"EUR\": \"€\"}},"
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_a_hebrew_and_an_arabic_date_are_day_month_year"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "129: text in an unknown or unsupported script falls back to Latin silently",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    if name is None:\n        raise UnknownScript('most of the text is in letters of no declared script')\n    script(name)                                   # an unsupported script raises here, never a fallback\n    return name\n",
+     "new": "    if name is None or DECLARED[name]['supported'] is not True:\n        return 'latin'\n    return name\n"
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_a_declared_script_without_support_raises_and_never_falls_back_to_latin",
+    "test_an_unknown_script_or_language_or_text_raises"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "129: an unsupported script is served as Latin",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "        raise UnsupportedScript(f'script {name!r} is declared but not supported: {s[\"why\"]}')\n",
+     "new": "        return DECLARED['latin']\n"
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_a_declared_script_without_support_raises_and_never_falls_back_to_latin"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "129: a heading longer than its script's limit passes",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    if over:\n        raise HeadingTooLong('; '.join(over))\n",
+     "new": "    if False:\n        raise HeadingTooLong('; '.join(over))\n"
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_a_heading_longer_than_the_scripts_limit_fails_loudly",
+    "test_a_heading_is_measured_as_the_visitor_reads_it"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "129: the page does not measure its headings",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    T.check_headings(markup, script)            # a heading longer than its script's limit raises (warehouse 129)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_a_heading_longer_than_the_scripts_limit_fails_loudly"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "129: the model's schema is not bound by the script's heading limits",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "_H = _script('hebrew')['heading_max_chars']\n",
+     "new": "_H = {'h1': 80, 'h2': 80, 'h3': 50, 'h4': 50}\n"
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_the_schema_bounds_the_model_by_the_scripts_heading_limits"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "126: the G-APPLE gate checks the page against the brief's contract, not the one it was rendered with",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/__init__.py",
+     "old": "        contract = _route_contract(core, contract)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_typography_scripts.py",
+    "tests/test_font_pair_on_the_real_chain.py"
+   ],
+   "expect_failed": [
+    "test_the_gate_holds_the_contract_the_page_is_rendered_with",
+    "test_a_brief_that_locks_its_own_contract_is_built_ready_through_the_real_chain"
+   ]
+  }
+ ]
+}

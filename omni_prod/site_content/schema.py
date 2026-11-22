@@ -13,7 +13,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..typography import script as _script
+
 SCHEMA = '148ai.site_content/1'
+# The route's pages are Hebrew (site_content.decide): every heading's bound is the Hebrew script's limit (warehouse
+# 129, typography/scripts.json) -- the number the section library enforces on the rendered page.
+_H = _script('hebrew')['heading_max_chars']
 
 
 @dataclass(frozen=True)
@@ -49,22 +54,22 @@ class Obj:
 
 
 def _head(nav: bool = True) -> dict:
-    return {'eyebrow': Str(40, True), 'title': Str(70), 'lead': Str(220, True), **({'nav': Str(24)} if nav else {})}
+    return {'eyebrow': Str(40, True), 'title': Str(_H['h2']), 'lead': Str(220, True), **({'nav': Str(24)} if nav else {})}
 
 
 SECTIONS = {
-    'hero': {'eyebrow': Str(40, True), 'title': Str(70), 'lead': Str(220), 'cta': Str(30), 'note': Str(90, True),
+    'hero': {'eyebrow': Str(40, True), 'title': Str(_H['h1']), 'lead': Str(220), 'cta': Str(30), 'note': Str(90, True),
              'panel_label': Str(40, True), 'panel_figure': Obj({'value': Num(), 'caption': Str(40)}, True)},
     'stats': {'label': Str(40, True), 'items': Lst(2, 4, Obj({'value': Num(), 'label': Str(30)}))},
-    'services': {**_head(), 'items': Lst(2, 8, Obj({'title': Str(40), 'desc': Str(220)}))},
+    'services': {**_head(), 'items': Lst(2, 8, Obj({'title': Str(_H['h3']), 'desc': Str(220)}))},
     'about': {**_head(), 'paragraphs': Lst(1, 3, Str(400)),
               'facts': Lst(1, 4, Obj({'label': Str(20), 'value': Str(80)}), True)},
-    'process': {**_head(), 'steps': Lst(2, 6, Obj({'title': Str(40), 'desc': Str(200)}))},
+    'process': {**_head(), 'steps': Lst(2, 6, Obj({'title': Str(_H['h3']), 'desc': Str(200)}))},
     'faq': {**_head(), 'items': Lst(2, 8, Obj({'q': Str(90), 'a': Str(400)}))},
-    'cta': {'title': Str(70), 'text': Str(200, True)},
+    'cta': {'title': Str(_H['h2']), 'text': Str(200, True)},
     'testimonials': {**_head(), 'items': Lst(1, 6, Ref('@review'))},
-    'pricelist': {**_head(), 'groups': Lst(1, 6, Obj({'title': Str(40), 'items': Lst(1, 12, Obj(
-        {'name': Str(40), 'price': Ref('@price'), 'desc': Str(120, True)}))}))},
+    'pricelist': {**_head(), 'groups': Lst(1, 6, Obj({'title': Str(_H['h3']), 'items': Lst(1, 12, Obj(
+        {'name': Str(_H['h4']), 'price': Ref('@price'), 'desc': Str(120, True)}))}))},
     'contact': {**_head(), 'topics': Lst(2, 6, Str(30), True)},
 }
 TOP = {'schema': None, 'name': Str(60), 'tagline': Str(50), 'description': Str(160), 'layout': None,
