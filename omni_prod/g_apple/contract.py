@@ -6,8 +6,11 @@ CSS custom properties and may use nothing else. One contract, deterministic, no 
 
   type scale      TYPE_PX, the only font sizes
   8-grid          SPACE_PX, the only margins, paddings and gaps (4 is the one half step)
-  semantic palette  bg, surface, text, muted, border, primary, on-primary -- ONE accent (primary); every text pair's
-                  contrast is COMPUTED here (WCAG 2.x), and a pair below its minimum is corrected, never shipped
+  semantic palette  bg, surface, text, muted, border, primary, on-primary; every text pair's contrast is COMPUTED
+                  here (WCAG 2.x), and a pair below its minimum is corrected, never shipped
+  second colour   accent, on-accent, accent-text (version 2, the owner 2026-11-22: the customer says which colour takes
+                  less space): small marks only -- numbers, step circles, the eyebrow, a quote's edge. Never a section,
+                  a button or a large area: the primary stays the one action colour
   two weights     WEIGHTS
   one radius      RADIUS_PX
   motion tokens   two durations, one easing
@@ -20,7 +23,7 @@ import hashlib
 import json
 import re
 
-VERSION = 1
+VERSION = 2   # 2 (2026-11-22): the accent is a token (version 1 dropped it: 'one accent colour: the primary')
 TYPE_PX = (12, 14, 16, 20, 24, 32, 40, 56, 72)   # 72: a bold direction's headline (the owner 2026-11-20)
 SPACE_PX = (0, 4, 8, 16, 24, 32, 48, 64, 96)
 WEIGHTS = (400, 700)
@@ -105,13 +108,22 @@ def build(prompt: str, fonts: dict | None = None) -> dict:
     palette = _PALETTE.search(line.group('colours'))
     if not palette:
         raise ContractError('the Design line has no four-colour palette (primary, accent, background, text)')
-    primary, _accent, bg, text = [c.lower() for c in re.findall(r'#[0-9a-fA-F]{3,6}', palette.group(1))]
+    primary, accent, bg, text = [c.lower() for c in re.findall(r'#[0-9a-fA-F]{3,6}', palette.group(1))]
     text = _readable(text, bg, 7.0)                              # body text: AAA where the palette allows a step
     primary = _readable(primary, bg, MIN_UI_CONTRAST)            # a button must be seen against the page
     on_primary = '#ffffff' if contrast('#ffffff', primary) >= contrast('#000000', primary) else '#000000'
     surface = _mix(bg, text, 0.04)
     muted = _readable(_mix(text, bg, 0.35), bg, MIN_TEXT_CONTRAST)
     border = _mix(bg, text, 0.18)
+    # the second colour: a mark must be seen against the page (3:1, like the primary); text in it (the eyebrow, the big
+    # numbers) must be read on every ground it sits on -- the page, the surface, and the 5% primary tint of
+    # section_library's .section--tint. Each correction moves toward the same end, so an earlier ground stays readable.
+    accent = _readable(accent, bg, MIN_UI_CONTRAST)
+    on_accent = '#ffffff' if contrast('#ffffff', accent) >= contrast('#000000', accent) else '#000000'
+    tint = _mix(bg, primary, 0.05)
+    accent_text = accent
+    for ground in (bg, surface, tint):
+        accent_text = _readable(accent_text, ground, MIN_TEXT_CONTRAST)
     family = ' '.join(line.group('font').split())
     design_line = block[1][line.start():].split('\n', 1)[0]
     display_m = _DISPLAY.search(design_line)
@@ -122,6 +134,7 @@ def build(prompt: str, fonts: dict | None = None) -> dict:
     tokens = {
         '--color-bg': bg, '--color-surface': surface, '--color-text': text, '--color-muted': muted,
         '--color-border': border, '--color-primary': primary, '--color-on-primary': on_primary,
+        '--color-accent': accent, '--color-on-accent': on_accent, '--color-accent-text': accent_text,
         '--font-family': family, '--font-display': display,
         **{f'--text-{px}': f'{px}px' for px in TYPE_PX},
         **{f'--space-{px}': f'{px}px' for px in SPACE_PX if px},
@@ -132,14 +145,18 @@ def build(prompt: str, fonts: dict | None = None) -> dict:
     pairs = {'text on bg': (text, bg, MIN_TEXT_CONTRAST), 'muted on bg': (muted, bg, MIN_TEXT_CONTRAST),
              'text on surface': (text, surface, MIN_TEXT_CONTRAST),
              'on-primary on primary': (on_primary, primary, MIN_TEXT_CONTRAST),
-             'primary on bg': (primary, bg, MIN_UI_CONTRAST)}
+             'primary on bg': (primary, bg, MIN_UI_CONTRAST),
+             'accent on bg': (accent, bg, MIN_UI_CONTRAST),
+             'on-accent on accent': (on_accent, accent, MIN_TEXT_CONTRAST),
+             'accent-text on bg': (accent_text, bg, MIN_TEXT_CONTRAST),
+             'accent-text on surface': (accent_text, surface, MIN_TEXT_CONTRAST),
+             'accent-text on tint': (accent_text, tint, MIN_TEXT_CONTRAST)}
     measured = {name: contrast(a, b) for name, (a, b, _) in pairs.items()}
     low = {name: measured[name] for name, (_, _, minimum) in pairs.items() if measured[name] < minimum}
     if low:
         raise ContractError(f'the palette cannot be made readable: {low}')
     css = ':root {\n' + ''.join(f'  {k}: {v};\n' for k, v in tokens.items()) + '}'
-    body = {'version': VERSION, 'style': line.group('style'), 'tokens': tokens, 'contrast': measured,
-            'dropped': {'accent': _accent.lower(), 'why': 'one accent colour: the primary'}}
+    body = {'version': VERSION, 'style': line.group('style'), 'tokens': tokens, 'contrast': measured}
     if fonts is not None:
         body['fonts'] = {'pair': fonts['pair'], 'script': fonts['script'], 'brief_font': brief_font}
     return {**body, 'css': css,
@@ -152,8 +169,10 @@ def rules(contract: dict) -> str:
         f"Design contract {contract['fingerprint']} (locked by 148AI; the finished page is checked against it):",
         'Put this block in the page <style>, EXACTLY as written, and use ONLY these custom properties:',
         contract['css'],
-        '- Colours: only var(--color-...). No hex, rgb() or hsl() value anywhere outside this :root block. One accent: '
-        '--color-primary. Text on the primary colour is --color-on-primary.',
+        '- Colours: only var(--color-...). No hex, rgb() or hsl() value anywhere outside this :root block. The action '
+        'colour is --color-primary (buttons, links, focus); text on it is --color-on-primary. The second colour, '
+        '--color-accent, is for small marks only (a number, a step circle with --color-on-accent inside, a thin edge); '
+        'small text in the second colour uses --color-accent-text. Never a section background or a button in the accent.',
         f"- Sizes: font-size only var(--text-...); margin, padding and gap only var(--space-...) or 0. No other px "
         f"value except {HAIRLINE_PX[0]}px/{HAIRLINE_PX[1]}px borders. Layout widths use %, rem, ch, fr or max-width.",
         '- Fonts: body text var(--font-family); headings may use var(--font-display). Load both from Google Fonts '

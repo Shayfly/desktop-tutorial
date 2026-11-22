@@ -204,6 +204,6 @@ def report(engine) -> dict:
     gate = getattr(core, 'apple_gate', None)
     contract = getattr(core, 'design_contract', None)
     return {'gate': GATE, 'mode': modes.get(GATE) if isinstance(modes, dict) else None,
-            'contract': {k: contract[k] for k in ('fingerprint', 'tokens', 'contrast', 'dropped')} if isinstance(contract, dict) else None,
+            'contract': {k: contract[k] for k in ('fingerprint', 'version', 'tokens', 'contrast')} if isinstance(contract, dict) else None,
             'carried': getattr(core, 'design_contract_carried', None),      # the generator got the contract as written
             'last': gate.last_apple if isinstance(gate, AppleGateExecutor) else None}
