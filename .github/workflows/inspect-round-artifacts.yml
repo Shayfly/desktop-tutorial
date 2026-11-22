@@ -149,7 +149,8 @@ jobs:
                       except Exception:
                           digest = "undecodable"
                       return m.group(1) + "<%d base64 chars; decoded sha256 %s>" % (len(raw), digest)
-                  text = _re.sub(r"(data:[\w/+.-]+;base64,)([A-Za-z0-9+/=\s]{200,})", _elide, text)
+                  # warehouse 118: an image file is an envelope (148ai-binary:v1;mime=...;sha256=...;base64,...), elided the same way
+                  text = _re.sub(r"((?:data:[\w/+.-]+|148ai-binary:v1;mime=[\w/+.-]+;sha256=[0-9a-f]{64});base64,)([A-Za-z0-9+/=\s]{200,})", _elide, text)
                   chunks = [text[i:i + size] for i in range(0, len(text), size)] or [""]
                   for i, chunk in enumerate(chunks, 1):
                       note(f"round {idx} {n} [{i}/{len(chunks)}]", chunk)
