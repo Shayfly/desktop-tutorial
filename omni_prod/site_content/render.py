@@ -9,8 +9,9 @@ content/site.json (the document with its binds), content/facts.json (what the fi
 GET-only app.py (POST 405, no writes), a fixed tests/test_site.py and a platform-written .omni/project.json that covers
 every acceptance id of the spec. app.py, tests/test_site.py and .omni/project.json are the same bytes in every round.
 
-Headings use the body font on this route in slice 1: the discovery Design-line display font is deferred (the CTO's
-decision 3), so g_apple.contract.build gives --font-display = --font-family.
+Fonts (warehouse 126): the route locks a pair from the font-pair library (omni_prod/typography) into the contract --
+a display face for the headings and a body face -- in place of the Design line's one font (slice 1 used the body
+font for the headings).
 """
 from __future__ import annotations
 
@@ -20,10 +21,12 @@ import re
 from pathlib import Path
 
 from .. import section_library as L
+from .. import typography as T
 from ..g_apple import contract as C
 
 HERE = Path(__file__).resolve().parent
 _LIBRARY_FILES = ('__init__.py', 'library.css', 'directions.json')
+_TYPOGRAPHY_FILES = ('__init__.py', 'scripts.json', 'font_pairs.json')     # warehouse 126/129: the page's fonts
 _REF = re.compile(r'@price:\d{1,3}')
 _TIME = re.compile(r'\d{1,2}:\d{2}')
 PAGE = 'public/index.html'
@@ -41,6 +44,8 @@ def renderer_version() -> str:
     h = hashlib.sha256()
     for name in _LIBRARY_FILES:
         h.update((Path(L.__file__).resolve().parent / name).read_bytes())
+    for name in _TYPOGRAPHY_FILES:
+        h.update((Path(T.__file__).resolve().parent / name).read_bytes())
     h.update((HERE / 'render.py').read_bytes())
     return h.hexdigest()[:16]
 
@@ -53,14 +58,15 @@ _DESIGN_PRIMARY = re.compile(r'Design: style (?P<style>[\w-]+); primary colour (
                              r'\b(?P<rest>[^\n]*?); font (?P<font>[^;()\n]{1,200}?) \(')
 
 
-def render_contract(prompt: str, palette: dict) -> tuple[dict, str]:
+def render_contract(prompt: str, palette: dict, fonts: dict | None = None) -> tuple[dict, str]:
     """(contract, source). The brief's own contract when its Design line locks one (source 'brief': the G-APPLE gate
     holds the same object). A brief whose customer stated fewer than four colours locks none (the gate says NOT_RUN):
     the page then takes the customer's primary colour and completes the palette from the business category's catalogue
     palette (source 'brief-primary+category'); the other stated colours have no role the brief names, so none is
-    guessed for them (said in the evidence). A Design line with no primary colour at all raises ContractError."""
+    guessed for them (said in the evidence). A Design line with no primary colour at all raises ContractError.
+    `fonts` is the route's font pair (warehouse 126, typography.contract_fonts), locked into either contract."""
     try:
-        return C.build(prompt), 'brief'
+        return C.build(prompt, fonts), 'brief'
     except C.ContractError as first:
         block = (prompt or '').rsplit('--- Approved project brief', 1)
         m = _DESIGN_PRIMARY.search(block[1] if len(block) == 2 else '')
@@ -70,7 +76,7 @@ def render_contract(prompt: str, palette: dict) -> tuple[dict, str]:
                 f"{m['primary']}, {palette['accent']}, {palette['background']}, {palette['ink']} (primary, accent, "
                 f"background, text: the customer's primary, the category's other roles); font {m['font']} (load it "
                 'from Google Fonts with a system fallback)')
-        return C.build(line), 'brief-primary+category'
+        return C.build(line, fonts), 'brief-primary+category'
 
 
 # ---- the document as the library's content --------------------------------------------------------------------------
