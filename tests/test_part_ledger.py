@@ -1,4 +1,4 @@
-"""Every build carries a per-part provenance ledger (warehouse 122): `.148ai/parts.json`, safe for the customer, inside
+"""Every build carries a per-part provenance ledger (a vision slice, not a warehouse item): `.148ai/parts.json`, safe for the customer, inside
 what provenance.json signs; the owner's view adds each generated image's spend.
 
 The main case is the production row of the owner's law-firm brief (bld_b0eb47a5, prompt sha256 asserted), through the
