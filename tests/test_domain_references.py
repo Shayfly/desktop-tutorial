@@ -47,6 +47,12 @@ class TheReferenceCheck(unittest.TestCase):
                                     fetcher({'https://law1.example': (None, 0, 'Timeout')})), 1)
             self.assertEqual(R.main(['--out', f'{tmp}/o.json', '--registry', f'{tmp}/missing.json'], fetcher({})), 2)
 
+    def test_a_domain_below_five_live_references_fails_even_with_nothing_dead(self):
+        short = {'domains': {'lawyer': {'references': [f'https://law{i}.example' for i in range(4)]}}}
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, 'r.json').write_text(json.dumps(short), encoding='utf-8')
+            self.assertEqual(R.main(['--out', f'{tmp}/o.json', '--registry', f'{tmp}/r.json'], fetcher({})), 1)
+
     def test_no_network_is_not_207_dead_sites(self):
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, 'r.json').write_text(json.dumps(REG), encoding='utf-8')

@@ -86,7 +86,8 @@ def main(argv=None, fetcher=fetch) -> int:
     print(f'::notice title=domain references::{total - len(result["dead"])}/{total} alive across '
           f'{len(result["domains"])} domains; {len(result["short"])} domains below {MIN_LIVE}')
     Path(a.out).write_text(json.dumps(result, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
-    return 1 if result['dead'] else 0
+    # the owner, 2026-11-22: a domain below 5 live references FAILS, it does not merely warn -- or the library empties quietly
+    return 1 if result['dead'] or result['short'] else 0
 
 
 if __name__ == '__main__':
