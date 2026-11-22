@@ -1,0 +1,77 @@
+{
+ "pr": "platform-for-everyone",
+ "sha256": [
+  "tests/test_platform_for_everyone_in_ci.py",
+  "tests/platform_for_everyone_browser.cjs"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the for-everyone browser check is dropped from the browser job",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - run: node tests/platform_for_everyone_browser.cjs\n",
+     "new": "      - run: echo skipped  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_platform_for_everyone_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_browser_job_runs_it"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the target size is relaxed back to WCAG's 24px",
+   "mutations": [
+    {
+     "file": "tests/platform_for_everyone_browser.cjs",
+     "old": "if (r.width < 43.5 || r.height < 43.5)",
+     "new": "if (r.width < 23.5 || r.height < 23.5)"
+    }
+   ],
+   "targets": [
+    "tests/test_platform_for_everyone_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_it_measures_the_five_things_and_proves_itself"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "an uncaught deliberate fault no longer fails the run",
+   "mutations": [
+    {
+     "file": "tests/platform_for_everyone_browser.cjs",
+     "old": "      if (!fail.length) failures.push(`mutation ${m.id} was NOT caught by the \"${m.check}\" check`);",
+     "new": "      if (!fail.length) console.log(`mutation ${m.id} missed`);  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_platform_for_everyone_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_it_measures_the_five_things_and_proves_itself"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the naming dialog comes back before the first message",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/index.html",
+     "old": "<dialog id=\"projectDialog\">",
+     "new": "<dialog id=\"newProjectDialog\"><input id=\"newProjectName\"></dialog>\n<dialog id=\"projectDialog\">"
+    }
+   ],
+   "targets": [
+    "tests/test_platform_for_everyone_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_page_has_no_naming_step"
+   ]
+  }
+ ]
+}
