@@ -28,8 +28,8 @@
    "mutations": [
     {
      "file": "scripts/path_ownership.py",
-     "old": "         'codex/': (\"the customers' sites and the engine that builds them (OWNERS.md: Claude's)\", SITE_ENGINE)}",
-     "new": "         'codex/': (\"the customers' sites and the engine that builds them (OWNERS.md: Claude's)\", ())}  # NEGATIVE CONTROL"
+     "old": "         'codex/': (\"the customers' sites and the engine that builds them (OWNERS.md: Claude's)\", SITE_ENGINE),",
+     "new": "         'codex/': (\"the customers' sites and the engine that builds them (OWNERS.md: Claude's)\", ()),  # NEGATIVE CONTROL"
     }
    ],
    "targets": [
@@ -54,6 +54,23 @@
    ],
    "expect_failed": [
     "test_a_path_is_owned_by_prefix_not_by_substring"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a design/ branch may change the customers' sites engine (the rule for design/ is gone)",
+   "mutations": [
+    {
+     "file": "scripts/path_ownership.py",
+     "old": "         'design/': (\"the customers' sites and the engine that builds them (OWNERS.md: Claude's)\", SITE_ENGINE)}",
+     "new": "         'design/': (\"the customers' sites and the engine that builds them (OWNERS.md: Claude's)\", ())}  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_path_ownership.py"
+   ],
+   "expect_failed": [
+    "test_a_design_branch_is_the_ui_side"
    ]
   }
  ]

@@ -34,6 +34,13 @@ class TheSplit(unittest.TestCase):
                 self.assertEqual(len(errors), 1)
                 self.assertIn("customers' sites", errors[0])
 
+    def test_a_design_branch_is_the_ui_side(self):
+        # Codex pushed the platform design as design/148ai-full-workspace-133
+        errors, _ = P.judge('design/148ai-full-workspace-133', ['omni_prod/discovery.py'])
+        self.assertEqual(len(errors), 1)
+        self.assertIn("customers' sites", errors[0])
+        self.assertEqual(P.judge('design/148ai-full-workspace-133', ['omni_prod/assets/app.css']), ([], []))
+
     def test_each_agent_may_change_its_own_and_the_shared_paths(self):
         self.assertEqual(P.judge('codex/new-design', ['omni_prod/assets/app.css', 'omni_prod/assets/app.js',
                                                       '.github/workflows/v24-ci.yml']), ([], []))
