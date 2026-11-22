@@ -1,7 +1,8 @@
 name: path-ownership
 
-# The owner, 2026-11-22: Codex implements the new platform design while Claude builds the engine; neither changes the
-# other's paths (OWNERS.md). scripts/path_ownership.py reads the branch prefix and the changed paths.
+# The owner, 2026-11-22 (evening): the platform UI moves to Claude Code and Codex does not continue it; a codex/ or
+# design/ branch changes neither the platform UI shell nor the customers' sites' engine (OWNERS.md).
+# scripts/path_ownership.py reads the branch prefix and the changed paths.
 on:
   pull_request:
 

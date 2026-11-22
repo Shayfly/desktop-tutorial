@@ -1,5 +1,5 @@
-"""scripts/path_ownership.py: a claude/ branch does not change the platform UI shell, a codex/ branch does not change
-the customers' sites' engine (the owner, 2026-11-22; OWNERS.md)."""
+"""scripts/path_ownership.py: a codex/ or design/ branch changes neither the platform UI shell nor the customers' sites'
+engine (the owner, 2026-11-22 evening: the platform UI moves to Claude Code, Codex does not continue it; OWNERS.md)."""
 from __future__ import annotations
 
 import importlib.util
@@ -11,41 +11,37 @@ _spec = importlib.util.spec_from_file_location('path_ownership', ROOT / 'scripts
 P = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(P)
 
+UI = ('omni_prod/assets/app.css', 'omni_prod/assets/index.html', 'omni_prod/assets/app.js',
+      'omni_prod/assets/brand/logo.svg', 'ui/old.html', 'omni_prod/assets/sw.js')
+ENGINE = ('omni_prod/section_library/library.css', 'omni_prod/site_content/__init__.py',
+          'omni_prod/conversation/supervisor.py', 'omni_prod/fact_canon.py', 'omni_prod/typography/x.py')
+
 
 class TheSplit(unittest.TestCase):
-    def test_claude_does_not_change_the_ui_shell(self):
-        for path in ('omni_prod/assets/app.css', 'omni_prod/assets/index.html', 'omni_prod/assets/brand/logo.svg',
-                     'ui/old.html', 'omni_prod/assets/sw.js'):
-            with self.subTest(path):
-                errors, _ = P.judge('claude/practical-hopper-x', [path])
-                self.assertEqual(len(errors), 1)
-                self.assertIn('platform UI shell', errors[0])
-
-    def test_claude_app_js_is_the_text_only_exception_said_to_the_reviewer(self):
-        errors, notices = P.judge('claude/practical-hopper-x', ['omni_prod/assets/app.js'])
-        self.assertEqual(errors, [])
-        self.assertEqual(len(notices), 1)
-
-    def test_codex_does_not_change_the_site_engine(self):
-        for path in ('omni_prod/section_library/library.css', 'omni_prod/site_content/__init__.py',
-                     'omni_prod/conversation/supervisor.py', 'omni_prod/fact_canon.py', 'omni_prod/typography/x.py'):
+    def test_codex_changes_neither_the_ui_shell_nor_the_site_engine(self):
+        for path in UI + ENGINE:
             with self.subTest(path):
                 errors, _ = P.judge('codex/new-design', [path])
                 self.assertEqual(len(errors), 1)
-                self.assertIn("customers' sites", errors[0])
+                self.assertIn('codex/', errors[0])
 
-    def test_a_design_branch_is_the_ui_side(self):
+    def test_a_design_branch_is_judged_as_codex(self):
         # Codex pushed the platform design as design/148ai-full-workspace-133
-        errors, _ = P.judge('design/148ai-full-workspace-133', ['omni_prod/discovery.py'])
-        self.assertEqual(len(errors), 1)
-        self.assertIn("customers' sites", errors[0])
-        self.assertEqual(P.judge('design/148ai-full-workspace-133', ['omni_prod/assets/app.css']), ([], []))
+        for path in ('omni_prod/discovery.py', 'omni_prod/assets/app.css'):
+            with self.subTest(path):
+                errors, _ = P.judge('design/148ai-full-workspace-133', [path])
+                self.assertEqual(len(errors), 1)
 
-    def test_each_agent_may_change_its_own_and_the_shared_paths(self):
-        self.assertEqual(P.judge('codex/new-design', ['omni_prod/assets/app.css', 'omni_prod/assets/app.js',
-                                                      '.github/workflows/v24-ci.yml']), ([], []))
-        self.assertEqual(P.judge('claude/x', ['omni_prod/site_content/__init__.py', 'omni_prod/investor_app.py',
-                                              'omni_prod/assets/replicate-test.html']), ([], []))
+    def test_the_error_names_whose_path_it_is(self):
+        self.assertIn('platform UI shell', P.judge('codex/x', ['omni_prod/assets/app.css'])[0][0])
+        self.assertIn("customers' sites", P.judge('codex/x', ['omni_prod/fact_canon.py'])[0][0])
+
+    def test_claude_owns_both(self):
+        self.assertEqual(P.judge('claude/practical-hopper-x', list(UI + ENGINE)), ([], []))
+
+    def test_codex_may_change_the_shared_paths(self):
+        self.assertEqual(P.judge('codex/x', ['.github/workflows/v24-ci.yml', 'docs/x.md', 'omni_prod/investor_app.py',
+                                             'omni_prod/assets/replicate-test.html']), ([], []))
 
     def test_other_branches_are_not_judged(self):
         self.assertEqual(P.judge('fix/anything', ['omni_prod/assets/app.css', 'omni_prod/fact_canon.py']), ([], []))
