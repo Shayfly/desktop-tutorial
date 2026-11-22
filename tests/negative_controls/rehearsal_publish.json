@@ -6,8 +6,8 @@
       "id": "NC1",
       "what": "publish-taxonomy gets write access again (the road back to a direct push)",
       "mutations": [{"file": ".github/workflows/golden-rehearsal.yml",
-                     "old": "    permissions:\n      contents: read\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: main\n          persist-credentials: false",
-                     "new": "    permissions:\n      contents: write\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: main\n          persist-credentials: false"}],
+                     "old": "    permissions:\n      contents: read\n    steps:\n      - uses: actions/checkout@v5\n        with:\n          ref: main\n          persist-credentials: false",
+                     "new": "    permissions:\n      contents: write\n    steps:\n      - uses: actions/checkout@v5\n        with:\n          ref: main\n          persist-credentials: false"}],
       "targets": ["tests/test_rehearsal_publishes_without_pushing.py"],
       "expect_failed": ["test_it_only_reads_and_keeps_no_credentials"]
     },
