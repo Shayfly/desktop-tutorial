@@ -128,7 +128,13 @@ class TheQACapInput(unittest.TestCase):
         for bad in ('2.01', '5', '0', '-1', 'abc', ''):
             self.assertNotEqual(self.guard(bad), 0, bad)
 
-    def test_the_default_is_unchanged(self):
+    def test_the_default_is_two_dollars(self):
+        """The owner, 2026-11-22: a content site reserves about 2.00 at approval, so a 0.50 default blocked every
+        content-site build, not only the 118 proof. The default and the fallback (a push has no inputs) are 2.00;
+        the QA total stays 10."""
         wf = (ROOT / '.github' / 'workflows' / 'postdeploy-checks.yml').read_text(encoding='utf-8')
-        self.assertIn('default: "0.50"', wf)
-        self.assertIn('-e OMNI_QA_BUILD_MAX_USD=${QA_BUILD_MAX:-0.50}', wf)
+        self.assertIn('default: "2.00"', wf)
+        self.assertEqual(wf.count('${QA_BUILD_MAX:-2.00}'), 2)
+        self.assertNotIn('0.50', wf)
+        self.assertIn('-e OMNI_QA_BUILD_MAX_USD=${QA_BUILD_MAX:-2.00}', wf)
+        self.assertIn('-e OMNI_QA_BUDGET_TOTAL_USD=10 ', wf)

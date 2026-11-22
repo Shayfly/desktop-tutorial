@@ -36,9 +36,9 @@ on:
         required: false
         default: ""
       qa_build_max_usd:
-        description: "The QA cap on ONE build's authorized cost (default 0.50). Never above 2.00, the platform's per-build cap; a content site reserves about 2.00 at approval"
+        description: "The QA cap on ONE build's authorized cost (default 2.00, the owner 2026-11-22: a content site reserves about 2.00 at approval, so the old default blocked every one). Never above 2.00, the platform's per-build cap"
         required: false
-        default: "0.50"
+        default: "2.00"
   push:
     branches: [milestone/pre-staging-2026-10-05]
     paths: [.github/workflows/postdeploy-checks.yml]
@@ -69,10 +69,10 @@ jobs:
           # environment (plain values, no secrets), so the local API decides
           # like the deployed one.
           # one build's QA cap: an input, never above the platform's 2.00 per-build cap; anything else stops the run
-          if ! python3 -c 'import sys,decimal as d; v=d.Decimal(sys.argv[1]); sys.exit(0 if d.Decimal("0") < v <= d.Decimal("2.00") else 1)' "${QA_BUILD_MAX:-0.50}" 2>/dev/null; then
+          if ! python3 -c 'import sys,decimal as d; v=d.Decimal(sys.argv[1]); sys.exit(0 if d.Decimal("0") < v <= d.Decimal("2.00") else 1)' "${QA_BUILD_MAX:-2.00}" 2>/dev/null; then
             echo "::error title=postdeploy::qa_build_max_usd must be a number above 0 and at most 2.00 (got '${QA_BUILD_MAX}')"; exit 1
           fi
-          echo "QA_ENV=-e OMNI_ENV=staging -e OMNI_QA_BUILD_MAX_USD=${QA_BUILD_MAX:-0.50} -e OMNI_QA_BUDGET_TOTAL_USD=10 -e OMNI_QA_BUDGET_SINCE=2026-10-08T17:12:00Z" >> "$GITHUB_ENV"
+          echo "QA_ENV=-e OMNI_ENV=staging -e OMNI_QA_BUILD_MAX_USD=${QA_BUILD_MAX:-2.00} -e OMNI_QA_BUDGET_TOTAL_USD=10 -e OMNI_QA_BUDGET_SINCE=2026-10-08T17:12:00Z" >> "$GITHUB_ENV"
 
       - name: Free checks
         if: inputs.stage == 'free'
