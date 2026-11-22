@@ -1,0 +1,61 @@
+{
+ "pr": "spec-card",
+ "sha256": [
+  "tests/test_spec_card.py",
+  "tests/spec_card_browser.cjs"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a starting-content segment that repeats a business detail is no longer dropped",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/spec_card.py",
+     "old": "    keep = [s for s in str(value).split('; ') if not any(d and d in s for d in details)]",
+     "new": "    keep = str(value).split('; ')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_spec_card.py"],
+   "expect_failed": ["test_the_fixture_is_what_the_server_builds", "test_the_owners_screenshot_shows_each_detail_once"]
+  },
+  {
+   "id": "NC2",
+   "what": "a canon warning is dropped from the card",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/spec_card.py",
+     "old": "            notes.append(line)                 # a warning (CANON_INCOMPLETE), a needed fact, an image's role",
+     "new": "            pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_spec_card.py"],
+   "expect_failed": ["test_a_warning_is_never_dropped", "test_a_line_of_another_shape_stays_text"]
+  },
+  {
+   "id": "NC3",
+   "what": "gate 1 no longer attaches the card",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        turn.actions[-1]['card'] = spec_card(",
+     "new": "        _unused_card = spec_card(  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_spec_card.py"],
+   "expect_failed": ["test_the_approval_carries_the_card"]
+  },
+  {
+   "id": "NC4",
+   "what": "the card's browser test is dropped from CI",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - run: node tests/spec_card_browser.cjs\n",
+     "new": "      - run: echo skipped  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": ["tests/test_spec_card.py"],
+   "expect_failed": ["test_the_browser_check_runs_in_ci"]
+  }
+ ]
+}
