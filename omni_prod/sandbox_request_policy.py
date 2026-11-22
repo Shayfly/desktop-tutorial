@@ -10,6 +10,7 @@ from pathlib import PurePosixPath
 import re
 
 from .repository_patch import normalize_repo_path, PatchValidationError
+from .repository_assets import AssetCarryError, decode, is_envelope
 
 MAX_BODY_BYTES = 26_000_000
 MAX_RESPONSE_BYTES = 512_000
@@ -56,6 +57,12 @@ def validate_snapshot(repository: Mapping[str, str]) -> None:
             _bad('private or generated files not allowed inside build snapshot')
         if '\x00' in content:
             _bad('binary content forbidden in text-only snapshot')
+        if is_envelope(content):
+            # warehouse 118: an image file travels as a checked text envelope; the runner writes its bytes
+            try:
+                decode(path, content)
+            except AssetCarryError:
+                _bad('invalid image file in snapshot')
         total += len(path.encode('utf-8')) + len(content.encode('utf-8'))
         if total > MAX_REPO_BYTES:
             _bad('repository byte budget exceeded')

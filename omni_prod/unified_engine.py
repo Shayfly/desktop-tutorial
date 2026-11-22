@@ -282,11 +282,9 @@ class UnifiedOmniEngine:
 
     @staticmethod
     def _zip(repository: dict[str, str]) -> bytes:
-        out = io.BytesIO()
-        with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for path, content in sorted(repository.items()):
-                zf.writestr(path, content)
-        return out.getvalue()
+        # warehouse 118: the export holds every image as a real file (assets/*.webp|jpg|png), never its envelope
+        from .repository_assets import zip_bytes
+        return zip_bytes(repository)
 
     def build(self, *, project_id: str, prompt: str) -> BuildResult:
         plan = self.planner.plan(prompt)

@@ -66,6 +66,23 @@ class DownloadTests(unittest.TestCase):
         c=TestClient(app); d=c.post('/api/demo/build',json={'prompt':'Build CRM','project_id':'download-p'}).json(); vid=d['version']['id']
         r=c.get(f'/api/projects/download-p/versions/{vid}/download'); self.assertEqual(r.status_code,200)
         z=zipfile.ZipFile(io.BytesIO(r.content)); self.assertIn('index.html',z.namelist()); self.assertIn('X-Omni-Repository-SHA256',r.headers)
+        import hashlib   # warehouse 118 review: the zip is checked by its own header (the repository one is the stored text)
+        self.assertEqual(r.headers['X-Omni-Export-SHA256'],hashlib.sha256(r.content).hexdigest())
+    def test_download_of_a_version_with_an_image_file(self):
+        """Warehouse 118 review: the zip holds the image BYTES; X-Omni-Export-SHA256 is the zip's own sha256 and
+        X-Omni-Repository-SHA256 stays the stored repository's checksum (images as envelope text)."""
+        import hashlib
+        from pathlib import Path
+        from omni_prod import investor_app
+        from omni_prod.repository_assets import envelope
+        png=(Path(__file__).resolve().parent.parent/'BRAND_PACK/148AI-logo-64.png').read_bytes()
+        repo={'index.html':'<img src="assets/148ai-logo.png" alt="logo">','assets/148ai-logo.png':envelope(png,'image/png')}
+        v=investor_app._workspace.commit(project_id='download-img',repository=repo,message='build')
+        r=TestClient(app).get(f'/api/projects/download-img/versions/{v.id}/download'); self.assertEqual(r.status_code,200)
+        z=zipfile.ZipFile(io.BytesIO(r.content)); self.assertEqual(z.read('assets/148ai-logo.png'),png)
+        self.assertEqual(z.read('index.html').decode(),repo['index.html'])
+        self.assertEqual(r.headers['X-Omni-Export-SHA256'],hashlib.sha256(r.content).hexdigest())
+        self.assertEqual(r.headers['X-Omni-Repository-SHA256'],v.checksum)
     def test_source_endpoints(self):
         c=TestClient(app); self.assertGreater(c.get('/api/source/mobile/android').json()['repository']['file_count'],4)
         self.assertGreater(c.get('/api/source/game/godot').json()['repository']['file_count'],2)

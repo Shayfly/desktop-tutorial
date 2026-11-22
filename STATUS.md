@@ -1,3 +1,73 @@
+# 2026-11-22 — warehouse 118, review fixes: every writer carries the image, and the smoke checks the reference the page really uses (Claude Code)
+
+- **What broke (review of the 118 branch, all reproduced):** Claude's own bugs in the first pass of 118.
+  - `gate_regression.served_page` still wrote every entry with `write_text`: the new smoke saw an envelope as text, so
+    every approved build that carries an image would report `served=False` and fail the gate-regression workflow.
+  - The smoke fetched a fixed `/assets/<name>` and never the URL the page references (relative: after a redirect of
+    `GET /`, or from a stylesheet in a sub-directory, it is a 404 the smoke did not see).
+  - A logo of 2,000,001 to 3,145,728 bytes passed the upload and failed the build (`MAX_ASSET_BYTES` 2,000,000).
+  - `download_version` zips image bytes, so `X-Omni-Repository-SHA256` (stored text) did not describe the zip.
+  - The visual-edit preview host wrote envelopes as text; the round-artifacts print did not shorten an envelope.
+- **Fix:** `served_page` and `preview_host` write through `repository_assets.materialize`; the smoke resolves every
+  carried-image reference in the page and its same-origin stylesheets with `urljoin` against the URL that holds it and
+  checks 200, Content-Type and bytes (`PREVIEW-ASSET-REFS n`); `CarriedImage.place` gives a STYLESHEET in a
+  sub-directory one `../` per directory (every other file keeps `assets/<name>`: it resolves against the document);
+  `MAX_ASSET_BYTES` is `attachments.MAX_BYTES`; the download adds `X-Omni-Export-SHA256` (the zip's own sha256) and
+  keeps the repository header as the stored checksum; the workflow's elision regex also matches `148ai-binary:v1`.
+- **Evidence (commands run in the worktree, 2026-11-22, one pytest process at a time):**
+  - `python3 -m pytest -q tests/test_images_as_files.py tests/test_v24_native_remote.py` 26 + 13 passed. New tests:
+    `gate_regression.run` on a version saved by the real workspace (served=True); a stylesheet in `static/` reached;
+    a page behind `GET /` -> `/he/` fails loudly with the resolved URL; a template literal reference read whole;
+    a 2,000,001-byte and a 3,145,728-byte logo carried, one byte over raises; the real `sandbox_service` `POST /run`
+    (FastAPI is installed now; only docker is a double) writes the image bytes and refuses a tampered envelope;
+    the download of a version with an image carries the bytes and both headers.
+  - the 88 test modules that import a changed module (`grep -l -E "repository_assets|preview_smoke|gate_regression|
+    generated_images|uploaded_assets|preview_host|inspect-round-artifacts|investor_app|sandbox_service"`, without
+    test_m4_acceptance): 1211 passed, 18 skipped, 1 failed. The one failure is
+    `test_site_auth_v2::test_flag_off_is_the_baseline_byte_for_byte`, already failing at 9baf892 (before this round):
+    the branch changes `scripts/preview_smoke` in the pipeline identity by design. It needs an identity declaration
+    signed by the owner and the new baseline in that test; not written here.
+  - `python3 scripts/run_negative_controls.py images_as_files` 19/19 PASS (NC9 to NC19 are new).
+  - `OMNI_SITE_AUTH_V2=0 python3 -m omni_prod.pipeline_identity`: origin/main a77c1b8 b287af44…, 9baf892
+    f3049230…, this round d1655f30… (working tree before commit); the only component that differs is
+    `scripts/preview_smoke`.
+- **Not verified:** a real production build and a real docker daemon; a page served at a nested URL that `GET /`
+  does not reach is not checked by the smoke.
+
+# 2026-11-21 — warehouse 118 (+114): the main image is a file the page references, not base64 in the page (Claude Code)
+
+- **What broke:** the butcher (bld_83529c13, 2026-11-14): the generated hero was inlined as 1,735,408 base64 characters;
+  the page was heavy and the facts after the hero fell past the 45,000 characters of GET / the preview smoke keeps.
+  The five points of row 118 were text-only. Every image path inlined a data URI: `generated_images.GeneratedImage.uri`
+  (D5 default hero and every generated image), `uploaded_assets._MainImage.uri` (customer photos) and
+  `uploaded_assets.logo_transform` (the logo).
+- **Design (option b, text-only pipeline):** `omni_prod/repository_assets.py`. An image is one repository entry at its
+  real path `assets/148ai-<kind>-<n>.<ext>` holding a checked envelope (`148ai-binary:v1;mime;sha256;base64,`); the page
+  references the path. Every point that writes files decodes it: `sandbox_service.run` (write_bytes(file_bytes)),
+  `sandbox_executor` and `preview_runtime` (`materialize`), `UnifiedOmniEngine._zip` (all v25-v28 export routes) and
+  `investor_app.download_version`. `validate_snapshot` checks every envelope (place, type, digest). The saved version
+  (`workspace.py`) is unchanged: it carries the envelope as text. The model's view (repair summary, G5 as written,
+  failure text) has the marker and no image file; the transform rewrites the verified file after every repair.
+  `preview_smoke` fails loudly unless the server serves each `assets/` image with 200, its Content-Type and its bytes.
+- **Evidence (commands run in the worktree, 2026-11-21):**
+  - `python3 -m pytest -q tests/test_images_as_files.py` 18 passed: on the real smoke path the butcher page with the
+    real image has no data:image, each file served with image/webp / image/png / image/jpeg, every fact within 45,000
+    (control: inlined, "שבת סגור" is past it); the real workspace save/load, `DockerPreviewProvider.start` work
+    directory and `export_zip` each carry and serve the file; a page with no image writes the same bytes as before.
+  - the 44 test modules that import a changed module: 730 passed, 11 skipped, 0 failed.
+  - `python3 scripts/run_negative_controls.py images_as_files` 8/8 PASS; the existing specs whose targets include a
+    changed file: a4_asset_plan 10/10, contract_prompt_readers 10/10, lens11_image_match 9/9, photo_weight 8/8,
+    skill_gate_rights 20/20, uploaded_main_image 15/15, and the investor_app specs (conversation_limit,
+    item3_preview_route_full_reserve, item4_allowance_message, plan_price_said_once, pr154_two_gates,
+    pr176_approval_action, preview_durable_backend) all PASS.
+  - Two existing controls lost their bite and were repaired, not weakened: photo_weight NC6 (the weight unit now
+    judges the rendition's bytes explicitly) and skill_gate_rights NC5 (the tests now assert what G5 reads as written).
+- **G4 / perf_inline_image_weight: stays warn.** Mode is per gate (`gate.DEFAULT_MODE['G4']`), so block would also
+  block the five other perf units; the 2026-11-19 calibration data has G4 failing 1 of 5 builds on SCRIPT_BLOCKING
+  (perf_blocking_script), and no production build has run with this change. Rule 4 needs three builds. Proposal:
+  per-unit modes, then this unit alone to block after three builds.
+- **Not verified:** `sandbox_service.run` and `download_version` themselves (FastAPI not installed here; the runner's
+  write is checked in source, CI runs the rest); a real production build (warehouse 115); og:image (now possible).
 # 2026-11-21 — the content-document route, slice 1: independent review fixed (Claude Code)
 
 - **What broke, and the root:** 15 findings, each reproduced by a skeptic. Three roots: (1) the copy checks read digit
