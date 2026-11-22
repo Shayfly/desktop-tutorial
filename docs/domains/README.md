@@ -87,36 +87,38 @@ What goes under each heading:
 
 | # | Slug | Domain | Status |
 |---|---|---|---|
-| 1 | hair-salon | Hair salon and barbershop | written 2026-11-21: [hair-salon.md](hair-salon.md) |
-| 2 | food-stall | Food stall, kiosk, food truck | not written |
-| 3 | restaurant | Restaurant | not written |
-| 4 | cafe-bakery | Cafe and bakery | not written |
-| 5 | butcher-deli | Butcher and delicatessen | not written |
-| 6 | kindergarten | Kindergarten and daycare | not written |
-| 7 | clinic | Clinic (general and specialist practice) | not written |
-| 8 | dentist | Dentist | not written |
-| 9 | lawyer | Lawyer and law firm | not written |
-| 10 | accountant | Accountant and bookkeeper | not written |
-| 11 | garage | Car garage and repair shop | not written |
-| 12 | clothing-shop | Clothing shop | not written |
-| 13 | catalogue-collection | Catalogue or collection | not written |
-| 14 | tour-guide | Tour guide | not written |
-| 15 | hotel-guesthouse | Hotel and guesthouse | not written |
-| 16 | event | Event | not written |
-| 17 | wedding | Wedding | not written |
-| 18 | community | Community | not written |
-| 19 | product-docs | Product documentation | not written |
-| 20 | portfolio | Portfolio | not written |
-| 21 | personal-site | Personal site | not written |
-| 22 | photographer | Photographer | not written |
-| 23 | fitness-trainer | Fitness trainer | not written |
-| 24 | beauty-cosmetics | Beauty and cosmetics | not written |
-| 25 | real-estate-agent | Real-estate agent | not written |
-| 26 | tutor-courses | Tutor and courses | not written |
-| 27 | craftsman-renovation | Craftsman and renovation | not written |
-| 28 | nonprofit | Nonprofit | not written |
-| 29 | musician-band | Musician and band | not written |
-| 30 | landing-page | Landing page | not written |
+| 1 | hair-salon | Hair salon and barbershop | written 2026-11-21, 7 verified references: [hair-salon.md](hair-salon.md) |
+| 2 | food-stall | Food stall, kiosk, food truck | written 2026-11-21, 7 verified references: [food-stall.md](food-stall.md) |
+| 3 | restaurant | Restaurant | written 2026-11-21, 8 verified references: [restaurant.md](restaurant.md) |
+| 4 | cafe-bakery | Cafe and bakery | written 2026-11-21, 8 verified references: [cafe-bakery.md](cafe-bakery.md) |
+| 5 | butcher-deli | Butcher and delicatessen | written 2026-11-21, 8 verified references: [butcher-deli.md](butcher-deli.md) |
+| 6 | kindergarten | Kindergarten and daycare | written 2026-11-21, 6 verified references: [kindergarten.md](kindergarten.md) |
+| 7 | clinic | Clinic (general and specialist practice) | written 2026-11-21, 7 verified references: [clinic.md](clinic.md) |
+| 8 | dentist | Dentist | written 2026-11-21, 6 verified references: [dentist.md](dentist.md) |
+| 9 | lawyer | Lawyer and law firm | written 2026-11-21, 7 verified references: [lawyer.md](lawyer.md) |
+| 10 | accountant | Accountant and bookkeeper | written 2026-11-21, 8 verified references: [accountant.md](accountant.md) |
+| 11 | garage | Car garage and repair shop | written 2026-11-21, 8 verified references: [garage.md](garage.md) |
+| 12 | clothing-shop | Clothing shop | written 2026-11-21, 6 verified references: [clothing-shop.md](clothing-shop.md) |
+| 13 | catalogue-collection | Catalogue or collection | written 2026-11-22, 6 verified references: [catalogue-collection.md](catalogue-collection.md) |
+| 14 | tour-guide | Tour guide | written 2026-11-22, 6 verified references: [tour-guide.md](tour-guide.md) |
+| 15 | hotel-guesthouse | Hotel and guesthouse | written 2026-11-21, 8 verified references: [hotel-guesthouse.md](hotel-guesthouse.md) |
+| 16 | event | Event | written 2026-11-22, 6 verified references: [event.md](event.md) |
+| 17 | wedding | Wedding | written 2026-11-22, 5 verified references: [wedding.md](wedding.md) |
+| 18 | community | Community | written 2026-11-22, 6 verified references: [community.md](community.md) |
+| 19 | product-docs | Product documentation | written 2026-11-22, 8 verified references: [product-docs.md](product-docs.md) |
+| 20 | portfolio | Portfolio | written 2026-11-22, 7 verified references: [portfolio.md](portfolio.md) |
+| 21 | personal-site | Personal site | written 2026-11-22, 6 verified references: [personal-site.md](personal-site.md) |
+| 22 | photographer | Photographer | written 2026-11-22, 7 verified references: [photographer.md](photographer.md) |
+| 23 | fitness-trainer | Fitness trainer | written 2026-11-22, 7 verified references: [fitness-trainer.md](fitness-trainer.md) |
+| 24 | beauty-cosmetics | Beauty and cosmetics | written 2026-11-22, 7 verified references: [beauty-cosmetics.md](beauty-cosmetics.md) |
+| 25 | real-estate-agent | Real-estate agent | written 2026-11-22, 6 verified references: [real-estate-agent.md](real-estate-agent.md) |
+| 26 | tutor-courses | Tutor and courses | written 2026-11-22, 7 verified references: [tutor-courses.md](tutor-courses.md) |
+| 27 | craftsman-renovation | Craftsman and renovation | written 2026-11-22, 7 verified references: [craftsman-renovation.md](craftsman-renovation.md) |
+| 28 | nonprofit | Nonprofit | written 2026-11-22, 6 verified references: [nonprofit.md](nonprofit.md) |
+| 29 | musician-band | Musician and band | written 2026-11-22, 8 verified references: [musician-band.md](musician-band.md) |
+| 30 | landing-page | Landing page | written 2026-11-22, 8 verified references: [landing-page.md](landing-page.md) |
+
+Status checked against the files on disk on 2026-11-22 by a reviewer: all eleven headings present and in order in every file; the reference count is the file's own "Verified:" line; two references per file were re-loaded on 2026-11-22 and all 60 loaded.
 
 The status column is edited by hand in this phase. It is not a derived status file and no generator covers it.
 
