@@ -183,7 +183,8 @@ class OpenAICompatibleGateway:
         self.last_idempotency_key = None
 
     def complete(self, *, system: str, user: str, temperature: float = 0.1,
-                 max_tokens: int = 4096, idempotency_key: str | None = None, images: tuple = ()) -> str:
+                 max_tokens: int = 4096, idempotency_key: str | None = None, images: tuple = (),
+                 output_schema: dict | None = None) -> str:
         if not 0 <= temperature <= 2:
             raise ValueError('temperature out of range')
         if max_tokens < 1:
@@ -207,6 +208,11 @@ class OpenAICompatibleGateway:
             if self.endpoint.api_key:
                 headers['x-api-key'] = self.endpoint.api_key
             headers['anthropic-version'] = ANTHROPIC_VERSION
+            if output_schema is not None:
+                # Repair JSON (production, 14 days to 2026-11-22): 99 of 310 Sonnet repair answers were rejected, every
+                # one for prose before the JSON ("I need to see the project config..."), although the system prompt
+                # forbids it. A grammar is the API's guarantee, not a request: the answer is decoded against the schema.
+                body['output_config'] = {'format': {'type': 'json_schema', 'schema': output_schema}}
         else:
             body = {
                 'model': self.endpoint.model,
@@ -283,14 +289,20 @@ class OpenAICompatibleGateway:
 
     last_finish_reason = None
 
-    def complete_json(self, *, system: str, user: str, max_tokens: int = 4096, images: tuple = ()) -> dict:
+    def complete_json(self, *, system: str, user: str, max_tokens: int = 4096, images: tuple = (),
+                      schema: dict | None = None) -> dict:
+        """`schema`: the answer's JSON Schema. The native Anthropic API enforces it (structured outputs); other styles
+        ignore it and the answer is checked by parse_model_json as before."""
+        extra = {}
         if self.endpoint.api_style == 'anthropic':
+            if schema is not None:
+                extra['output_schema'] = schema
             # Founder build bld_ca727ba7 (2026-11-08): the Sonnet repair answer opened with "The six setup errors came
             # from ..." and T3 rejects leading prose. Prefill is a 400 on Claude 4.6+ and generic structured outputs
             # cannot express an open object, so the rule is stated where the model weighs it most: last in system.
             system = (system or '') + ANTHROPIC_JSON_ONLY_RULE
         raw = self.complete(system=system, user=user, temperature=0, max_tokens=max_tokens,
-                            **({'images': tuple(images)} if images else {}))
+                            **({'images': tuple(images)} if images else {}), **extra)
         self.last_raw_response = raw                       # T3: the raw answer is kept, accepted or not
         obj, diag = parse_model_json(raw)
         diag['finish_reason'] = getattr(self, 'last_finish_reason', None)
