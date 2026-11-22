@@ -2,6 +2,7 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| WH-133 | Codex (design and integration, `4457710`), Claude Code (independent review, fixes, release) | Released with review fixes; PR pending CI | `claude/practical-hopper-oi3qj2-design-133`; `tests/platform_a11y_browser.cjs`, `tests/workspace_review_fixes_browser.cjs`; STATUS.md 2026-11-22 |
 | GOV-01 | Codex | In review | `VISION_LAW_HE.md`, PR pending independent verification |
 | GOV-02 | Codex | In review | `AGENTS.md`, `NORTH_STAR.md`, SHA c8827818e3ffeb9ac49ba00c5d2b6efa6f8ff0d8 |
 | GOV-03 | Codex | In progress | Root `STATUS.md`, `TASKS.md`, `OWNERS.md` |
