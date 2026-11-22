@@ -609,7 +609,7 @@ body.signed-out .topbar :focus-visible{outline-color:var(--signal)}
   padding:4px 12px max(4px,env(safe-area-inset-bottom));border-block-start:1px solid var(--rule);background:var(--surface)}
 .workspace #mobileTabs button{background:transparent;color:var(--slate);border:0;border-radius:0;font-weight:500;padding-inline:2px}
 .workspace #mobileTabs button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 -3px var(--signal)}
-.workspace :is(.stage,.editor){position:relative;inset:auto;min-height:0}
+.workspace :is(.stage,.editor){position:relative;inset:auto;min-height:0;z-index:auto}   /* never above the drawer (z 30): the mobile .stage z-index 35 would otherwise apply */
 .workspace .stage.stage-max,.workspace.stage-max>.stage{display:flex!important;position:fixed;inset:0;z-index:1000}
 .workspace[data-pane="chat"] #previewEditBtn{display:none}
 .workspace .stageActions{display:flex;flex-wrap:wrap}

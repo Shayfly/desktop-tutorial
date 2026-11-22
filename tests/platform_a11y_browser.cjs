@@ -38,6 +38,8 @@ const MUTATIONS = [
       (document.querySelector('main') || document.body).appendChild(i); })()`, expect: 'image-alt' },
   { id: 'no_language', js: `document.documentElement.removeAttribute('lang')`, expect: 'html-has-lang' },
   // every :focus rule removed from the page's stylesheets, and the browser's own ring turned off: no focus sign at all
+  // the 2026-11-22 regression itself: the preview pane stacked above the drawer on phones
+  { id: 'drawer_under_preview', css: '@media (max-width:900px){ .workspace .stage { z-index: 35 !important } }', expect: 'covered-control', width: 390, drawer: true },
   { id: 'focus_hidden', css: '* { outline: none !important }',
     js: `for (const sheet of document.styleSheets) { let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
       for (let i = rules.length - 1; i >= 0; i--) { if (/:focus/.test(rules[i].selectorText || '')) sheet.deleteRule(i); } }`,
@@ -86,8 +88,9 @@ async function ownFindings(page) {
     const found = [];
     const over = document.documentElement.scrollWidth - window.innerWidth;
     if (over > 1) found.push({ id: 'horizontal-scroll', nodes: [`document ${over}px wider than the ${window.innerWidth}px viewport`] });
-    const visible = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
-      return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
+    // checkVisibility() also knows the content of a closed <details>, which keeps a layout box in Chromium
+    const visible = el => { const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && el.checkVisibility({ visibilityProperty: true, contentVisibilityAuto: true }); };
     const controls = [...document.querySelectorAll('a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
       .filter(el => !el.disabled && visible(el)).slice(0, 40);
     // a focus indicator may be drawn on the control or on its wrapper (:focus-within): the control and two ancestors
@@ -118,6 +121,31 @@ async function ownFindings(page) {
       if (near) small.push(`${el.id ? '#' + el.id : el.tagName.toLowerCase()} ${Math.round(r.width)}x${Math.round(r.height)}`);
     });
     if (small.length) found.push({ id: 'target-size', nodes: small.slice(0, 8) });
+    // a control the user can see must receive the tap: inside an open modal dialog (the drawer), every control of the
+    // dialog; otherwise every control in the viewport (found 2026-11-22: on phones the drawer opened UNDER the preview)
+    const dialog = [...document.querySelectorAll('[aria-modal="true"]')].find(visible);
+    const scope = dialog ? [...dialog.querySelectorAll('a[href], button, input:not([type=hidden]), select, textarea, summary')] : targets;
+    const covered = [];
+    for (const el of scope.filter(visible)) {
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2, y = r.top + r.height / 2;
+      if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) continue;
+      // scrolled out of a scrolling ancestor is not covered: the user scrolls to it
+      let clipped = false;
+      for (let a = el.parentElement; a && a !== document.body && !clipped; a = a.parentElement) {
+        const ov = getComputedStyle(a).overflowY + getComputedStyle(a).overflowX;
+        if (/auto|scroll|hidden|clip/.test(ov)) {
+          const c = a.getBoundingClientRect();
+          clipped = x < c.left || x > c.right || y < c.top || y > c.bottom;
+        }
+      }
+      if (clipped) continue;
+      const hit = document.elementFromPoint(x, y);
+      if (hit && hit !== el && !el.contains(hit) && !hit.contains(el)) {
+        covered.push(`${el.id ? '#' + el.id : el.tagName.toLowerCase()} under ${hit.id ? '#' + hit.id : hit.className || hit.tagName}`);
+      }
+    }
+    if (covered.length) found.push({ id: 'covered-control', nodes: covered.slice(0, 8) });
     return found;
   });
 }
@@ -143,6 +171,10 @@ async function screens(page, width) {
       assert.equal(await page.locator('#workspaceView').getAttribute('data-pane'), pane);
       out.push([pane, await check(page)]);
     }
+  }
+  if (width <= 900) {                       // the drawer is opened over the preview, where it once opened underneath
+    await page.locator('#mobileTabs button[data-pane="preview"]').click();
+    await page.waitForTimeout(150);
   }
   const opener = page.locator(width <= 900 ? '#mobileMenuBtn' : '#sbOpen');
   if (await opener.isVisible().catch(() => false)) {
@@ -179,6 +211,11 @@ async function screens(page, width) {
       const { page } = await open(browser, 'he', width, m);
       await signIn(page);
       if (m.js) await page.evaluate(m.js);
+      if (m.drawer) {
+        await page.locator('#mobileTabs button[data-pane="preview"]').click();
+        await page.locator('#mobileMenuBtn').click();
+        await page.waitForTimeout(200);
+      }
       const found = await check(page);
       const caught = found.some(f => f.id === m.expect);
       if (!caught) failures.push(`mutation ${m.id} was NOT caught (expected ${m.expect}; found ${found.map(f => f.id).join(', ') || 'nothing'})`);
