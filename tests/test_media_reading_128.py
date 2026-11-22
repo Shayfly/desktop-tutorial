@@ -261,6 +261,8 @@ class TheDraftIsSeenAndApprovedBeforeAnyBuild(Conversation):
         self.assertIn('לא השתמשתי בזה', r.reply)
         self.assertEqual(self.fingerprint(), before)
         self.assertEqual(MR.pending_drafts(self.messages()), [])
+        # the next action comes back with the answer: the same spec, offered for approval again
+        self.assertEqual([(a['type'], a['brief_fingerprint']) for a in r.actions], [('approve_spec', before)])
         r = self.sup.approve_spec(project_id='p', account_id='a', brief_fingerprint=t.brief_row.fingerprint, lang='he')
         self.assertIn('approve_build', [a['type'] for a in r.actions])
 

@@ -327,6 +327,23 @@
     "test_an_approved_skeleton_before_any_request_joins_the_brief_when_it_is_made",
     "test_the_draft_is_the_transcript_never_a_translation"
    ]
+  },
+  {
+   "id": "NC18",
+   "what": "128.5 / 132: a discarded draft leaves the customer with no next action (the approval of a complete spec is not offered again)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                and not MR.pending_drafts(self._messages(project_id)):\n            parts += self._gate1(turn, row, lang)\n",
+     "new": "                and not MR.pending_drafts(self._messages(project_id)):\n            pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_a_discarded_draft_changes_nothing_and_holds_nothing"
+   ]
   }
  ]
 }

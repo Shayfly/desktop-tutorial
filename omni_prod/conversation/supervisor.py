@@ -1038,7 +1038,16 @@ class ConversationSupervisor:
                                                   'purpose': draft['purpose'],
                                                   'source': {k: draft['source'][k] for k in ('attachment_id', 'sha256')}}},
                             request_key)
-        return self._finish(project_id, account_id, Turn('reading_discarded', lang, T['discarded'], row), request_key)
+        # the next action is never lost: a draft that held gate 1 is decided, so a complete spec is shown for approval
+        # again (the approve button of the earlier message is no longer the last one the customer sees)
+        row = self._collected(project_id, account_id, self.briefs.latest(project_id))
+        turn = Turn('reading_discarded', lang, '', row)
+        parts = [T['discarded']]
+        if row is not None and row.complete and self._feasibility(row).get('buildable') \
+                and not MR.pending_drafts(self._messages(project_id)):
+            parts += self._gate1(turn, row, lang)
+        turn.reply = ' '.join(parts)
+        return self._finish(project_id, account_id, turn, request_key)
 
     @staticmethod
     def _label_carries_its_question(turn, lang=None) -> None:
