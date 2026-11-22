@@ -19,7 +19,8 @@
    ],
    "expect_failed": [
     "test_a_step_that_gets_the_carried_image_is_not_a_missing_route",
-    "test_the_two_checks_now_agree_on_one_page"
+    "test_the_two_checks_now_agree_on_one_page",
+    "test_the_repair_agents_redacted_copy_agrees_with_the_gate"
    ]
   },
   {
@@ -41,12 +42,12 @@
   },
   {
    "id": "NC3",
-   "what": "the file need not be the carried envelope",
+   "what": "the file need not be a valid envelope for its name",
    "mutations": [
     {
      "file": "omni_prod/consistency_gate.py",
-     "old": "    return is_envelope(repo.get(f'assets/{name}'))",
-     "new": "    return True"
+     "old": "        decode(rel, repo.get(rel))           # None, plain text or a broken envelope raise AssetCarryError",
+     "new": "        pass"
     }
    ],
    "targets": [
@@ -54,7 +55,9 @@
    ],
    "expect_failed": [
     "test_everything_else_is_still_judged",
-    "test_on_main_this_was_the_production_failure"
+    "test_on_main_this_was_the_production_failure",
+    "test_an_invalid_envelope_is_judged_as_before",
+    "test_the_exemption_itself_refuses_a_hidden_name"
    ]
   },
   {
@@ -93,11 +96,11 @@
   },
   {
    "id": "NC6",
-   "what": "any suffix is exempt",
+   "what": "the redacted copy the repair agent reads reports a missing route again",
    "mutations": [
     {
      "file": "omni_prod/consistency_gate.py",
-     "old": "    if name.startswith('.') or '.' + name.rsplit('.', 1)[-1].lower() not in EXT_MIME:\n        return False\n",
+     "old": "    if _CARRIED_MARKER.fullmatch(path):\n        return True\n",
      "new": ""
     }
    ],
@@ -105,8 +108,7 @@
     "tests/test_owner_build_ab78f528.py"
    ],
    "expect_failed": [
-    "test_everything_else_is_still_judged",
-    "test_the_exemption_itself_refuses_a_hidden_name"
+    "test_the_repair_agents_redacted_copy_agrees_with_the_gate"
    ]
   },
   {
@@ -133,16 +135,17 @@
    "what": "every leading slash is stripped (a host path counts)",
    "mutations": [
     {
-     "file": "omni_prod/generated_images.py",
-     "old": "    elif path.startswith('/') and not path.startswith('//'):\n        path = path[1:]",
-     "new": "    else:\n        path = path.lstrip('/')"
+     "file": "omni_prod/repository_assets.py",
+     "old": "    elif p.startswith('/') and not p.startswith('//'):\n        p = p[1:]",
+     "new": "    else:\n        p = p.lstrip('/')"
     }
    ],
    "targets": [
     "tests/test_owner_build_ab78f528.py"
    ],
    "expect_failed": [
-    "test_never_another_file"
+    "test_never_another_file",
+    "test_the_uploaded_logo_reads_the_same_forms"
    ]
   },
   {
@@ -150,16 +153,17 @@
    "what": "any path ending in the file name counts",
    "mutations": [
     {
-     "file": "omni_prod/generated_images.py",
-     "old": "    return path == img.uri",
-     "new": "    return path.endswith(img.uri)"
+     "file": "omni_prod/repository_assets.py",
+     "old": "    return p == path",
+     "new": "    return p.endswith(path)"
     }
    ],
    "targets": [
     "tests/test_owner_build_ab78f528.py"
    ],
    "expect_failed": [
-    "test_never_another_file"
+    "test_never_another_file",
+    "test_the_uploaded_logo_reads_the_same_forms"
    ]
   },
   {
@@ -177,6 +181,23 @@
    ],
    "expect_failed": [
     "test_the_owners_two_windows_are_named"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the uploaded logo accepts only the exact relative path again",
+   "mutations": [
+    {
+     "file": "omni_prod/uploaded_assets.py",
+     "old": "        return any(names_file(m.group(2), self.uri)",
+     "new": "        return any(m.group(2) == self.uri"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_build_ab78f528.py"
+   ],
+   "expect_failed": [
+    "test_the_uploaded_logo_reads_the_same_forms"
    ]
   }
  ]

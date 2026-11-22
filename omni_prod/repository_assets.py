@@ -52,6 +52,20 @@ def is_envelope(content) -> bool:
     return isinstance(content, str) and content.startswith(PREFIX)
 
 
+def names_file(src: str, path: str) -> bool:
+    """True when an <img src> names the carried file at `path` ('assets/x.webp'), written as a page may write it:
+    'assets/x.webp', './assets/x.webp' or '/assets/x.webp', with or without a ?query or #fragment. The browser, the
+    preview smoke and the static check all read these as the same file. Never a parent path, a scheme, a host ('//'),
+    another directory or a bare file name. One rule for every carried image (generated, uploaded, the logo): the
+    owner's build bld_ab78f528 (2026-11-22) failed 'not on the page' while its page showed the image as '/assets/...'."""
+    p = re.split(r'[?#]', src or '', maxsplit=1)[0]
+    if p.startswith('./'):
+        p = p[2:]
+    elif p.startswith('/') and not p.startswith('//'):
+        p = p[1:]
+    return p == path
+
+
 def envelope(data: bytes, mime: str) -> str:
     """The repository text of one image file."""
     if mime not in MIME_EXT:

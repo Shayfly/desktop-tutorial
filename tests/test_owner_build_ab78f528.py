@@ -126,6 +126,45 @@ class TheConsistencyGate(unittest.TestCase):
         self.assertIn(S4, routes(r))
 
 
+class TheReviewFindings(unittest.TestCase):
+    """The independent review of this fix (2026-11-22) found three more places where the two checks could still
+    disagree, each reproduced before it was fixed."""
+
+    def test_the_repair_agents_redacted_copy_agrees_with_the_gate(self):
+        """The repair agent checks a copy the transform redacted: the image file is gone and the step's path reads
+        '/148ai-asset://image/1'. That copy must not report a missing route either."""
+        from omni_prod.agentic_repair import AgenticRepairAgent
+        from omni_prod.generated_images import _Transform
+        placed = repo(**page('assets/148ai-image-1.webp'))
+        redacted = _Transform(None, [image()]).redact(placed)
+        self.assertNotIn('assets/148ai-image-1.webp', redacted)
+        self.assertIn('/148ai-asset://image/1', redacted['.omni/project.json'])
+        self.assertEqual(routes(redacted), [])
+        check = AgenticRepairAgent._check(redacted)
+        self.assertFalse([p for p in check.get('problems', []) if p.startswith('routes:')], check)
+
+    def test_an_invalid_envelope_is_judged_as_before(self):
+        png_named = repo(with_step(path='/assets/148ai-image-1.png'),
+                         **{'assets/148ai-image-1.png': envelope(WEBP, 'image/webp')})
+        cases = {
+            'a name with no suffix': repo(with_step(path='/assets/webp'), **{'assets/webp': envelope(WEBP, 'image/webp')}),
+            'a webp envelope under a .png name': png_named,
+            'a broken envelope': repo(**{'assets/148ai-image-1.webp': '148ai-binary:v1;junk'}),
+        }
+        for why, r in cases.items():
+            with self.subTest(why):
+                self.assertTrue(routes(r), why)
+
+    def test_the_uploaded_logo_reads_the_same_forms(self):
+        from omni_prod.uploaded_assets import LogoExecutor
+        logo = LogoExecutor(None, 'assets/148ai-logo.png')
+        for src, ok in (('assets/148ai-logo.png', True), ('/assets/148ai-logo.png', True), ('./assets/148ai-logo.png', True),
+                        ('../assets/148ai-logo.png', False), ('//assets/148ai-logo.png', False),
+                        ('https://x.example/assets/148ai-logo.png', False), ('148ai-logo.png', False)):
+            with self.subTest(src):
+                self.assertEqual(logo._image_reference('index.html', f'<img src="{src}" alt="לוגו">'), ok)
+
+
 def image(index: int = 1) -> GeneratedImage:
     return GeneratedImage(index=index, requirement_id='asset-002', purpose='hero/brand visual', mime='image/webp',
                           width=1344, height=768, sha256='0' * 64, alt='מספרה מוארת עם כיסא עבודה ומראה גדולה',
