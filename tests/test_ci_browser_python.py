@@ -31,7 +31,7 @@ class TheBrowserJob(unittest.TestCase):
 
     def test_it_runs_on_every_pull_request_within_the_ci_cost_limit(self):
         self.assertIn('pull_request', self.events)
-        self.assertLessEqual(self.job['timeout-minutes'], 20)
+        self.assertLessEqual(self.job['timeout-minutes'], 27)     # 20 until the library's 24 controls (2026-11-21)
         install = self.run_of('Install Chromium (bounded attempts, retried)')
         per_try = int(re.search(r'timeout (\d+) python -m playwright install --with-deps chromium', install['run']).group(1))
         self.assertLessEqual(per_try * 3 + 30, install['timeout-minutes'] * 60)
