@@ -1,0 +1,75 @@
+name: browser-python
+
+# The Python checks that need a real Chromium (2026-11-21, the review of the content-document route): the section
+# library's production visual check (tests/test_section_library.py) and the content route through the real
+# verification chain (tests/test_site_content_engine.py). v24-ci's test and negative-controls jobs install no Python
+# playwright, so these tests skip there and the browser-only negative controls cannot run. Here a missing browser
+# FAILS the job and a skipped test fails it too -- a skipped check is never a pass. The section library's controls run
+# with NC_ENV=browser, so its browser-only controls (envs: browser) run here and nowhere else.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  browser-python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 27
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt playwright==1.63.0
+      - name: Install Chromium (bounded attempts, retried)
+        timeout-minutes: 9
+        run: |
+          # the same bounded install as a2-offline: apt waits for the dpkg lock inside one attempt (#449)
+          echo 'DPkg::Lock::Timeout "150";' | sudo tee /etc/apt/apt.conf.d/90-wait-for-dpkg-lock >/dev/null
+          for attempt in 1 2 3; do
+            if timeout 160 python -m playwright install --with-deps chromium; then
+              echo "playwright install: ok on attempt $attempt"; exit 0
+            fi
+            echo "::warning title=playwright install::attempt $attempt failed or hung (160s); retrying"
+            sleep $((attempt * 5))
+          done
+          echo "::error title=playwright install::failed 3 times; the browser tests cannot run"
+          exit 1
+      - name: Browser tests
+        timeout-minutes: 4
+        run: python -m pytest -q -rs --junitxml=browser.xml tests/test_section_library.py tests/test_section_library_conformance.py tests/test_site_content_engine.py
+      - name: No test may be skipped
+        if: always()
+        run: |
+          python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          cases = list(ET.parse('browser.xml').getroot().iter('testcase'))
+          skipped = [f"{c.get('classname')}.{c.get('name')}" for c in cases if c.find('skipped') is not None]
+          failed = [f"{c.get('classname')}.{c.get('name')}" for c in cases
+                    if c.find('failure') is not None or c.find('error') is not None]
+          print(f'::notice title=browser-python::{len(cases)} test cases, {len(failed)} failed, {len(skipped)} skipped')
+          for s in skipped:
+              print(f'::error title=skipped::{s}')
+          for f in failed:
+              print(f'::notice title=failed test::{f}')
+          sys.exit(1 if skipped or failed or not cases else 0)
+          PY
+      - name: Negative controls (browser)
+        if: always()
+        # 2026-11-21 (run 44954125388): 24 controls since the library merge; 21 ran and passed in 6 minutes and the
+        # step was cut at its limit. Measured there: about 16 s a control with 2 workers, so 24 need about 6.5 minutes.
+        timeout-minutes: 13
+        env:
+          NC_ENV: browser
+          NC_JOBS: "2"
+        run: python scripts/run_negative_controls.py section_library
