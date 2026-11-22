@@ -9,6 +9,7 @@
  *   F3  a screen reader hears who said each message in the conversation
  *   F5  a reply that arrives after the customer moved to another project changes neither that project's view nor its
  *       composer, and a message in flight is not saved as a draft
+ *   A3  on a 320px phone the status chip does not squeeze the project name (it was 28px wide in English)
  */
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
@@ -17,6 +18,12 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const APP = fs.readFileSync(path.join(ROOT, 'omni_prod/assets/app.js'), 'utf8');
+const CSS = fs.readFileSync(path.join(ROOT, 'omni_prod/assets/app.css'), 'utf8');
+// the CSS fixes, taken out the same way (the rule block the fix added)
+const OLD_CSS = {
+  A3: [`  .workspace .mobileWorkspaceHead .pill{order:9;flex:1 0 100%;max-width:100%;text-align:center}\n`, ''],
+};
+for (const [id, [now]] of Object.entries(OLD_CSS)) assert.equal(CSS.split(now).length, 2, `${id}: the fixed rule is in app.css exactly once`);
 const browserOptions = process.env.CHROMIUM_PATH
   ? { executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox', '--disable-gpu'] } : {};
 
@@ -31,17 +38,18 @@ const OLD = {
 };
 for (const [id, [now]] of Object.entries(OLD)) assert.equal(APP.split(now).length, 2, `${id}: the fixed line is in app.js exactly once`);
 
-async function open(browser, fix, routes = {}) {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+async function open(browser, fix, routes = {}, viewport = { width: 1440, height: 900 }, lang = 'he') {
+  const page = await browser.newPage({ viewport });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
-  await page.addInitScript(() => { try { localStorage.setItem('148ai_lang', 'he'); } catch (e) { /* private mode */ } });
+  await page.addInitScript(l => { try { localStorage.setItem('148ai_lang', l); } catch (e) { /* private mode */ } }, lang);
   await page.route('**/*', async route => {
     const u = new URL(route.request().url());
     for (const [suffix, handler] of Object.entries(routes)) if (u.pathname.endsWith(suffix)) return handler(route, u);
     if (u.pathname === '/api/v28/me') return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
     if (u.pathname === '/fixture') return route.fulfill({ contentType: 'text/html', body: fs.readFileSync(path.join(ROOT, 'omni_prod/assets/index.html'), 'utf8') });
-    if (u.pathname === '/assets/app.js' && fix) return route.fulfill({ contentType: 'text/javascript', body: APP.replace(OLD[fix][0], OLD[fix][1]) });
+    if (u.pathname === '/assets/app.js' && OLD[fix]) return route.fulfill({ contentType: 'text/javascript', body: APP.replace(OLD[fix][0], OLD[fix][1]) });
+    if (u.pathname === '/assets/app.css' && OLD_CSS[fix]) return route.fulfill({ contentType: 'text/css', body: CSS.replace(OLD_CSS[fix][0], OLD_CSS[fix][1]) });
     if (u.pathname.startsWith('/assets/')) return route.fulfill({ path: path.join(ROOT, 'omni_prod', u.pathname) });
     if (u.pathname.startsWith('/api/')) return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ projects: [], messages: [], versions: [], history: [], turn: { actions: [] } }) });
     return route.fulfill({ status: 404, body: '' });
@@ -54,6 +62,14 @@ async function open(browser, fix, routes = {}) {
 }
 
 const SCENARIOS = {
+  async A3(browser, fix) {
+    const { page } = await open(browser, fix, {}, { width: 320, height: 844 }, 'en');
+    await page.evaluate(() => { S.projects = [{ id: 'p', title: 'Noa Studio hair salon' }]; S.projectId = 'p'; S.plan = { can_build: true }; showView(); renderProjects(); });
+    await page.waitForTimeout(300);
+    const width = await page.evaluate(() => document.querySelector('.mobileWorkspaceHead .chatTitle').getBoundingClientRect().width);
+    await page.close();
+    assert.ok(width >= 120, `the project name keeps room on a 320px phone (${Math.round(width)}px)`);
+  },
   async F1(browser, fix) {
     const { page } = await open(browser, fix);
     const shown = await page.evaluate(() => {
