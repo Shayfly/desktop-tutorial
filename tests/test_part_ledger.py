@@ -93,7 +93,7 @@ def law_firm(prompt=PROMPT):
     sheet = Fx.fact_sheet(prompt, asset_plan=[{'place': 'hero', 'marker': image.marker, 'alt': image.alt,
                                                'source': 'generated', 'index': 1}], images=[image])
     html, _ = R.render(FIXTURE['scripted_content'], sheet, contract, expect_fp=contract['fingerprint'],
-                       direction='formal', year='2026', outline_titles=TITLES, order=ORDER)
+                       direction='formal', year='2026', outline_titles=TITLES, order=ORDER, windows=())   # the route serves none here
     spec = SimpleNamespace(acceptance=[SimpleNamespace(id='accept-site-content'), SimpleNamespace(id='CUSTOMER-FACTS')])
     files = R.repository(FIXTURE['scripted_content'], sheet, html, spec=spec, contract=contract,
                          bound=R.binds(sheet, contract, '2026'), order_names=[TITLES[k] for k in ORDER[1:]])
