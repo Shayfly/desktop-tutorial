@@ -70,7 +70,7 @@ class TwoGates(unittest.TestCase):
         self.assertEqual(self.arch.calls, 0)                      # the architect was never asked
         self.assertEqual(self.store.plans, {})
         self.assertIn('Step 1 of 2', t.reply)
-        self.assertIn('Cost estimate: 45–200 credits', t.reply)  # the range is said while listening
+        self.assertIn('Estimate: this build takes between 45 and 200 from your balance.', t.reply)  # the range is said while listening
         self.assertEqual(t.venice['cost_range_credits'], [45, 200])
         self.assertTrue(AF.on_two_gate_flow(self.store.messages_for('p')))
         self.assertFalse(AF.spec_approved(self.store.messages_for('p'), t.brief_row.fingerprint))
@@ -95,8 +95,9 @@ class TwoGates(unittest.TestCase):
         self.assertTrue(gate['verification']['accepted'])
         self.assertFalse(gate['verification']['corrected'])
         self.assertEqual(gate['cost'], {'range': [45, 200], 'exact': 200, 'outside_range': None})
-        self.assertIn('Exact cost: 200 credits (the range I gave: 45–200)', r.reply)
-        self.assertNotIn('above the range', r.reply)
+        self.assertIn('The exact price: 200 from your balance (earlier I said 45–200).', r.reply)
+        self.assertNotIn('more than I said', r.reply)
+        self.assertIn('To start building, press "Approve and start building".', r.reply)
         self.assertEqual(self.store.plan_for('p', r.brief_row.fingerprint)['plan']['spec_gate'], gate)
 
     # --- the verifier runs before the customer sees the plan
@@ -107,17 +108,24 @@ class TwoGates(unittest.TestCase):
         self.assertIsNone(r.plan_id)
         self.assertEqual(self.store.plans, {})
         self.assertEqual([a['type'] for a in r.actions], ['edit_requirements'])
-        self.assertIn('did not pass the verifier', r.reply)
-        self.assertIn('auth_mode', r.reply)
+        # plain words 2026-11-21: the customer reads what happened, the money and the next step; the verifier's own
+        # findings stay in the stored record
+        self.assertIn('I could not prepare a plan that fits what you asked for. You were not charged.', r.reply)
+        self.assertIn('press "Edit requirements"', r.reply)
+        self.assertNotIn('auth_mode', r.reply)
+        self.assertNotIn('verifier', r.reply)
         saved = self.store.messages_for('p')[-1]['interpretation']['verification']
         self.assertFalse(saved['accepted'])
+        self.assertIn('auth_mode', ' '.join(saved['remaining']))
 
     def test_a_verifier_correction_is_a_visible_line(self):
         self.make(corrupt_first=1)                                 # first plan breaks the spec, the re-plan is right
         r = self.approve(self.to_gate1())
         self.assertIsNotNone(r.plan)
         self.assertTrue(r.plan['spec_gate']['verification']['corrected'])
-        self.assertIn('The verifier found and fixed: auth_mode', r.reply)
+        self.assertIn('I corrected it before showing it.', r.reply)      # still a visible line; the finding itself is in the record
+        self.assertNotIn('auth_mode', r.reply)
+        self.assertIn('auth_mode', ' '.join(r.plan['spec_gate']['verification']['problems']))
         self.assertEqual(self.arch.calls, 2)
         self.assertEqual(AF._auth(r.plan), 'none')                 # the plan shown is the corrected one
 
@@ -126,7 +134,8 @@ class TwoGates(unittest.TestCase):
         t = self.to_gate1('אני רוצה כלי פנימי לצוות שלי למעקב השאלת ציוד, בלי התחברות, בלי מידע אישי', lang='he')
         self.assertIn('שלב 1 מתוך 2', t.reply)
         r = self.approve(t, lang='he')
-        self.assertIn('המאמת מצא ותיקן', r.reply)
+        self.assertIn('תיקנתי אותה לפני שהצגתי אותה.', r.reply)
+        self.assertNotIn('מאמת', r.reply)
         self.assertIn('שלב 2 מתוך 2', r.reply)
 
     # --- an exact cost outside the range is said in full
@@ -135,20 +144,20 @@ class TwoGates(unittest.TestCase):
         r = self.approve(self.to_gate1())
         self.assertEqual(r.plan['spec_gate']['cost']['outside_range'], 'above')
         self.assertEqual(r.actions[-1]['cost']['outside_range'], 'above')
-        self.assertIn('above the range I gave (45–200) by 300 credits', r.reply)
-        self.assertIn('Why:', r.reply)
+        self.assertIn('Note: this is 300 more than I said (45–200).', r.reply)
+        self.assertIn('it came out higher than my estimate', r.reply)      # the reason is still said
 
     def test_an_exact_cost_below_the_range_is_said_too(self):
         self.make(credits=20)
         r = self.approve(self.to_gate1())
         self.assertEqual(r.plan['spec_gate']['cost']['outside_range'], 'below')
-        self.assertIn('below the range I gave (45–200) by 25 credits', r.reply)
+        self.assertIn('This is 25 less than I said (45–200)', r.reply)
 
     def test_unknown_exact_cost_is_not_invented(self):
         self.make(credits=None)
         r = self.approve(self.to_gate1())
         self.assertIsNone(r.plan['spec_gate']['cost']['exact'])
-        self.assertIn('I will calculate the exact cost when you approve the budget', r.reply)
+        self.assertIn('I will calculate the exact price when you approve the build', r.reply)
 
     # --- a change after approval goes back to step 1
     def test_a_change_after_approval_needs_a_new_spec_approval(self):
