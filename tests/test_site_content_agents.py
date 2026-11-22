@@ -198,18 +198,16 @@ class ThePrepass(unittest.TestCase):
         self.assertTrue(all('facts the customer gave are missing' in f['message'] for f in found))
 
     def test_an_invented_fact_past_the_cut_is_caught_on_the_whole_page(self):
-        from omni_prod.generated_images import GeneratedImage, _Transform
-        from omni_prod.web_rendition import BUDGET_BYTES
-        hero = '148ai-asset://image/1'
-        sheet = Fx.fact_sheet(PROMPT, asset_plan=[{'place': 'hero', 'marker': hero, 'alt': 'משרד עורכי דין בתל אביב',
-                                                   'source': 'generated', 'index': 1}])
-        image = GeneratedImage(index=1, requirement_id='asset-002', purpose='hero/brand visual', mime='image/webp',
-                               width=1600, height=900, sha256='x', alt='משרד עורכי דין בתל אביב',
-                               data=b'\x00' * BUDGET_BYTES)
-        doc = A.set_path(json.loads(json.dumps(CONTENT)), 'sections.services.title', 'התקשרו 04-8123456 לייעוץ')
-        html = self.render(doc, sheet)
-        found = self.review(A.prepass(SimpleNamespace(repository_transform=_Transform(None, [image])), self.route,
-                                      html, sheet))
+        # Since warehouse 118 the hero is a file and a typical page fits the cut; a page that does run past it (here
+        # the served page is padded ahead of the services title) is still checked whole by the pre-pass.
+        planted = 'התקשרו 04-8123456 לייעוץ'
+        doc = A.set_path(json.loads(json.dumps(CONTENT)), 'sections.services.title', planted)
+        html = self.render(doc, self.sheet)
+
+        def past_the_cut(repository):
+            page = repository[R.PAGE]
+            return {**repository, R.PAGE: page.replace(planted, '<!--' + ' ' * A.PREVIEW_CUT + '-->' + planted, 1)}
+        found = self.review(A.prepass(SimpleNamespace(repository_transform=past_the_cut), self.route, html, self.sheet))
         invented = [f for f in found if 'invented' in f['message']]
         self.assertTrue(invented)
         self.assertEqual({f['evidence'] for f in invented}, {'truth gate on the whole page'})
