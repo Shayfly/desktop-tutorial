@@ -56,7 +56,7 @@ class BuildAllowanceMessageTests(unittest.TestCase):
         js += '\nconst e=new ApiError(402,{error:"build_allowance_exhausted",message:"INTERNAL_SENTINEL"}); console.log(JSON.stringify([explain(e),(S.lang="en",explain(e))]));'
         p = subprocess.run(['node', '-e', js], capture_output=True, text=True, check=True)
         he, en = json.loads(p.stdout)
-        self.assertIn('נגמר התקציב או הקרדיטים', he)
+        self.assertIn('נגמרה היתרה', he)
         self.assertIn('budget or credits', en)
         for message in (he, en):
             self.assertNotIn('paid-provider', message)
@@ -64,8 +64,8 @@ class BuildAllowanceMessageTests(unittest.TestCase):
         js += '\nS.lang="he";const plan=new ApiError(402,{error:"plan_cannot_authorize_cost"}); console.log(JSON.stringify([explain(plan),(S.lang="en",explain(plan))]));'
         p = subprocess.run(['node', '-e', js], capture_output=True, text=True, check=True)
         he, en = json.loads(p.stdout.splitlines()[-1])
-        self.assertIn('לא כלולה במסלול', he)
-        self.assertIn('לשדרג', he)
+        self.assertIn('גדולה ממה שכלול אצלכם', he)
+        self.assertIn('אפשר לבקש פחות דברים', he)            # an action that exists (no upgrade control exists)
         self.assertIn('not included', en)
         self.assertIn('Upgrade', en)
 

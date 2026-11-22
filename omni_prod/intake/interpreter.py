@@ -294,6 +294,8 @@ def normalize_for_evidence(text: str) -> str:
     return re.sub(r'\s+', ' ', t).strip().lower()
 
 
+from ..customer_words import prompt_rule as _customer_words_rule  # noqa: E402
+
 SYSTEM = ('You extract software-product requirements from a customer message. Most customers write Hebrew '
           '(often mixed with English product words, right-to-left, informal, with typos); treat Hebrew as the '
           'primary language. Keep every "evidence" quote exactly as written in the message, in its original '
@@ -337,7 +339,10 @@ SYSTEM = ('You extract software-product requirements from a customer message. Mo
           'context.confirmed; never restate an assumed value or an answer to a question that was already asked. '
           'When context.ask_next is given, it is the ONE question of this reply: ask it in your own words for this '
           'business, add one short sentence on why it matters to their product, and name the choices naturally in a '
-          'sentence (never a numbered list, never the words of a form). Never answer it for them, never assume it.')
+          'sentence (never a numbered list, never the words of a form). Never answer it for them, never assume it. '
+          # Warehouse 132 (the owner, 2026-11-22): 15 blocking platform words in the conversation route; the agent
+          # spoke the system's language. One dictionary, the same one the customer-text check reads.
+          + _customer_words_rule())
 
 
 MAX_RAW_CHARS = 50_000

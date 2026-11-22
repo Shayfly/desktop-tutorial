@@ -1,0 +1,116 @@
+{
+ "pr": "customer-words",
+ "sha256": [
+  "tests/test_customer_words.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the conversation agent is not given the dictionary",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "          + _customer_words_rule())\n",
+     "new": "          + '')  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_customer_words.py"
+   ],
+   "expect_failed": [
+    "test_the_agent_is_told_every_word"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a conversation text speaks the platform's word again",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/venice.py",
+     "old": "'stage_p': 'שלב 2 מתוך 2 — אישרתם מה שהבנתי, אני מתכנן'",
+     "new": "'stage_p': 'שלב 2 מתוך 2 — המפרט אושר, אני מתכנן'"
+    }
+   ],
+   "targets": [
+    "tests/test_customer_words.py"
+   ],
+   "expect_failed": [
+    "test_no_other_customer_text_gains_a_platform_word",
+    "test_the_conversation_route_holds_no_platform_word"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a Hebrew prefix hides the word",
+   "mutations": [
+    {
+     "file": "omni_prod/customer_words.py",
+     "old": "_PREFIX = r'(?:(?<=^)|(?<=[^\\w֐-׿]))[הובלמכש]?'\n",
+     "new": "_PREFIX = r'(?:(?<=^)|(?<=[^\\w֐-׿]))[הובלמכש]{0}'  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_customer_words.py"
+   ],
+   "expect_failed": [
+    "test_a_planted_word_is_caught",
+    "test_a_word_is_found_with_its_hebrew_prefix_and_only_as_a_whole_word"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a longer word counts as ours",
+   "mutations": [
+    {
+     "file": "omni_prod/customer_words.py",
+     "old": "_END = r'(?![\\w֐-׿])'\n",
+     "new": "_END = r''  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_customer_words.py"
+   ],
+   "expect_failed": [
+    "test_a_planted_word_is_caught",
+    "test_a_word_is_found_with_its_hebrew_prefix_and_only_as_a_whole_word",
+    "test_no_other_customer_text_gains_a_platform_word",
+    "test_the_conversation_route_holds_no_platform_word"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "an exemption for one file silences the word everywhere",
+   "mutations": [
+    {
+     "file": "omni_prod/customer_words.py",
+     "old": "            if (path, term) not in NOT_SHOWN:\n",
+     "new": "            if term not in {t for _, t in NOT_SHOWN}:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_customer_words.py"
+   ],
+   "expect_failed": [
+    "test_a_planted_word_is_caught"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the approval texts gain a platform word",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "אפשר לבחור במסך \"דרישות\".'",
+     "new": "אפשר לבחור בלשונית \"דרישות\".'"
+    }
+   ],
+   "targets": [
+    "tests/test_customer_words.py"
+   ],
+   "expect_failed": [
+    "test_no_other_customer_text_gains_a_platform_word",
+    "test_the_conversation_route_holds_no_platform_word"
+   ]
+  }
+ ]
+}
