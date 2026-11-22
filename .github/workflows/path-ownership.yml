@@ -1,0 +1,25 @@
+name: path-ownership
+
+# The owner, 2026-11-22: Codex implements the new platform design while Claude builds the engine; neither changes the
+# other's paths (OWNERS.md). scripts/path_ownership.py reads the branch prefix and the changed paths.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  path-ownership:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: No agent changes the other's paths
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: python scripts/path_ownership.py "$HEAD_REF" "origin/$BASE_REF"
