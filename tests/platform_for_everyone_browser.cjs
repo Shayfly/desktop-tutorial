@@ -15,7 +15,8 @@
  *   size       "Text size" makes the text larger (16 -> 18 -> 20px), is kept after a reload, and at the largest size
  *              nothing scrolls sideways at 320px.
  *   look       the owner's example (2026-11-23): on a computer the project rail is open on the first visit; the top bar
- *              and the rail are dark, on a phone too.
+ *              and the rail are dark, on a phone too; the preview's "Phone" switch shows the page 390px wide, and
+ *              nothing scrolls sideways when it is on.
  *
  * A check that never fails proves nothing: every run also serves deliberately broken copies (MUTATIONS) and requires
  * the matching check to fail on each. A mutation that is not caught fails the run.
@@ -58,6 +59,8 @@ const MUTATIONS = [
   { id: 'rail_closed', check: 'look', file: 'visual-edit.js', width: 1440,
     old: "    } catch { /* defaults */ }\n    syncSidebar();", new: "      ws().classList.add('sb-collapsed');\n    } catch { /* defaults */ }\n    syncSidebar();" },
   { id: 'light_top_bar', check: 'look', file: 'app.css', append: '\n.workspace > .mobileWorkspaceHead { background: #ffffff !important }' },
+  { id: 'phone_view_ignored', check: 'look', file: 'app.css', width: 1440,
+    append: '\n.workspace[data-device="phone"] .stage .viewport { width: 100% !important }' },
 ];
 
 function served(mutation) {
@@ -194,6 +197,20 @@ const CHECKS = {
     } else {
       await page.locator('#mobileMenuBtn').click(); await page.waitForTimeout(200);
     }
+    // the preview as a phone sees it (screen 09 of the example)
+    if (width <= 900) { await page.keyboard.press('Escape'); await page.waitForTimeout(100); }
+    await page.evaluate(() => window.VE && VE.setPane('preview')); await page.waitForTimeout(100);
+    const vpWidth = () => page.evaluate(() => Math.round(document.getElementById('viewport').getBoundingClientRect().width));
+    await page.locator('#devPhone').click(); await page.waitForTimeout(100);
+    const phone = await vpWidth();
+    if (phone > 391) fail.push(`"Phone" shows the page ${phone}px wide, not 390`);
+    if ((await page.locator('#devPhone').getAttribute('aria-pressed')) !== 'true') fail.push('"Phone" is not marked as chosen');
+    const over = await sideScroll(page);
+    if (over > 1) fail.push(`"Phone" on: ${over}px sideways scroll`);
+    await page.locator('#devDesktop').click(); await page.waitForTimeout(100);
+    if (width > 900 && (await vpWidth()) < 600) fail.push('"Computer" does not give the page its width back');
+    await page.evaluate(() => window.VE && VE.setPane('chat'));
+    if (width <= 900) { await page.locator('#mobileMenuBtn').click(); await page.waitForTimeout(200); }
     const dark = await page.evaluate(DARK);
     if (!(dark.head < 0.05)) fail.push(`the top bar is not dark (luminance ${dark.head.toFixed(3)})`);
     if (!(dark.rail < 0.05)) fail.push(`the project rail is not dark (luminance ${dark.rail.toFixed(3)})`);
