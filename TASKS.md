@@ -80,3 +80,4 @@
 | FINDING-ATTRIBUTION | Codex | Draft; independent review pending | scripts/check_finding_attribution.py and its negative control |
 | CRITICAL-PATH-FRESHNESS | Codex | Draft; independent review pending | scripts/check_critical_path_freshness.py |
 | OVERLAY-ACCEPTANCE-W | Codex | Draft; awaiting CI and independent review | GitHub run 44479691814, job 135408636414 |
+| SITE-CONTENT-1 | Claude Code | Local commits, not pushed; review fixes committed (0eae688..422f929); CTO's full suite pending | content-document route slice 1 behind OMNI_SITE_LIBRARY (off); real-chain engine tests 6/6 with Chromium (CI: browser-python job, not yet run); NC site_content 44/44, section_library 7/7 default + 10/10 browser |
