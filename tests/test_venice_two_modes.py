@@ -103,15 +103,20 @@ class C_AnExternalVerifierRejectsAPlanThatDoesNotAnswerTheSpec(unittest.TestCase
 
 class D_CostRangeWhileUnderstanding(unittest.TestCase):
     def test_a_range_is_said_on_the_first_turn_in_the_customers_language(self):
-        for msg, word in ((SITE, 'קרדיטים'), ('أريد موقعًا لصالون الحلاقة الخاص بي', 'رصيدًا'),
-                          ('I want a website for my barbershop', 'credits')):
+        # warehouse 132 (customer words): the range is said as the customer says it -- "between 45 and 200 from your
+        # balance" -- never in the platform's 'credits'
+        for msg, said, word in ((SITE, 'בין {lo} ל-{hi}', 'מהיתרה שלכם'),
+                                ('أريد موقعًا لصالون الحلاقة الخاص بي', 'بين {lo} و{hi}', 'رصيدكم'),
+                                ('I want a website for my barbershop', 'between {lo} and {hi}', 'your balance')):
             v = Venice(Spec('website'))
             view = v.hear(msg)
             self.assertEqual(view['mode'], UNDERSTANDING)
             lo, hi = view['cost_range_credits']
             self.assertLess(lo, hi)                                           # a range, not a single "easy"
-            self.assertIn(f'{lo}–{hi}', view['cost_text'])
+            self.assertIn(said.format(lo=lo, hi=hi), view['cost_text'])
             self.assertIn(word, view['cost_text'])
+            self.assertNotIn('credits', view['cost_text'].lower())
+            self.assertNotIn('קרדיט', view['cost_text'])
 
     def test_the_range_widens_when_the_request_needs_more(self):
         simple = Venice(Spec('web_app'))
