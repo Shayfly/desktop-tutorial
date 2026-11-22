@@ -2,6 +2,7 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| WH-133 | Matt (design), Claude Code (integration) | Full workspace integration candidate, review fixes under verification | `design/148ai-sidebar-integration`, code `9a30e8b6` based on `64604f03`, `tests/workspace_sidebar_local.cjs`, `STATUS.md` 2026-11-22 |
 | GOV-01 | Codex | In review | `VISION_LAW_HE.md`, PR pending independent verification |
 | GOV-02 | Codex | In review | `AGENTS.md`, `NORTH_STAR.md`, SHA c8827818e3ffeb9ac49ba00c5d2b6efa6f8ff0d8 |
 | GOV-03 | Codex | In progress | Root `STATUS.md`, `TASKS.md`, `OWNERS.md` |

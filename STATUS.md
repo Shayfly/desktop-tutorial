@@ -1,3 +1,22 @@
+# 2026-11-22 — 133, integrated workspace (Codex)
+
+- Code `547e118d` on the local integration branch, based on production SHA `64604f03`. The revised entry, sign-in, drawer, projects, chat, plan and build cards, preview, visual editing, ZIP export and versions use the existing 148AI routes.
+- Mobile and desktop use chat, preview and versions. The preview contains the edit entry point and the actual build recovery action. A saved version exposes its internal ID in expandable details. The workspace uses black, yellow and white.
+- Local evidence: real development FastAPI registration, projects and catalogue with Chromium at 320, 390 and 1440. Failure and version records were injected for browser assertions. All eight deliberate regressions were detected. The customer flow, approval single source, project switching with late responses and preview sizing tests passed. Focused Python suite passed 67, skipped 4 PostgreSQL tests and passed 10 subtests.
+- The first full comparison in an isolated environment stopped before execution on the same 50 collection errors in both trees (missing production Python dependencies). The populated runtime is needed for the full comparison. Exact deletion records await independent signature. Production remains at the previous release.
+- Independent UI review found stale quote state, a blank Versions pane after switching projects, a missing desktop drawer opener outside chat, invisible rollback feedback and low-contrast label overrides. Addressed in `acc159dd`, `b6553478` and `9a30e8b6`. Follow-up also caught a duplicate filter ID and a late contract response, now scoped to the initiating brief.
+- This is an agent review. The deployment and human deletion signature are pending.
+
+
+# 2026-11-22 — 133, project navigation (Codex)
+
+- Implemented on local branch `design/148ai-sidebar-integration`, based on `64604f03` (merge #500). Browser-tested code `7bc876ef`.
+- Screens: project drawer, all projects (opens as a dialog over the current project), business templates and account settings. The mobile hamburger moved from the bottom navigation into the workspace header and opens from chat, preview and visual edit. Project states have text labels, workspace controls have visible keyboard focus, and project switching retains unsent text within the same session.
+- Existing authenticated project list, subscription, project creation and latest-build endpoints serve the new UI. When the server has not returned a project's latest build, the list shows “Status unavailable”. Domain settings show the current scope of delivery. Build and publish operations stay on the established paths.
+- Evidence: developer FastAPI with in-memory accounts and real Chromium, `node tests/workspace_sidebar_local.cjs`. Registration, real account balance and project creation, catalogue filtering, template selection and draft restoration passed at 320, 390 and 1440. Six sidebar mutations in the same test failed on their expected checks. `customer_flow_browser.cjs` passed at 390 and 1440. `project_scope_browser.cjs` passed, including late responses from the former project.
+- Focused Python regression suite: 74 passed, 4 PostgreSQL tests skipped, 20 subtests passed. The customer wording check caught the term “credits” in the first revision. The balance now uses the existing customer label.
+- Pending review: exact deletion declarations are prepared with reviewer pending. Full repository comparison, independent review and production release remain open. The failure and version-row mutations belong to the corresponding screens of item 133.
+
 # 2026-11-22 — warehouse 118, review fixes: every writer carries the image, and the smoke checks the reference the page really uses (Claude Code)
 
 - **What broke (review of the 118 branch, all reproduced):** Claude's own bugs in the first pass of 118.

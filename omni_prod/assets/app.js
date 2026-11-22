@@ -302,6 +302,47 @@ Object.assign(T.en, { actRetryBuild:'Try building again', stillMissing:'Still mi
   guidedMode:'Guided questionnaire — AI conversation is not active right now', aiMode:'AI conversation configured — availability depends on provider and budget', draftNote:'Change as many details as you like. Only Update applies the changes.',
   attachmentSchema:'Image attachments need database migration 038 on this deployment. Your image and text remain here for retry.' });
 
+Object.assign(T.he, {
+  workspaceHero: 'מה תרצו ליצור היום?',
+  workspaceLead: 'אתרים ואפליקציות מתחילים בשיחה. מאשרים את התוכנית, רואים את התוצאה ומשנים מה שצריך.',
+  workspaceCards: 'דרישות, תוכנית ובנייה', workspaceEdit: 'עריכה וסימון', workspaceVersion: 'גרסה שמורה',
+  workspaceCost: 'מחיר מוערך',
+  workspaceWait: 'ממתין לאישור', workspaceDraft: 'טיוטה',
+  workspaceExamples: [['אתר לעסק','אני רוצה אתר לעסק עם פירוט שירותים ודרך קלה ליצור קשר.'],
+    ['דף נחיתה','אני רוצה דף נחיתה שמציג הצעה ומאפשר להשאיר פרטים.'],
+    ['קטלוג','אני רוצה קטלוג מוצרים עם קטגוריות, תמונות ודרך לשאול על מוצר.']],
+  workspaceNavigation: 'סביבת העבודה', allProjects: 'כל הפרויקטים', recentProjects: 'אחרונים',
+  workspaceTemplates: 'תבניות', workspaceDomains: 'דומיינים', workspaceSettings: 'הגדרות',
+  workspaceStatusFilter: 'מצב הפרויקט', workspaceAllStates: 'כל המצבים',
+  workspaceStates: { none: 'עוד לא נבנה', unknown: 'מצב לא זמין', building: 'בבנייה', ready: 'נבנה', failed: 'נכשל', cancelled: 'בוטל' },
+  workspaceDomainsNote: 'אפשר לפתוח תצוגה פרטית ולהוריד את התוצר. חיבור דומיין ציבורי יופיע כשהאפשרות תהיה זמינה.',
+  workspaceTemplateList: [
+    ['אתר לעסק', 'אני רוצה אתר לעסק שלי עם תיאור השירותים ודרך נוחה לפנות אליי מהנייד.'],
+    ['דף נחיתה', 'אני רוצה דף נחיתה שמציג את ההצעה ומאפשר להשאיר פרטים.'],
+    ['קטלוג', 'אני רוצה קטלוג ברור עם קטגוריות, תמונות ודרך לשאול על מוצר.'],
+  ],
+});
+Object.assign(T.en, {
+  workspaceHero: 'What will you create today?',
+  workspaceLead: 'Start a site or an app in a chat. Approve the plan, preview the result, and refine it.',
+  workspaceCards: 'Requirements, plan and build', workspaceEdit: 'Edit & annotate', workspaceVersion: 'Saved version',
+  workspaceCost: 'Estimated price',
+  workspaceWait: 'Awaiting approval', workspaceDraft: 'Draft',
+  workspaceExamples: [['Business site','I want a business site explaining my services with a simple way to contact me.'],
+    ['Landing page','I want a landing page that explains an offer and collects enquiries.'],
+    ['Catalogue','I want a catalogue of products with categories, photos and a way to ask about an item.']],
+  workspaceNavigation: 'Workspace', allProjects: 'All projects', recentProjects: 'Recent projects',
+  workspaceTemplates: 'Templates', workspaceDomains: 'Domains', workspaceSettings: 'Settings',
+  workspaceStatusFilter: 'Project status', workspaceAllStates: 'All statuses',
+  workspaceStates: { none: 'No build yet', unknown: 'Status unavailable', building: 'Building', ready: 'Built', failed: 'Failed', cancelled: 'Cancelled' },
+  workspaceDomainsNote: 'Open a private preview or download your work. Custom domains will appear here when available.',
+  workspaceTemplateList: [
+    ['Business website', 'I want a website for my business that explains my services and makes it easy to reach me from a phone.'],
+    ['Landing page', 'I want a landing page that explains the offer and lets visitors leave their contact details.'],
+    ['Catalogue', 'I want a catalogue with categories, photos and a way to ask about a product.'],
+  ],
+});
+
 const $ = id => document.getElementById(id);
 const t = key => (T[S.lang] && T[S.lang][key]) ?? T.en[key] ?? key;
 
@@ -395,13 +436,22 @@ function applyLang() {
   $('publishNote').textContent = t('publishNotConfigured');
   document.title = S.lang === 'he' ? '148AI · סביבת יצירה' : '148AI · Creator workspace';
   renderBanner(); renderDiscovery(); renderPlan(); renderTrack(); renderVersions(); renderEvidence(); renderPreview(); renderMod();
-  renderProjects(); renderChat(); renderArch(); renderTabs(); syncStageButtons();
+  renderProjects(); renderWorkspaceBalance(); renderChat(); renderArch(); renderTabs(); syncStageButtons();
   if (window.VE) VE.render();
 }
 
 /* ---------- auth ---------- */
 function signOutLocal() {
   S.signedIn = false; S.me = null;
+  S.projects = []; projectBuildStates.clear(); projectDrafts.clear();
+  S.lastShownProject = null; S.pendingTemplate = '';
+  $('chatInput').value = ''; $('followup').value = ''; $('sbSearch').value = '';
+  for (const id of ['workspaceDialog', 'newProjectDialog']) {
+    if ($(id).open) $(id).close();
+  }
+  $('sbSettings').open = false;
+  closeSidebarMobile();
+  renderProjects();
   Object.values(S.timers).forEach(clearTimeout); S.timers = {};
   showView();
 }
@@ -444,6 +494,7 @@ function showView() {
     const unverified = S.me.email_verified === false ? ` (${t('emailUnverified')})` : '';
     $('accountEmail').textContent = S.me.email + unverified;
     $('sbEmail').textContent = S.me.email + unverified;
+    renderWorkspaceBalance();
   }
   renderBanner();
 }
@@ -480,16 +531,101 @@ function renderProjects() {
   $('chatForm').hidden = S.projects.length === 0;
   $('chatCol').classList.toggle('no-project', S.projects.length === 0);
   $('projectMenuBtn').disabled = !S.projectId;
-  // Sidebar: the real project list (one persistent conversation per project), filtered locally.
-  const q = ($('sbSearch').value || '').trim().toLowerCase();
-  const items = S.projects.filter(p => !q || String(p.title || '').toLowerCase().includes(q));
-  $('sbProjects').replaceChildren(...(items.length ? items.map(p => h('li', {},
-    h('button', { type: 'button', 'aria-current': p.id === S.projectId ? 'true' : 'false', title: p.title || t('untitled'),
-      onclick: () => { closeSidebarMobile(); if (p.id !== S.projectId) selectProject(p.id); } },
-      h('span', { class: `st ${String(p.last_build_status || p.status || '').toLowerCase()}`, 'aria-hidden': 'true' }),
-      h('span', { class: 'ttl' }, p.title || t('untitled'))))) : [h('li', { class: 'hint' }, t('noMatches'))]));
+  renderSidebarProjects();
   const cur = S.projects.find(p => p.id === S.projectId);
-  $('chatTitle').textContent = cur ? (cur.title || t('untitled')) : '148AI';
+  const title = cur ? (cur.title || t('untitled')) : '148AI';
+  $('chatTitle').textContent = title;
+  renderWorkspaceHeader();
+}
+const projectBuildStates = new Map();
+const projectDrafts = new Map();
+function renderWorkspaceBalance() {
+  const credits = S.me?.subscription?.credits_remaining;
+  const balance = $('sbBalance');
+  balance.hidden = !Number.isFinite(credits);
+  balance.textContent = balance.hidden ? '' : `${t('creditsRemaining')} · ${new Intl.NumberFormat(S.lang).format(credits)}`;
+}
+async function refreshWorkspaceBalance() {
+  const account = S.me;
+  if (!account) return;
+  try {
+    const subscription = await api('/api/v28/me/subscription');
+    if (S.me !== account) return;
+    account.subscription = subscription;
+    renderWorkspaceBalance();
+  } catch { /* Keep the last balance returned for this account. */ }
+}
+function projectStatus(p) {
+  const status = String(projectBuildStates.get(p.id) ?? p.last_build_status ?? '').toLowerCase();
+  if (['queued', 'running', 'building'].includes(status)) return 'building';
+  return ['none', 'ready', 'failed', 'cancelled'].includes(status) ? status : 'unknown';
+}
+function rememberBuildState(status) {
+  if (!S.projectId || projectBuildStates.get(S.projectId) === status) return;
+  projectBuildStates.set(S.projectId, status);
+  renderSidebarProjects();
+  if ($('workspaceDialog').open && $('workspaceProjectList')) renderProjectCatalogue();
+}
+function orderedProjects(query) {
+  const q = query.trim().toLocaleLowerCase();
+  return S.projects.filter(p => (p.title || t('untitled')).toLocaleLowerCase().includes(q))
+    .sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')));
+}
+function showProjectRows(list, projects) {
+  const focusedId = list.contains(document.activeElement) ? document.activeElement.dataset.project : null;
+  list.replaceChildren(...projects.map(p => {
+    const status = projectStatus(p);
+    const title = p.title || t('untitled');
+    return h('li', {}, h('button', { type: 'button', 'data-project': p.id, title,
+      'aria-current': p.id === S.projectId ? 'true' : 'false', onclick: () => {
+        if ($('workspaceDialog').open) $('workspaceDialog').close();
+        closeSidebarMobile();
+        if (p.id !== S.projectId) selectProject(p.id);
+      } },
+      h('span', { class: 'ttl', dir: 'auto' }, title),
+      h('span', { class: 'sbStatus' }, t('workspaceStates')[status])));
+  }));
+  if (!projects.length) list.append(h('li', { class: 'hint' }, t('noMatches')));
+  if (focusedId) Array.from(list.querySelectorAll('button')).find(button => button.dataset.project === focusedId)?.focus();
+}
+function renderSidebarProjects() {
+  const query = $('sbSearch').value;
+  const projects = orderedProjects(query);
+  showProjectRows($('sbProjects'), query.trim() ? projects : projects.slice(0, 5));
+}
+function renderProjectCatalogue() {
+  const status = $('workspaceProjectState').value;
+  const projects = orderedProjects($('workspaceProjectSearch').value);
+  showProjectRows($('workspaceProjectList'), projects.filter(p => !status || projectStatus(p) === status));
+}
+function openWorkspaceDialog(view) {
+  closeSidebarMobile();
+  const body = $('workspaceDialogBody');
+  $('workspaceDialogTitle').textContent = t(view);
+  if (view === 'allProjects') {
+    body.replaceChildren(
+      h('input', { id: 'workspaceProjectSearch', type: 'search', 'aria-label': t('searchProjects'),
+        placeholder: t('searchProjects'), value: $('sbSearch').value, oninput: renderProjectCatalogue }),
+      h('button', { type: 'button', class: 'workspaceNew', onclick: () => {
+        $('workspaceDialog').close();
+        openNewProject();
+      } }, t('newProject')),
+      h('label', {}, t('workspaceStatusFilter'), h('select', { id: 'workspaceProjectState', onchange: renderProjectCatalogue },
+        h('option', { value: '' }, t('workspaceAllStates')),
+        Object.entries(t('workspaceStates')).map(([value, label]) => h('option', { value }, label)))),
+      h('ul', { id: 'workspaceProjectList', class: 'sbList' }));
+    renderProjectCatalogue();
+  } else if (view === 'workspaceTemplates') {
+    body.replaceChildren(...t('workspaceTemplateList').map(([name, prompt]) =>
+      h('button', { type: 'button', class: 'ghost', onclick: () => {
+        $('workspaceDialog').close();
+        openNewProject(name, prompt);
+      } }, name)));
+  } else {
+    body.replaceChildren(h('p', {}, t('workspaceDomainsNote')));
+  }
+  $('workspaceDialog').showModal();
+  $('workspaceProjectSearch')?.focus();
 }
 async function createProject(title) {
   const p = await api('/api/v28/projects', { method: 'POST', body: { title: title || t('untitled') } });
@@ -499,9 +635,10 @@ async function createProject(title) {
   // box before loading); never clear again here -- the user may already be typing.
   $('chatInput').focus();
 }
-function openNewProject() {
+function openNewProject(name = '', prompt = '') {
   closeSidebarMobile();
-  $('newProjectName').value = ''; $('newProjectMsg').textContent = '';
+  S.pendingTemplate = prompt;
+  $('newProjectName').value = typeof name === 'string' ? name : ''; $('newProjectMsg').textContent = '';
   $('newProjectDialog').showModal(); $('newProjectName').focus();
 }
 async function submitNewProject(e) {
@@ -509,18 +646,35 @@ async function submitNewProject(e) {
   const name = $('newProjectName').value.trim();
   if (!name) { $('newProjectMsg').textContent = t('nameRequired'); return; }
   $('newProjectCreate').disabled = true;
-  try { await createProject(name); $('newProjectDialog').close(); }
+  try {
+    const prompt = S.pendingTemplate;
+    await createProject(name);
+    $('newProjectDialog').close();
+    if (prompt && !$('chatInput').value) {
+      $('chatInput').value = prompt;
+      autoGrow();
+    }
+    $('chatInput').focus();
+  }
   catch (err) { $('newProjectMsg').textContent = explain(err); }
   finally { $('newProjectCreate').disabled = false; }
 }
 async function selectProject(id) {
   Object.values(S.timers).forEach(clearTimeout); S.timers = {};
+  if (S.lastShownProject && S.lastShownProject !== id) {
+    const draft = $('chatInput').value;
+    if (draft) projectDrafts.set(S.lastShownProject, draft);
+    else projectDrafts.delete(S.lastShownProject);
+  }
   S.projectId = id || ''; localStorage.setItem('148ai_project', S.projectId);
   S.plan = null; S.build = null; S.buildAdmissionError = ''; S.preview = null; S.previewId = null; S.mod = null; S.versions = []; S.newBuildOpen = false;
   S.disc = null; S.editQ = null; S.editDraft = null; S.chatRetry = null; S.answerRetry = null; S.chat = null; S.arch = null; S.tasks = null; S.tab = null;
-  if (S.projectId !== S.lastShownProject) { $('chatInput').value = ''; $('followup').value = ''; $('composerMsg').textContent = ''; }
+  if (S.projectId !== S.lastShownProject) { $('chatInput').value = projectDrafts.get(S.projectId) || ''; autoGrow(); $('followup').value = ''; $('composerMsg').textContent = ''; }
   S.lastShownProject = S.projectId;
   $('planPanel').hidden = true; $('progressPanel').hidden = true;
+  Object.assign(S, {proposal:null, proposalUndo:null, proposalOpen:null, proposalWindows:null, proposalLoad:null, planRequest:null});
+  $('versionNotice').textContent = '';
+  window.VE?.setPane('chat');
   resetBuildPanel();
   S.lastChange = null;
   if (window.VE) VE.reset();
@@ -549,6 +703,7 @@ async function restoreBuild() {
     const d = await api(`/api/v28/projects/${pid()}/builds/latest`);
     if (!stillOn(project)) return;
     const b = d && d.build;
+    if (!S.build && d && 'build' in d) rememberBuildState(b ? b.status : 'none');
     if (!b || S.build) { renderLog(); return; }
     if (isTerminal(b.status)) {
       // 2026-11-09: a finished build (its result, failure reason and the founder's draft) is shown again after a
@@ -614,16 +769,26 @@ function beginBriefEdit() {
 }
 async function requestBriefPlan(open = true) {
   if (!S.disc || !S.disc.complete) return;
+  const request = {};
+  const briefRevision = S.disc.brief.revision;
+  S.planRequest = request;
+  const current = () => S.planRequest === request && S.disc?.brief?.revision === briefRevision;
   try {
-    S.plan = await api(`/api/v28/projects/${pid()}/build-contracts?lang=${S.lang}`, { method: 'POST',
-      body: { prompt: S.disc.prompt, brief_revision: S.disc.brief.revision } });
+    const plan = await api(`/api/v28/projects/${pid()}/build-contracts?lang=${S.lang}`, { method: 'POST',
+      body: { prompt: S.disc.prompt, brief_revision: briefRevision } });
+    if (!current()) return;
+    S.plan = plan;
     // 2026-11-09: the background quote fetched while a project opens (open=false) resolved AFTER restoreBuild()
     // and wiped the queued/running build from the screen. Only a plan the user asked for replaces a finished build;
     // a queued or running build always stays.
     if (open === true && (!S.build || isTerminal(S.build.status))) S.build = null;
     await loadProposal();
+    if (!current()) return;
     renderDiscovery(); renderPlan(); renderTrack(); if (open === true) openTab('plan');
-  } catch (e) { const m = $('discMsg'); if (m) m.textContent = explain(e); }
+  } catch (e) {
+    const message = $('discMsg');
+    if (current() && message) message.textContent = explain(e);
+  }
 }
 function questionCard(q, current) {
   const name = `q_${q.id}`;
@@ -731,7 +896,19 @@ function pill(status) {
   return h('span', { class: `pill ${cls}` }, t(`st_${status}`) || status || '—');
 }
 const money = v => (v === null || v === undefined) ? t('costUnknown') : `$${Number(v).toFixed(2)}`;
+function renderWorkspaceHeader() {
+  const build = S.build?.status?.toLowerCase();
+  const code = build === 'ready' ? 'ready' : build === 'failed' ? 'failed' : build && !isTerminal(build) ? 'building' : build === 'cancelled' ? 'cancelled' : null;
+  const state = code ? t('workspaceStates')[code] : S.plan?.can_build ? t('workspaceWait') : t('workspaceDraft');
+  const estimate = proposalPrice(S.proposal?.price);
+  const chip = $('workspaceProjectChip');
+  chip.hidden = !S.projectId;
+  chip.dataset.state = code || 'draft';
+  chip.textContent = estimate ? `${state} · ${t('workspaceCost')} ${estimate.amount}` : state;
+}
+
 function renderProjectReadiness() {
+  renderWorkspaceHeader();
   const strip = $('projectReadiness');
   if (!strip) return;
   strip.hidden = !S.projectId;
@@ -760,7 +937,13 @@ function readinessView(build, p) {
 /* ---------- first agent: the proposal card (docs/spec/first-agent.md 1, 7) ---------- */
 const proposalPath = () => `/api/v28/projects/${pid()}/proposal`;
 async function loadProposal() {
-  try { S.proposal = await api(proposalPath()); } catch (e) { S.proposal = null; }
+  const load = {};
+  S.proposalLoad = load;
+  let proposal;
+  try { proposal = await api(proposalPath()); } catch { proposal = null; }
+  if (S.proposalLoad !== load) return;
+  S.proposal = proposal;
+  renderWorkspaceHeader();
 }
 // The price line: always shown, always an estimate (Michael 2026-11-15: the price never blocks).
 function proposalPrice(price) {
@@ -769,16 +952,20 @@ function proposalPrice(price) {
 }
 async function proposalEdit(op, key, value) {
   const pr = S.proposal; if (!pr) return;
+  const project = S.projectId;
   try {
     const out = await api(`${proposalPath()}/edit`, { method: 'POST', body: { revision: pr.revision, op, key, value } });
+    if (!stillOn(project)) return;
     S.proposal = out.proposal; S.proposalUndo = out.undo; S.proposalOpen = null;
     S.plan = null; await requestBriefPlan(true);            // a new structure is a new fingerprint: a new plan
   } catch (e) { const m = $('propMsg'); if (m) m.textContent = explain(e); }
 }
 async function proposalUndo() {
   if (!S.proposalUndo) return;
+  const project = S.projectId;
   try {
     const out = await api(`${proposalPath()}/undo`, { method: 'POST', body: { undo: S.proposalUndo } });
+    if (!stillOn(project)) return;
     S.proposal = out.proposal; S.proposalUndo = null;
     S.plan = null; await requestBriefPlan(true);
   } catch (e) { const m = $('propMsg'); if (m) m.textContent = explain(e); }
@@ -1015,6 +1202,7 @@ async function pollBuild() {
     await loadTasks();
     renderTrack(); renderEvidence(); renderTasks(); renderChat();
     if (isTerminal(d.status)) {
+      refreshWorkspaceBalance();
       renderPlan();
       if (String(d.status).toLowerCase() === 'ready' && d.result_version_id) {
         S.newBuildOpen = false;
@@ -1072,6 +1260,7 @@ async function cancelBuild() {
 }
 const PHASE_ORDER = ['PLANNING', 'INFRASTRUCTURE', 'ASSETS', 'GENERATING', 'VERIFYING'];
 function renderTrack() {
+  if (S.build?.status) rememberBuildState(S.build.status);
   renderProjectReadiness();
   const panel = $('progressPanel');
   if (!S.build) { panel.hidden = true; return; }
@@ -1121,6 +1310,7 @@ function renderTrack() {
   }
   push(t('stepPreview'), pState, pNote);
   $('track').replaceChildren(...steps);
+  if (status === 'failed' && !S.preview) renderPreview();
   renderControls(); renderLog();
   const msg = $('buildMsg'); msg.className = 'msg';
   if (status === 'ready') { msg.className = 'msg ok'; msg.textContent = t('buildReady'); const nr = notRunLine(b); if (nr) msg.append(h('div', { class: 'notrun' }, nr)); }
@@ -1202,8 +1392,18 @@ function renderPreview() {
   // A project opened later (or a preview that was unavailable) can start one
   // for its current version too, not only right after a build or a change.
   const canRetry = currentVersionId() && (!p || ['EXPIRED', 'STOPPED', 'FAILED', 'UNAVAILABLE'].includes(p.status));
-  const existing = empty.querySelector('button'); if (existing) existing.remove();
-  if (canRetry) empty.append(h('button', { class: 'secondary', onclick: () => startPreview(currentVersionId()) }, t('startPreview')));
+  empty.querySelector('.previewRecovery')?.remove();
+  const buildFailed = S.build?.status?.toLowerCase() === 'failed' && !p;
+  empty.classList.toggle('previewFailed', buildFailed);
+  if (buildFailed) {
+    const recovery = failureView(S.build);
+    text.textContent = recovery.text;
+    const recover = failureButton(recovery);
+    recover.addEventListener('click', () => window.VE?.setPane('chat'), {capture:true});
+    empty.append(h('div', { class: 'previewRecovery' }, recover));
+  }
+  const existing = empty.querySelector(':scope > button'); if (existing) existing.remove();
+  if (canRetry && !buildFailed) empty.append(h('button', { class: 'secondary', onclick: () => startPreview(currentVersionId()) }, t('startPreview')));
   if (window.VE) VE.onPreview();
 }
 
@@ -1352,12 +1552,12 @@ function renderBuilt() {
   $('newBuildRow').hidden = !v || S.newBuildOpen || building;
   renderDiscovery();
   if (!v) return;
-  $('builtName').textContent = v.title || v.message || v.id;
+  $('builtName').textContent = v.title || v.message || t('workspaceVersion');
   $('builtSummary').textContent = v.summary || '';
   $('builtFeatures').replaceChildren(...(v.features || []).map((f) => h('li', {}, f)));
   let when = v.created_at;
   try { when = new Intl.DateTimeFormat(S.lang === 'he' ? 'he-IL' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(v.created_at)); } catch { /* keep raw */ }
-  $('builtMeta').replaceChildren(t('builtVersion'), ': ', h('code', { dir: 'ltr' }, String(v.id).slice(0, 12)), ` · ${when}`,
+  $('builtMeta').replaceChildren(when,
     v.file_count ? ` · ${v.file_count} ${t('files')}` : '');
 }
 function renderVersions() {
@@ -1369,16 +1569,30 @@ function renderVersions() {
   list.replaceChildren(...S.versions.map((v, i) => {
     let when = v.created_at; try { when = fmt.format(new Date(v.created_at)); } catch { /* keep raw */ }
     return h('li', {},
-      h('div', {}, h('div', {}, v.title || v.message || v.id), h('div', { class: 'meta' }, when, ' ', h('code', { dir: 'ltr' }, String(v.id).slice(0, 12)))),
+      h('div', { class:'versionLabel' }, h('strong', {}, v.title || v.message || t('workspaceVersion')), h('div', { class: 'meta' }, when),
+        h('details', {}, h('summary', {}, t('tab_details')), h('code', { dir:'ltr' }, v.id))),
       i === 0 ? h('span', { class: 'pill ok' }, t('current')) : h('button', { class: 'ghost', onclick: () => restoreVersion(v.id) }, t('restore')));
   }));
 }
+const activeVersionRestores = new Set();
 async function restoreVersion(versionId) {
+  const project = S.projectId;
+  const notice = $('versionNotice');
+  if (activeVersionRestores.has(project)) return;
+  activeVersionRestores.add(project);
+  notice.textContent = '';
   try {
     await api(`/api/v28/projects/${pid()}/rollback`, { method: 'POST', body: { target_version_id: versionId, message: 'rollback from workspace' } });
+    if (!stillOn(project)) return;
+    clearTimeout(S.timers.preview);
+    S.preview = null; S.previewId = null; S.previewAccess = null;
     await loadVersions();
-    $('buildMsg').className = 'msg ok'; $('buildMsg').textContent = t('restored'); $('progressPanel').hidden = false;
-  } catch (e) { $('progressPanel').hidden = false; $('buildMsg').className = 'msg'; $('buildMsg').textContent = explain(e); }
+    if (stillOn(project)) { notice.className = 'msg ok'; notice.textContent = t('restored'); }
+  } catch (e) {
+    if (stillOn(project)) { notice.className = 'msg'; notice.textContent = explain(e); }
+  } finally {
+    activeVersionRestores.delete(project);
+  }
 }
 
 /* ---------- modification ---------- */
@@ -1724,11 +1938,15 @@ function renderChat() {
     S.chat.interpreter==='model-via-worker'?t('aiMode'):t('guidedMode')));
   if (!msgs.length) kids.push(h('div', { class: 'welcomeChat' }, h('h2', {}, t('chatHelloTitle')), h('p', {}, t('chatHello')),
     S.chat && S.chat.unavailable ? h('p', { class: 'msg' }, S.chat.unavailable) : null,
-    S.chat && S.chat.retry ? h('button', { type: 'button', class: 'secondary', onclick: restoreConversation }, t('tryAgain')) : null));
+    S.chat && S.chat.retry ? h('button', { type: 'button', class: 'secondary', onclick: restoreConversation }, t('tryAgain')) : null,
+    h('div', { class:'workspaceExamples' }, t('workspaceExamples').map(([label, prompt]) =>
+      h('button', { type:'button', class:'secondary', onclick:() => {
+        $('chatInput').value = prompt; autoGrow(); $('chatInput').focus();
+      } }, label)))));
   else if (S.chat && S.chat.unavailable) kids.push(h('p', { class: 'msg' }, S.chat.unavailable));
   const lastAssistant = msgs.map(m => m.role).lastIndexOf('assistant');
   msgs.forEach((m, i) => {
-    const bubble = h('div', { class: `bubble ${m.role}`, dir: 'auto' }, h('span', { class: 'who' }, m.role === 'customer' ? t('you') : t('assistant')), m.content);
+    const bubble = h('div', { class: `bubble ${m.role}`, dir: 'auto', 'aria-label':m.role === 'customer' ? t('you') : t('assistant') }, m.content);
     if (m.role === 'assistant' && m.ai_status === 'fallback')
       bubble.append(h('p', { class: 'hint aiFallback' }, t('aiFallback')));
     if (m.attachments && m.attachments.length) bubble.append(h('div', { class: 'thumbs' }, m.attachments.map(a =>
@@ -1861,12 +2079,20 @@ function renderTabs() {
   $('ctxTitle').textContent=S.tab==='req'?t('editAll'):S.tab?t(`tab_${S.tab}`):t('editAll');
   const avail = TABS.filter(([, ids]) => ids.some(id => $(id) && !$(id).hidden));
   if (S.tab && !avail.find(([k]) => k === S.tab)) S.tab = null;
-  nav.replaceChildren(...avail.map(([k]) => h('button', { type: 'button', 'aria-selected': S.tab === k ? 'true' : 'false',
-    'aria-controls': 'ctx', onclick: () => openTab(S.tab === k ? null : k) }, t(`tab_${k}`))));
+  const cards = avail.filter(([key]) => key !== 'versions');
+  $('projectCards').hidden = !cards.length;
+  nav.replaceChildren(...cards.map(([k]) => h('button', { type: 'button', 'aria-pressed': S.tab === k ? 'true' : 'false',
+    'aria-controls': 'ctx', onclick: () => { $('projectCards').open = false; openTab(S.tab === k ? null : k); } }, t(`tab_${k}`))));
   for (const [k, ids] of TABS) for (const id of ids) { const el = $(id); if (el) el.classList.toggle('active', S.tab === k); }
   $('ctx').classList.toggle('open', Boolean(S.tab));
+  document.querySelector('.composerHint').hidden = Boolean(S.build || S.versions.length);
 }
-function openTab(k) { S.tab = k; renderTabs(); }
+function openTab(k) {
+  S.tab = k;
+  if (k === 'versions') window.VE?.setPane('versions');
+  else if ($('workspaceView').dataset.pane === 'versions') window.VE?.setPane('chat');
+  renderTabs();
+}
 const tabObserver = new MutationObserver(() => renderTabs());
 
 /* ---------- workspace shell: sidebar, splitter, preview size ---------- */
@@ -1885,6 +2111,7 @@ function openSidebar(e) {
   if(matchMedia('(max-width:900px)').matches)ws.classList.add('sb-open');
   else{ws.classList.remove('sb-collapsed');try{localStorage.removeItem('148ai_sb');}catch{}}
   syncSidebar();$('sbCollapse').focus();
+  refreshWorkspaceBalance();
 }
 function closeSidebarMobile() {
   const wasOpen=$('workspaceView').classList.contains('sb-open');
@@ -1914,7 +2141,10 @@ function wireWorkspace() {
   $('chatForm').addEventListener('submit', submitChat);
   $('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) submitChat(e); });
   $('chatInput').addEventListener('input', autoGrow);
-  $('sbSearch').addEventListener('input', renderProjects);
+  $('sbSearch').addEventListener('input', renderSidebarProjects);
+  $('sbAll').addEventListener('click', () => openWorkspaceDialog('allProjects'));
+  $('sbTemplates').addEventListener('click', () => openWorkspaceDialog('workspaceTemplates'));
+  $('sbDomains').addEventListener('click', () => openWorkspaceDialog('workspaceDomains'));
   $('sbCollapse').addEventListener('click', () => {
     if(matchMedia('(max-width:900px)').matches){closeSidebarMobile();return;}
     ws.classList.add('sb-collapsed');try{localStorage.setItem('148ai_sb','collapsed');}catch{}
@@ -1927,7 +2157,7 @@ function wireWorkspace() {
     if(!ws.classList.contains('sb-open')||!matchMedia('(max-width:900px)').matches)return;
     if(e.key==='Escape'){e.preventDefault();closeSidebarMobile();}
     if(e.key==='Tab'){
-      const items=[...$('sidebar').querySelectorAll('button,input,a[href]')].filter(el=>!el.disabled&&el.getClientRects().length);
+      const items=[...$('sidebar').querySelectorAll('button,input,a[href],summary')].filter(el=>!el.disabled&&el.getClientRects().length);
       const first=items[0],last=items[items.length-1];
       if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
       else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
