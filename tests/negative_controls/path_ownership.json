@@ -1,21 +1,60 @@
 {
  "pr": "path-guard",
- "sha256": ["tests/test_path_ownership.py"],
+ "sha256": [
+  "tests/test_path_ownership.py"
+ ],
  "controls": [
-  {"id": "NC1", "what": "a claude/ branch may change the platform UI shell (the rule for claude/ is gone)",
-   "mutations": [{"file": "scripts/path_ownership.py",
-                  "old": "RULES = {'claude/': ('the platform UI shell (OWNERS.md: Matt designs, Codex implements)', UI_SHELL),",
-                  "new": "RULES = {'claude/': ('the platform UI shell (OWNERS.md: Matt designs, Codex implements)', ()),  # NEGATIVE CONTROL"}],
-   "targets": ["tests/test_path_ownership.py"], "expect_failed": ["test_claude_does_not_change_the_ui_shell"]},
-  {"id": "NC2", "what": "a codex/ branch may change the customers' sites engine",
-   "mutations": [{"file": "scripts/path_ownership.py",
-                  "old": "         'codex/': (\"the customers' sites and the engine that builds them (OWNERS.md: Claude's)\", SITE_ENGINE)}",
-                  "new": "         'codex/': (\"the customers' sites and the engine that builds them (OWNERS.md: Claude's)\", ())}  # NEGATIVE CONTROL"}],
-   "targets": ["tests/test_path_ownership.py"], "expect_failed": ["test_codex_does_not_change_the_site_engine"]},
-  {"id": "NC3", "what": "a path is owned by substring: app.js.map or intake_extra.py count as owned",
-   "mutations": [{"file": "scripts/path_ownership.py",
-                  "old": "    return any(path == p or (p.endswith('/') and path.startswith(p)) for p in prefixes)",
-                  "new": "    return any(path.startswith(p.rstrip('/')) for p in prefixes)  # NEGATIVE CONTROL"}],
-   "targets": ["tests/test_path_ownership.py"], "expect_failed": ["test_a_path_is_owned_by_prefix_not_by_substring"]}
+  {
+   "id": "NC1",
+   "what": "a claude/ branch may change the platform UI shell (the rule for claude/ is gone)",
+   "mutations": [
+    {
+     "file": "scripts/path_ownership.py",
+     "old": "RULES = {'claude/': ('the platform UI shell (OWNERS.md: Matt designs, Codex implements)', UI_SHELL),",
+     "new": "RULES = {'claude/': ('the platform UI shell (OWNERS.md: Matt designs, Codex implements)', ()),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_path_ownership.py"
+   ],
+   "expect_failed": [
+    "test_claude_app_js_is_the_text_only_exception_said_to_the_reviewer",
+    "test_claude_does_not_change_the_ui_shell"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a codex/ branch may change the customers' sites engine",
+   "mutations": [
+    {
+     "file": "scripts/path_ownership.py",
+     "old": "         'codex/': (\"the customers' sites and the engine that builds them (OWNERS.md: Claude's)\", SITE_ENGINE)}",
+     "new": "         'codex/': (\"the customers' sites and the engine that builds them (OWNERS.md: Claude's)\", ())}  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_path_ownership.py"
+   ],
+   "expect_failed": [
+    "test_codex_does_not_change_the_site_engine"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a path is owned by substring: app.js.map or intake_extra.py count as owned",
+   "mutations": [
+    {
+     "file": "scripts/path_ownership.py",
+     "old": "    return any(path == p or (p.endswith('/') and path.startswith(p)) for p in prefixes)",
+     "new": "    return any(path.startswith(p.rstrip('/')) for p in prefixes)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_path_ownership.py"
+   ],
+   "expect_failed": [
+    "test_a_path_is_owned_by_prefix_not_by_substring"
+   ]
+  }
  ]
 }
