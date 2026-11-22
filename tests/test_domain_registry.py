@@ -107,3 +107,36 @@ class DomainForACategory(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TheRouteRecordsItsDomain(unittest.TestCase):
+    """The content route carries the category, how it was found, and the domain it reads, into the build evidence
+    (site_route). The brief is the owner's law-firm build, a production row read read-only
+    (tests/fixtures/site_content_bld_b0eb47a5.json)."""
+
+    def _decide(self, prompt=None):
+        import os
+        from unittest import mock
+        from omni_prod import site_content as SC
+        fixture = json.loads((D.ROOT / 'tests' / 'fixtures' / 'site_content_bld_b0eb47a5.json').read_text(encoding='utf-8'))
+        with mock.patch.dict(os.environ, {'OMNI_SITE_LIBRARY': 'on'}):
+            return SC.decide(prompt or fixture['prompt'], {'user_id': 'usr_owner_test'}, year='2026')
+
+    def test_the_law_firm_reads_the_lawyer_domain(self):
+        route = self._decide()
+        self.assertEqual(route.route, 'section_library')
+        evidence = route.to_dict()
+        self.assertEqual((evidence['category'], evidence['category_found'], evidence['domain']),
+                         ('lawyers', 'named', 'lawyer'))
+        always = [f['fact'] for f in D.load()['domains']['lawyer']['mandatory_facts'] if f['when'] is None]
+        self.assertEqual(evidence['domain_facts'], always)
+
+    def test_a_category_without_a_domain_is_recorded_as_none(self):
+        from unittest import mock
+        data = D.load()
+        data['categories']['lawyers'] = None                 # as if lawyers had no domain file yet
+        with mock.patch.object(D, 'load', return_value=data):
+            evidence = self._decide().to_dict()
+        self.assertEqual(evidence['category'], 'lawyers')
+        self.assertIsNone(evidence['domain'])
+        self.assertEqual(evidence['domain_facts'], [])

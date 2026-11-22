@@ -140,6 +140,57 @@
    "expect_failed": [
     "test_a_category_pointing_at_a_missing_file"
    ]
+  },
+  {
+   "id": "NC9",
+   "what": "the route does not record its domain in the evidence",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "'category_found': self.category_found, 'domain': self.domain,",
+     "new": "'category_found': self.category_found, 'domain': None,"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_the_law_firm_reads_the_lawyer_domain"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a named category is reported as found by similarity",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "category_found='named' if named else 'nearest',",
+     "new": "category_found='nearest',"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_the_law_firm_reads_the_lawyer_domain"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a category without a domain borrows a neighbour",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    domain = domain_for(category)\n",
+     "new": "    domain = domain_for(category) or domain_for('accountants')  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_category_without_a_domain_is_recorded_as_none"
+   ]
   }
  ]
 }
