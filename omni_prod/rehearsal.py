@@ -104,6 +104,10 @@ def run(prompt: str) -> dict:
         install_all(engine)
         from .runtime_load import install as install_runtime_load
         install_runtime_load(engine)
+        # warehouse 130: an app is judged for its three states, as in a customer's build (never a content-only site)
+        from .app_states import carry_rule as carry_app_states_rule, install as install_app_states
+        report['app_states_installed'] = install_app_states(engine, prompt=prompt)
+        carry_app_states_rule(engine)
         # A request for a game is also judged as a game (omni_prod/game_runtime). The game profile is NOT open to
         # customers; this is how the engine is proven able to build one before the profile is declared (a profile is
         # a promise the engine must keep, output_profile.check_truth).
@@ -157,6 +161,8 @@ def run(prompt: str) -> dict:
     report['runtime_load'] = runtime_load_report(engine)
     from .game_runtime import report as game_runtime_report
     report['game_runtime'] = game_runtime_report(engine)
+    from .app_states import report as app_states_report
+    report['app_states'] = app_states_report(engine)
     from .site_content import report as site_route_report
     report['site_route'] = site_route_report(engine) or report.get('site_route')
     report['failure_taxonomy'] = getattr(engine, 'failure_taxonomy', [])

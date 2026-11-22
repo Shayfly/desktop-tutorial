@@ -13,7 +13,7 @@ class ANewGateWarnsUntilItIsCalibrated(unittest.TestCase):
         from unittest import mock
         from omni_prod.skill_units import gate as G
         self.assertEqual(set(G.CALIBRATING), {'HE', 'G11', 'BRAND', 'SHARE', 'A4', 'G8', 'GAME', 'APPLE', 'PRO',
-                                              'SITE_CLAIMS', 'SITE_PARITY'})
+                                              'SITE_CLAIMS', 'SITE_PARITY', 'APP_STATES'})
         self.assertEqual(set(G.CALIBRATED), {'G1', 'G10', 'G5'})                  # calibrated 2026-11-19: they block
         with mock.patch.dict(os.environ, {}, clear=False):
             for gate in (*G.CALIBRATING, *G.CALIBRATED, 'G3', 'G4', 'G6'):

@@ -30,6 +30,7 @@ def built_rows() -> list[tuple[str, str, str]]:
         for code in sorted(codes):
             rows.append((manifest['name'], manifest['gate'], code))
     from omni_prod import game_runtime, runtime_load
+    from omni_prod import app_states
     from omni_prod.g_apple import render
     static = (ROOT / 'omni_prod' / 'g_apple' / 'static.py').read_text(encoding='utf-8')
     static_codes = sorted(set(re.findall(r"add\('([A-Z0-9_]+)'", static)) - {'UNREADABLE'})
@@ -39,6 +40,7 @@ def built_rows() -> list[tuple[str, str, str]]:
              ('g_apple.reviewer.brand_category', 'APPLE', 'REVIEW_brand_category')]
     rows += [('runtime_load', 'G8', c) for c in sorted(runtime_load.CODES)]
     rows += [('game_runtime', 'GAME', c) for c in sorted(game_runtime.CODES)]
+    rows += [('app_states', 'APP_STATES', c) for c in sorted(app_states.CODES)]
     rows += [('a4.placement', 'A4', 'not_first'), ('a4.placement', 'A4', 'no_section'), ('a4.placement', 'A4', 'wrong_section')]
     return rows
 
