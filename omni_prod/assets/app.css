@@ -632,3 +632,33 @@ body.signed-out .topbar :focus-visible{outline-color:var(--signal)}
 @media(min-width:901px){
   .workspace.stage-max>.stage{inset:12px;width:auto}
 }
+
+/* For everyone (the owner, 2026-11-22: "מקטן שיודע לקרוא ועד למבוגר שלא מבין בכלל").
+   1. Text: reading text is at least 16px; only small print that labels other text (a status, a tag, who said a
+      message, a technical id) is smaller, at 14px. Every size is in rem, so the three text sizes scale the whole page.
+   2. Every control is at least 44x44px (warehouse 133 acceptance), not only WCAG's 24px.
+   tests/platform_for_everyone_browser.cjs measures both on every screen. */
+html{font-size:100%}
+html[data-text="large"]{font-size:112.5%}
+html[data-text="xlarge"]{font-size:125%}
+body,.sidebar,.workspaceDialog{font-size:1rem}
+.hint,.msg,.banner,label>span,.composerHint,.projectCards summary,.versionLabel summary,.chatMode,.ctxTabs button,
+.quick .qq,.quick .opts button,.sidebar .sbSearch input,.sbSearch input,:is(.sidebar,.workspaceDialog) .sbList button,
+.answers .q,.checklist li,.readinessStatus p,.blockers,.step .note,.mode small,.found,.edSection h3,.live-log ol,
+.welcomeChat p,.statusline,.data-note,.sharing,.sharing input,.offline,.skip{font-size:1rem}
+.scope,.welcomeCopy .scope{font-size:1rem!important}
+.welcomeCopy #heroLead{font-size:1.125rem}
+h2,.welcomeChat h2,.workspaceDialog h2{font-size:1.375rem}
+.sidebar .sbWordmark,body.signed-out .topbar .brand{font-size:1.375rem}
+.welcomeCopy #heroTitle{font-size:clamp(2.375rem,5vw,4.875rem)}
+.sidebar h3,.sidebar .email,.sbStatus,.sidebar .sbFoot,.pill,.bubble .who,.versions .meta,.versions code,.url,.tech,
+.email,.taskboard .dept,.arch .layer>b,.arch .tk,.cost span{font-size:.875rem}
+.skip{min-height:44px;display:inline-flex;align-items:center}
+.icon,#ctxMinimize,.passwordToggle,#chatSend,#attachBtn{min-width:44px;min-height:44px}
+#chatSend{width:2.75rem;height:2.75rem}
+#chatInput{min-height:44px}
+summary,select,input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]){min-height:44px}
+.windowOpt,.canonAck{min-height:44px}
+body.signed-out .topbar #textSizeBtn{color:#f2e9d8}
+body.signed-out .topbar #textSizeBtn:hover{background:transparent;text-decoration:underline}
+.workspaceExamples button{min-height:44px}

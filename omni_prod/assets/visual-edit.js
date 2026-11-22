@@ -59,6 +59,9 @@ Object.assign(T.en, {
   k_p: 'Paragraph', k_li: 'List item', k_label: 'Label', k_nav: 'Menu', k_form: 'Form', k_table: 'Table', k_any: 'Element',
   inPage: p => `on page ${p}`, selectedDesc: 'The selected element', near: x => `near "${x}"`, inFile: f => `in ${f}`,
 });
+// plain words on the preview screen (the owner, 2026-11-22; app.js "For everyone")
+Object.assign(T.he, { pickElement: 'בחירת חלק לשינוי', edPickHint: 'לחצו "בחירת חלק לשינוי" ואז על החלק שתרצו לשנות. בטלפון — הקישו עליו.' });
+Object.assign(T.en, { pickElement: 'Pick a part to change', edPickHint: 'Press "Pick a part to change", then click the part you want to change. On a phone, tap it.' });
 
 const VE = (() => {
   const MAX_IMAGES = 6, MAX_BYTES = 3 * 1024 * 1024, MAX_SIDE = 2000;

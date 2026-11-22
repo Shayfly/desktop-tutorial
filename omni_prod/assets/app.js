@@ -343,6 +343,57 @@ Object.assign(T.en, {
   ],
 });
 
+// For everyone (the owner, 2026-11-22: "מקטן שיודע לקרוא ועד למבוגר שלא מבין בכלל"; inbox 001 §6: the number of
+// technical terms a person must know to start and finish is zero). These words replace the earlier ones on the entry,
+// the first screen, the drawer, the preview and the history; tests/platform_for_everyone_browser.cjs counts the
+// technical terms on those screens and fails when one comes back.
+Object.assign(T.he, {
+  hero: 'תארו במילים שלכם מה אתם צריכים.',
+  workspaceLead: 'מספרים במילים פשוטות מה צריך. אנחנו מציעים, אתם מאשרים, ורואים את התוצאה.',
+  how1: 'כותבים במילים פשוטות מה אתם צריכים.', how2: 'מקבלים הצעה עם מחיר, ומאשרים רק אם מתאים.',
+  how3: 'רואים איך זה נראה, מבקשים שינויים במילים, ושומרים.',
+  scope: 'כרגע אפשר לבנות אתרים ומערכות שנפתחים מכל מחשב או טלפון. אפליקציה להתקנה בטלפון, משחקים, וידאו ומוזיקה עוד לא.',
+  manage: 'אפשרויות', manageProject: 'אפשרויות הפרויקט', versions: 'היסטוריה', tab_versions: 'היסטוריה', noVersions: 'עוד אין שמירות קודמות.',
+  download: 'הורדת הקבצים',
+  publishNotConfigured: 'העלאה לאוויר עוד לא זמינה. בינתיים אפשר לראות איך זה נראה ולהוריד את הקבצים.',
+  workspaceTemplates: 'רעיונות להתחלה', workspaceDomains: 'כתובת לאתר',
+  workspaceDomainsNote: 'בינתיים אפשר לראות את האתר ולהוריד אותו. כתובת משלכם, כמו www.העסק-שלי.co.il, תופיע כאן כשהאפשרות תהיה זמינה.',
+  chatHelloTitle: 'מה תרצו ליצור?',
+  chatHello: 'כתבו במילים שלכם, כמו שהייתם מספרים לחבר, או לחצו על אחת הדוגמאות. שום דבר לא נבנה ושום חיוב לא קורה בלי האישור שלכם.',
+  workspaceExamples: [
+    ['אתר לעסק שלי', 'אני רוצה אתר לעסק שלי, עם מה שאני מציע, איפה אני נמצא ואיך יוצרים איתי קשר.'],
+    ['קביעת תורים', 'אני רוצה מערכת שבה לקוחות קובעים תור לפי שעות פנויות ומשאירים שם וטלפון.'],
+    ['הזמנה לאירוע', 'אני רוצה דף לאירוע, עם תאריך, מקום ואפשרות לאשר הגעה.'],
+    ['תיק עבודות', 'אני רוצה עמוד שמציג את העבודות שלי עם תמונות ודרך ליצור איתי קשר.'],
+    ['קטלוג מוצרים', 'אני רוצה קטלוג מוצרים עם קטגוריות, תמונות ודרך לשאול על מוצר.'],
+    ['דף למבצע', 'אני רוצה דף שמציג מבצע או הצעה ומאפשר להשאיר פרטים.'],
+  ],
+  textSize: 'גודל טקסט', textSizes: { normal: 'רגיל', large: 'גדול', xlarge: 'גדול מאוד' },
+});
+Object.assign(T.en, {
+  hero: 'Describe what you need in your own words.',
+  workspaceLead: 'Say in plain words what you need. We suggest, you approve, and you see the result.',
+  how1: 'Write in plain words what you need.', how2: 'Get a proposal with a price, and approve it only if it suits you.',
+  how3: 'See how it looks, ask for changes in words, and keep it.',
+  scope: 'Today you can make websites and tools that open on any computer or phone. Phone apps to install, games, video and music are not available yet.',
+  manage: 'Options', manageProject: 'Project options', versions: 'History', tab_versions: 'History', noVersions: 'Nothing saved earlier yet.',
+  download: 'Download the files',
+  publishNotConfigured: 'Putting it online is not available yet. Meanwhile you can see how it looks and download the files.',
+  workspaceTemplates: 'Ideas to start', workspaceDomains: 'Web address',
+  workspaceDomainsNote: 'Meanwhile you can see your site and download it. An address of your own, like www.my-business.com, will appear here when it becomes available.',
+  chatHelloTitle: 'What would you like to make?',
+  chatHello: 'Write it in your own words, as you would tell a friend, or tap one of the examples. Nothing is built and nothing is charged without your approval.',
+  workspaceExamples: [
+    ['My business website', 'I want a website for my business with what I offer, where I am and how to reach me.'],
+    ['Booking appointments', 'I want a system where customers book an appointment in free time slots and leave their name and phone.'],
+    ['Event invitation', 'I want a page for an event with the date, the place and a way to reply that you are coming.'],
+    ['My portfolio', 'I want a page that shows my work with photos and a way to contact me.'],
+    ['Product catalogue', 'I want a product catalogue with categories, photos and a way to ask about a product.'],
+    ['A special offer', 'I want a page that shows a special offer and lets people leave their details.'],
+  ],
+  textSize: 'Text size', textSizes: { normal: 'Normal', large: 'Large', xlarge: 'Extra large' },
+});
+
 const $ = id => document.getElementById(id);
 const t = key => (T[S.lang] && T[S.lang][key]) ?? T.en[key] ?? key;
 
@@ -423,6 +474,23 @@ function explain(err) {
 }
 const pid = () => encodeURIComponent(S.projectId);
 
+/* ---------- text size (the owner, 2026-11-22: readable for an older person too) ---------- */
+// Three sizes, kept on this device. The whole page is sized in rem, so the root size scales every text.
+const TEXT_SIZES = ['normal', 'large', 'xlarge'];
+let currentTextSize = (() => {
+  try { const s = localStorage.getItem('148ai_text'); return TEXT_SIZES.includes(s) ? s : 'normal'; }
+  catch { return 'normal'; }          // private mode: the size still changes, it is just not kept after a reload
+})();
+function applyTextSize() {
+  document.documentElement.dataset.text = currentTextSize;
+  for (const b of [$('textSizeBtn'), $('textSizeBtn2')]) if (b) b.textContent = `${t('textSize')}: ${t('textSizes')[currentTextSize]}`;
+}
+function nextTextSize() {
+  currentTextSize = TEXT_SIZES[(TEXT_SIZES.indexOf(currentTextSize) + 1) % TEXT_SIZES.length];
+  try { localStorage.setItem('148ai_text', currentTextSize); } catch { /* see above */ }
+  applyTextSize();
+}
+
 /* ---------- language ---------- */
 function applyLang() {
   document.documentElement.lang = S.lang;
@@ -433,6 +501,7 @@ function applyLang() {
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
   for (const b of [$('langBtn'), $('langBtn2')]) { b.textContent = S.lang === 'he' ? 'English' : 'עברית'; b.lang = S.lang === 'he' ? 'en' : 'he'; }
   $('chatInput').placeholder = t('chatPlaceholder');
+  applyTextSize();
   $('publishNote').textContent = t('publishNotConfigured');
   document.title = S.lang === 'he' ? '148AI · סביבת יצירה' : '148AI · Creator workspace';
   renderBanner(); renderDiscovery(); renderPlan(); renderTrack(); renderVersions(); renderEvidence(); renderPreview(); renderMod();
@@ -444,11 +513,9 @@ function applyLang() {
 function signOutLocal() {
   S.signedIn = false; S.me = null;
   S.projects = []; projectBuildStates.clear(); projectDrafts.clear(); projectStateRequests.clear();
-  S.lastShownProject = null; S.pendingTemplate = '';
+  S.lastShownProject = null;
   $('chatInput').value = ''; $('followup').value = ''; $('sbSearch').value = '';
-  for (const id of ['workspaceDialog', 'newProjectDialog']) {
-    if ($(id).open) $(id).close();
-  }
+  if ($('workspaceDialog').open) $('workspaceDialog').close();
   $('sbSettings').open = false;
   closeSidebarMobile();
   renderProjects();
@@ -527,13 +594,12 @@ async function loadProjects() {
 function renderProjects() {
   const sel = $('projectSelect');
   sel.replaceChildren(...S.projects.map(p => h('option', { value: p.id, selected: p.id === S.projectId }, p.title || t('untitled'))));
-  $('emptyProjects').hidden = S.projects.length > 0;
-  $('chatForm').hidden = S.projects.length === 0;
-  $('chatCol').classList.toggle('no-project', S.projects.length === 0);
+  // the owner, 2026-11-22: nobody is asked to name a project before saying what they want. The conversation box is
+  // always there; the first message creates the project and names it (submitChat, titleFrom).
   $('projectMenuBtn').disabled = !S.projectId;
   renderSidebarProjects();
   const cur = S.projects.find(p => p.id === S.projectId);
-  const title = cur ? (cur.title || t('untitled')) : '148AI';
+  const title = cur ? (cur.title || t('untitled')) : S.projects.length ? t('newProject') : '148AI';
   $('chatTitle').textContent = title;
   renderWorkspaceHeader();
 }
@@ -644,7 +710,7 @@ function openWorkspaceDialog(view) {
     body.replaceChildren(...t('workspaceTemplateList').map(([name, prompt]) =>
       h('button', { type: 'button', class: 'ghost', onclick: () => {
         $('workspaceDialog').close();
-        openNewProject(name, prompt);
+        openNewProject(null, prompt);
       } }, name)));
   } else {
     body.replaceChildren(h('p', {}, t('workspaceDomainsNote')));
@@ -660,29 +726,27 @@ async function createProject(title) {
   // box before loading); never clear again here -- the user may already be typing.
   $('chatInput').focus();
 }
-function openNewProject(name = '', prompt = '') {
+// A new project is an empty conversation, as in every product of its kind (the owner, 2026-11-22): no name is asked.
+// The first message creates the project and names it; the name can be changed later under "Options". An idea from
+// "Ideas to start" is written into the box for the customer to read, change and send.
+async function openNewProject(_event, prompt = '') {
   closeSidebarMobile();
-  S.pendingTemplate = prompt;
-  $('newProjectName').value = typeof name === 'string' ? name : ''; $('newProjectMsg').textContent = '';
-  $('newProjectDialog').showModal(); $('newProjectName').focus();
+  if ($('workspaceDialog').open) $('workspaceDialog').close();
+  await selectProject('');
+  if (typeof prompt === 'string' && prompt) { $('chatInput').value = prompt; autoGrow(); }
+  $('chatInput').focus();
 }
-async function submitNewProject(e) {
-  e.preventDefault();
-  const name = $('newProjectName').value.trim();
-  if (!name) { $('newProjectMsg').textContent = t('nameRequired'); return; }
-  $('newProjectCreate').disabled = true;
-  try {
-    const prompt = S.pendingTemplate;
-    await createProject(name);
-    $('newProjectDialog').close();
-    if (prompt && !$('chatInput').value) {
-      $('chatInput').value = prompt;
-      autoGrow();
-    }
-    $('chatInput').focus();
-  }
-  catch (err) { $('newProjectMsg').textContent = explain(err); }
-  finally { $('newProjectCreate').disabled = false; }
+// The project's name, from the customer's first message: its first phrase without "I want", at most 40 characters.
+const TITLE_LEADS = [/^(אני\s+)?(רוצה|צריך|צריכה|מחפש|מחפשת)\s+/, /^(תבנו|בנו|תעשו|עשו)\s+לי\s+/,
+  /^i\s+(want|need|would like)\s+(to\s+have\s+)?/i, /^(please\s+)?(build|make|create)\s+(me\s+)?/i];
+function titleFrom(text) {
+  let one = String(text || '').replace(/\s+/g, ' ').trim();
+  for (const lead of TITLE_LEADS) one = one.replace(lead, '');
+  one = (one.split(/[,.;:!?\n]/)[0] || '').trim();
+  if (!one) return t('untitled');
+  if (one.length <= 40) return one;
+  const cut = one.slice(0, 40), space = cut.lastIndexOf(' ');
+  return `${space > 20 ? cut.slice(0, space) : cut}…`;
 }
 async function selectProject(id) {
   Object.values(S.timers).forEach(clearTimeout); S.timers = {};
@@ -1884,7 +1948,15 @@ async function submitChat(e) {
   const text = $('chatInput').value.trim();
   const images = window.VE ? VE.pendingCount() : 0;
   if (!text && !images) return;
-  if (!S.projectId) { openNewProject(); return; }
+  if (!S.projectId) {
+    // the first message of a new conversation creates its project, named from the message (the owner, 2026-11-22);
+    // the attached images stay attached through the switch to the new project (VE.reset)
+    if (S.creatingProject) return;
+    S.creatingProject = true; S.keepAttachments = true;
+    try { await createProject(titleFrom(text)); }
+    catch (err) { $('chatInput').value = text; autoGrow(); $('composerMsg').textContent = explain(err); return; }
+    finally { S.creatingProject = false; S.keepAttachments = false; }
+  }
   if (S.chat && S.chat.fallback && !images) { startGuidedFallback(text); return; }
   let ids = [];
   if (images) {
@@ -1893,6 +1965,8 @@ async function submitChat(e) {
   }
   const sent=await sendChat({ message: text, ...(ids.length ? { attachment_ids: ids } : {}) }, text || `📎 ${ids.length}`);
   if (sent && ids.length && window.VE) VE.clearPending();
+  // a send that failed gives the words back to the box (the project switch above had emptied it)
+  if (!sent && text && !$('chatInput').value) { $('chatInput').value = text; autoGrow(); }
 }
 async function startGuidedFallback(text) {
   // Only when the conversation API is not installed here: the existing guided
@@ -1963,8 +2037,7 @@ function actionButtons(actions) {
 }
 function renderChat() {
   const box = $('thread'); if (!box) return;
-  if (!S.projectId) { box.replaceChildren(); return; }
-  const msgs = (S.chat && S.chat.messages) || [];
+  const msgs = (S.projectId && S.chat && S.chat.messages) || [];   // a new conversation (no project yet) opens on the welcome
   const kids = [];
   if(S.chat && S.chat.interpreter) kids.push(h('p',{class:'chatMode hint'},
     S.chat.interpreter==='model-via-worker'?t('aiMode'):t('guidedMode')));
@@ -2249,10 +2322,7 @@ function wire() {
   $('langBtn').addEventListener('click', () => { S.lang = S.lang === 'he' ? 'en' : 'he'; localStorage.setItem('148ai_lang', S.lang); applyLang(); });
   $('projectSelect').addEventListener('change', e => selectProject(e.target.value));
   $('projectMenuBtn').addEventListener('click', openProjectDialog);
-  $('firstProjectForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    try { await createProject($('firstProjectName').value.trim()); } catch (err) { $('composerMsg').textContent = explain(err); }
-  });
+  for (const b of [$('textSizeBtn'), $('textSizeBtn2')]) b.addEventListener('click', nextTextSize);
   wireWorkspace();
   $('renameBtn').addEventListener('click', () => dialogAction(async () => {
     await api(`/api/v28/projects/${pid()}`, { method: 'PATCH', body: { title: $('renameInput').value.trim() } });
@@ -2273,8 +2343,6 @@ function wire() {
   // Directive 2026-10-09 §11: an offline state, not a frozen page.
   const syncOnline = () => { $('offlineBanner').hidden = navigator.onLine !== false; };
   window.addEventListener('online', syncOnline); window.addEventListener('offline', syncOnline); syncOnline();
-  $('newProjectForm').addEventListener('submit', submitNewProject);
-  $('newProjectCancel').addEventListener('click', () => $('newProjectDialog').close());
   $('modifyBtn').addEventListener('click', sendModification);
   // A fresh owner link on every refresh (links expire; the cookie may be blocked in an iframe).
   $('refreshPreviewBtn').addEventListener('click', () => { S.previewAccess = null; delete $('previewFrame').dataset.access; renderPreview(); });
