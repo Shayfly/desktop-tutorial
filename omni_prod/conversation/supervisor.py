@@ -1092,7 +1092,10 @@ class ConversationSupervisor:
         if message:
             # #335 (Michael 2026-11-13): every fact the customer states (phone, e-mail, address, hours, a closed day) is
             # kept verbatim from EVERY message -- the "מה נכון?" loop lost the cafe's phone and hours from the fields.
-            d.note_customer_texts(new_brief, [message])
+            # task 62: read against the question it answers, as customer_messages does for the stored ones
+            asked = next((str(m.get('content') or '') for m in reversed(self._messages(project_id))
+                          if m.get('role') == 'assistant'), None)
+            d.note_customer_texts(new_brief, [d.answer_in_context(message, asked)])
         if len(attachments) == 1 and re.search(r'לוגו|\blogo\b', message, re.I):
             a = attachments[0]
             if re.fullmatch(r'att_[a-f0-9]{32}', a.get('id','')) and re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):

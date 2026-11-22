@@ -1,0 +1,76 @@
+{
+ "pr": "whatsapp-role",
+ "sha256": [
+  "tests/test_whatsapp_answer_keeps_its_role.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a bare number answering the WhatsApp question stays bare (the owner's build: phone_not_one)",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "    return WHATSAPP_LABEL + m.group(0) if m and parse_phone(m.group(0)).ok else message",
+     "new": "    return message  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_whatsapp_answer_keeps_its_role.py"],
+   "expect_failed": ["test_the_answer_is_stored_as_the_whatsapp_number", "test_the_route_has_one_main_phone_and_the_whatsapp_number",
+                     "test_a_brief_stored_before_the_fix_is_corrected_by_collecting_again", "test_the_typed_answer_is_read_against_the_question_before_it",
+                     "test_answers"]
+  },
+  {
+   "id": "NC2",
+   "what": "any question that names WhatsApp counts, even one about the phone",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "    if not (_WA_WORD.search(last) and not _OTHER_PHONE_WORD.search(_WA_WORD.sub(' ', last))):",
+     "new": "    if not _WA_WORD.search(asked_before or ''):  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_whatsapp_answer_keeps_its_role.py"],
+   "expect_failed": ["test_answers"]
+  },
+  {
+   "id": "NC3",
+   "what": "the turn stores the message without the question before it (the turn and the approval check disagree)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            d.note_customer_texts(new_brief, [d.answer_in_context(message, asked)])",
+     "new": "            d.note_customer_texts(new_brief, [message])  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_whatsapp_answer_keeps_its_role.py"],
+   "expect_failed": ["test_the_typed_answer_is_read_against_the_question_before_it"]
+  },
+  {
+   "id": "NC4",
+   "what": "the stored messages are collected without the question before each answer",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "            out.append(answer_in_context(str(m.get('content') or ''), asked))",
+     "new": "            out.append(str(m.get('content') or ''))  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_whatsapp_answer_keeps_its_role.py"],
+   "expect_failed": ["test_the_answer_is_stored_as_the_whatsapp_number", "test_the_route_has_one_main_phone_and_the_whatsapp_number",
+                     "test_a_brief_stored_before_the_fix_is_corrected_by_collecting_again", "test_the_turn_and_the_stored_messages_agree"]
+  },
+  {
+   "id": "NC5",
+   "what": "a landline labelled WhatsApp keeps the label (a landline is never sent to wa.me)",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "        labelled = (at > 0 and p is not None and p.ok and p.kind == 'mobile'",
+     "new": "        labelled = (at > 0 and p is not None and p.ok  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_whatsapp_answer_keeps_its_role.py"],
+   "expect_failed": ["test_labels"]
+  }
+ ]
+}
