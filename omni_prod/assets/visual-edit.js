@@ -441,9 +441,8 @@ const VE = (() => {
     try {
       if (localStorage.getItem('148ai_editor') === 'hidden') ws().classList.add('editor-hidden');
       const w = Number(localStorage.getItem('148ai_edit_w')); if (w) setEditWidth(w);
-      // Three working areas need the room: the project list starts as a drawer
-      // on screens narrower than 1600 px unless the person opened it before.
-      if (window.innerWidth < 1600 && !localStorage.getItem('148ai_sb') && !localStorage.getItem('148ai_sb_open')) ws().classList.add('sb-collapsed');
+      // The project rail stays open on a computer, as in the owner's example (2026-11-23); it closes only when the person
+      // closes it (148ai_sb, app.js). The old 1600px rule served three side-by-side areas, which the shell no longer has.
     } catch { /* defaults */ }
     syncSidebar();
     $('sbOpen').addEventListener('click', () => { try { localStorage.setItem('148ai_sb_open', '1'); } catch { /* */ } });
