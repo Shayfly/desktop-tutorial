@@ -55,6 +55,7 @@ const path=require('path');
    assert.equal(calls.length,0,'draft edits must not update the server');
    await page.locator('#ctxMinimize').click();
    assert.equal(await page.locator('#ctx').evaluate(el=>el.classList.contains('open')),false);
+   await page.locator('#projectCards summary').click();
    await page.locator('#ctxTabs button').filter({hasText:'דרישות'}).click();
    assert.equal(await page.locator('textarea[name=q_color]').inputValue(),'ורוד עדין ושמנת','minimize preserves draft');
    await page.locator('#updateBriefBtn').click();
@@ -94,8 +95,9 @@ const path=require('path');
    }
    if(width===390){
     await page.evaluate(()=>{S.projects=[{id:'p',title:'פרויקט בדיקה'},{id:'other',title:'פרויקט נוסף'}];renderProjects();});
-    for(const pane of ['chat','preview','edit']){
-     await page.locator(`#mobileTabs button[data-pane="${pane}"]`).click();
+    for(const pane of ['chat','preview','versions','edit']){
+     await page.locator(`#mobileTabs button[data-pane="${pane==='edit'?'preview':pane}"]`).click();
+     if(pane==='edit')await page.locator('#previewEditBtn').click();
      await page.locator('#mobileMenuBtn').click();
      assert.equal(await page.locator('#workspaceView').getAttribute('data-pane'),pane,'menu preserves active pane');
      assert.equal(await page.locator('#sidebar').getAttribute('aria-modal'),'true');

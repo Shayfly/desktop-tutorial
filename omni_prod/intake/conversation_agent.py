@@ -214,6 +214,45 @@ def names_a_subject(text: str) -> bool:
     return len(_content_words(text)) >= 2
 
 
+# ---- the business name (2026-11-22). The content route builds a site only under a name the CUSTOMER declared -- a
+# "שם העסק:" line or a span they quoted (site_content.facts; "the model never chooses the business name"). In 30 days of
+# production (292 briefs) the conversation never asked for it, so a name written without quotes ("למורה ... נועה ברק")
+# sent the build to the old path as name_not_declared. The agent now asks once, and the answer -- the customer's own
+# words, never the model's -- joins the request as a "שם העסק:" line.
+NAME_ID = 'business_name'
+NAME_QUESTION = {'he': 'איך קוראים לעסק? כתבו את השם בדיוק כמו שהוא צריך להופיע באתר.',
+                 'en': 'What is the business called? Write the name exactly as it should appear on the site.'}
+_NAME_LEAD = re.compile(r'^\s*(?:(?:קוראים|קוראות)\s+(?:לו|לה|לנו|לי|לעסק)|השם(?:\s+(?:הוא|שלנו|שלי|של\s+העסק))?|שם\s+העסק(?:\s+הוא)?|'
+                        r"(?:it'?s\s+)?called|the\s+name\s+is|name)\s*[:\-–]?\s*", re.I)
+_NAME_REFUSED = re.compile(r'[0-9@/\\<>{}\[\]|]|https?:|www\.')
+# an answer that hands the choice back, or says yes/no, is not a name (found by the conversation test: "תחליטו אתם על
+# השאר" became "שם העסק: תחליטו אתם על השאר")
+_NOT_A_NAME = re.compile(r'תחליט|תבחר|החליט|בחרו|לא\s+יודע|לא\s+משנה|מה\s+ש(?:בא|תרצו|מתאים)|על\s+השאר|בלי\s+שם|אין\s+(?:לי\s+|לנו\s+)?שם|'
+                         r'דלג|^\s*(?:כן|לא|אין|אוקיי?|בסדר|סבבה|נכון|יאללה)\s*[.!]?\s*$|you\s+decide|whatever|'
+                         r"^\s*(?:yes|no|none|ok|skip|idk)\s*[.!]?\s*$", re.I)
+ASK_NAME_AT_MOST = 2       # then the approval opens without it, and the route says name_not_declared -- never a guess
+
+
+def declares_a_name(customer_text: str) -> bool:
+    """Does the customer's own text already give the business name the content route accepts: a "שם העסק:" line or a
+    quoted span (fact_canon._NAME; site_content.facts.name_candidates)?"""
+    from ..fact_canon import _NAME
+    text = customer_text or ''
+    return bool(_NAME.search(text) or _QUOTED_NAME.search(text))
+
+
+def name_line(answer: str) -> str | None:
+    """The "שם העסק:" line for a customer's answer to NAME_QUESTION, or None when the answer is not a name (a long
+    sentence, digits, a link, a line break): the agent then asks again in the next turn, never guesses."""
+    text = ' '.join((answer or '').split())
+    if _NOT_A_NAME.search(text):
+        return None
+    text = _NAME_LEAD.sub('', text).strip().strip('"״“”\'').rstrip('.!').strip()
+    if not 2 <= len(text) <= 40 or len(text.split()) > 6 or _NAME_REFUSED.search(text) or '\n' in (answer or '').strip():
+        return None
+    return f'שם העסק: {text}.'
+
+
 SUBJECT_QUESTION = {'he': 'ספרו לי במשפט או שניים על מה זה: שם העסק או הנושא, מה אתם עושים, ולמי זה מיועד?',
                     'en': 'Tell me in a sentence or two what this is about: the business or topic, what you do, and '
                           'who it is for?'}

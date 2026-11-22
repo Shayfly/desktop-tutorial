@@ -1,0 +1,95 @@
+{
+ "pr": "ask-name",
+ "sha256": [
+  "tests/test_agent_asks_the_business_name.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the approval is offered before the customer named the business (the gate ignores no_name)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if row.complete and gap_q is None and not no_subject and not no_name:",
+     "new": "        if row.complete and gap_q is None and not no_subject:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_agent_asks_the_business_name.py"
+   ],
+   "expect_failed": [
+    "test_no_approval_before_the_name_and_the_answer_becomes_the_declared_name"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the customer's answer is not joined to the request (the name stays undeclared)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                new_brief.prompt = (new_brief.prompt.rstrip() + '\\n' + line).strip()",
+     "new": "                pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_agent_asks_the_business_name.py"
+   ],
+   "expect_failed": [
+    "test_no_approval_before_the_name_and_the_answer_becomes_the_declared_name"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a handed-back answer ('תחליטו אתם') becomes the business name",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "    if _NOT_A_NAME.search(text):\n        return None",
+     "new": "    if False:  # NEGATIVE CONTROL\n        return None"
+    }
+   ],
+   "targets": [
+    "tests/test_agent_asks_the_business_name.py"
+   ],
+   "expect_failed": [
+    "test_a_handed_back_answer_is_not_a_name_and_the_question_stops_after_two",
+    "test_not_names"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the name question has no limit: a customer who will not name the business never reaches the approval",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                   and self._times_asked(project_id, agent.NAME_ID) < agent.ASK_NAME_AT_MOST)",
+     "new": "                   and True)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_agent_asks_the_business_name.py"
+   ],
+   "expect_failed": [
+    "test_a_handed_back_answer_is_not_a_name_and_the_question_stops_after_two"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the name question replaces the 'the model refused' message",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "and not turn.questions and not model_failed:",
+     "new": "and not turn.questions:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_venice_refusal_is_not_spend.py"
+   ],
+   "expect_failed": [
+    "test_a_refusal_says_refused_not_busy",
+    "test_a_slow_model_is_still_busy"
+   ]
+  }
+ ]
+}
