@@ -61,8 +61,10 @@ class LogoExecutor:
             except (tokenize.TokenError, IndentationError):
                 return False
         source = re.sub(r'<!--.*?-->|/\*.*?\*/|^\s*//[^\n]*', '', source, flags=re.S | re.M)
-        return bool(re.search(r'<img\b[^>]*\bsrc\s*=\s*\{?\s*[\"\x27]' + re.escape(self.uri) +
-                              r'[\"\x27]', source, re.I))
+        # the same rule as the generated images: '/assets/148ai-logo.png' is the logo too (review of fix-owner-build)
+        from .repository_assets import names_file
+        return any(names_file(m.group(2), self.uri)
+                   for m in re.finditer(r'<img\b[^>]*\bsrc\s*=\s*\{?\s*([\"\x27])(.*?)\1', source, re.I | re.S))
 
 
 def install(engine, *, prompt, pool, store, project_id, account_id):

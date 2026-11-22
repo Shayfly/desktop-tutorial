@@ -295,20 +295,10 @@ def _strip_comments(path: str, source: str) -> str:
 
 
 def _names_the_image(src: str, img: GeneratedImage) -> bool:
-    """True when an <img src> names this image: its marker, or its file path written as the page may write it --
-    'assets/x.webp', './assets/x.webp' or '/assets/x.webp', with or without a ?query or #fragment. The browser, the
-    preview smoke and the static check all accept these forms; this check accepted only the first, so a page that
-    wrote '/assets/x.webp' was told the image was missing (the owner's build bld_ab78f528, 2026-11-22: the image
-    check and the routes check took turns failing for five rounds). Never a parent path, a scheme, a host ('//'),
-    another directory or a bare file name."""
-    if src == img.marker:
-        return True
-    path = re.split(r'[?#]', src, maxsplit=1)[0]
-    if path.startswith('./'):
-        path = path[2:]
-    elif path.startswith('/') and not path.startswith('//'):
-        path = path[1:]
-    return path == img.uri
+    """True when an <img src> names this image: its marker, or its file path in any form repository_assets.names_file
+    accepts ('assets/x', './assets/x', '/assets/x', with or without a query or fragment)."""
+    from .repository_assets import names_file
+    return src == img.marker or names_file(src, img.uri)
 
 
 def placement(repo: dict, img: GeneratedImage) -> str:
