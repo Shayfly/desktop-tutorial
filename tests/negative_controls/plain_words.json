@@ -1,0 +1,243 @@
+{
+ "pr": "plain-words",
+ "sha256": [
+  "omni_prod/assets/app.js",
+  "omni_prod/intake/approval_flow.py",
+  "omni_prod/conversation/supervisor.py",
+  "omni_prod/build_readiness.py",
+  "omni_prod/build_announcement.py",
+  "omni_prod/investor_app.py",
+  "tests/test_plain_words_failure_and_approval.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a raw error_message is shown to a customer: the failure text carries the build's raw message again",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  const text = [what, notCharged ? t('failNotCharged') : '', t('failNext')[action](label)].filter(Boolean).join(' ');",
+     "new": "  const text = [what, b.error_message, notCharged ? t('failNotCharged') : '', t('failNext')[action](label)].filter(Boolean).join(' ');  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_failure_code_gets_the_default_line_and_never_the_raw_text",
+    "test_no_technical_term_and_no_raw_text_reaches_the_customer"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "\"קרדיטים\" is back in an approval text",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/approval_flow.py",
+     "old": "           'price': 'הבנייה הזו תוריד {c} מהיתרה שלכם.',",
+     "new": "           'price': 'הבנייה הזו תוריד {c} קרדיטים מהיתרה שלכם.',  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_every_approval_sentence_is_free_of_the_machinerys_names",
+    "test_the_price_lines_the_customer_reads"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a failure message with no next action: a stop without an action is a wall",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  const text = [what, notCharged ? t('failNotCharged') : '', t('failNext')[action](label)].filter(Boolean).join(' ');",
+     "new": "  const text = [what, notCharged ? t('failNotCharged') : ''].filter(Boolean).join(' ');  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_detail_is_named_in_words_and_sends_the_customer_to_the_request",
+    "test_an_unknown_failure_code_gets_the_default_line_and_never_the_raw_text",
+    "test_every_failure_message_names_one_next_action_that_has_a_button"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the unknown-code fallback prints the raw text and the raw code",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  return known || t('failUnknown');",
+     "new": "  return known || b.error_message || b.error_code || '';  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_failure_code_gets_the_default_line_and_never_the_raw_text",
+    "test_no_technical_term_and_no_raw_text_reaches_the_customer"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the technical block is shown to a non-owner",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  return Boolean(S.me && S.me.is_founder === true);",
+     "new": "  return true;  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_a_customer_gets_no_technical_block"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the technical block is shown to a non-owner: the build screen prints the raw message outside the owner gate",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "    msg.replaceChildren(fv.text);\n",
+     "new": "    msg.replaceChildren(fv.text + ' ' + (b.error_message || ''));  // NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_the_failed_branch_of_the_build_screen_prints_technical_text_only_through_the_owner_gate"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the approve button gets a second name again",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "actApprove:'לאשר ולהתחיל לבנות'",
+     "new": "actApprove:'לאישור והתחלת בנייה'"
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_the_approve_button_has_one_name_everywhere",
+    "test_the_sentences_that_send_the_customer_to_approve_use_that_name"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the server calls every account the founder",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "                   'is_founder': _founder(a.id)}",
+     "new": "                   'is_founder': True}  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_me_says_is_founder_only_for_the_founder_account"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "\"you were not charged\" is promised without a record that says so",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  const notCharged = !CHARGE_UNKNOWN_CODES.includes(b.error_code)\n    && (NOT_CHARGED_BILLING.includes(billing) || (!billing && NOT_CHARGED_CODES.includes(b.error_code)));",
+     "new": "  const notCharged = true;  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_failure_code_gets_the_default_line_and_never_the_raw_text",
+    "test_not_charged_is_said_only_when_the_builds_record_says_so"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the server's English sentence is shown as it is",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  if (said) return said; ",
+     "new": "  if (false) return said; "
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_the_servers_english_sentences_are_answered_in_the_customers_language"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the conversation says \"not charged\" for a failed build whose record does not say the reservation was released",
+   "mutations": [
+    {
+     "file": "omni_prod/build_announcement.py",
+     "old": "    if billing == 'released':",
+     "new": "    if True:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_the_failure_said_in_the_conversation"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the verifier's raw problem list is said to the customer again",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/approval_flow.py",
+     "old": "           'refused': 'לא הצלחתי להכין תוכנית שמתאימה למה שביקשתם. לא חויבתם.",
+     "new": "           'refused': 'לא הצלחתי להכין תוכנית שמתאימה למה שביקשתם: {what}. לא חויבתם."
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_a_refused_plan_says_what_happened_the_money_and_what_to_do",
+    "test_every_approval_sentence_is_free_of_the_machinerys_names"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "\"contact the server operator\" is the next step again",
+   "mutations": [
+    {
+     "file": "omni_prod/build_readiness.py",
+     "old": "                                       'נסו שוב מאוחר יותר.', 'Try again later.'),\n    'infrastructure'",
+     "new": "                                       'פנו למפעיל השרת.', 'Contact the server operator.'),\n    'infrastructure'"
+    }
+   ],
+   "targets": [
+    "tests/test_plain_words_failure_and_approval.py"
+   ],
+   "expect_failed": [
+    "test_a_blocked_build_says_whose_side_it_is_on_and_what_to_do"
+   ]
+  }
+ ]
+}
