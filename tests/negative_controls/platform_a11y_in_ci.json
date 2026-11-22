@@ -1,0 +1,47 @@
+{
+ "pr": "ui-a11y",
+ "sha256": [
+  "tests/test_platform_a11y_in_ci.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the platform accessibility check is dropped from the browser job",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - run: node tests/platform_a11y_browser.cjs\n",
+     "new": "      - run: echo skipped  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": ["tests/test_platform_a11y_in_ci.py"],
+   "expect_failed": ["test_the_browser_job_runs_it_and_installs_its_engine"]
+  },
+  {
+   "id": "NC2",
+   "what": "axe-core is installed as a floating range, not an exact version",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "playwright@1.62.1 axe-core@4.10.3",
+     "new": "playwright@1.62.1 axe-core@latest"
+    }
+   ],
+   "targets": ["tests/test_platform_a11y_in_ci.py"],
+   "expect_failed": ["test_the_browser_job_runs_it_and_installs_its_engine"]
+  },
+  {
+   "id": "NC3",
+   "what": "an uncaught deliberate fault no longer fails the run",
+   "mutations": [
+    {
+     "file": "tests/platform_a11y_browser.cjs",
+     "old": "      if (!caught) failures.push(`mutation ${m.id} was NOT caught (expected ${m.expect}; found ${found.map(f => f.id).join(', ') || 'nothing'})`);",
+     "new": "      if (!caught) console.log(`mutation ${m.id} missed`);  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_platform_a11y_in_ci.py"],
+   "expect_failed": ["test_it_judges_wcag_22_aa_at_three_widths_and_proves_itself"]
+  }
+ ]
+}

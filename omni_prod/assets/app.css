@@ -294,7 +294,7 @@ body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
 .welcomeChat h2{font-size:1.5rem;color:var(--ink);margin-bottom:.5rem}
 .composer{display:flex;align-items:flex-end;gap:.5rem;margin:.4rem clamp(.9rem,4vw,2.5rem) .2rem;padding:.45rem .5rem .45rem .8rem;
   background:var(--surface);border:1px solid var(--rule);border-radius:22px;box-shadow:0 1px 6px rgba(14,26,43,.06)}
-.composer:focus-within{border-color:var(--signal)}
+.composer:focus-within{border-color:var(--signal);box-shadow:0 0 0 2px var(--signal)}   /* a 1px colour change alone is a weak focus sign */
 .composer textarea{border:0;min-height:2.4rem;max-height:12rem;resize:none;padding:.45rem .2rem;background:transparent}
 .composer textarea:focus-visible{outline:none}
 #chatSend{border-radius:50%;width:2.4rem;height:2.4rem;padding:0;font-size:1.1rem;flex-shrink:0}
