@@ -274,6 +274,7 @@ jobs:
           node --check tests/approval_one_truth_browser.cjs
           node --check tests/platform_a11y_browser.cjs
           node --check tests/workspace_review_fixes_browser.cjs
+          node --check tests/ui_languages_browser.cjs
           node --check tests/workspace_guards_browser.cjs
           node --check tests/workspace_sidebar_local.cjs
       # axe-core: the WCAG engine of the platform accessibility check (the owner, 2026-11-22: accessible to everyone)
@@ -320,6 +321,9 @@ jobs:
       # F5 a late reply in another project); each scenario also fails with its fix taken out
       - run: node tests/workspace_review_fixes_browser.cjs
         timeout-minutes: 4
+      # every platform language whole: no key falls back, no text in another script, the picker switches
+      - run: node tests/ui_languages_browser.cjs
+        timeout-minutes: 3
       # the design's guards against late answers (a stale quote, a late plan, a restore after moving to another
       # project), each scenario also run with its guard taken out, where it must fail (review item T2)
       - run: node tests/workspace_guards_browser.cjs
