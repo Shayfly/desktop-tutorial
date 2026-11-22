@@ -524,12 +524,20 @@ PAID_PROMPT = ('אתר בעברית לניהול תורים למספרה קטנ�
                'ממוינת לפי זמן, ביטול תור, ומניעת שני תורים באותה שעה. בלי התחברות משתמשים.')
 
 
+def paid_prompt() -> str:
+    """The paid build's request: PAID_PROMPT, or the workflow's paid_prompt input (POSTDEPLOY_PAID_PROMPT) when given --
+    e.g. a content site with a main image, to prove warehouse 118 on a real production build (the owner, 2026-11-22)."""
+    return (os.environ.get('POSTDEPLOY_PAID_PROMPT') or '').strip() or PAID_PROMPT
+
+
 def stage_paid_create(state: dict) -> None:
     token = new_account(state)
     project = new_project(token, 'postdeploy paid build')
-    revision, view = run_discovery(token, project, PAID_PROMPT)
+    prompt = paid_prompt()
+    state['paid_prompt'] = prompt
+    revision, view = run_discovery(token, project, prompt)
     record('discovery', True, f"revision {revision}; summary: {json.dumps(view.get('summary'), ensure_ascii=False)[:500]}")
-    built = plan_and_build(token, project, revision, PAID_PROMPT)
+    built = plan_and_build(token, project, revision, prompt)
     record('approval -> build queued', True, built)
     state.update(paid_project=project, paid_build=built['build_id'])
 
@@ -583,6 +591,60 @@ def record_r2_artifact(build_id: str, version_id: str) -> bool:
     return record('R2 artifact matches the recorded SHA-256', ok, out)
 
 
+def fetch_bytes(url: str, headers: dict, timeout: float = 20.0) -> tuple[int, str, bytes]:
+    """(status, content type, body bytes) of one GET -- the raw bytes, not decoded text."""
+    req = urlrequest.Request(url, method='GET', headers=dict(headers or {}))
+    try:
+        with urlrequest.urlopen(req, timeout=timeout) as resp:
+            return resp.status, resp.headers.get('Content-Type', ''), resp.read()
+    except urlerror.HTTPError as exc:
+        return exc.code, exc.headers.get('Content-Type', '') if exc.headers else '', exc.read()
+
+
+def image_proofs(html: str, fetch) -> list[tuple[str, bool | None, str]]:
+    """Warehouse 118 on the page a preview SERVES (the owner, 2026-11-22): (check, ok, detail). ok None = not run.
+    1. every <img> src is a file the page references, never data:;  2. no 'data:' anywhere in the served HTML;
+    3. the weight: the HTML's bytes now, against the SAME page with each image inlined as base64 (what 118 replaced).
+    `fetch(src)` -> (status, content type, bytes) of one referenced file."""
+    import base64
+    import re
+    srcs = re.findall(r'<img\b[^>]*?\bsrc\s*=\s*["\']([^"\']+)', html or '', re.I)
+    html_bytes = len((html or '').encode('utf-8'))
+    if not srcs:
+        return [('118: image checks', None, f'NOT RUN: the served page has no <img> ({html_bytes} bytes)')]
+    inline = [s for s in srcs if s.strip().lower().startswith('data:')]
+    files, inlined_bytes = [], html_bytes
+    for src in srcs:
+        if src in inline:
+            continue
+        status, ctype, body = fetch(src)
+        files.append({'src': src, 'status': status, 'type': ctype, 'bytes': len(body)})
+        if status == 200 and ctype.startswith('image/'):
+            uri = f'data:{ctype.split(";")[0]};base64,' + base64.b64encode(body).decode('ascii')
+            inlined_bytes += len(uri) - len(src.encode('utf-8'))
+    served = [f for f in files if f['status'] == 200 and f['type'].startswith('image/')]
+    ratio = inlined_bytes / html_bytes if html_bytes else 0
+    return [
+        ('118: the image is a file the page references', not inline and len(served) == len(files) and bool(files),
+         f'img src: {srcs[:6]}; files: {files[:6]}'),
+        ('118: no data: in the served HTML', 'data:' not in (html or ''),
+         f"{(html or '').count('data:')} occurrence(s) of data: in {html_bytes} bytes"),
+        ('118: the HTML weight dropped by an order of magnitude', bool(served) and ratio >= 10,
+         f'served HTML {html_bytes} bytes; the same page with its images inlined (before 118) {inlined_bytes} bytes; '
+         f'{ratio:.1f}x lighter'),
+    ]
+
+
+def record_image_proofs(page_url: str, html, headers: dict) -> None:
+    from urllib.parse import urljoin
+    for check, ok, detail in image_proofs(html if isinstance(html, str) else '',
+                                          lambda src: fetch_bytes(urljoin(page_url, src), headers)):
+        if ok is None:
+            print(f'::notice title={check}::{detail}', flush=True)
+        else:
+            record(check, ok, detail)
+
+
 def stage_paid_verify(state: dict) -> None:
     token, project, b = state['token'], state['paid_project'], state['paid_build']
     s, d = api('GET', f'/api/v28/projects/{project}/builds/{b}', None, token)
@@ -623,7 +685,9 @@ def stage_paid_verify(state: dict) -> None:
         s, v = api('GET', f"/api/v28/projects/{project}/previews/{view['id']}", None, token)
         return v if s == 200 and v.get('acceptance_status') not in (None, 'NOT_CONFIGURED', 'PENDING') else None
     v2 = wait(accepted, 180, 4) or {}
-    page = http('GET', view['preview_url'], timeout=20, headers=preview_header(token, project, view))
+    access = preview_header(token, project, view)
+    page = http('GET', view['preview_url'], timeout=20, headers=access)
+    record_image_proofs(view['preview_url'], page[1], access)      # warehouse 118, on the page the preview serves
     s_again, v3 = api('GET', f"/api/v28/projects/{project}/previews/{view['id']}", None, token)
     record('acceptance stored, page responsive afterwards',
            bool(v2) and page[0] == 200 and (v3 or {}).get('status') == 'RUNNING',

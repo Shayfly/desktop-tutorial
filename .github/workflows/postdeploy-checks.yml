@@ -31,6 +31,10 @@ on:
         description: Hard model-spend ceiling for the paid build
         required: false
         default: "0.15"
+      paid_prompt:
+        description: "paid: the build's request instead of the default booking app (e.g. a content site with a main image, to prove warehouse 118); empty = the default"
+        required: false
+        default: ""
   push:
     branches: [milestone/pre-staging-2026-10-05]
     paths: [.github/workflows/postdeploy-checks.yml]
@@ -79,10 +83,11 @@ jobs:
         if: inputs.stage == 'paid'
         env:
           MAX_USD: ${{ inputs.max_usd }}
+          POSTDEPLOY_PAID_PROMPT: ${{ inputs.paid_prompt }}
         run: |
           set -uo pipefail
           run() { docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres $QA_ENV \
-                    -v "$RUNNER_TEMP/pd:/out" "$IMG" python -m omni_prod.postdeploy_checks "$1" 2>&1 \
+                    -e POSTDEPLOY_PAID_PROMPT -v "$RUNNER_TEMP/pd:/out" "$IMG" python -m omni_prod.postdeploy_checks "$1" 2>&1 \
                     | grep -E '^(::|POSTDEPLOY|Traceback|[A-Za-z]+Error)' ; }
           docker compose stop -t 1500 worker
           rc=0
