@@ -91,7 +91,7 @@ class TheDecisionTable(unittest.TestCase):
                            '(binding; fingerprint 0123456789abcdef) ---\nSign-in: NONE. Do not add login.\n'
                            'Do not store personal or contact details of people.\nProduct kind: CONTENT-ONLY website.'),
             'uploaded_logo': with_brief_line(logo),
-            'approved_windows': with_brief_line('\n'.join(prompt_lines(['mega_menu']))),
+            'approved_windows: mega_menu': with_brief_line('\n'.join(prompt_lines(['mega_menu']))),
             'image_place_gallery': with_brief_line(gallery),
             'icon_image': with_request('אני רוצה גם לוגו למשרד.'),
             'several_pictures': with_request('אני רוצה 3 תמונות של המשרד.'),

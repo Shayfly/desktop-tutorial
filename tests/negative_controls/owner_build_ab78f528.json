@@ -1,0 +1,183 @@
+{
+ "pr": "fix-owner-build",
+ "sha256": [
+  "tests/test_owner_build_ab78f528.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the carried-image exemption is removed (the production failure comes back)",
+   "mutations": [
+    {
+     "file": "omni_prod/consistency_gate.py",
+     "old": "                if _carried_image(step or {}, repo):\n                    continue\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_owner_build_ab78f528.py"
+   ],
+   "expect_failed": [
+    "test_a_step_that_gets_the_carried_image_is_not_a_missing_route",
+    "test_the_two_checks_now_agree_on_one_page"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "any method is exempt",
+   "mutations": [
+    {
+     "file": "omni_prod/consistency_gate.py",
+     "old": "    if str(step.get('method') or 'GET').upper() != 'GET':\n        return False\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_owner_build_ab78f528.py"
+   ],
+   "expect_failed": [
+    "test_everything_else_is_still_judged"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the file need not be the carried envelope",
+   "mutations": [
+    {
+     "file": "omni_prod/consistency_gate.py",
+     "old": "    return is_envelope(repo.get(f'assets/{name}'))",
+     "new": "    return True"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_build_ab78f528.py"
+   ],
+   "expect_failed": [
+    "test_everything_else_is_still_judged",
+    "test_on_main_this_was_the_production_failure"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "any directory is exempt",
+   "mutations": [
+    {
+     "file": "omni_prod/consistency_gate.py",
+     "old": "_CARRIED = re.compile(r'/assets/([^/?#]+)')",
+     "new": "_CARRIED = re.compile(r'/[^/]+/([^/?#]+)')"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_build_ab78f528.py"
+   ],
+   "expect_failed": [
+    "test_everything_else_is_still_judged"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a sub-directory or a query is exempt",
+   "mutations": [
+    {
+     "file": "omni_prod/consistency_gate.py",
+     "old": "_CARRIED = re.compile(r'/assets/([^/?#]+)')",
+     "new": "_CARRIED = re.compile(r'/assets/(.+)')"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_build_ab78f528.py"
+   ],
+   "expect_failed": [
+    "test_everything_else_is_still_judged"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "any suffix is exempt",
+   "mutations": [
+    {
+     "file": "omni_prod/consistency_gate.py",
+     "old": "    if name.startswith('.') or '.' + name.rsplit('.', 1)[-1].lower() not in EXT_MIME:\n        return False\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_owner_build_ab78f528.py"
+   ],
+   "expect_failed": [
+    "test_everything_else_is_still_judged",
+    "test_the_exemption_itself_refuses_a_hidden_name"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the image check is exact again (root-relative path counted as missing)",
+   "mutations": [
+    {
+     "file": "omni_prod/generated_images.py",
+     "old": "            if not src or not _names_the_image(src.group(2), img):",
+     "new": "            if not src or src.group(2) not in (img.uri, img.marker):"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_build_ab78f528.py"
+   ],
+   "expect_failed": [
+    "test_the_forms_a_browser_reads_as_the_file",
+    "test_an_empty_alt_is_still_no_alt",
+    "test_the_two_checks_now_agree_on_one_page"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "every leading slash is stripped (a host path counts)",
+   "mutations": [
+    {
+     "file": "omni_prod/generated_images.py",
+     "old": "    elif path.startswith('/') and not path.startswith('//'):\n        path = path[1:]",
+     "new": "    else:\n        path = path.lstrip('/')"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_build_ab78f528.py"
+   ],
+   "expect_failed": [
+    "test_never_another_file"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "any path ending in the file name counts",
+   "mutations": [
+    {
+     "file": "omni_prod/generated_images.py",
+     "old": "    return path == img.uri",
+     "new": "    return path.endswith(img.uri)"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_build_ab78f528.py"
+   ],
+   "expect_failed": [
+    "test_never_another_file"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the route no longer names the window",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "        return Route(LEGACY, 'approved_windows: ' + ', '.join(windows))",
+     "new": "        return Route(LEGACY, 'approved_windows')"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_build_ab78f528.py"
+   ],
+   "expect_failed": [
+    "test_the_owners_two_windows_are_named"
+   ]
+  }
+ ]
+}

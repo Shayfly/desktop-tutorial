@@ -245,6 +245,30 @@ def _served(prefix: str, server: str) -> bool:
     return all(re.search(r'''['"]%s['"]''' % re.escape(s), server) for s in segments)
 
 
+_CARRIED = re.compile(r'/assets/([^/?#]+)')
+
+
+def _carried_image(step: dict, repo: dict[str, str]) -> bool:
+    """An acceptance step that GETs an image the platform carries as a file (warehouse 118): the exact path
+    /assets/<name>, an image suffix, and the file is in the repository as the platform's binary envelope. Such a
+    step is not a missing route: the generated server is told to answer GET /assets/<name>, and whether it does is
+    proved by running the step (and by the preview smoke), not by reading the server for the word 'assets' --
+    'assets' is a generic segment here, so the reading never counted a startswith('/assets/') handler. Found on
+    the owner's build bld_ab78f528 (2026-11-22): its server served the image (preview smoke PASS) and this check
+    still blocked it for five rounds. Anything else -- another method, another directory, a sub-directory, a query,
+    a file that is not there or is not the carried envelope -- is judged as before."""
+    from .repository_assets import EXT_MIME, is_envelope
+    if str(step.get('method') or 'GET').upper() != 'GET':
+        return False
+    m = _CARRIED.fullmatch(str(step.get('path') or ''))
+    if not m:
+        return False
+    name = m.group(1)
+    if name.startswith('.') or '.' + name.rsplit('.', 1)[-1].lower() not in EXT_MIME:
+        return False
+    return is_envelope(repo.get(f'assets/{name}'))
+
+
 def _routes(repo: dict[str, str], out: list[Finding], report: ConsistencyReport) -> None:
     server = _server_text(repo)
     if not server.strip():
@@ -272,6 +296,8 @@ def _routes(repo: dict[str, str], out: list[Finding], report: ConsistencyReport)
             return
         for persona in plan.get('personas') or []:
             for step in (persona or {}).get('steps') or []:
+                if _carried_image(step or {}, repo):
+                    continue
                 prefix = _static_prefix(str((step or {}).get('path', '')))
                 if prefix and not _served(prefix, server):
                     out.append(Finding('routes', '.omni/project.json', None,

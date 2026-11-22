@@ -294,6 +294,23 @@ def _strip_comments(path: str, source: str) -> str:
     return re.sub(r'<!--.*?-->|/\*.*?\*/|^\s*//[^\n]*', '', source, flags=re.S | re.M)
 
 
+def _names_the_image(src: str, img: GeneratedImage) -> bool:
+    """True when an <img src> names this image: its marker, or its file path written as the page may write it --
+    'assets/x.webp', './assets/x.webp' or '/assets/x.webp', with or without a ?query or #fragment. The browser, the
+    preview smoke and the static check all accept these forms; this check accepted only the first, so a page that
+    wrote '/assets/x.webp' was told the image was missing (the owner's build bld_ab78f528, 2026-11-22: the image
+    check and the routes check took turns failing for five rounds). Never a parent path, a scheme, a host ('//'),
+    another directory or a bare file name."""
+    if src == img.marker:
+        return True
+    path = re.split(r'[?#]', src, maxsplit=1)[0]
+    if path.startswith('./'):
+        path = path[2:]
+    elif path.startswith('/') and not path.startswith('//'):
+        path = path[1:]
+    return path == img.uri
+
+
 def placement(repo: dict, img: GeneratedImage) -> str:
     """'ok', 'missing' (no visible <img> with this image) or 'no_alt' (used, but every use has an empty alt)."""
     used = False
@@ -302,7 +319,7 @@ def placement(repo: dict, img: GeneratedImage) -> str:
             continue
         for tag in _IMG_TAG.findall(_strip_comments(path, source)):
             src = re.search(r'\bsrc\s*=\s*(?:\{\s*)?(["\'`])(.*?)\1', tag, re.I | re.S)
-            if not src or src.group(2) not in (img.uri, img.marker):
+            if not src or not _names_the_image(src.group(2), img):
                 continue
             used = True
             alt = _ALT.search(tag)
