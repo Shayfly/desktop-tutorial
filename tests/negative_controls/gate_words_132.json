@@ -317,6 +317,24 @@
    "expect_failed": [
     "test_d3_a_step_missing_in_one_language_is_loud_and_never_a_crash"
    ]
+  },
+  {
+   "id": "NC17",
+   "what": "bundle 2: an APP_STATES finding (warehouse 130) loses its customer words (the debug-mode code's entry is renamed)",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "    'gate-APP_STATES-APP_DEBUG_ON': _r(",
+     "new": "    'gate-APP_STATES-APP_DEBUG_ON_X': _r(  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_every_kind_a_check_lists_in_its_own_code_has_words",
+    "test_no_words_for_a_check_nobody_can_fail"
+   ]
   }
  ]
 }

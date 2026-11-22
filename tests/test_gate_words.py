@@ -60,6 +60,10 @@ def kind_messages() -> dict[str, tuple[str, str]]:
     for code in runtime_load.CODES:
         out[f'{runtime_load.ACCEPTANCE_ID}:{code}'] = (runtime_load.ACCEPTANCE_ID,
                                                        f'{code}: why. {runtime_load._FIX.get(code, "")}')
+    from omni_prod import app_states
+    for code in app_states.CODES:                       # warehouse 130: the failure id is the prefix + its code
+        out[app_states.ACCEPTANCE_PREFIX + code] = (app_states.ACCEPTANCE_PREFIX + code,
+                                                    f'{code}: why. {app_states._FIX[code]}')
     for code in game_runtime.CODES:
         out[f'{game_runtime.ACCEPTANCE_ID}:{code}'] = (game_runtime.ACCEPTANCE_ID,
                                                        f'{code} (phone): why. {game_runtime._FIX.get(code, "")}')

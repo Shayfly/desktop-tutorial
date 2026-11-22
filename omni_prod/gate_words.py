@@ -70,6 +70,11 @@ def _e(he, ar, en, next=None):
     return Entry('edit', he, ar, en, next)
 
 
+_APP_STATES = _r(
+    ('המסכים של האפליקציה לא מראים מה קורה כשמשהו נטען, ריק או נכשל', 'מי שמשתמש בה נשאר מול מסך שלא מסביר כלום'),
+    ('شاشات التطبيق لا تُظهر ما يحدث عندما يُحمَّل شيء أو يكون فارغا أو يفشل', 'من يستخدمه يبقى أمام شاشة لا تشرح شيئا'),
+    ("The app's screens do not show what is happening when something is loading, empty or failing",
+     'people using it are left with a screen that explains nothing'))
 _SECRET_WHY = ('כל מי שנכנס לאתר יכול למצוא את זה ולהשתמש בזה על חשבונכם',
                'أي شخص يدخل الموقع يمكنه أن يجد ذلك ويستخدمه على حسابكم',
                'anyone who opens the site could find it and use it at your expense')
@@ -297,6 +302,55 @@ WORDS: dict[str, Entry] = {
         ('המשחק לא עלה כשניסינו לפתוח אותו', 'אי אפשר לשחק בו'),
         ('لم تعمل اللعبة عندما حاولنا فتحها', 'لا يمكن اللعب بها'),
         ('The game did not come up when we tried to open it', 'it cannot be played')),
+    # ---- warehouse 130, APP_STATES (omni_prod/app_states.py): the failure id is ACCEPTANCE_PREFIX + its code; the
+    # requirement APP-STATES and the bare prefix have the family's words. The generated code is ours, so: retry.
+    'APP-STATES': _APP_STATES,
+    'gate-APP_STATES-': _APP_STATES,
+    'gate-APP_STATES-APP_NO_LOADING_STATE': _r(
+        ('מסך באפליקציה לא מראה שהוא בטעינה', 'אנשים יחשבו שהוא תקוע ויעזבו'),
+        ('شاشة في التطبيق لا تُظهر أنها قيد التحميل', 'سيظن الناس أنها عالقة ويغادرون'),
+        ('A screen of the app does not show that it is loading', 'people will think it is stuck and leave')),
+    'gate-APP_STATES-APP_NO_EMPTY_STATE': _r(
+        ('מסך באפליקציה לא אומר כלום כשאין בו עדיין תוכן', 'מי שנכנס בפעם הראשונה רואה מסך ריק ולא יודע מה לעשות'),
+        ('شاشة في التطبيق لا تقول شيئا عندما لا يكون فيها محتوى بعد', 'من يدخل أول مرة يرى شاشة فارغة ولا يعرف ماذا يفعل'),
+        ('A screen of the app says nothing while it has no content yet',
+         'a first-time visitor sees an empty screen and does not know what to do')),
+    'gate-APP_STATES-APP_NO_ERROR_STATE': _r(
+        ('מסך באפליקציה לא אומר כלום כשמשהו נכשל', 'אנשים לא יבינו מה קרה ולא ידעו מה לעשות'),
+        ('شاشة في التطبيق لا تقول شيئا عندما يفشل شيء', 'لن يفهم الناس ما حدث ولن يعرفوا ماذا يفعلون'),
+        ('A screen of the app says nothing when something fails', 'people will not understand what happened or what to do')),
+    'gate-APP_STATES-APP_ERROR_WITHOUT_ACTION': _r(
+        ('כשמשהו נכשל באפליקציה, לא כתוב מה אפשר לעשות', 'אנשים נתקעים בלי דרך להמשיך'),
+        ('عندما يفشل شيء في التطبيق، لا يُكتب ما يمكن فعله', 'يعلق الناس بلا طريق للمتابعة'),
+        ('When something fails in the app, it does not say what to do next', 'people get stuck with no way forward')),
+    'gate-APP_STATES-APP_FETCH_UNHANDLED': _r(
+        ('האפליקציה לא מוכנה למקרה שבו מידע לא מגיע', 'במקרה כזה המסך נתקע'),
+        ('التطبيق غير مستعد لحالة لا تصل فيها المعلومات', 'في هذه الحالة تتوقف الشاشة'),
+        ('The app is not ready for information that does not arrive', 'when that happens, the screen gets stuck')),
+    'gate-APP_STATES-APP_STATUS_UNCHECKED': _r(
+        ('האפליקציה מציגה מידע בלי לבדוק שהוא הגיע תקין', 'אנשים עלולים לראות מסך שבור או מידע לא נכון'),
+        ('يعرض التطبيق معلومات دون أن يتحقق من أنها وصلت سليمة', 'قد يرى الناس شاشة معطوبة أو معلومات غير صحيحة'),
+        ('The app shows information without checking that it arrived intact',
+         'people may see a broken screen or wrong information')),
+    'gate-APP_STATES-APP_RAW_ERROR_SHOWN': _r(
+        ('כשמשהו נכשל, האפליקציה מציגה הודעה שאנשים לא יבינו', 'היא גם חושפת פרטים שלא צריכים להיות גלויים'),
+        ('عندما يفشل شيء، يعرض التطبيق رسالة لن يفهمها الناس', 'وهي تكشف أيضا تفاصيل لا يجب أن تُرى'),
+        ('When something fails, the app shows a message people will not understand',
+         'it also reveals details that should stay hidden')),
+    'gate-APP_STATES-APP_TRACEBACK_TO_CLIENT': _r(
+        ('כשיש תקלה, האפליקציה שולחת למסך את הפרטים הפנימיים שלה', 'זה מבלבל אנשים וחושף פרטים שלא צריכים להיות גלויים'),
+        ('عند حدوث خلل، يرسل التطبيق إلى الشاشة تفاصيله الداخلية', 'هذا يربك الناس ويكشف تفاصيل لا يجب أن تُرى'),
+        ('When something breaks, the app sends its internal details to the screen',
+         'it confuses people and reveals details that should stay hidden')),
+    'gate-APP_STATES-APP_DEBUG_ON': _r(
+        ('האפליקציה פועלת במצב ניסיון ולא במצב של אתר חי', 'במצב הזה היא חושפת פרטים שלא צריכים להיות גלויים'),
+        ('يعمل التطبيق في وضع التجربة وليس في وضع الموقع المنشور', 'في هذا الوضع يكشف تفاصيل لا يجب أن تُرى'),
+        ('The app runs in trial mode, not as a live site', 'in that mode it reveals details that should stay hidden')),
+    'gate-APP_STATES-APP_SERVER_ERROR_NOT_JSON': _r(
+        ('כשיש תקלה, האפליקציה מקבלת עמוד שגיאה במקום הודעה שהיא יודעת להציג', 'המסך לא יוכל להסביר לאנשים מה קרה'),
+        ('عند حدوث خلل، يتلقى التطبيق صفحة خطأ بدل رسالة يعرف كيف يعرضها', 'لن تستطيع الشاشة أن تشرح للناس ما حدث'),
+        ('When something breaks, the app gets a broken page instead of a message it can show',
+         'the screen cannot tell people what happened')),
     'gate-SITE_CLAIMS': _r(
         ('בעמוד נכתבה טענה כמו "הכי טוב" או "מספר 1" בלי שום עובדה מאחוריה',
          'טענה כזו פוגעת באמון, ולפעמים אסור לכתוב אותה'),
