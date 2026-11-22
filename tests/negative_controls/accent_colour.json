@@ -1,0 +1,118 @@
+{
+ "pr": "accent-colour",
+ "sha256": [
+  "tests/test_accent_colour.py",
+  "omni_prod/g_apple/contract.py",
+  "omni_prod/section_library/library.css"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the contract drops the accent again (no accent tokens)",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/contract.py",
+     "old": "        '--color-accent': accent, '--color-on-accent': on_accent, '--color-accent-text': accent_text,\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_accent_colour.py"
+   ],
+   "expect_failed": [
+    "test_navy_and_gold_keeps_the_gold"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the accent is not corrected to be seen on the page (the contract then refuses the gold, and every palette build that needs the correction raises ContractError)",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/contract.py",
+     "old": "    accent = _readable(accent, bg, MIN_UI_CONTRAST)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_accent_colour.py"
+   ],
+   "expect_failed": [
+    "test_every_catalogue_palette_and_hard_cases",
+    "test_navy_and_gold_keeps_the_gold",
+    "test_the_fingerprint_binds_the_accent",
+    "test_the_generator_is_told_the_same"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "small text in the accent is checked on the page only, not on the surface or the tint (the contract then refuses the gold, and every palette build that needs the correction raises ContractError)",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/contract.py",
+     "old": "    for ground in (bg, surface, tint):\n",
+     "new": "    for ground in (bg,):\n"
+    }
+   ],
+   "targets": [
+    "tests/test_accent_colour.py"
+   ],
+   "expect_failed": [
+    "test_every_catalogue_palette_and_hard_cases",
+    "test_navy_and_gold_keeps_the_gold",
+    "test_the_fingerprint_binds_the_accent",
+    "test_the_generator_is_told_the_same"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the primary button takes the accent",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": ".btn-primary { background: var(--color-primary); color: var(--color-on-primary); border: 2px solid var(--color-primary); }",
+     "new": ".btn-primary { background: var(--color-accent); color: var(--color-on-accent); border: 2px solid var(--color-accent); }"
+    }
+   ],
+   "targets": [
+    "tests/test_accent_colour.py"
+   ],
+   "expect_failed": [
+    "test_no_button_section_or_link_is_in_the_accent"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the eyebrow goes back to the primary (the second colour is not rendered)",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": "color: var(--color-accent-text); margin-block-end: var(--space-16); }",
+     "new": "color: var(--color-primary); margin-block-end: var(--space-16); }"
+    }
+   ],
+   "targets": [
+    "tests/test_accent_colour.py"
+   ],
+   "expect_failed": [
+    "test_the_marks_use_the_accent"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the generator is not told the accent is for small marks only",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/contract.py",
+     "old": "'small text in the second colour uses --color-accent-text. Never a section background or a button in the accent.',",
+     "new": "'small text in the second colour uses --color-accent-text.',"
+    }
+   ],
+   "targets": [
+    "tests/test_accent_colour.py"
+   ],
+   "expect_failed": [
+    "test_the_generator_is_told_the_same"
+   ]
+  }
+ ]
+}

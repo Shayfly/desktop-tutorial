@@ -43,7 +43,10 @@ class TheContract(unittest.TestCase):
         self.assertTrue(all(px % 8 == 0 or px == 4 for px in C.SPACE_PX))
         self.assertEqual(len(C.WEIGHTS), 2)
         self.assertIn("'Heebo'", t['--font-family'])
-        self.assertEqual(CONTRACT['dropped']['why'], 'one accent colour: the primary')
+        # version 2 (2026-11-22): the palette's second colour is a token for small marks, no longer dropped
+        self.assertEqual(CONTRACT['version'], 2)
+        self.assertNotIn('dropped', CONTRACT)
+        self.assertTrue({'--color-accent', '--color-on-accent', '--color-accent-text'} <= set(t))
         self.assertIn(CONTRACT['fingerprint'], C.rules(CONTRACT))
         self.assertIn(CONTRACT['css'], C.rules(CONTRACT))
 
@@ -76,7 +79,7 @@ class StaticEnforcement(unittest.TestCase):
             'PX_OFF_SCALE': 'p{margin:13px}',
             'THIRD_WEIGHT': 'p{font-weight:500}',
             'RADIUS_OFF': '.card{border-radius:14px}',
-            'SECOND_ACCENT': 'p{color:var(--color-accent)}',
+            'SECOND_ACCENT': 'p{color:var(--color-highlight)}',     # --color-accent is a contract token since version 2
         }
         for code, css in cases.items():
             self.assertEqual(codes(page(css)), [code], css)
