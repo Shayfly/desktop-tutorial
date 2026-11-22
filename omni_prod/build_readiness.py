@@ -45,8 +45,8 @@ REASONS: dict[str, tuple[str, str, str, str, str]] = {
                            'ערכו את הבקשה בלי הדרישה שסומנה.', 'Edit the request without the marked requirement.'),
     'cost_quote_unavailable': ('quote', 'לא התקבלה הצעת מחיר לבנייה.', 'No price was returned for this build.',
                                'נסו שוב בעוד כמה דקות.', 'Try again in a few minutes.'),
-    'plan_cannot_authorize_cost': ('quote', 'המסלול שלך לא מכסה את הבנייה הזו.', 'Your plan does not cover this build.',
-                                   'שדרגו את המסלול, או צמצמו את הבקשה.', 'Upgrade the plan, or make the request smaller.'),
+    'plan_cannot_authorize_cost': ('quote', 'הבנייה הזו גדולה ממה שכלול אצלכם.', 'Your plan does not cover this build.',
+                                   'אפשר לבקש פחות דברים, ואז הבנייה תיכנס.', 'Upgrade the plan, or make the request smaller.'),
     'qa_budget_denied': ('quote', 'תקציב בדיקות הפיתוח לא מאפשר את הבנייה הזו.', 'The development-test budget does not allow this build.',
                          'בדקו את יתרת תקציב הבדיקות.', 'Check the test budget balance.'),
     # Plain words (owner 2026-11-21): the customer has no "server operator" to turn to and nothing here is theirs to fix,
@@ -64,9 +64,9 @@ REASONS: dict[str, tuple[str, str, str, str, str]] = {
 _PREFIXES = ('infrastructure_', 'image_provider_')
 # The subscription's own refusal reasons (subscription_store.authorize), said precisely instead of "not covered".
 PLAN_REASONS = {
-    'cost class not included in plan': ('המסלול שלך לא כולל בנייה בגודל הזה.', 'Your plan does not include a build of this size.'),
-    'monthly credits exhausted': ('הקרדיטים החודשיים נגמרו.', 'The monthly credits are used up.'),
-    'paid-provider budget exhausted': ('תקציב הבנייה של המסלול לחודש הזה נגמר.', "This month's build budget on your plan is used up."),
+    'cost class not included in plan': ('בנייה בגודל הזה לא כלולה אצלכם.', 'Your plan does not include a build of this size.'),
+    'monthly credits exhausted': ('נגמר מה שכלול אצלכם החודש.', 'The monthly credits are used up.'),
+    'paid-provider budget exhausted': ('סכום הבנייה של החודש נגמר.', "This month's build budget on your plan is used up."),
 }
 _ORDER = {'requirements': 0, 'gate': 1, 'quote': 2}
 
@@ -80,7 +80,7 @@ NAMES: dict[str, tuple[str, str]] = {
     'integration.oauth': ('התחברות עם חשבון חיצוני', 'sign-in with an outside account'),
     'integration.analytics': ('מדידת תנועה', 'analytics'),
     'integration.storage': ('אחסון קבצים', 'file storage'),
-    'integration.database': ('חיבור למסד נתונים חיצוני', 'an outside database'),
+    'integration.database': ('חיבור למאגר מידע קיים', 'an outside database'),
     'integration.source_control': ('חיבור למאגר קוד', 'a source-control connection'),
     'media.video.generate': ('יצירת וידאו', 'video generation'),
     'media.audio.tts': ('הקראה קולית', 'text to speech'),
@@ -94,7 +94,7 @@ NAMES: dict[str, tuple[str, str]] = {
     'target.agent': ('סוכן AI', 'an AI agent'),
     'target.mobile': ('אפליקציה לטלפון', 'a phone app'),
     'target.automation': ('אוטומציה', 'automation'),
-    'database': ('מסד נתונים מנוהל', 'a managed database'),
+    'database': ('שמירת מידע מנוהלת', 'a managed database'),
     'auth_session': ('התחברות', 'sign-in'),
     'object_storage': ('אחסון קבצים', 'file storage'),
     'scheduled_http': ('משימות מתוזמנות', 'scheduled jobs'),
