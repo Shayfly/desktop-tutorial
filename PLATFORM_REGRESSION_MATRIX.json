@@ -108,7 +108,7 @@
    "expected": "real-browser probe of every product",
    "files": {
     "tests/test_browser_probe.py": {
-     "min_tests": 9
+     "min_tests": 13
     }
    }
   },
