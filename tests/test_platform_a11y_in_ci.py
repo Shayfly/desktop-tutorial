@@ -24,6 +24,13 @@ class TheCheckRuns(unittest.TestCase):
         self.assertGreaterEqual(len(re.findall(r"\{ id: '[a-z_]+',", CHECK)), 7)      # the deliberate faults
         self.assertIn('was NOT caught', CHECK)                                          # an uncaught fault fails
 
+    def test_the_design_review_fixes_run_too(self):
+        self.assertIn('node tests/workspace_review_fixes_browser.cjs', CI)
+        fixes = (ROOT / 'tests' / 'workspace_review_fixes_browser.cjs').read_text(encoding='utf-8')
+        for fix in ('F1', 'F2', 'F3', 'F5'):
+            self.assertIn(f'  async {fix}(browser, fix)', fixes)
+        self.assertIn('also passes with its fix taken out', fixes)                    # each proves itself
+
 
 if __name__ == '__main__':
     unittest.main()

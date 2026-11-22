@@ -14,8 +14,12 @@
      "new": "      - run: echo skipped  # NEGATIVE CONTROL\n"
     }
    ],
-   "targets": ["tests/test_platform_a11y_in_ci.py"],
-   "expect_failed": ["test_the_browser_job_runs_it_and_installs_its_engine"]
+   "targets": [
+    "tests/test_platform_a11y_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_browser_job_runs_it_and_installs_its_engine"
+   ]
   },
   {
    "id": "NC2",
@@ -27,8 +31,12 @@
      "new": "playwright@1.62.1 axe-core@latest"
     }
    ],
-   "targets": ["tests/test_platform_a11y_in_ci.py"],
-   "expect_failed": ["test_the_browser_job_runs_it_and_installs_its_engine"]
+   "targets": [
+    "tests/test_platform_a11y_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_browser_job_runs_it_and_installs_its_engine"
+   ]
   },
   {
    "id": "NC3",
@@ -40,8 +48,29 @@
      "new": "      if (!caught) console.log(`mutation ${m.id} missed`);  // NEGATIVE CONTROL"
     }
    ],
-   "targets": ["tests/test_platform_a11y_in_ci.py"],
-   "expect_failed": ["test_it_judges_wcag_22_aa_at_three_widths_and_proves_itself"]
+   "targets": [
+    "tests/test_platform_a11y_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_it_judges_wcag_22_aa_at_three_widths_and_proves_itself"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the design review fixes test is dropped from the browser job",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - run: node tests/workspace_review_fixes_browser.cjs\n",
+     "new": "      - run: echo skipped  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_platform_a11y_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_design_review_fixes_run_too"
+   ]
   }
  ]
 }

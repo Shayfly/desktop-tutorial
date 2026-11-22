@@ -443,7 +443,7 @@ function applyLang() {
 /* ---------- auth ---------- */
 function signOutLocal() {
   S.signedIn = false; S.me = null;
-  S.projects = []; projectBuildStates.clear(); projectDrafts.clear();
+  S.projects = []; projectBuildStates.clear(); projectDrafts.clear(); projectStateRequests.clear();
   S.lastShownProject = null; S.pendingTemplate = '';
   $('chatInput').value = ''; $('followup').value = ''; $('sbSearch').value = '';
   for (const id of ['workspaceDialog', 'newProjectDialog']) {
@@ -560,6 +560,28 @@ function projectStatus(p) {
   if (['queued', 'running', 'building'].includes(status)) return 'building';
   return ['none', 'ready', 'failed', 'cancelled'].includes(status) ? status : 'unknown';
 }
+// review F2 (2026-11-22): GET /api/v28/projects carries no build status, so every project not opened in this session read
+// "status unavailable" and the status filter missed it. The latest build of each listed project is read once per
+// session -- at most 30 projects, 3 requests at a time; a project whose status cannot be read stays "unavailable".
+const projectStateRequests = new Set();
+async function loadProjectStates(projects) {
+  const queue = projects.filter(p => !projectBuildStates.has(p.id) && !p.last_build_status && !projectStateRequests.has(p.id)).slice(0, 30);
+  if (!queue.length || !S.signedIn) return;
+  queue.forEach(p => projectStateRequests.add(p.id));
+  let changed = false;
+  const worker = async () => {
+    for (let p = queue.shift(); p; p = queue.shift()) {
+      try {
+        const d = await api(`/api/v28/projects/${encodeURIComponent(p.id)}/builds/latest`);
+        if (d && 'build' in d) { projectBuildStates.set(p.id, d.build ? String(d.build.status || '').toLowerCase() : 'none'); changed = true; }
+      } catch { /* stays "status unavailable": said, not guessed */ }
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  if (!changed) return;
+  renderSidebarProjects();
+  if ($('workspaceDialog').open && $('workspaceProjectList')) renderProjectCatalogue();
+}
 function rememberBuildState(status) {
   if (!S.projectId || projectBuildStates.get(S.projectId) === status) return;
   projectBuildStates.set(S.projectId, status);
@@ -591,12 +613,15 @@ function showProjectRows(list, projects) {
 function renderSidebarProjects() {
   const query = $('sbSearch').value;
   const projects = orderedProjects(query);
-  showProjectRows($('sbProjects'), query.trim() ? projects : projects.slice(0, 5));
+  const shown = query.trim() ? projects : projects.slice(0, 5);
+  showProjectRows($('sbProjects'), shown);
+  loadProjectStates(shown);
 }
 function renderProjectCatalogue() {
   const status = $('workspaceProjectState').value;
   const projects = orderedProjects($('workspaceProjectSearch').value);
   showProjectRows($('workspaceProjectList'), projects.filter(p => !status || projectStatus(p) === status));
+  loadProjectStates(projects);
 }
 function openWorkspaceDialog(view) {
   closeSidebarMobile();
@@ -663,7 +688,8 @@ async function selectProject(id) {
   Object.values(S.timers).forEach(clearTimeout); S.timers = {};
   if (S.lastShownProject && S.lastShownProject !== id) {
     const draft = $('chatInput').value;
-    if (draft) projectDrafts.set(S.lastShownProject, draft);
+    const sending = S.inFlight && S.inFlight.project === S.lastShownProject && S.inFlight.text === draft.trim();
+    if (draft && !sending) projectDrafts.set(S.lastShownProject, draft);
     else projectDrafts.delete(S.lastShownProject);
   }
   S.projectId = id || ''; localStorage.setItem('148ai_project', S.projectId);
@@ -1403,7 +1429,8 @@ function renderPreview() {
     empty.append(h('div', { class: 'previewRecovery' }, recover));
   }
   const existing = empty.querySelector(':scope > button'); if (existing) existing.remove();
-  if (canRetry && !buildFailed) empty.append(h('button', { class: 'secondary', onclick: () => startPreview(currentVersionId()) }, t('startPreview')));
+  // review F1 (2026-11-22): a failed rebuild does not hide the preview of the version that already works
+  if (canRetry) empty.append(h('button', { class: 'secondary', onclick: () => startPreview(currentVersionId()) }, t('startPreview')));
   if (window.VE) VE.onPreview();
 }
 
@@ -1818,6 +1845,8 @@ async function sendChat(body, shownText, path) {
   const retrySignature=JSON.stringify([S.projectId,body]);
   if(!S.chatRetry || S.chatRetry.signature!==retrySignature)S.chatRetry={signature:retrySignature,key:newKey()};
   chatBusy = true; $('chatSend').disabled = true; $('composerMsg').textContent = '';
+  const project = S.projectId;
+  S.inFlight = { project, text: String(body.message || '').trim() };
   const pending = shownText ? { role: 'customer', content: shownText, pending: true } : null;
   if (pending) { S.chat = S.chat || { messages: [] }; S.chat.messages = [...(S.chat.messages || []), pending]; renderChat(); }
   try {
@@ -1836,6 +1865,9 @@ async function sendChat(body, shownText, path) {
       }
     }
     S.chatRetry=null;
+    // review F5 (2026-11-22): the customer moved to another project while this was in flight -- the reply is that
+    // project's, shown when it is opened again; this composer and this view are not touched
+    if (S.projectId !== project) { if ((projectDrafts.get(project) || '').trim() === S.inFlight.text) projectDrafts.delete(project); return true; }
     S.forceScroll = true;
     applyConversation(view);
     if (body.message) $('chatInput').value = '';
@@ -1845,7 +1877,7 @@ async function sendChat(body, shownText, path) {
     if (pending) { S.chat.messages = S.chat.messages.filter(m => m !== pending); renderChat(); }
     $('composerMsg').textContent = explain(e);
     return false;
-  } finally { chatBusy = false; $('chatSend').disabled = false; }
+  } finally { chatBusy = false; S.inFlight = null; $('chatSend').disabled = false; }
 }
 async function submitChat(e) {
   if (e) e.preventDefault();
@@ -1946,7 +1978,8 @@ function renderChat() {
   else if (S.chat && S.chat.unavailable) kids.push(h('p', { class: 'msg' }, S.chat.unavailable));
   const lastAssistant = msgs.map(m => m.role).lastIndexOf('assistant');
   msgs.forEach((m, i) => {
-    const bubble = h('div', { class: `bubble ${m.role}`, dir: 'auto', 'aria-label':m.role === 'customer' ? t('you') : t('assistant') }, m.content);
+    // review F3 (2026-11-22): the speaker, said to screen readers; an aria-label on a plain div is not read
+    const bubble = h('div', { class: `bubble ${m.role}`, dir: 'auto' }, h('span', { class: 'sr' }, `${m.role === 'customer' ? t('you') : t('assistant')}: `), m.content);
     if (m.role === 'assistant' && m.ai_status === 'fallback')
       bubble.append(h('p', { class: 'hint aiFallback' }, t('aiFallback')));
     if (m.attachments && m.attachments.length) bubble.append(h('div', { class: 'thumbs' }, m.attachments.map(a =>

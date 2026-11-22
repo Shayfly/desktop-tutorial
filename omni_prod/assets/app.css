@@ -294,7 +294,7 @@ body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
 .welcomeChat h2{font-size:1.5rem;color:var(--ink);margin-bottom:.5rem}
 .composer{display:flex;align-items:flex-end;gap:.5rem;margin:.4rem clamp(.9rem,4vw,2.5rem) .2rem;padding:.45rem .5rem .45rem .8rem;
   background:var(--surface);border:1px solid var(--rule);border-radius:22px;box-shadow:0 1px 6px rgba(14,26,43,.06)}
-.composer:focus-within{border-color:var(--signal);box-shadow:0 0 0 2px var(--signal)}   /* a 1px colour change alone is a weak focus sign */
+.composer:focus-within{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}   /* review A11Y-7: a yellow ring on white is 1.33:1 */
 .composer textarea{border:0;min-height:2.4rem;max-height:12rem;resize:none;padding:.45rem .2rem;background:transparent}
 .composer textarea:focus-visible{outline:none}
 #chatSend{border-radius:50%;width:2.4rem;height:2.4rem;padding:0;font-size:1.1rem;flex-shrink:0}
@@ -490,7 +490,7 @@ body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
 .sidebar input::placeholder,.workspaceDialog input::placeholder{color:var(--nav-meta);opacity:1}
 .sidebar :is(button.ghost,summary):hover,.workspaceDialog button.ghost:hover,
 :is(.sidebar,.workspaceDialog) .sbList button:hover{background:var(--nav-hover)}
-:is(.sidebar,.workspaceDialog) .sbList button[aria-current="true"]{background:var(--nav-active);box-shadow:inset 0 0 0 1px var(--nav-line)}
+:is(.sidebar,.workspaceDialog) .sbList button[aria-current="true"]{background:var(--nav-active);box-shadow:inset 0 0 0 1px var(--nav-line);border-inline-start:4px solid var(--nav-fg);font-weight:600}   /* review A11Y-8 */
 :is(.sidebar,.workspaceDialog) :focus-visible{outline:2px solid var(--nav-focus);outline-offset:-2px}
 .sidebar .sbSection{overflow:visible;padding:0}
 .sidebar h3,.sidebar .email,.sbStatus{font-size:13px;font-weight:400;color:var(--nav-meta)}
@@ -514,7 +514,7 @@ body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
   .mobileWorkspaceHead{display:flex;align-items:center;gap:8px;min-width:0;padding:4px 8px;border-block-end:1px solid var(--rule);background:var(--surface)}
   .mobileWorkspaceHead button{min-height:44px}
   .mobileWorkspaceHead span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-weight:500}
-  .workspace #sbOpen{display:none}
+  .workspace #sbOpen,.workspace.sb-collapsed #sbOpen{display:none}   /* review A11Y-5: one menu button, not two */
   .mobileTabs{grid-template-columns:repeat(3,minmax(0,1fr))}
   .mobileTabs button{min-height:44px}
 }
@@ -541,9 +541,10 @@ button.secondary:not(.danger){border-color:var(--rule);background:var(--surface)
 button:disabled,.button[aria-disabled="true"]{opacity:.48}
 body.signed-out{background:#151410;color:#fbf8f0}
 body.signed-out .topbar{background:#151410;border-block-end-color:#40392d}
-body.signed-out .topbar .brand{color:#fff;gap:2px;font-size:22px;font-weight:500}
+body.signed-out .topbar .brand{color:#fff;gap:2px;font-size:22px;font-weight:500;min-height:44px;display:inline-flex;align-items:center}   /* review A11Y-9 */
 body.signed-out .topbar .brand b{background:var(--signal);color:var(--signal-ink);padding-inline:3px;border-radius:4px;font-weight:500}
 body.signed-out .topbar #langBtn{color:#f2e9d8}
+body.signed-out .topbar #langBtn:hover{background:transparent;text-decoration:underline}   /* review A11Y-6: was 1.04:1 on hover */
 body.signed-out .topbar :focus-visible{outline-color:var(--signal)}
 .welcome{max-width:74rem;align-items:center;gap:clamp(24px,6vw,88px);padding:clamp(24px,7vw,100px) 20px 42px}
 .welcomeCopy #heroTitle{font-size:clamp(38px,5vw,78px);line-height:1.02;letter-spacing:-.05em;color:var(--signal)}
@@ -608,7 +609,7 @@ body.signed-out .topbar :focus-visible{outline-color:var(--signal)}
 .workspace #mobileTabs{display:grid;grid-column:2;grid-row:3;grid-template-columns:repeat(3,minmax(0,1fr));
   padding:4px 12px max(4px,env(safe-area-inset-bottom));border-block-start:1px solid var(--rule);background:var(--surface)}
 .workspace #mobileTabs button{background:transparent;color:var(--slate);border:0;border-radius:0;font-weight:500;padding-inline:2px}
-.workspace #mobileTabs button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 -3px var(--signal)}
+.workspace #mobileTabs button[aria-selected="true"]{color:var(--ink);font-weight:700;box-shadow:inset 0 -3px var(--ink)}   /* review A11Y-4: 3:1 and more */
 .workspace :is(.stage,.editor){position:relative;inset:auto;min-height:0;z-index:auto}   /* never above the drawer (z 30): the mobile .stage z-index 35 would otherwise apply */
 .workspace .stage.stage-max,.workspace.stage-max>.stage{display:flex!important;position:fixed;inset:0;z-index:1000}
 .workspace[data-pane="chat"] #previewEditBtn{display:none}
