@@ -15,6 +15,8 @@ from omni_prod.preview_inspector import make_inspecting_handler
 from omni_prod.preview_repository import PostgresPreviewRepository
 from omni_prod.preview_router import RouteTable
 from omni_prod.preview_runtime import external_preview_url
+from omni_prod.repository_assets import materialize
+from pathlib import Path
 from omni_prod.workspace import PostgresProjectWorkspace
 
 pool = DatabasePool(DB)
@@ -37,9 +39,8 @@ def launcher():
         for pid, project, version in rows:
             files = ws.get(project_id=project, version_id=version).repository()
             d = tempfile.mkdtemp(prefix='prv-')
-            for path, content in files.items():
-                p = os.path.join(d, path); os.makedirs(os.path.dirname(p), exist_ok=True)
-                open(p, 'w').write(content)
+            # warehouse 118: an image is an envelope in the version; the work directory gets its bytes (one writer)
+            materialize(Path(d), files)
             port = free_port()
             proc = subprocess.Popen([sys.executable, 'app.py'], cwd=d, env={**os.environ, 'PORT': str(port)},
                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

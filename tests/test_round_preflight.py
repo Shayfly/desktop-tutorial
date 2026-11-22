@@ -91,8 +91,13 @@ class PreflightGivesTheRoundBack(unittest.TestCase):
         self.assertEqual((result.status, result.repair_rounds), ('ready', 0))
         self.assertEqual(len(chain.runs), 1)                                   # the chain ran once, on the fixed repo
         events = [r for r in engine.failure_taxonomy if r['layer'] == 'preflight']
-        self.assertEqual(events, [{'layer': 'preflight', 'failure_type': 'preflight_syntax', 'round_index': 0,
-                                   'chain_depth': 0, 'was_repaired': True}])
+        # 2026-11-21: the event also says WHAT was wrong and how the fix ended (it used to keep neither)
+        self.assertEqual(len(events), 1)
+        self.assertEqual({k: events[0][k] for k in ('layer', 'failure_type', 'round_index', 'chain_depth',
+                                                    'was_repaired', 'outcome')},
+                         {'layer': 'preflight', 'failure_type': 'preflight_syntax', 'round_index': 0,
+                          'chain_depth': 0, 'was_repaired': True, 'outcome': 'repaired'})
+        self.assertIn('tests/test_app.py:2', events[0]['message'])
 
     def test_missing_plan_coverage_is_fixed_in_the_plan_before_the_round_counts(self):
         engine, result, chain = build({**BASE, '.omni/project.json': json.dumps(PLAN_MISSING_A2)}, Repairer())
@@ -100,6 +105,9 @@ class PreflightGivesTheRoundBack(unittest.TestCase):
         self.assertEqual(json.loads(result.repository['.omni/project.json']), PLAN_OK)
         self.assertEqual(result.repository['app.py'], BASE['app.py'])           # the app was not touched
         self.assertIn('preflight_plan_coverage', [r['failure_type'] for r in engine.failure_taxonomy])
+        event = next(r for r in engine.failure_taxonomy if r['failure_type'] == 'preflight_plan_coverage')
+        self.assertIn('no step covers acceptance ids A2', event['message'])     # which ids, on the record
+        self.assertEqual(event['outcome'], 'repaired')
 
 
 class PreflightNeverHidesARealFailure(unittest.TestCase):
@@ -111,6 +119,8 @@ class PreflightNeverHidesARealFailure(unittest.TestCase):
                                                              'message': 'Python syntax error: unterminated string literal (detected at line 2)'
                                                                         ' -> `assert "unterminated`'}])
         self.assertFalse([r for r in engine.failure_taxonomy if r['layer'] == 'preflight' and r['was_repaired']])
+        self.assertEqual({r['outcome'] for r in engine.failure_taxonomy if r['layer'] == 'preflight'},
+                         {'patch_outside_the_allowed_files'})                   # why it was not repaired, on the record
 
     def test_a_pre_flight_fix_may_only_touch_the_affected_files(self):
         engine, result, chain = build({**BASE, 'tests/test_app.py': BROKEN_TEST}, Repairer(also_touch_app=True))

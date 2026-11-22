@@ -20,6 +20,10 @@ on:
         description: "Optional: only these catalog names, comma separated (cost comparison per provider)"
         required: false
         default: ""
+      site_library:
+        description: "The content route for this rehearsal: empty = as the worker is deployed (a rehearsal has no account, so 'accounts' means the existing path); on = through the new engine; off = the existing path"
+        required: false
+        default: ""
   push:
     branches: [milestone/pre-staging-2026-10-05]
     paths: [.github/workflows/golden-rehearsal.yml]
@@ -41,12 +45,20 @@ jobs:
           PROMPT: ${{ inputs.prompt }}
           ANSWERS: ${{ inputs.answers }}
           MODELS: ${{ inputs.models }}
+          SITE_LIBRARY: ${{ inputs.site_library }}
         run: |
           # GitHub runs this with `bash -e`: a failed rehearsal (exit 1) must not stop the step before its output and
           # taxonomy are written (run 39309736314 lost both). Errors are handled explicitly; the exit code is kept.
           set +e
           set -uo pipefail
-          docker compose run --rm --no-deps -T -e OMNI_EXTERNAL_BUDGET_USD=0.50 -e OMNI_EXTERNAL_CALLS_PER_BUILD=40 -e OMNI_MODEL_ONLY="$MODELS" -e PROMPT="$PROMPT" -e ANSWERS="$ANSWERS" worker \
+          # 2026-11-21: the route of this rehearsal is said, never guessed. An unknown value stops here (no silent default).
+          route_env=()
+          case "${SITE_LIBRARY:-}" in
+            "") echo "::notice title=rehearsal route::as deployed" ;;
+            on|off) route_env=(-e "OMNI_SITE_LIBRARY=$SITE_LIBRARY"); echo "::notice title=rehearsal route::OMNI_SITE_LIBRARY=$SITE_LIBRARY" ;;
+            *) echo "::error title=rehearsal route::site_library must be empty, on or off, not '$SITE_LIBRARY'"; exit 1 ;;
+          esac
+          docker compose run --rm --no-deps -T "${route_env[@]}" -e OMNI_EXTERNAL_BUDGET_USD=0.50 -e OMNI_EXTERNAL_CALLS_PER_BUILD=40 -e OMNI_MODEL_ONLY="$MODELS" -e PROMPT="$PROMPT" -e ANSWERS="$ANSWERS" worker \
             python -c 'import os, sys; from omni_prod.rehearsal import main; sys.exit(main([os.environ["PROMPT"], os.environ.get("ANSWERS", "")]))' 2>&1 \
             | sed -E 's/(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{16,}/[redacted]/g' > "$RUNNER_TEMP/rehearsal.out"
           rc=${PIPESTATUS[0]}                # the REHEARSAL's exit code (docker compose run), never the sed or a later command

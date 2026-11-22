@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
 from .sandbox_request_policy import (MAX_BODY_BYTES, SandboxRequestRejected, validate_snapshot, validate_command)
 from .repair_contracts import sanitized_tail
+from .repository_assets import file_bytes
 from .remote_sandbox import sign_body
 from .sandbox import SandboxLimits, run_sandbox
 
@@ -74,7 +75,8 @@ async def run(req: Request):
         for rel,content in payload.repository.items():
             p=Path(rel)
             if p.is_absolute() or '..' in p.parts: raise HTTPException(400,'unsafe repository path')
-            dest=root/p; dest.parent.mkdir(parents=True,exist_ok=True); dest.write_text(content,encoding='utf-8')
+            # warehouse 118: an image envelope is written as the image's bytes (validated above), text as UTF-8
+            dest=root/p; dest.parent.mkdir(parents=True,exist_ok=True); dest.write_bytes(file_bytes(rel,content))
         # The sandbox container runs as an unprivileged uid (SandboxLimits.user),
         # but TemporaryDirectory creates 0700 directories owned by this process,
         # so the sandbox could not even open /workspace/probe.py ("python exited

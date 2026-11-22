@@ -21,9 +21,10 @@ from unittest import mock
 from omni_prod import rights_sources as R
 from omni_prod import skill_units as U
 from omni_prod.autonomous_core import AutonomousProductEngine
+from omni_prod.repository_assets import file_bytes
 from omni_prod.skill_units import gate as G
-from tests.test_contract_prompt_readers import (MARKER, PHOTO_SHA, PHOTO_URI, PROD_SHA, _Recording, contract,
-                                                engine_for, hero, worker_install)
+from tests.test_contract_prompt_readers import (MARKER, PHOTO, PHOTO_FILE, PHOTO_SHA, PHOTO_URI, PROD_SHA, _Recording,
+                                                contract, engine_for, hero, worker_install)
 from tests.test_skill_gates import BUTCHER, _Arch, _Files, _Sandbox, as_app_py
 
 RIGHTS = ['rights_font_source', 'rights_image_source', 'rights_media_source']
@@ -35,6 +36,17 @@ def install_g5(engine):
     with mock.patch.dict(os.environ, {}, clear=False):
         os.environ['OMNI_GATE_G5'] = 'block'      # the blocking behaviour, said explicitly (G5 warns while calibrating)
         return G.install(engine, 'G5')
+
+
+def g5_view(engine, repository):
+    """What G5 reads of a repository the sandbox got (warehouse 118: the platform's image files as written -- their
+    placeholders, no image file). The G5 executor is found in the engine's executor chain (bounded walk)."""
+    ex = engine.executor
+    for _ in range(G.MAX_CHAIN):
+        if isinstance(ex, G.SkillGateExecutor) and ex.gate == 'G5':
+            return ex.view(repository)
+        ex = vars(ex).get('_inner')
+    raise AssertionError('no G5 gate in the executor chain')
 
 
 def build(page):
@@ -97,7 +109,12 @@ class ThePageAsWritten(unittest.TestCase):
         sandbox = _Recording()
         engine = self._engine(sandbox)
         result = engine.build('x')
-        self.assertIn(f'src="{PHOTO_URI}"', sandbox.seen[0]['index.html'])     # the sandbox: the bytes
+        # warehouse 118: the sandbox gets the photo as a file the page references, with exactly its bytes
+        self.assertIn(f'src="{PHOTO_FILE}"', sandbox.seen[0]['index.html'])
+        self.assertEqual(file_bytes(PHOTO_FILE, sandbox.seen[0][PHOTO_FILE]), PHOTO)
+        written = g5_view(engine, sandbox.seen[0])                       # G5 judges the placeholder, as written
+        self.assertIn(f'src="{MARKER}"', written['index.html'])
+        self.assertNotIn(PHOTO_FILE, written)
         self.assertEqual((result.status, result.repair_rounds), ('ready', 0))
         self.assertEqual(G.report(engine)['G5'], {'mode': 'block', 'status': 'pass', 'failures': []})
 
@@ -115,7 +132,7 @@ class ThePageAsWritten(unittest.TestCase):
         """The logo, right-to-left, a generated image and the customer's photo, installed in the worker's order."""
         from omni_prod import page_locale, uploaded_assets as UA
         from omni_prod.generated_images import GeneratedImage, _Transform
-        logo, made = b'\x89PNG logo ' * 60, b'\xff\xd8\xff generated ' * 90
+        logo, made = b'\x89PNG\r\n\x1a\n' + b'logo ' * 60, b'\xff\xd8\xff generated ' * 90   # 118: real signatures
         logo_sha, made_sha = hashlib.sha256(logo).hexdigest(), hashlib.sha256(made).hexdigest()
         prompt = (contract().prompt.replace(PROD_SHA, PHOTO_SHA)
                   + f' Uploaded logo attachment: att_{"c" * 32}; sha256={logo_sha}.')
@@ -138,8 +155,13 @@ class ThePageAsWritten(unittest.TestCase):
                 worker_install(engine, prompt)
                 result = engine.build('x')
                 seen = sandbox.seen[0]['index.html']
-                self.assertNotIn('148ai-asset://', seen)                                   # the sandbox: bytes, three times
-                self.assertEqual(seen.count('data:image/'), 3 + bool(extra))
+                self.assertNotIn('148ai-asset://', seen)                                   # the sandbox: three files
+                self.assertEqual(seen.count('data:image/'), int(bool(extra)))               # 118: no bytes in the page
+                self.assertEqual(sorted(p for p in sandbox.seen[0] if p.startswith('assets/')),
+                                 ['assets/148ai-image-1.jpg', 'assets/148ai-logo.png', PHOTO_FILE])
+                written = g5_view(engine, sandbox.seen[0])
+                self.assertEqual(sorted(p for p in written if p.startswith('assets/')), [])
+                self.assertEqual(written['index.html'].count('148ai-asset://'), 3)
                 self.assertEqual(result.status, expect)
                 gate = G.report(engine)['G5']
                 self.assertEqual(gate['status'], 'pass' if expect == 'ready' else 'fail')

@@ -24,6 +24,7 @@
 | OPS-403 | Claude Code | In review | #403 (orphaned) `scripts/commit_resolved.sh`: the CLAUDE.md conflict with main resolved and committed with the script itself (exit 0) |
 | PRELIVE-405 | Claude Code | Waiting for the owner's signature on 5 declarations | #405 (orphaned) checked against main: needs_env, the `light` CI job (blocks an undeclared deleted line; the owner 2026-11-16), a2 109/110, the capture message, photo places; the draft skip of `test` is not carried |
 | WH-114 | Claude Code | Open | the hero image inlined as 1.7MB base64; G4 warns on it |
+| WH-118 | Claude Code | Implemented locally; not pushed; needs the owner's identity signature (preview_smoke) | images as files (`repository_assets`), five points plus gate regression, visual-edit host and the download carried; the smoke checks every resolved reference; `images_as_files` NC 19/19; G4 stays warn (STATUS 2026-11-21, 2026-11-22); branch `claude/practical-hopper-oi3qj2-images-as-files-2` |
 | REL-1116 | Claude Code | Done | #422 `349d729` -> `4e16eeb` (worker: run 43973795367); #405 `795bbae` -> `1dc1fbd` |
 | GATE-G5 | Claude Code | In review | the rights gate: 3 units (image, font, media and frames), registry `rights_sources.json` with a basis per source; an unknown source blocks; reads every served file as written; rewritten after an independent review found holes; NC 20/20 |
 | AGENT-A7 | Claude Code | Next | the rights agent, after its gate G5 |
@@ -79,3 +80,4 @@
 | FINDING-ATTRIBUTION | Codex | Draft; independent review pending | scripts/check_finding_attribution.py and its negative control |
 | CRITICAL-PATH-FRESHNESS | Codex | Draft; independent review pending | scripts/check_critical_path_freshness.py |
 | OVERLAY-ACCEPTANCE-W | Codex | Draft; awaiting CI and independent review | GitHub run 44479691814, job 135408636414 |
+| SITE-CONTENT-1 | Claude Code | Local commits, not pushed; review fixes committed (0eae688..422f929); CTO's full suite pending | content-document route slice 1 behind OMNI_SITE_LIBRARY (off); real-chain engine tests 6/6 with Chromium (CI: browser-python job, not yet run); NC site_content 44/44, section_library 7/7 default + 10/10 browser |

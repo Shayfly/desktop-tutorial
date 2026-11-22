@@ -25,5 +25,5 @@ def test_standalone_acceptance_w_still_runs_with_original_timeout():
             case = acceptance.AcceptanceW(method)
             getattr(case, method)()
             run.assert_called_once()
-            assert run.call_args.kwargs['timeout'] == 300
+            assert run.call_args.kwargs['timeout'] == 600   # the owner's ceiling (2026-11-22; it was 300)
             assert run.call_args.kwargs['env']['OMNI_M4_ACCEPTANCE_W_NESTED'] == '1'

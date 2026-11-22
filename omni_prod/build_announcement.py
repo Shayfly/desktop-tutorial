@@ -18,11 +18,18 @@ from .models import BuildStatus
 
 _LOG = logging.getLogger(__name__)
 
+# Plain words (owner 2026-11-21): what happened, what happened to the money (only when the build's record says the
+# reservation was released), and the one action -- named as its button is named in assets/app.js (actRetryBuild /
+# editAll; tests/test_plain_words_failure_and_approval.py compares the two).
+RETRY_BUTTON = {'he': 'לנסות לבנות שוב', 'en': 'Try building again'}
+EDIT_BUTTON = {'he': 'עריכת הבקשה', 'en': 'Edit requirements'}
 TEXT = {
-    'he': {'failed': 'הבנייה נכשלה.', 'refunded': 'לא חויבתם — הקרדיטים הוחזרו.',
-           'retry': 'אפשר לנסות שוב.', 'needs_input': 'כדי להמשיך חסר פרט שרק אתם יכולים לתת.'},
-    'en': {'failed': 'The build failed.', 'refunded': 'You were not charged; the credits went back.',
-           'retry': 'You can try again.', 'needs_input': 'To continue, a detail only you can give is missing.'},
+    'he': {'failed': 'לא הצלחנו לבנות את האתר הפעם.', 'refunded': 'לא חויבתם.',
+           'retry': 'אפשר לנסות שוב: לחצו על "' + RETRY_BUTTON['he'] + '".',
+           'needs_input': 'חסר פרט שרק אתם יכולים לתת. כתבו אותו בבקשה: לחצו על "' + EDIT_BUTTON['he'] + '".'},
+    'en': {'failed': 'We could not build the site this time.', 'refunded': 'You were not charged.',
+           'retry': 'You can try again: press "' + RETRY_BUTTON['en'] + '".',
+           'needs_input': 'A detail only you can give is missing. Add it to the request: press "' + EDIT_BUTTON['en'] + '".'},
 }
 CUSTOMER_FIXES = frozenset({'needs_customer_input'})
 
