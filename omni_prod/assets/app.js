@@ -371,6 +371,7 @@ Object.assign(T.he, {
   textSize: 'גודל טקסט', textSizes: { normal: 'רגיל', large: 'גדול', xlarge: 'גדול מאוד' },
   specYours: 'המפרט שלך', specTitle: 'זה מה שנבנה', specFacts: 'פרטי העסק, כמו שכתבתם', specDefault: 'בחירה שלנו, אפשר לשנות',
   specPrice: 'מחיר', specNext: 'מה עכשיו',
+  previewDevice: 'לראות כמו במחשב או כמו בטלפון', devDesktop: 'מחשב', devPhone: 'טלפון',
 });
 Object.assign(T.en, {
   hero: 'Describe what you need in your own words.',
@@ -396,6 +397,7 @@ Object.assign(T.en, {
   textSize: 'Text size', textSizes: { normal: 'Normal', large: 'Large', xlarge: 'Extra large' },
   specYours: 'Your spec', specTitle: 'This is what we will build', specFacts: 'Your business details, as you wrote them',
   specDefault: 'our choice, you can change it', specPrice: 'Price', specNext: 'What now',
+  previewDevice: 'See it as on a computer or on a phone', devDesktop: 'Computer', devPhone: 'Phone',
 });
 
 const $ = id => document.getElementById(id);
@@ -2373,6 +2375,12 @@ function wire() {
   // A fresh owner link on every refresh (links expire; the cookie may be blocked in an iframe).
   $('refreshPreviewBtn').addEventListener('click', () => { S.previewAccess = null; delete $('previewFrame').dataset.access; renderPreview(); });
   $('downloadBtn').addEventListener('click', downloadZip);
+  // the owner's example (screen 09): the preview as a computer or as a phone sees it -- the same page, narrower
+  for (const [id, device] of [['devDesktop', 'desktop'], ['devPhone', 'phone']]) $(id).addEventListener('click', () => {
+    $('workspaceView').dataset.device = device;
+    $('devDesktop').setAttribute('aria-pressed', String(device === 'desktop'));
+    $('devPhone').setAttribute('aria-pressed', String(device === 'phone'));
+  });
   $('publishBtn').addEventListener('click', publishNotConfigured);
 }
 

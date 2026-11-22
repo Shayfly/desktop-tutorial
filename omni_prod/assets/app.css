@@ -784,3 +784,11 @@ button.secondary:not(.danger):hover{border-color:var(--v-yellow-line)}
 .specSide p{margin:0;color:var(--v-muted)}
 .bubble.withCard .acts,.bubble.withCard .windowsChoice{margin-top:12px}
 @media(max-width:700px){.specBody{grid-template-columns:minmax(0,1fr);padding:16px}.specRows>div{grid-template-columns:minmax(0,1fr);gap:2px}}
+
+/* the preview as a phone sees it (the owner's example, screen 09): the page in a 390px column, centred */
+.stage .chrome{flex-wrap:wrap}
+.stage .chrome .url{min-width:8rem}
+.deviceSwitch{display:flex;gap:4px;background:var(--v-card);border:1px solid var(--v-line);border-radius:12px;padding:2px}
+.deviceSwitch button{min-height:44px;border-radius:10px;font-weight:500;color:var(--v-muted)}
+.deviceSwitch button[aria-pressed="true"]{background:var(--v-fire);color:var(--v-ink);box-shadow:inset 0 0 0 1px var(--v-fire-line);font-weight:700}
+.workspace[data-device="phone"] .stage .viewport{width:min(390px,100%);margin-inline:auto;flex:1 0 auto}
