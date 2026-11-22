@@ -11,6 +11,7 @@ import zlib
 from types import SimpleNamespace
 
 from omni_prod import generated_images as G
+from omni_prod.repository_assets import file_bytes
 from omni_prod.autonomous_core import AcceptanceFailure, ExecutionReport
 from omni_prod.capabilities import CapabilityPlan, CapabilityRequirement
 from omni_prod.capability_executor import CapabilityExecutionAssignment, CapabilityExecutor
@@ -193,11 +194,14 @@ class MarkerAndBytes(unittest.TestCase):
         G.install(e, prompt=CAFE, plan=CapabilityPlan((image_req(),), ()), evidence=self.ev, store=self.store)
         [img] = e.core.generated_images
         repo = e.core.repository_transform({'index.html': f'<img src="{img.marker}" alt="a">'})
-        self.assertIn('data:image/png;base64,', repo['index.html'])
-        self.assertNotIn(img.marker, repo['index.html'])
+        # warehouse 118: the page references the image FILE; the file is in the repository as a checked envelope
+        self.assertEqual(repo['index.html'], '<img src="assets/148ai-image-1.png" alt="a">')
+        self.assertNotIn('data:image', repo['index.html'])
+        self.assertEqual(file_bytes(img.uri, repo[img.uri]), img.data)
         self.assertEqual(e.core.repository_transform.redact(repo), {'index.html': f'<img src="{img.marker}" alt="a">'})
-        cut = img.uri[:len(img.uri) // 2]
-        self.assertNotIn(img.uri.split(',', 1)[1][:40], e.core.repository_transform.redact_text('log ' + cut))
+        env = repo[img.uri]
+        cut = env[:len(env) // 2]
+        self.assertNotIn(env.split(',', 1)[1][:40], e.core.repository_transform.redact_text('log ' + cut))
 
     def test_it_chains_onto_the_uploaded_logo_and_keeps_its_redaction(self):
         from omni_prod.uploaded_assets import logo_transform

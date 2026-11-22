@@ -153,30 +153,33 @@ class ThePage(unittest.TestCase):
 
 
 class TheServedCut(unittest.TestCase):
-    """The truth gate reads preview_smoke's GET / cut at 45,000 characters. Images are delivered today as data URIs the
-    engine's transform puts in place of the 148ai-asset:// marker (generated_images._Transform); a file server for the
-    generated site is warehouse 118, so the route keeps that delivery. The largest generated hero the platform carries
-    is web_rendition.BUDGET_BYTES (360,000 bytes, 480,000 base64 characters). With it inlined, every fact the truth gate
-    requires and the hero's copy are inside the cut; the copy after the image is past it, and the route's pre-sandbox
-    truth check reads the whole page as well (agents.prepass)."""
+    """The truth gate reads preview_smoke's GET / cut at 45,000 characters. Since warehouse 118 the hero is a file the
+    page references (`assets/148ai-image-1.<ext>`, written by the engine's transform in place of the 148ai-asset://
+    marker); the page carries no image bytes, so the whole page is inside the cut. The route's pre-sandbox truth check
+    still reads the whole page (agents.prepass), for any page that does run past the cut."""
 
     @classmethod
     def setUpClass(cls):
-        from omni_prod.web_rendition import BUDGET_BYTES
+        logo = ROOT / 'BRAND_PACK' / '148AI-logo-64.png'
         sheet = Fx.fact_sheet(PROMPT, asset_plan=[{'place': 'hero', 'marker': HERO, 'alt': 'משרד עורכי דין בתל אביב',
                                                    'source': 'generated', 'index': 1}])
-        cls.image = GeneratedImage(index=1, requirement_id='asset-002', purpose='hero/brand visual', mime='image/webp',
-                                   width=1600, height=900, sha256='x', alt='משרד עורכי דין בתל אביב',
-                                   data=b'\x00' * BUDGET_BYTES)
+        cls.image = GeneratedImage(index=1, requirement_id='asset-002', purpose='hero/brand visual', mime='image/png',
+                                   width=64, height=64, sha256='x', alt='משרד עורכי דין בתל אביב',
+                                   data=logo.read_bytes())
         cls.sheet = sheet
         cls.html, _ = render(sheet=sheet)
-        cls.served = _Transform(None, [cls.image])({R.PAGE: cls.html})[R.PAGE]
+        cls.repo = _Transform(None, [cls.image])({R.PAGE: cls.html})
+        cls.served = cls.repo[R.PAGE]
         cls.cut = cls.served[:CUT]
 
-    def test_the_image_is_inlined_and_the_page_is_past_the_cut(self):
+    def test_the_image_is_a_file_and_the_whole_page_is_inside_the_cut(self):
         self.assertIn(HERO, self.html)
-        self.assertGreater(len(self.served), CUT + 400_000)
         self.assertNotIn(HERO, self.served)
+        self.assertIn('assets/148ai-image-1.png', self.served)
+        self.assertIn('assets/148ai-image-1.png', self.repo)              # the file travels with the repository
+        self.assertNotIn('data:image', self.served)
+        self.assertLess(len(self.served), CUT)
+        self.assertEqual(self.cut, self.served)
 
     def test_every_fact_the_truth_gate_requires_and_the_hero_copy_are_inside_the_cut(self):
         text = visible(self.cut)
@@ -186,16 +189,16 @@ class TheServedCut(unittest.TestCase):
         hero = FIXTURE['scripted_content']['sections']['hero']
         for key in ('title', 'lead', 'cta'):
             self.assertIn(hero[key], text)
-        self.assertLess(self.cut.index('דרך מנחם בגין 132'), self.cut.index('data:image/webp'))
 
     def test_the_truth_gate_on_the_served_cut_finds_nothing(self):
         ctx = {'request': PROMPT, 'rendered_pages': {'/': self.cut}}
         self.assertEqual([f.to_dict() for f in _invented_contact({R.PAGE: self.served}, ctx)], [])
 
     def test_copy_past_the_cut_is_still_checked_on_the_whole_page(self):
+        # A page that does run past the cut (here: padded before the services title) is still checked whole.
         services = FIXTURE['scripted_content']['sections']['services']['title']
-        self.assertNotIn(services, visible(self.cut))                  # said, not hidden: past the cut
-        planted = self.served.replace(services, 'התקשרו 04-8123456', 1)
+        planted = self.served.replace(services, '<!--' + ' ' * CUT + '-->התקשרו 04-8123456', 1)
+        self.assertNotIn('04-8123456', planted[:CUT])
         whole = _invented_contact({R.PAGE: planted}, {'request': PROMPT})
         self.assertTrue(any('invented' in f.problem for f in whole))
         cut_only = _invented_contact({R.PAGE: planted}, {'request': PROMPT, 'rendered_pages': {'/': planted[:CUT]}})

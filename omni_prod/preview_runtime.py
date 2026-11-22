@@ -356,11 +356,9 @@ def _http_status(url: str, timeout: float) -> int:
 
 
 def _materialize_repository(root: Path, repository: dict[str, str]) -> None:
-    for rel, content in repository.items():
-        safe = normalize_repo_path(rel)
-        path = root / safe
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding='utf-8')
+    # warehouse 118: one writer for every work directory -- an image envelope becomes the image's bytes
+    from .repository_assets import materialize
+    materialize(root, repository)
 
 
 def _make_world_readable(root: Path) -> None:

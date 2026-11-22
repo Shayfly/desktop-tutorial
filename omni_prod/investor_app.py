@@ -736,14 +736,16 @@ def project_history(project_id:str)->dict:
 
 @app.get('/api/projects/{project_id}/versions/{version_id}/download')
 def download_version(project_id:str,version_id:str):
+    from .repository_assets import zip_bytes
     try: version=_workspace.get(project_id=project_id,version_id=version_id)
     except KeyError as exc: raise HTTPException(404,'version not found') from exc
-    buf=io.BytesIO()
-    with zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as z:
-        for path,content in version.files: z.writestr(path,content)
-    buf.seek(0)
-    headers={'Content-Disposition':f'attachment; filename="{project_id}-{version_id}.zip"','X-Omni-Repository-SHA256':version.checksum}
-    return StreamingResponse(buf,media_type='application/zip',headers=headers)
+    body=zip_bytes(dict(version.files),ordered=False)   # warehouse 118: images as files
+    # X-Omni-Repository-SHA256 is the STORED repository's checksum (workspace._checksum: images as envelope text), the
+    # value /history shows. The zip holds the decoded image bytes, so it is checked by X-Omni-Export-SHA256 (review
+    # 2026-11-21: for a version with an image the first header does not describe the zip's files).
+    headers={'Content-Disposition':f'attachment; filename="{project_id}-{version_id}.zip"','X-Omni-Repository-SHA256':version.checksum,
+             'X-Omni-Export-SHA256':hashlib.sha256(body).hexdigest()}
+    return StreamingResponse(io.BytesIO(body),media_type='application/zip',headers=headers)
 
 @app.get('/api/projects/{project_id}/memory')
 def project_memory(project_id:str)->dict:
