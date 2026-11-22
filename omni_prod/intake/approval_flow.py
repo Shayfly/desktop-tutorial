@@ -53,10 +53,14 @@ def spec_invalid_reason(brief, messages, fingerprint: str) -> str | None:
     stored messages state, and (3) has no needed fact that is neither given nor waived. Used by the conversation
     AND by build admission, so no path builds on an older approval."""
     from .. import discovery as d
+    from . import media_reading as MR
     if not spec_approved(messages, fingerprint):
         return 'spec_not_approved'
+    # warehouse 128: a draft read from the customer's file that awaits their decision holds every approval
+    if MR.pending_drafts(messages):
+        return 'reading_draft_pending'
     probe = d.Brief.from_dict(json.loads(json.dumps(brief.to_dict())))
-    if d.note_customer_texts(probe, d.customer_messages(messages)):
+    if d.note_customer_texts(probe, d.customer_messages(messages)) or MR.collect_skeleton(probe, messages):
         return 'facts_not_collected'
     if d.missing_facts(brief)[0]:
         return 'missing_facts_not_waived'

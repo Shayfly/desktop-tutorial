@@ -301,6 +301,9 @@ Object.assign(T.en, { actRetryBuild:'Try building again', stillMissing:'Still mi
   colourExample:'For example: soft pink with cream and gold', fontSample:'This is how your website text will look', fontUnavailable:'Preview has not loaded yet',
   guidedMode:'Guided questionnaire — AI conversation is not active right now', aiMode:'AI conversation configured — availability depends on provider and budget', draftNote:'Change as many details as you like. Only Update applies the changes.',
   attachmentSchema:'Image attachments need database migration 038 on this deployment. Your image and text remain here for retry.' });
+// warehouse 128: the two answers to a draft read from the customer's file (nothing is built before one of them)
+Object.assign(T.he, { actApproveReading:'נכון, להשתמש בזה', actDiscardReading:'לא נכון, לבטל' });
+Object.assign(T.en, { actApproveReading:'Correct, use it', actDiscardReading:'Not right, discard it' });
 
 const $ = id => document.getElementById(id);
 const t = key => (T[S.lang] && T[S.lang][key]) ?? T.en[key] ?? key;
@@ -1547,6 +1550,8 @@ async function dialogAction(fn, okKey) {
 const convPath = () => `/api/v28/projects/${pid()}/conversation`;
 // Gate 1 has its own route: approving the spec is not a chat message (an empty message is refused as empty_message).
 const specApprovalPath = () => `/api/v28/projects/${pid()}/spec-approval`;
+// Warehouse 128: a draft read from the customer's file is approved or discarded by its fingerprint, on its own route.
+const readingPath = (fingerprint, verb) => `/api/v28/projects/${pid()}/readings/${encodeURIComponent(fingerprint)}/${verb}`;
 // One source of truth for the approval state (the owner, 2026-11-16; production 11:10-11:11 the same day): the panel's
 // plan was fetched while the spec was still waiting for approval, and stayed on screen after the chat approved it --
 // the chat said "approve the budget" while the panel still said "the spec is not approved" and offered that button
@@ -1704,6 +1709,11 @@ function actionButtons(actions) {
       if (incomplete) out.push(h('label', { class: 'canonAck', for: 'canonAck' }, box, ' ', t('canonAck')));
       out.push(btn);
     }
+    // warehouse 128: the customer saw the draft in the message above; nothing enters the request until they approve it
+    if (a.type === 'approve_reading') out.push(h('button', { type: 'button', class: 'primary', onclick: () => sendChat(
+      {}, t('actApproveReading'), () => readingPath(a.draft_fingerprint, 'approve')) }, t('actApproveReading')));
+    if (a.type === 'discard_reading') out.push(h('button', { type: 'button', class: 'secondary', onclick: () => sendChat(
+      {}, t('actDiscardReading'), () => readingPath(a.draft_fingerprint, 'discard')) }, t('actDiscardReading')));
     if (a.type === 'show_plan') out.push(h('button', { type: 'button', class: 'secondary', onclick: () => { if (S.plan) openTab('plan'); else requestBriefPlan(true); } }, t('actShowPlan')));
     // warehouse 69 (A0): a type without an output profile was refused; the one action is to describe a site or app instead
     if (a.type === 'describe_web_instead') out.push(h('button', { type: 'button', class: 'primary', onclick: () => { const i = $('chatInput'); if (i) i.focus(); } }, t('actDescribeInstead')));

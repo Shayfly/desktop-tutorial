@@ -1,0 +1,349 @@
+{
+ "pr": "warehouse-128-media-reading",
+ "sha256": [
+  "tests/test_media_reading_128.py",
+  "tests/test_media_reading_128_pg.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "128.2: the vocabulary filter lets any word through (the competitor's words are kept as sections and traits)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/media_reading.py",
+     "old": "        if isinstance(item, str) and item in vocab:\n",
+     "new": "        if isinstance(item, str):\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_a_platform_label_is_not_the_customers_words",
+    "test_an_approved_skeleton_before_any_request_joins_the_brief_when_it_is_made",
+    "test_competitor_text_colour_and_logo_never_reach_the_product",
+    "test_the_skeleton_is_only_the_closed_vocabulary_of_the_reference_card"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "128.2: the reader's raw answer is kept with the draft (the competitor's text, colours and logo reach the conversation and the browser)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/media_reading.py",
+     "old": "        draft.update(language=lang, skeleton=skeleton, dropped=dropped)\n",
+     "new": "        draft.update(language=lang, skeleton=skeleton, dropped=dropped, reading=answer)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_competitor_text_colour_and_logo_never_reach_the_product"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "128.2: the hero keeps every key the reader returned and the schema check is gone (the competitor's headline and colour pass)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/media_reading.py",
+     "old": "            out[key] = {k: value[k] for k in hero_keys() if k in value}\n",
+     "new": "            out[key] = dict(value)\n"
+    },
+    {
+     "file": "omni_prod/intake/media_reading.py",
+     "old": "    if errors:\n        where = '/'.join(str(p) for p in errors[0].absolute_path) or '(root)'\n        # the message names",
+     "new": "    if False:\n        where = '/'.join(str(p) for p in errors[0].absolute_path) or '(root)'\n        # the message names"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_a_platform_label_is_not_the_customers_words",
+    "test_an_approved_skeleton_before_any_request_joins_the_brief_when_it_is_made",
+    "test_competitor_text_colour_and_logo_never_reach_the_product",
+    "test_the_skeleton_is_only_the_closed_vocabulary_of_the_reference_card"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "128.1: the build starts without the customer approving the draft -- gate 1 ignores a waiting draft",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        pending = MR.pending_drafts(self._messages(project_id)) if feasible else []\n",
+     "new": "        pending = []\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_while_a_draft_waits_gate1_refuses_and_no_build_is_admitted"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "128.1: the build starts without the customer approving the draft -- build admission (spec_invalid_reason) ignores a waiting draft",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/approval_flow.py",
+     "old": "    if MR.pending_drafts(messages):\n        return 'reading_draft_pending'\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_an_approved_spec_admits_no_build_while_a_draft_waits",
+    "test_while_a_draft_waits_gate1_refuses_and_no_build_is_admitted"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "128.1: the reading goes straight into the request, with no draft and no approval",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        turn = Turn('reading_draft', draft['language'], MR.draft_reply(draft), row)\n",
+     "new": "        return self.turn(project_id=project_id, account_id=account_id, message=draft.get('text') or 'x', lang=draft['language'])\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_a_discarded_draft_changes_nothing_and_holds_nothing",
+    "test_a_draft_is_decided_once",
+    "test_a_draft_whose_file_is_gone_cannot_be_approved",
+    "test_a_platform_label_is_not_the_customers_words",
+    "test_after_approval_the_note_is_the_request_and_gate1_follows",
+    "test_an_approved_skeleton_before_any_request_joins_the_brief_when_it_is_made",
+    "test_an_approved_spec_admits_no_build_while_a_draft_waits",
+    "test_competitor_text_colour_and_logo_never_reach_the_product",
+    "test_the_draft_and_the_conversation_name_the_stored_file",
+    "test_the_draft_is_the_transcript_never_a_translation",
+    "test_the_note_is_shown_before_approval_and_the_brief_is_untouched",
+    "test_while_a_draft_waits_gate1_refuses_and_no_build_is_admitted"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "128.1: the customer is asked to approve a draft they cannot see (the text read is not shown)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/media_reading.py",
+     "old": "    lines = [T['draft_text'][draft['purpose']], '«' + draft['text'] + '»']\n",
+     "new": "    lines = [T['draft_text'][draft['purpose']]]\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_the_note_is_shown_before_approval_and_the_brief_is_untouched"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "128.4: the approval does not check that the original file is still saved",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if not stored or stored.get('sha256') != src['sha256']:\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_a_draft_whose_file_is_gone_cannot_be_approved"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "128.4: bytes that are not the stored file are read",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/media_reading.py",
+     "old": "    if not re.fullmatch(r'att_[0-9a-f]{32}', att_id) or stored != digest:\n",
+     "new": "    if not re.fullmatch(r'att_[0-9a-f]{32}', att_id):\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_bytes_that_are_not_the_stored_file_are_not_read"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "128.4: the conversation does not record which file was uploaded",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                            {'attachments': [{'id': evidence['id'], 'kind': evidence['kind']}],\n                             'reading_request'",
+     "new": "                            {'reading_request'"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_the_draft_and_the_conversation_name_the_stored_file"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "128.5: a reading failure is shown as the technical error",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            turn = Turn('reading_failed', lang, MR.failure_sentence(exc.code, purpose, lang), row)\n",
+     "new": "            turn = Turn('reading_failed', lang, str(exc), row)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_a_picture_is_not_a_recording",
+    "test_a_provider_error_reaches_the_log_and_never_the_customer",
+    "test_a_reader_that_translated_the_speaker_fails_the_reading",
+    "test_production_today_says_what_to_do_instead"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "128.3: the brief from a recording is the reader's English summary, not the speaker's words",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/media_reading.py",
+     "old": "    text = answer.get(field_)\n",
+     "new": "    text = answer.get('brief') or answer.get(field_)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_the_draft_is_the_transcript_never_a_translation"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "128.3: the draft of a recording takes the conversation's language instead of the speaker's",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/media_reading.py",
+     "old": "        draft.update(language=language, text=text, facts=_facts(text), dropped=dropped)\n",
+     "new": "        draft.update(language=lang, text=text, facts=_facts(text), dropped=dropped)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_the_draft_is_the_transcript_never_a_translation"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "128.4 on the real attachment store: the approval does not check that the original file is still saved",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if not stored or stored.get('sha256') != src['sha256']:\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_deleted_file_cannot_be_approved_and_still_holds_the_build",
+    "test_another_accounts_store_is_not_evidence",
+    "test_the_approve_route_checks_the_stored_file"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "128.1 in the app: the draft's approve button is gone (the customer sees the draft and cannot approve it; it holds every build)",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "    if (a.type === 'approve_reading') out.push(",
+     "new": "    if (a.type === 'approve_reading_disabled') out.push("
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_the_two_buttons_post_the_decision_by_fingerprint"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "a platform label (the upload line, 'I approved the draft') is read as the customer's own words",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "            if m.get('role') == 'customer' and not (m.get('interpretation') or {}).get('label')]\n",
+     "new": "            if m.get('role') == 'customer']\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_a_platform_label_is_not_the_customers_words"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "the reading step's customer-side lines are not marked as labels (they start a brief and enter the request)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        meta = {**meta, 'label': True}\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_a_platform_label_is_not_the_customers_words",
+    "test_after_approval_the_note_is_the_request_and_gate1_follows",
+    "test_an_approved_skeleton_before_any_request_joins_the_brief_when_it_is_made",
+    "test_the_draft_is_the_transcript_never_a_translation"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "128.5 / 132: a discarded draft leaves the customer with no next action (the approval of a complete spec is not offered again)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                and not MR.pending_drafts(self._messages(project_id)):\n            parts += self._gate1(turn, row, lang)\n",
+     "new": "                and not MR.pending_drafts(self._messages(project_id)):\n            pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_media_reading_128.py"
+   ],
+   "expect_failed": [
+    "test_a_discarded_draft_changes_nothing_and_holds_nothing"
+   ]
+  }
+ ]
+}

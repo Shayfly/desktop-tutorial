@@ -3439,6 +3439,80 @@ def v28_attachment_delete(project_id: str, attachment_id: str, request: Request)
         raise HTTPException(exc.status, detail={'error': exc.code, 'message': str(exc)}) from exc
 
 
+# ---- warehouse 128: a stored image is read into a DRAFT the customer approves before anything is built ----------------
+# A voice recording is not accepted here: the attachment store (migration 038) holds images only, and no speech-to-text
+# provider is connected. The reader is OMNI_MEDIA_READER (default off: the customer is told to type the details).
+
+class V28ReadingRequest(BaseModel):
+    purpose: str = Field(pattern=r'^(handwritten_note|competitor_screenshot)$')
+    request_key: str | None = Field(default=None, max_length=80)
+
+
+class V28ReadingDecision(BaseModel):
+    request_key: str | None = Field(default=None, max_length=80)
+
+
+@app.post('/api/v28/projects/{project_id}/attachments/{attachment_id}/reading')
+def v28_attachment_reading(project_id: str, attachment_id: str, req: V28ReadingRequest, request: Request) -> dict:
+    from .attachments import AttachmentError, public
+    from .intake import media_reading as MR
+    account, key = _owner(project_id, request)
+    repo = _attachments()
+    try:
+        row = repo.get(project_id=project_id, account_id=account.id, attachment_id=attachment_id)
+        data = repo.read(row)                       # integrity-checked against the stored digest
+    except KeyError:
+        raise HTTPException(404, 'attachment not found')
+    except AttachmentError as exc:
+        raise HTTPException(exc.status, detail={'error': exc.code}) from exc
+    lang = _lang(request) if request.query_params.get('lang') else None
+    store = _conversation_store()
+    if req.request_key and store.find_reply(project_id, req.request_key):
+        return _conversation_view(project_id, lang or 'he')     # a retried click: no second reading
+    # the API host builds no model gateway (paid calls run on the worker): 'off' here, and 'gateway' fails loudly
+    reader = MR.reader_from_env(gateway=None)
+    turn = _supervisor(key, account.id).read_attachment(project_id=project_id, account_id=account.id,
+                                                        attachment=public(row), data=data, purpose=req.purpose,
+                                                        reader=reader, lang=lang, request_key=req.request_key)
+    return _conversation_view(project_id, turn.language, turn)
+
+
+def _reading_decision(project_id: str, draft_fingerprint: str, req, request: Request, approve: bool) -> dict:
+    from .attachments import public
+    if not re.fullmatch(r'[0-9a-f]{64}', draft_fingerprint):
+        raise HTTPException(422, detail={'error': 'bad_draft', 'message': 'a draft is named by its sha256 fingerprint'})
+    account, key = _owner(project_id, request)
+    lang = _lang(request) if request.query_params.get('lang') else None
+    store = _conversation_store()
+    if req.request_key and store.find_reply(project_id, req.request_key):
+        return _conversation_view(project_id, lang or 'he')
+    sup = _supervisor(key, account.id)
+    try:
+        if approve:
+            repo = _attachments()
+            turn = sup.approve_reading(project_id=project_id, account_id=account.id,
+                                       draft_fingerprint=draft_fingerprint, lang=lang, request_key=req.request_key,
+                                       evidence=lambda att_id: public(repo.get(project_id=project_id,
+                                                                               account_id=account.id,
+                                                                               attachment_id=att_id)))
+        else:
+            turn = sup.discard_reading(project_id=project_id, account_id=account.id,
+                                       draft_fingerprint=draft_fingerprint, lang=lang, request_key=req.request_key)
+    except KeyError:
+        raise HTTPException(404, detail={'error': 'draft_not_found'})
+    return _conversation_view(project_id, turn.language, turn)
+
+
+@app.post('/api/v28/projects/{project_id}/readings/{draft_fingerprint}/approve')
+def v28_reading_approve(project_id: str, draft_fingerprint: str, req: V28ReadingDecision, request: Request) -> dict:
+    return _reading_decision(project_id, draft_fingerprint, req, request, approve=True)
+
+
+@app.post('/api/v28/projects/{project_id}/readings/{draft_fingerprint}/discard')
+def v28_reading_discard(project_id: str, draft_fingerprint: str, req: V28ReadingDecision, request: Request) -> dict:
+    return _reading_decision(project_id, draft_fingerprint, req, request, approve=False)
+
+
 def _version_repository(key: str, version_id: str) -> dict:
     try:
         return _v28.engine.workspace.get(project_id=key, version_id=version_id).repository()
