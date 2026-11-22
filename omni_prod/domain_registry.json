@@ -154,6 +154,253 @@
     "https://www.raffingers.co.uk",
     "https://www.accountsandlegal.co.uk",
     "https://www.blickrothenberg.com"
+   ],
+   "terms": [
+    {
+     "en": "Accountant (licensed)",
+     "meaning": "",
+     "he": "רואה חשבון",
+     "ar": "محاسب قانوني",
+     "he_verified": true
+    },
+    {
+     "en": "Accounting firm",
+     "meaning": "",
+     "he": "משרד רואי חשבון",
+     "ar": "مكتب محاسبة",
+     "he_verified": true
+    },
+    {
+     "en": "Tax adviser",
+     "meaning": "",
+     "he": "יועץ/ת מס",
+     "ar": "مستشار ضريبي",
+     "he_verified": true
+    },
+    {
+     "en": "Bookkeeper",
+     "meaning": "",
+     "he": "מנהל/ת חשבונות",
+     "ar": "محاسب / ماسك دفاتر (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Bookkeeping",
+     "meaning": "",
+     "he": "הנהלת חשבונות",
+     "ar": "مسك الدفاتر",
+     "he_verified": true
+    },
+    {
+     "en": "Payroll",
+     "meaning": "",
+     "he": "חשבות שכר / שכר",
+     "ar": "الرواتب",
+     "he_verified": true
+    },
+    {
+     "en": "Payslip",
+     "meaning": "",
+     "he": "תלוש שכר",
+     "ar": "قسيمة راتب / كشف راتب",
+     "he_verified": true
+    },
+    {
+     "en": "Client",
+     "meaning": "",
+     "he": "לקוח/ה",
+     "ar": "عميل / زبون",
+     "he_verified": true
+    },
+    {
+     "en": "Self-employed, sole trader",
+     "meaning": "",
+     "he": "עצמאי/ת",
+     "ar": "مستقل (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Small exempt business (Israel)",
+     "meaning": "below the VAT threshold",
+     "he": "עוסק פטור",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "VAT-registered business (Israel)",
+     "meaning": "",
+     "he": "עוסק מורשה",
+     "ar": "مشتغل مرخّص (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Limited company",
+     "meaning": "",
+     "he": "חברה בע\"מ",
+     "ar": "شركة محدودة",
+     "he_verified": true
+    },
+    {
+     "en": "Non-profit association",
+     "meaning": "",
+     "he": "עמותה",
+     "ar": "جمعية",
+     "he_verified": true
+    },
+    {
+     "en": "Opening a business file",
+     "meaning": "registering with the tax authorities",
+     "he": "פתיחת תיק",
+     "ar": "فتح ملف (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Income tax",
+     "meaning": "",
+     "he": "מס הכנסה",
+     "ar": "ضريبة الدخل",
+     "he_verified": true
+    },
+    {
+     "en": "VAT",
+     "meaning": "",
+     "he": "מע\"מ",
+     "ar": "ضريبة القيمة المضافة",
+     "he_verified": true
+    },
+    {
+     "en": "National insurance (Israel)",
+     "meaning": "social-security contributions",
+     "he": "ביטוח לאומי",
+     "ar": "التأمين الوطني",
+     "he_verified": true
+    },
+    {
+     "en": "Tax authority",
+     "meaning": "",
+     "he": "רשות המסים",
+     "ar": "سلطة الضرائب",
+     "he_verified": true
+    },
+    {
+     "en": "Annual tax return",
+     "meaning": "",
+     "he": "דוח שנתי",
+     "ar": "إقرار ضريبي سنوي",
+     "he_verified": true
+    },
+    {
+     "en": "Periodic report",
+     "meaning": "monthly or bi-monthly filing",
+     "he": "דוח תקופתי",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Advance payments",
+     "meaning": "tax paid during the year",
+     "he": "מקדמות",
+     "ar": "سلف ضريبية (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Withholding tax",
+     "meaning": "",
+     "he": "ניכוי במקור",
+     "ar": "خصم من المصدر",
+     "he_verified": true
+    },
+    {
+     "en": "Tax refund",
+     "meaning": "",
+     "he": "החזר מס",
+     "ar": "استرداد ضريبي",
+     "he_verified": true
+    },
+    {
+     "en": "Statement of assets",
+     "meaning": "declaration of wealth",
+     "he": "הצהרת הון",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Financial statements",
+     "meaning": "",
+     "he": "דוחות כספיים",
+     "ar": "القوائم المالية",
+     "he_verified": true
+    },
+    {
+     "en": "Balance sheet",
+     "meaning": "",
+     "he": "מאזן",
+     "ar": "الميزانية العمومية",
+     "he_verified": true
+    },
+    {
+     "en": "Profit and loss",
+     "meaning": "",
+     "he": "דוח רווח והפסד",
+     "ar": "بيان الأرباح والخسائر",
+     "he_verified": true
+    },
+    {
+     "en": "Audit",
+     "meaning": "",
+     "he": "ביקורת",
+     "ar": "تدقيق",
+     "he_verified": true
+    },
+    {
+     "en": "Tax assessment",
+     "meaning": "the authority's decision on tax due",
+     "he": "שומה",
+     "ar": "ربط ضريبي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Invoice / receipt",
+     "meaning": "",
+     "he": "חשבונית / קבלה",
+     "ar": "فاتورة / إيصال",
+     "he_verified": true
+    },
+    {
+     "en": "Deductible expense",
+     "meaning": "",
+     "he": "הוצאה מוכרת",
+     "ar": "مصروف معترف به (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Tax year",
+     "meaning": "",
+     "he": "שנת מס",
+     "ar": "السنة الضريبية",
+     "he_verified": true
+    },
+    {
+     "en": "Retainer, monthly fee",
+     "meaning": "",
+     "he": "ריטיינר",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Fee",
+     "meaning": "",
+     "he": "שכר טרחה",
+     "ar": "أتعاب",
+     "he_verified": true
+    },
+    {
+     "en": "Power of attorney to the tax authority",
+     "meaning": "lets the practice act for the client",
+     "he": "ייפוי כוח",
+     "ar": "توكيل",
+     "he_verified": true
+    }
    ]
   },
   "beauty-cosmetics": {
@@ -288,6 +535,211 @@
     "https://www.townhouse.co.uk",
     "https://www.dearsundays.com",
     "https://www.therapieclinic.com"
+   ],
+   "terms": [
+    {
+     "en": "Beauty salon",
+     "meaning": "the business",
+     "he": "מכון יופי",
+     "ar": "صالون تجميل",
+     "he_verified": true
+    },
+    {
+     "en": "Beautician, beauty therapist, esthetician (US)",
+     "meaning": "treats skin and body",
+     "he": "קוסמטיקאית",
+     "ar": "خبيرة تجميل (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Nail technician",
+     "meaning": "does nails",
+     "he": "מניקוריסטית",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Manicure, pedicure",
+     "meaning": "",
+     "he": "מניקור, פדיקור",
+     "ar": "مانيكير, باديكير",
+     "he_verified": true
+    },
+    {
+     "en": "Gel polish",
+     "meaning": "long-wear polish cured under a lamp",
+     "he": "לק ג'ל",
+     "ar": "جل (loanword; not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Nail extensions",
+     "meaning": "added length",
+     "he": "בניית ציפורניים",
+     "ar": "تركيب أظافر (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Infill",
+     "meaning": "maintenance of extensions",
+     "he": "מילוי (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Facial",
+     "meaning": "skin treatment of the face",
+     "he": "טיפול פנים",
+     "ar": "تنظيف بشرة (common usage; not verified as exact)",
+     "he_verified": true
+    },
+    {
+     "en": "Peel",
+     "meaning": "chemical exfoliation",
+     "he": "פילינג",
+     "ar": "تقشير",
+     "he_verified": true
+    },
+    {
+     "en": "Microneedling",
+     "meaning": "needle treatment for skin",
+     "he": "מיקרונידלינג",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Lash extensions",
+     "meaning": "added lashes",
+     "he": "הארכת ריסים / תוספות ריסים",
+     "ar": "تركيب رموش (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Lash lift",
+     "meaning": "curling natural lashes",
+     "he": "הרמת ריסים",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Brow shaping",
+     "meaning": "",
+     "he": "עיצוב גבות",
+     "ar": "تحديد الحواجب (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Tint",
+     "meaning": "colouring lashes or brows",
+     "he": "צביעה",
+     "ar": "صبغ (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Threading",
+     "meaning": "hair removal with thread",
+     "he": "עיצוב בחוט",
+     "ar": "خيط (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Waxing",
+     "meaning": "",
+     "he": "שעווה / הסרת שיער בשעווה",
+     "ar": "إزالة الشعر بالشمع",
+     "he_verified": true
+    },
+    {
+     "en": "Laser hair removal",
+     "meaning": "",
+     "he": "הסרת שיער בלייזר",
+     "ar": "إزالة الشعر بالليزر",
+     "he_verified": true
+    },
+    {
+     "en": "Make-up artist",
+     "meaning": "",
+     "he": "מאפרת",
+     "ar": "خبيرة مكياج",
+     "he_verified": true
+    },
+    {
+     "en": "Bridal make-up",
+     "meaning": "",
+     "he": "איפור כלה",
+     "ar": "مكياج عروس",
+     "he_verified": true
+    },
+    {
+     "en": "Consultation",
+     "meaning": "talk and skin check before treatment",
+     "he": "ייעוץ",
+     "ar": "استشارة",
+     "he_verified": true
+    },
+    {
+     "en": "Patch test",
+     "meaning": "allergy test before treatment",
+     "he": "בדיקת רגישות (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Contraindication",
+     "meaning": "a reason not to treat",
+     "he": "התווית נגד",
+     "ar": "موانع الاستعمال (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Aftercare",
+     "meaning": "instructions after treatment",
+     "he": "הוראות לאחר טיפול (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Course of treatments",
+     "meaning": "several sessions",
+     "he": "סדרת טיפולים",
+     "ar": "جلسات (not verified as a term)",
+     "he_verified": true
+    },
+    {
+     "en": "Skin type",
+     "meaning": "",
+     "he": "סוג עור",
+     "ar": "نوع البشرة",
+     "he_verified": true
+    },
+    {
+     "en": "Acne",
+     "meaning": "",
+     "he": "אקנה",
+     "ar": "حب الشباب",
+     "he_verified": true
+    },
+    {
+     "en": "Pigmentation",
+     "meaning": "dark patches",
+     "he": "פיגמנטציה",
+     "ar": "تصبغ (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Injectables",
+     "meaning": "botulinum toxin, fillers",
+     "he": "הזרקות",
+     "ar": "حقن",
+     "he_verified": true
+    },
+    {
+     "en": "Day spa",
+     "meaning": "",
+     "he": "ספא",
+     "ar": "سبا",
+     "he_verified": true
+    }
    ]
   },
   "butcher-deli": {
@@ -423,6 +875,267 @@
     "https://www.thegingerpig.co.uk",
     "https://www.linastores.co.uk",
     "https://www.katzsdelicatessen.com"
+   ],
+   "terms": [
+    {
+     "en": "Butcher",
+     "meaning": "the person",
+     "he": "קצב",
+     "ar": "جزّار / لحّام (Levant)",
+     "he_verified": true
+    },
+    {
+     "en": "Butcher's shop",
+     "meaning": "the business",
+     "he": "אטליז / קצבייה",
+     "ar": "ملحمة",
+     "he_verified": true
+    },
+    {
+     "en": "Delicatessen, deli",
+     "meaning": "cured meats, cheese, prepared food",
+     "he": "מעדנייה",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Counter",
+     "meaning": "where goods are shown and served",
+     "he": "דלפק / ויטרינה",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Cut",
+     "meaning": "a named piece of the animal",
+     "he": "נתח",
+     "ar": "قطعة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Joint (UK), roast (US)",
+     "meaning": "a large piece for roasting",
+     "he": "נתח לצלייה (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "On the bone / boneless",
+     "meaning": "",
+     "he": "עם עצם / ללא עצם",
+     "ar": "بالعظم / بدون عظم",
+     "he_verified": true
+    },
+    {
+     "en": "Rolled and tied",
+     "meaning": "boned and bound for roasting",
+     "he": "מגולגל וקשור (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Minced (UK), ground (US)",
+     "meaning": "",
+     "he": "בשר טחון",
+     "ar": "لحم مفروم",
+     "he_verified": true
+    },
+    {
+     "en": "Diced",
+     "meaning": "cut into cubes",
+     "he": "קוביות",
+     "ar": "مكعبات",
+     "he_verified": true
+    },
+    {
+     "en": "Beef",
+     "meaning": "",
+     "he": "בקר",
+     "ar": "لحم بقر",
+     "he_verified": true
+    },
+    {
+     "en": "Veal",
+     "meaning": "",
+     "he": "עגל",
+     "ar": "لحم عجل",
+     "he_verified": true
+    },
+    {
+     "en": "Lamb / mutton",
+     "meaning": "",
+     "he": "טלה / כבש",
+     "ar": "لحم خروف / لحم غنم",
+     "he_verified": true
+    },
+    {
+     "en": "Poultry / chicken / turkey",
+     "meaning": "",
+     "he": "עופות / עוף / הודו",
+     "ar": "دواجن / دجاج / ديك رومي (حبش in the Levant)",
+     "he_verified": true
+    },
+    {
+     "en": "Pork",
+     "meaning": "",
+     "he": "חזיר",
+     "ar": "لحم خنزير",
+     "he_verified": true
+    },
+    {
+     "en": "Game",
+     "meaning": "wild animals in season",
+     "he": "בשר ציד (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Offal",
+     "meaning": "liver, heart, kidneys and similar",
+     "he": "חלקי פנים",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Steak",
+     "meaning": "",
+     "he": "סטייק",
+     "ar": "ستيك",
+     "he_verified": true
+    },
+    {
+     "en": "Ribeye / sirloin / fillet",
+     "meaning": "common steak cuts",
+     "he": "אנטריקוט / סינטה / פילה",
+     "ar": "not verified per region",
+     "he_verified": true
+    },
+    {
+     "en": "Shoulder / leg / ribs / breast",
+     "meaning": "",
+     "he": "כתף / שוק / צלעות / חזה",
+     "ar": "كتف / فخذ / ضلوع (ريش in the Levant; not verified) / صدر",
+     "he_verified": true
+    },
+    {
+     "en": "Sausage",
+     "meaning": "",
+     "he": "נקניקייה",
+     "ar": "نقانق / سجق",
+     "he_verified": true
+    },
+    {
+     "en": "Cured meat, charcuterie",
+     "meaning": "salted, dried or smoked meat",
+     "he": "נקניקים / שרקוטרי",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Dry-aged",
+     "meaning": "hung to mature",
+     "he": "יישון יבש / מיושן",
+     "ar": "معتّق (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Fresh / frozen",
+     "meaning": "",
+     "he": "טרי / קפוא",
+     "ar": "طازج / مجمّد",
+     "he_verified": true
+    },
+    {
+     "en": "By weight, per kilo, per 100 grams",
+     "meaning": "how it is priced",
+     "he": "לפי משקל, לקילו, ל-100 גרם",
+     "ar": "بالوزن، بالكيلو، لكل 100 غرام",
+     "he_verified": true
+    },
+    {
+     "en": "Kosher",
+     "meaning": "permitted under Jewish dietary law",
+     "he": "כשר",
+     "ar": "كوشير (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Kosher certificate",
+     "meaning": "",
+     "he": "תעודת כשרות",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Glatt, mehadrin",
+     "meaning": "stricter kosher grades",
+     "he": "חלק, מהדרין",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Koshering",
+     "meaning": "salting and soaking meat",
+     "he": "הכשרה",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Halal",
+     "meaning": "permitted under Islamic dietary law",
+     "he": "חלאל",
+     "ar": "حلال",
+     "he_verified": true
+    },
+    {
+     "en": "Free-range",
+     "meaning": "animals with outdoor access",
+     "he": "חופש (as in \"עוף חופש\")",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Grass-fed",
+     "meaning": "",
+     "he": "ניזון ממרעה (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Cheese / hard / soft / raw milk",
+     "meaning": "",
+     "he": "גבינה / קשה / רכה / חלב לא מפוסטר",
+     "ar": "جبنة / قاسية / طرية / حليب غير مبستر (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Sliced",
+     "meaning": "",
+     "he": "פרוס",
+     "ar": "مقطّع شرائح (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Platter",
+     "meaning": "an arranged tray for guests",
+     "he": "מגש אירוח",
+     "ar": "صينية ضيافة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Order ahead / collection",
+     "meaning": "",
+     "he": "הזמנה מראש / איסוף עצמי",
+     "ar": "طلب مسبق / استلام",
+     "he_verified": true
+    },
+    {
+     "en": "Deposit",
+     "meaning": "part payment in advance",
+     "he": "מקדמה",
+     "ar": "عربون",
+     "he_verified": true
+    }
    ]
   },
   "cafe-bakery": {
@@ -544,6 +1257,225 @@
     "https://www.breadahead.com",
     "https://www.dominiqueansel.com",
     "https://www.levainbakery.com"
+   ],
+   "terms": [
+    {
+     "en": "Bakery",
+     "meaning": "bakes and sells bread and pastry",
+     "he": "מאפייה",
+     "ar": "مخبز",
+     "he_verified": true
+    },
+    {
+     "en": "Patisserie, pastry shop",
+     "meaning": "cakes and fine pastry",
+     "he": "קונדיטוריה",
+     "ar": "محل حلويات",
+     "he_verified": true
+    },
+    {
+     "en": "Cafe, coffee shop",
+     "meaning": "drinks and a seat",
+     "he": "בית קפה",
+     "ar": "مقهى / كافيه",
+     "he_verified": true
+    },
+    {
+     "en": "Baker",
+     "meaning": "the person who bakes",
+     "he": "אופה",
+     "ar": "خبّاز",
+     "he_verified": true
+    },
+    {
+     "en": "Pastry chef",
+     "meaning": "makes cakes and pastry",
+     "he": "קונדיטור / קונדיטורית",
+     "ar": "حلواني",
+     "he_verified": true
+    },
+    {
+     "en": "Barista",
+     "meaning": "makes the coffee",
+     "he": "בריסטה",
+     "ar": "باريستا",
+     "he_verified": true
+    },
+    {
+     "en": "Bread, loaf",
+     "meaning": "",
+     "he": "לחם, כיכר",
+     "ar": "خبز، رغيف",
+     "he_verified": true
+    },
+    {
+     "en": "Sourdough",
+     "meaning": "bread raised with a natural starter",
+     "he": "לחם מחמצת",
+     "ar": "خبز العجين المخمّر (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Pastry (the item)",
+     "meaning": "croissants, buns and similar",
+     "he": "מאפה",
+     "ar": "معجنات",
+     "he_verified": true
+    },
+    {
+     "en": "Viennoiserie",
+     "meaning": "butter-layered pastry",
+     "he": "מאפי בצק עלים (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Cake",
+     "meaning": "",
+     "he": "עוגה",
+     "ar": "كعكة / كيك",
+     "he_verified": true
+    },
+    {
+     "en": "Whole cake, slice",
+     "meaning": "how it is sold",
+     "he": "עוגה שלמה, פרוסה",
+     "ar": "كعكة كاملة، قطعة",
+     "he_verified": true
+    },
+    {
+     "en": "Custom cake, celebration cake",
+     "meaning": "made to order for an occasion",
+     "he": "עוגה מעוצבת / עוגה בהזמנה",
+     "ar": "كيك حسب الطلب (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Serves",
+     "meaning": "how many people a cake feeds",
+     "he": "מספיק ל-N סועדים (not verified)",
+     "ar": "يكفي N أشخاص (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Pre-order",
+     "meaning": "ordering before the day",
+     "he": "הזמנה מראש",
+     "ar": "طلب مسبق",
+     "he_verified": true
+    },
+    {
+     "en": "Lead time, notice",
+     "meaning": "how long before the date an order is needed",
+     "he": "זמן הזמנה מראש (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Collection (UK), pickup (US)",
+     "meaning": "the buyer comes to get it",
+     "he": "איסוף עצמי",
+     "ar": "استلام",
+     "he_verified": true
+    },
+    {
+     "en": "Sold out",
+     "meaning": "none left today",
+     "he": "אזל",
+     "ar": "نفدت الكمية (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Eat in / take away",
+     "meaning": "",
+     "he": "לשבת / לקחת",
+     "ar": "not verified / سفري (Levant)",
+     "he_verified": true
+    },
+    {
+     "en": "Espresso, filter coffee",
+     "meaning": "",
+     "he": "אספרסו, קפה פילטר",
+     "ar": "إسبريسو، قهوة مفلترة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Flat white, cappuccino, latte",
+     "meaning": "milk coffees",
+     "he": "names used as in English; in Hebrew \"הפוך\" is the common local order",
+     "ar": "names used as in English (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Plant milk",
+     "meaning": "oat, soy, almond",
+     "he": "חלב צמחי / תחליף חלב",
+     "ar": "حليب نباتي",
+     "he_verified": true
+    },
+    {
+     "en": "Decaf",
+     "meaning": "without caffeine",
+     "he": "נטול קפאין",
+     "ar": "منزوع الكافيين",
+     "he_verified": true
+    },
+    {
+     "en": "Roaster",
+     "meaning": "the company that roasts the beans",
+     "he": "בית קלייה",
+     "ar": "محمصة",
+     "he_verified": true
+    },
+    {
+     "en": "Wholesale",
+     "meaning": "selling to other businesses",
+     "he": "סיטונאות",
+     "ar": "بيع بالجملة",
+     "he_verified": true
+    },
+    {
+     "en": "Allergens",
+     "meaning": "",
+     "he": "אלרגנים",
+     "ar": "مسببات الحساسية",
+     "he_verified": true
+    },
+    {
+     "en": "Gluten-free",
+     "meaning": "",
+     "he": "ללא גלוטן",
+     "ar": "خالٍ من الغلوتين",
+     "he_verified": true
+    },
+    {
+     "en": "Vegan",
+     "meaning": "",
+     "he": "טבעוני",
+     "ar": "نباتي صرف (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Kosher dairy / parve",
+     "meaning": "kosher status of a baked product",
+     "he": "כשר חלבי / פרווה",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Gift card, voucher",
+     "meaning": "",
+     "he": "שובר מתנה / גיפט קארד",
+     "ar": "بطاقة هدية",
+     "he_verified": true
+    },
+    {
+     "en": "Bake schedule",
+     "meaning": "which breads on which days",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    }
    ]
   },
   "catalogue-collection": {
@@ -656,6 +1588,232 @@
     "https://www.hexagonclassics.com",
     "https://collections.vam.ac.uk",
     "https://www.rijksmuseum.nl/en/collection"
+   ],
+   "terms": [
+    {
+     "en": "Catalogue",
+     "meaning": "the list of items",
+     "he": "קטלוג",
+     "ar": "كتالوج",
+     "he_verified": true
+    },
+    {
+     "en": "Collection",
+     "meaning": "a set of objects kept together; also a product range",
+     "he": "אוסף; קולקציה (for a product range)",
+     "ar": "مجموعة",
+     "he_verified": true
+    },
+    {
+     "en": "Item, object, piece",
+     "meaning": "one record",
+     "he": "פריט",
+     "ar": "قطعة",
+     "he_verified": true
+    },
+    {
+     "en": "Product range",
+     "meaning": "a family of related products",
+     "he": "סדרה / קו מוצרים",
+     "ar": "تشكيلة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "SKU, item number",
+     "meaning": "the seller's code",
+     "he": "מק\"ט",
+     "ar": "رمز المنتج (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Model",
+     "meaning": "a named design",
+     "he": "דגם",
+     "ar": "موديل / طراز",
+     "he_verified": true
+    },
+    {
+     "en": "Variant, option",
+     "meaning": "colour, size, finish",
+     "he": "גרסה / אפשרות",
+     "ar": "خيار (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Finish",
+     "meaning": "surface treatment",
+     "he": "גימור",
+     "ar": "تشطيب",
+     "he_verified": true
+    },
+    {
+     "en": "Dimensions",
+     "meaning": "sizes",
+     "he": "מידות",
+     "ar": "أبعاد / مقاسات",
+     "he_verified": true
+    },
+    {
+     "en": "In stock",
+     "meaning": "ready now",
+     "he": "במלאי",
+     "ar": "متوفر في المخزون",
+     "he_verified": true
+    },
+    {
+     "en": "Made to order",
+     "meaning": "made after ordering",
+     "he": "בהזמנה אישית / לפי הזמנה",
+     "ar": "حسب الطلب",
+     "he_verified": true
+    },
+    {
+     "en": "Lead time",
+     "meaning": "time from order to delivery",
+     "he": "זמן אספקה",
+     "ar": "مدة التوريد (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Discontinued",
+     "meaning": "no longer made",
+     "he": "הופסק ייצורו (not verified)",
+     "ar": "متوقف عن الإنتاج (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Sold",
+     "meaning": "gone",
+     "he": "נמכר",
+     "ar": "مُباع",
+     "he_verified": true
+    },
+    {
+     "en": "Reserved, under offer",
+     "meaning": "held for a buyer",
+     "he": "שמור (not verified for trade use)",
+     "ar": "محجوز",
+     "he_verified": false
+    },
+    {
+     "en": "Price on request, POA",
+     "meaning": "no public price",
+     "he": "מחיר לפי פנייה (not verified as standard wording)",
+     "ar": "السعر عند الطلب (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Dealer, stockist, retailer",
+     "meaning": "a shop that sells the maker's items",
+     "he": "משווק / מפיץ / חנות מורשית",
+     "ar": "وكيل / موزّع",
+     "he_verified": true
+    },
+    {
+     "en": "Trade, professionals",
+     "meaning": "architects, designers, contractors",
+     "he": "אנשי מקצוע",
+     "ar": "مهنيون (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Data sheet, spec sheet",
+     "meaning": "technical facts",
+     "he": "דף מפרט / מפרט טכני",
+     "ar": "ورقة المواصفات (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Limited edition",
+     "meaning": "a fixed number made",
+     "he": "מהדורה מוגבלת",
+     "ar": "إصدار محدود",
+     "he_verified": true
+    },
+    {
+     "en": "Designer",
+     "meaning": "who designed it",
+     "he": "מעצב/ת",
+     "ar": "مصمم/ة",
+     "he_verified": true
+    },
+    {
+     "en": "Maker",
+     "meaning": "who made it",
+     "he": "יוצר/ת; יצרן (for a company)",
+     "ar": "صانع",
+     "he_verified": true
+    },
+    {
+     "en": "Provenance",
+     "meaning": "ownership history",
+     "he": "פרובננס / היסטוריית בעלות (not verified as common usage)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Attribution",
+     "meaning": "who is believed to have made it",
+     "he": "ייחוס",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Condition",
+     "meaning": "state of a used item",
+     "he": "מצב",
+     "ar": "حالة",
+     "he_verified": true
+    },
+    {
+     "en": "Accession number",
+     "meaning": "a museum's object number",
+     "he": "מספר רישום (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "On display",
+     "meaning": "can be seen in the galleries",
+     "he": "מוצג",
+     "ar": "معروض",
+     "he_verified": true
+    },
+    {
+     "en": "In store",
+     "meaning": "kept in storage",
+     "he": "במחסן / בשמירה (not verified for museum use)",
+     "ar": "في المخزن (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "On loan",
+     "meaning": "lent to another place",
+     "he": "בהשאלה",
+     "ar": "مُعار (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "New arrival",
+     "meaning": "recently added",
+     "he": "חדש במלאי / הגיע לאחרונה",
+     "ar": "وصل حديثاً (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Previously sold",
+     "meaning": "archive of sold stock",
+     "he": "נמכרו בעבר",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Left-hand drive",
+     "meaning": "car with the wheel on the left",
+     "he": "הגה שמאלי",
+     "ar": "مقود على اليسار (not verified)",
+     "he_verified": true
+    }
    ]
   },
   "clinic": {
@@ -790,6 +1948,218 @@
     "https://www.zoomcare.com",
     "https://www.carbonhealth.com",
     "https://www.kindbody.com"
+   ],
+   "terms": [
+    {
+     "en": "Clinic, practice",
+     "meaning": "the place",
+     "he": "מרפאה",
+     "ar": "عيادة",
+     "he_verified": true
+    },
+    {
+     "en": "Family doctor, GP",
+     "meaning": "first-contact doctor",
+     "he": "רופא/ת משפחה",
+     "ar": "طبيب عائلة / طبيب عام",
+     "he_verified": true
+    },
+    {
+     "en": "Specialist",
+     "meaning": "doctor registered in a speciality",
+     "he": "רופא/ה מומחה/ית",
+     "ar": "طبيب مختص / أخصائي",
+     "he_verified": true
+    },
+    {
+     "en": "Paediatrician",
+     "meaning": "children's doctor",
+     "he": "רופא/ת ילדים",
+     "ar": "طبيب أطفال",
+     "he_verified": true
+    },
+    {
+     "en": "Dermatologist",
+     "meaning": "skin doctor",
+     "he": "רופא/ת עור",
+     "ar": "طبيب جلدية",
+     "he_verified": true
+    },
+    {
+     "en": "Gynaecologist",
+     "meaning": "women's health doctor",
+     "he": "רופא/ת נשים",
+     "ar": "طبيب نسائية",
+     "he_verified": true
+    },
+    {
+     "en": "Nurse",
+     "meaning": "",
+     "he": "אח / אחות",
+     "ar": "ممرض / ممرضة",
+     "he_verified": true
+    },
+    {
+     "en": "Physiotherapist",
+     "meaning": "",
+     "he": "פיזיותרפיסט/ית",
+     "ar": "معالج طبيعي",
+     "he_verified": true
+    },
+    {
+     "en": "Receptionist, front desk",
+     "meaning": "",
+     "he": "מזכירות רפואית / קבלה",
+     "ar": "الاستقبال",
+     "he_verified": true
+    },
+    {
+     "en": "Patient",
+     "meaning": "the person treated",
+     "he": "מטופל/ת",
+     "ar": "مريض / مراجع",
+     "he_verified": true
+    },
+    {
+     "en": "Appointment",
+     "meaning": "",
+     "he": "תור",
+     "ar": "موعد",
+     "he_verified": true
+    },
+    {
+     "en": "Walk-in",
+     "meaning": "without an appointment",
+     "he": "ללא תור",
+     "ar": "بدون موعد",
+     "he_verified": true
+    },
+    {
+     "en": "Consultation",
+     "meaning": "a visit to discuss a problem",
+     "he": "ייעוץ / ביקור",
+     "ar": "استشارة",
+     "he_verified": true
+    },
+    {
+     "en": "First visit / follow-up",
+     "meaning": "",
+     "he": "ביקור ראשון / ביקור חוזר",
+     "ar": "زيارة أولى / مراجعة",
+     "he_verified": true
+    },
+    {
+     "en": "Referral",
+     "meaning": "a doctor's letter sending you on",
+     "he": "הפניה",
+     "ar": "تحويل / إحالة",
+     "he_verified": true
+    },
+    {
+     "en": "Prescription",
+     "meaning": "",
+     "he": "מרשם",
+     "ar": "وصفة طبية",
+     "he_verified": true
+    },
+    {
+     "en": "Test, lab test",
+     "meaning": "",
+     "he": "בדיקה / בדיקת מעבדה",
+     "ar": "فحص / تحليل",
+     "he_verified": true
+    },
+    {
+     "en": "Results",
+     "meaning": "",
+     "he": "תוצאות",
+     "ar": "نتائج",
+     "he_verified": true
+    },
+    {
+     "en": "Health fund (Israel)",
+     "meaning": "public health organisation",
+     "he": "קופת חולים",
+     "ar": "صندوق المرضى",
+     "he_verified": true
+    },
+    {
+     "en": "Health insurance",
+     "meaning": "",
+     "he": "ביטוח בריאות",
+     "ar": "تأمين صحي",
+     "he_verified": true
+    },
+    {
+     "en": "Payment commitment form (Israel)",
+     "meaning": "fund's undertaking to pay",
+     "he": "טופס 17 / התחייבות",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Co-payment",
+     "meaning": "the patient's share",
+     "he": "השתתפות עצמית",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Private care",
+     "meaning": "paid by the patient",
+     "he": "רפואה פרטית",
+     "ar": "طب خاص (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Emergency room",
+     "meaning": "",
+     "he": "מיון / חדר מיון",
+     "ar": "الطوارئ",
+     "he_verified": true
+    },
+    {
+     "en": "Urgent care",
+     "meaning": "same-day care for non-emergencies",
+     "he": "רפואה דחופה / מוקד",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Telehealth, video visit",
+     "meaning": "remote consultation",
+     "he": "ביקור מרחוק / וידאו",
+     "ar": "استشارة عن بعد (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Medical record",
+     "meaning": "",
+     "he": "תיק רפואי",
+     "ar": "ملف طبي",
+     "he_verified": true
+    },
+    {
+     "en": "Informed consent",
+     "meaning": "agreement after explanation",
+     "he": "הסכמה מדעת",
+     "ar": "موافقة مستنيرة",
+     "he_verified": true
+    },
+    {
+     "en": "Medical confidentiality",
+     "meaning": "",
+     "he": "סודיות רפואית",
+     "ar": "السرية الطبية",
+     "he_verified": true
+    },
+    {
+     "en": "Sick note, medical certificate",
+     "meaning": "",
+     "he": "אישור מחלה",
+     "ar": "تقرير طبي (not verified)",
+     "he_verified": true
+    }
    ]
   },
   "clothing-shop": {
@@ -902,6 +2272,232 @@
     "https://www.margarethowell.co.uk",
     "https://www.studionicholson.com",
     "https://www.everlane.com"
+   ],
+   "terms": [
+    {
+     "en": "Clothing shop (US: store), boutique",
+     "meaning": "the business",
+     "he": "חנות בגדים / בוטיק",
+     "ar": "محل ملابس / بوتيك",
+     "he_verified": true
+    },
+    {
+     "en": "Garment, piece, item",
+     "meaning": "one product",
+     "he": "פריט / בגד",
+     "ar": "قطعة",
+     "he_verified": true
+    },
+    {
+     "en": "Collection",
+     "meaning": "the season's set, or a curated set",
+     "he": "קולקציה",
+     "ar": "مجموعة / كولكشن",
+     "he_verified": true
+    },
+    {
+     "en": "New in, new arrivals",
+     "meaning": "most recent products",
+     "he": "חדש באתר / הגיע עכשיו",
+     "ar": "وصل حديثاً",
+     "he_verified": true
+    },
+    {
+     "en": "Size",
+     "meaning": "",
+     "he": "מידה",
+     "ar": "مقاس",
+     "he_verified": true
+    },
+    {
+     "en": "Size guide, size chart",
+     "meaning": "measurements per size",
+     "he": "טבלת מידות",
+     "ar": "جدول المقاسات",
+     "he_verified": true
+    },
+    {
+     "en": "One size",
+     "meaning": "fits a range",
+     "he": "מידה אחת",
+     "ar": "مقاس واحد",
+     "he_verified": true
+    },
+    {
+     "en": "Fit",
+     "meaning": "how it sits: slim, regular, relaxed, oversized",
+     "he": "גזרה",
+     "ar": "قَصّة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Colour (US: color), colourway",
+     "meaning": "",
+     "he": "צבע",
+     "ar": "لون",
+     "he_verified": true
+    },
+    {
+     "en": "Fabric, material",
+     "meaning": "",
+     "he": "בד",
+     "ar": "قماش",
+     "he_verified": true
+    },
+    {
+     "en": "Composition",
+     "meaning": "fibre percentages",
+     "he": "הרכב הבד",
+     "ar": "تركيب القماش (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Care instructions",
+     "meaning": "washing and drying",
+     "he": "הוראות כביסה",
+     "ar": "تعليمات الغسيل",
+     "he_verified": true
+    },
+    {
+     "en": "Cotton, wool, linen, silk, leather",
+     "meaning": "common materials",
+     "he": "כותנה, צמר, פשתן, משי, עור",
+     "ar": "قطن، صوف، كتان، حرير، جلد",
+     "he_verified": true
+    },
+    {
+     "en": "In stock, out of stock, sold out",
+     "meaning": "",
+     "he": "במלאי, אזל מהמלאי",
+     "ar": "متوفر، نفذت الكمية",
+     "he_verified": true
+    },
+    {
+     "en": "Basket (UK), cart (US), bag",
+     "meaning": "what the buyer has chosen",
+     "he": "סל קניות / עגלה",
+     "ar": "سلة التسوق",
+     "he_verified": true
+    },
+    {
+     "en": "Checkout",
+     "meaning": "the paying step",
+     "he": "קופה / תשלום",
+     "ar": "الدفع",
+     "he_verified": true
+    },
+    {
+     "en": "Delivery (UK), shipping (US)",
+     "meaning": "sending the order",
+     "he": "משלוח",
+     "ar": "توصيل / شحن",
+     "he_verified": true
+    },
+    {
+     "en": "Collection, pick-up",
+     "meaning": "fetching the order from the shop",
+     "he": "איסוף עצמי",
+     "ar": "استلام من المحل (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Return",
+     "meaning": "sending it back for money",
+     "he": "החזרה",
+     "ar": "إرجاع",
+     "he_verified": true
+    },
+    {
+     "en": "Exchange",
+     "meaning": "swapping for another size or item",
+     "he": "החלפה",
+     "ar": "استبدال",
+     "he_verified": true
+    },
+    {
+     "en": "Refund",
+     "meaning": "money back",
+     "he": "החזר כספי",
+     "ar": "استرداد المبلغ",
+     "he_verified": true
+    },
+    {
+     "en": "Store credit",
+     "meaning": "value kept for a later purchase",
+     "he": "זיכוי",
+     "ar": "رصيد (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Sale",
+     "meaning": "reduced prices",
+     "he": "מבצע / סייל",
+     "ar": "تنزيلات / تخفيضات",
+     "he_verified": true
+    },
+    {
+     "en": "Discount code",
+     "meaning": "",
+     "he": "קוד הנחה / קופון",
+     "ar": "كود خصم",
+     "he_verified": true
+    },
+    {
+     "en": "Gift card, voucher",
+     "meaning": "",
+     "he": "שובר מתנה / גיפט קארד",
+     "ar": "بطاقة هدية",
+     "he_verified": true
+    },
+    {
+     "en": "Pre-order",
+     "meaning": "paying before the item is made or arrives",
+     "he": "הזמנה מוקדמת",
+     "ar": "طلب مسبق",
+     "he_verified": true
+    },
+    {
+     "en": "Second-hand, vintage, pre-loved",
+     "meaning": "used clothing",
+     "he": "יד שנייה / וינטג'",
+     "ar": "مستعمل (vintage: not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Alterations",
+     "meaning": "changing a garment to fit",
+     "he": "תיקונים",
+     "ar": "تعديل (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Lookbook",
+     "meaning": "styled photographs of a collection",
+     "he": "לוקבוק",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "SKU",
+     "meaning": "the shop's code for one variant",
+     "he": "מק\"ט",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Wholesale",
+     "meaning": "selling to other shops",
+     "he": "סיטונאות",
+     "ar": "بيع بالجملة",
+     "he_verified": true
+    },
+    {
+     "en": "Receipt",
+     "meaning": "proof of purchase",
+     "he": "קבלה / חשבונית",
+     "ar": "فاتورة / إيصال",
+     "he_verified": true
+    }
    ]
   },
   "community": {
@@ -1007,6 +2603,120 @@
     "https://www.goodgym.org",
     "https://menssheds.org.uk",
     "https://www.indiehackers.com"
+   ],
+   "terms": [
+    {
+     "en": "Community",
+     "meaning": "the group of people",
+     "he": "קהילה",
+     "ar": "مجتمع",
+     "he_verified": true
+    },
+    {
+     "en": "Club",
+     "meaning": "formal group with members",
+     "he": "מועדון",
+     "ar": "نادي",
+     "he_verified": true
+    },
+    {
+     "en": "Association",
+     "meaning": "legally registered group",
+     "he": "עמותה / אגודה",
+     "ar": "جمعية",
+     "he_verified": true
+    },
+    {
+     "en": "Member",
+     "meaning": "",
+     "he": "חבר / חברה",
+     "ar": "عضو",
+     "he_verified": true
+    },
+    {
+     "en": "Membership",
+     "meaning": "being a member, often paid",
+     "he": "חברות / דמי חבר (fee)",
+     "ar": "عضوية / رسوم العضوية (fee)",
+     "he_verified": true
+    },
+    {
+     "en": "Organiser",
+     "meaning": "runs the group",
+     "he": "מארגן / רכז",
+     "ar": "منظم",
+     "he_verified": true
+    },
+    {
+     "en": "Volunteer",
+     "meaning": "unpaid helper",
+     "he": "מתנדב",
+     "ar": "متطوع",
+     "he_verified": true
+    },
+    {
+     "en": "Chapter, local group",
+     "meaning": "one place in a network",
+     "he": "סניף",
+     "ar": "فرع",
+     "he_verified": true
+    },
+    {
+     "en": "Gathering, meetup",
+     "meaning": "",
+     "he": "מפגש",
+     "ar": "لقاء",
+     "he_verified": true
+    },
+    {
+     "en": "Newcomer",
+     "meaning": "first-time visitor",
+     "he": "מצטרף חדש",
+     "ar": "عضو جديد (not verified for \"newcomer\")",
+     "he_verified": true
+    },
+    {
+     "en": "Moderator",
+     "meaning": "keeps an online space safe",
+     "he": "מנהל קהילה / מודרטור",
+     "ar": "مشرف",
+     "he_verified": true
+    },
+    {
+     "en": "Forum",
+     "meaning": "online discussion space",
+     "he": "פורום",
+     "ar": "منتدى",
+     "he_verified": true
+    },
+    {
+     "en": "Code of conduct",
+     "meaning": "",
+     "he": "קוד התנהגות",
+     "ar": "مدونة السلوك (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Safeguarding",
+     "meaning": "protecting children and adults at risk",
+     "he": "הגנה על ילדים ובגירים בסיכון (not verified as one term)",
+     "ar": "حماية الأطفال (not verified as equivalent)",
+     "he_verified": false
+    },
+    {
+     "en": "Newsletter",
+     "meaning": "",
+     "he": "ניוזלטר / עלון",
+     "ar": "نشرة إخبارية",
+     "he_verified": true
+    },
+    {
+     "en": "Grassroots",
+     "meaning": "started by local people",
+     "he": "עממי / מהשטח (not verified)",
+     "ar": "شعبي (not verified)",
+     "he_verified": false
+    }
    ]
   },
   "craftsman-renovation": {
@@ -1134,6 +2844,246 @@
     "https://www.buildteam.com",
     "https://www.casedesign.com",
     "https://www.normandyremodeling.com"
+   ],
+   "terms": [
+    {
+     "en": "Contractor, builder",
+     "meaning": "runs building work",
+     "he": "קבלן",
+     "ar": "مقاول",
+     "he_verified": true
+    },
+    {
+     "en": "Renovation (UK), remodel (US)",
+     "meaning": "changing an existing home",
+     "he": "שיפוץ",
+     "ar": "ترميم / تجديد",
+     "he_verified": true
+    },
+    {
+     "en": "Carpenter",
+     "meaning": "works wood on site",
+     "he": "נגר",
+     "ar": "نجّار",
+     "he_verified": true
+    },
+    {
+     "en": "Joiner, joinery",
+     "meaning": "makes wooden parts in a workshop",
+     "he": "נגר / נגרות",
+     "ar": "نجارة",
+     "he_verified": true
+    },
+    {
+     "en": "Cabinet maker",
+     "meaning": "makes cupboards and furniture",
+     "he": "נגר רהיטים (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Fitted furniture",
+     "meaning": "built into the room",
+     "he": "רהיטים בהתאמה / נגרות בהתאמה אישית (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Kitchen fitter",
+     "meaning": "installs kitchens",
+     "he": "מתקין מטבחים",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Plumber",
+     "meaning": "water and drains",
+     "he": "אינסטלטור",
+     "ar": "سبّاك",
+     "he_verified": true
+    },
+    {
+     "en": "Electrician",
+     "meaning": "wiring",
+     "he": "חשמלאי",
+     "ar": "كهربائي",
+     "he_verified": true
+    },
+    {
+     "en": "Painter and decorator",
+     "meaning": "paints, wallpapers",
+     "he": "צבעי",
+     "ar": "دهّان",
+     "he_verified": true
+    },
+    {
+     "en": "Tiler",
+     "meaning": "lays tiles",
+     "he": "רצף",
+     "ar": "بلّيط (Levantine; not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Handyman",
+     "meaning": "small mixed jobs",
+     "he": "הנדימן / איש תחזוקה (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Quote",
+     "meaning": "a fixed price for defined work",
+     "he": "הצעת מחיר",
+     "ar": "عرض سعر",
+     "he_verified": true
+    },
+    {
+     "en": "Estimate",
+     "meaning": "an approximate price",
+     "he": "הערכת מחיר / אומדן (not verified)",
+     "ar": "تقدير (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Site visit, survey",
+     "meaning": "going to see and measure",
+     "he": "ביקור באתר / מדידה (not verified)",
+     "ar": "زيارة موقع (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Scope of work",
+     "meaning": "what is and is not included",
+     "he": "היקף העבודה / כתב כמויות (for a bill of quantities)",
+     "ar": "نطاق العمل (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Day rate",
+     "meaning": "price per working day",
+     "he": "מחיר ליום עבודה",
+     "ar": "أجرة يومية",
+     "he_verified": true
+    },
+    {
+     "en": "Materials and labour",
+     "meaning": "parts and work",
+     "he": "חומרים ועבודה",
+     "ar": "مواد وأجرة",
+     "he_verified": true
+    },
+    {
+     "en": "Deposit",
+     "meaning": "paid before starting",
+     "he": "מקדמה",
+     "ar": "عربون / دفعة مقدمة",
+     "he_verified": true
+    },
+    {
+     "en": "Stage payment",
+     "meaning": "paid as the work progresses",
+     "he": "תשלום לפי שלבים",
+     "ar": "دفعات حسب المراحل (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Variation (UK), change order (US)",
+     "meaning": "a change to the agreed work",
+     "he": "תוספת / שינוי (not verified as trade term)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Snagging, punch list",
+     "meaning": "small faults fixed at the end",
+     "he": "רשימת ליקויים (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Handover, completion",
+     "meaning": "the job is finished and handed back",
+     "he": "מסירה",
+     "ar": "تسليم",
+     "he_verified": true
+    },
+    {
+     "en": "Extension, addition",
+     "meaning": "new built space",
+     "he": "תוספת בנייה",
+     "ar": "توسعة / إضافة بناء (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Loft conversion",
+     "meaning": "turning an attic into rooms",
+     "he": "הסבת עליית גג (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Planning permission (UK), building permit (US)",
+     "meaning": "permission to build",
+     "he": "היתר בנייה",
+     "ar": "رخصة بناء",
+     "he_verified": true
+    },
+    {
+     "en": "Building regulations, building control (UK)",
+     "meaning": "the technical rules and their inspection",
+     "he": "תקנות התכנון והבנייה (not verified as equivalent)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Party wall (UK)",
+     "meaning": "a wall shared with a neighbour",
+     "he": "קיר משותף",
+     "ar": "جدار مشترك",
+     "he_verified": true
+    },
+    {
+     "en": "Design-build",
+     "meaning": "one firm designs and builds",
+     "he": "תכנון וביצוע",
+     "ar": "تصميم وتنفيذ",
+     "he_verified": true
+    },
+    {
+     "en": "Subcontractor",
+     "meaning": "a firm hired by the main contractor",
+     "he": "קבלן משנה",
+     "ar": "مقاول من الباطن / مقاول فرعي",
+     "he_verified": true
+    },
+    {
+     "en": "Public liability insurance",
+     "meaning": "covers damage to others",
+     "he": "ביטוח צד שלישי / ביטוח צד ג'",
+     "ar": "تأمين ضد الغير (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Guarantee, warranty",
+     "meaning": "promise to fix faults",
+     "he": "אחריות",
+     "ar": "ضمان",
+     "he_verified": true
+    },
+    {
+     "en": "Lead time",
+     "meaning": "time before work can start",
+     "he": "זמן המתנה / זמן אספקה",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "First fix, second fix (UK)",
+     "meaning": "work before and after plastering",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    }
    ]
   },
   "dentist": {
@@ -1274,6 +3224,225 @@
     "https://www.banningdental.co.uk",
     "https://www.wimpolestreetdental.com",
     "https://www.thewelbeckclinic.co.uk"
+   ],
+   "terms": [
+    {
+     "en": "Dental practice, dental clinic",
+     "meaning": "the place",
+     "he": "מרפאת שיניים",
+     "ar": "عيادة أسنان",
+     "he_verified": true
+    },
+    {
+     "en": "Dentist",
+     "meaning": "",
+     "he": "רופא/ת שיניים",
+     "ar": "طبيب أسنان",
+     "he_verified": true
+    },
+    {
+     "en": "Dental hygienist",
+     "meaning": "cleans and teaches care",
+     "he": "שיננית",
+     "ar": "أخصائية صحة الفم (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Dental nurse, assistant",
+     "meaning": "",
+     "he": "סייעת שיניים",
+     "ar": "مساعدة طبيب أسنان",
+     "he_verified": true
+    },
+    {
+     "en": "Orthodontist",
+     "meaning": "straightens teeth",
+     "he": "אורתודונט/ית",
+     "ar": "أخصائي تقويم أسنان",
+     "he_verified": true
+    },
+    {
+     "en": "Oral surgeon",
+     "meaning": "",
+     "he": "מומחה/ית לכירורגיית פה ולסת",
+     "ar": "جراح فم وفكين (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Children's dentist",
+     "meaning": "",
+     "he": "רופא/ת שיניים לילדים",
+     "ar": "طبيب أسنان أطفال",
+     "he_verified": true
+    },
+    {
+     "en": "Check-up, examination",
+     "meaning": "",
+     "he": "בדיקה תקופתית",
+     "ar": "فحص دوري",
+     "he_verified": true
+    },
+    {
+     "en": "Scale and polish, cleaning",
+     "meaning": "",
+     "he": "ניקוי אבנית",
+     "ar": "تنظيف أسنان",
+     "he_verified": true
+    },
+    {
+     "en": "X-ray",
+     "meaning": "",
+     "he": "צילום רנטגן",
+     "ar": "صورة أشعة",
+     "he_verified": true
+    },
+    {
+     "en": "Filling",
+     "meaning": "",
+     "he": "סתימה",
+     "ar": "حشوة",
+     "he_verified": true
+    },
+    {
+     "en": "Root canal treatment",
+     "meaning": "",
+     "he": "טיפול שורש",
+     "ar": "علاج عصب / علاج جذور",
+     "he_verified": true
+    },
+    {
+     "en": "Extraction",
+     "meaning": "",
+     "he": "עקירה",
+     "ar": "خلع",
+     "he_verified": true
+    },
+    {
+     "en": "Crown",
+     "meaning": "cap over a tooth",
+     "he": "כתר",
+     "ar": "تاج / تلبيسة",
+     "he_verified": true
+    },
+    {
+     "en": "Bridge",
+     "meaning": "fixed replacement between teeth",
+     "he": "גשר",
+     "ar": "جسر",
+     "he_verified": true
+    },
+    {
+     "en": "Implant",
+     "meaning": "artificial root",
+     "he": "שתל",
+     "ar": "زراعة أسنان",
+     "he_verified": true
+    },
+    {
+     "en": "Denture",
+     "meaning": "removable teeth",
+     "he": "תותבת",
+     "ar": "طقم أسنان",
+     "he_verified": true
+    },
+    {
+     "en": "Veneer",
+     "meaning": "thin front covering",
+     "he": "ציפוי חרסינה",
+     "ar": "قشور / فينير",
+     "he_verified": true
+    },
+    {
+     "en": "Bonding",
+     "meaning": "tooth-coloured reshaping",
+     "he": "הדבקה (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Whitening",
+     "meaning": "",
+     "he": "הלבנת שיניים",
+     "ar": "تبييض أسنان",
+     "he_verified": true
+    },
+    {
+     "en": "Braces",
+     "meaning": "fixed orthodontic appliance",
+     "he": "גשר יישור / קוביות",
+     "ar": "تقويم أسنان",
+     "he_verified": true
+    },
+    {
+     "en": "Clear aligners",
+     "meaning": "removable transparent trays",
+     "he": "קשתיות שקופות",
+     "ar": "تقويم شفاف",
+     "he_verified": true
+    },
+    {
+     "en": "Retainer",
+     "meaning": "holds teeth after straightening",
+     "he": "ריטיינר / קיבוע (not verified)",
+     "ar": "مثبت (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Gum disease",
+     "meaning": "",
+     "he": "מחלת חניכיים",
+     "ar": "أمراض اللثة",
+     "he_verified": true
+    },
+    {
+     "en": "Local anaesthetic",
+     "meaning": "numbing injection",
+     "he": "הרדמה מקומית",
+     "ar": "تخدير موضعي",
+     "he_verified": true
+    },
+    {
+     "en": "Sedation",
+     "meaning": "calming medication during treatment",
+     "he": "סדציה / טשטוש",
+     "ar": "تخدير واعٍ (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Laughing gas",
+     "meaning": "inhaled sedation",
+     "he": "גז צחוק",
+     "ar": "غاز الضحك",
+     "he_verified": true
+    },
+    {
+     "en": "Treatment plan",
+     "meaning": "written list of treatments and costs",
+     "he": "תוכנית טיפול",
+     "ar": "خطة علاج",
+     "he_verified": true
+    },
+    {
+     "en": "Quote, estimate",
+     "meaning": "",
+     "he": "הצעת מחיר",
+     "ar": "عرض سعر",
+     "he_verified": true
+    },
+    {
+     "en": "Dental emergency",
+     "meaning": "pain, swelling, broken tooth",
+     "he": "עזרה ראשונה בשיניים",
+     "ar": "طوارئ أسنان",
+     "he_verified": true
+    },
+    {
+     "en": "Dental anxiety",
+     "meaning": "fear of the dentist",
+     "he": "חרדה מטיפולי שיניים",
+     "ar": "not verified",
+     "he_verified": true
+    }
    ]
   },
   "event": {
@@ -1372,6 +3541,155 @@
     "https://www.sxsw.com",
     "https://websummit.com",
     "https://www.offf.barcelona"
+   ],
+   "terms": [
+    {
+     "en": "Event",
+     "meaning": "the gathering",
+     "he": "אירוע",
+     "ar": "فعالية / حدث",
+     "he_verified": true
+    },
+    {
+     "en": "Conference",
+     "meaning": "talks for professionals",
+     "he": "כנס",
+     "ar": "مؤتمر",
+     "he_verified": true
+    },
+    {
+     "en": "Festival",
+     "meaning": "many performances, often several days",
+     "he": "פסטיבל",
+     "ar": "مهرجان",
+     "he_verified": true
+    },
+    {
+     "en": "Workshop",
+     "meaning": "hands-on session",
+     "he": "סדנה",
+     "ar": "ورشة عمل",
+     "he_verified": true
+    },
+    {
+     "en": "Meetup",
+     "meaning": "small informal gathering",
+     "he": "מפגש / מיטאפ",
+     "ar": "لقاء",
+     "he_verified": true
+    },
+    {
+     "en": "Edition",
+     "meaning": "one year's occurrence",
+     "he": "מהדורה (not verified as common usage for events)",
+     "ar": "دورة (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Venue",
+     "meaning": "the place",
+     "he": "מקום האירוע / אולם",
+     "ar": "مكان الفعالية",
+     "he_verified": true
+    },
+    {
+     "en": "Lineup",
+     "meaning": "who performs or speaks",
+     "he": "ליין-אפ / מרצים",
+     "ar": "قائمة المشاركين (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Speaker",
+     "meaning": "person giving a talk",
+     "he": "מרצה / דובר",
+     "ar": "متحدث",
+     "he_verified": true
+    },
+    {
+     "en": "Keynote",
+     "meaning": "the main talk",
+     "he": "הרצאה מרכזית / הרצאת מליאה",
+     "ar": "الكلمة الرئيسية (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Schedule, programme, agenda",
+     "meaning": "what happens when",
+     "he": "לוח זמנים / תוכנית",
+     "ar": "جدول الأعمال / البرنامج",
+     "he_verified": true
+    },
+    {
+     "en": "Ticket",
+     "meaning": "right to enter",
+     "he": "כרטיס",
+     "ar": "تذكرة",
+     "he_verified": true
+    },
+    {
+     "en": "Early bird",
+     "meaning": "cheaper ticket for early buyers",
+     "he": "כרטיס מוקדם / ארלי בירד",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Badge, pass",
+     "meaning": "entry pass, often for conferences",
+     "he": "תג / כרטיס כניסה",
+     "ar": "بطاقة دخول (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Sold out",
+     "meaning": "no tickets left",
+     "he": "אזל / סולד אאוט",
+     "ar": "نفدت التذاكر",
+     "he_verified": true
+    },
+    {
+     "en": "Waitlist",
+     "meaning": "list for freed tickets",
+     "he": "רשימת המתנה",
+     "ar": "قائمة الانتظار",
+     "he_verified": true
+    },
+    {
+     "en": "Registration",
+     "meaning": "signing up (often free)",
+     "he": "הרשמה",
+     "ar": "تسجيل",
+     "he_verified": true
+    },
+    {
+     "en": "Check-in",
+     "meaning": "entry at the door",
+     "he": "צ'ק-אין / כניסה",
+     "ar": "تسجيل الحضور (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Code of conduct",
+     "meaning": "behaviour rules",
+     "he": "קוד התנהגות",
+     "ar": "مدونة السلوك (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Sponsor",
+     "meaning": "company paying for visibility",
+     "he": "נותן חסות",
+     "ar": "راعٍ",
+     "he_verified": true
+    },
+    {
+     "en": "Call for speakers, call for papers",
+     "meaning": "invitation to submit talks",
+     "he": "קול קורא להרצאות (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    }
    ]
   },
   "fitness-trainer": {
@@ -1499,6 +3817,218 @@
     "https://www.solidcore.co",
     "https://www.mattroberts.co.uk",
     "https://www.equinox.com"
+   ],
+   "terms": [
+    {
+     "en": "Personal trainer (PT)",
+     "meaning": "trains one client at a time",
+     "he": "מאמן כושר אישי / מאמנת כושר אישית",
+     "ar": "مدرب شخصي",
+     "he_verified": true
+    },
+    {
+     "en": "Coach, instructor",
+     "meaning": "leads a session or class",
+     "he": "מאמן / מדריך",
+     "ar": "مدرب",
+     "he_verified": true
+    },
+    {
+     "en": "Session",
+     "meaning": "one paid training time",
+     "he": "אימון",
+     "ar": "حصة تدريبية (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Class",
+     "meaning": "a group session on a timetable",
+     "he": "שיעור",
+     "ar": "حصة",
+     "he_verified": true
+    },
+    {
+     "en": "Studio",
+     "meaning": "small dedicated space",
+     "he": "סטודיו",
+     "ar": "استوديو",
+     "he_verified": true
+    },
+    {
+     "en": "Gym",
+     "meaning": "large equipped space",
+     "he": "חדר כושר",
+     "ar": "نادي رياضي / صالة رياضية",
+     "he_verified": true
+    },
+    {
+     "en": "Timetable, schedule",
+     "meaning": "weekly class list",
+     "he": "מערכת שעות",
+     "ar": "جدول الحصص (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Membership",
+     "meaning": "recurring access",
+     "he": "מנוי",
+     "ar": "اشتراك",
+     "he_verified": true
+    },
+    {
+     "en": "Class pack, punch card",
+     "meaning": "prepaid number of sessions",
+     "he": "כרטיסייה",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Drop-in",
+     "meaning": "a single class without a membership",
+     "he": "שיעור בודד (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Intro offer, trial",
+     "meaning": "first-time price",
+     "he": "שיעור ניסיון",
+     "ar": "حصة تجريبية (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Consultation",
+     "meaning": "first talk before starting",
+     "he": "פגישת היכרות / ייעוץ",
+     "ar": "استشارة",
+     "he_verified": true
+    },
+    {
+     "en": "Assessment",
+     "meaning": "measuring the starting point",
+     "he": "אבחון / הערכה (not verified)",
+     "ar": "تقييم (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Health questionnaire (PAR-Q)",
+     "meaning": "health questions before training",
+     "he": "הצהרת בריאות",
+     "ar": "استبيان صحي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Waitlist",
+     "meaning": "queue for a full class",
+     "he": "רשימת המתנה",
+     "ar": "قائمة انتظار",
+     "he_verified": true
+    },
+    {
+     "en": "Late cancel",
+     "meaning": "cancelling inside the window",
+     "he": "ביטול מאוחר (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "No-show",
+     "meaning": "booked and did not come",
+     "he": "אי הגעה (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Freeze",
+     "meaning": "pause a membership",
+     "he": "הקפאת מנוי",
+     "ar": "تجميد الاشتراك (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Strength training",
+     "meaning": "lifting weights",
+     "he": "אימון כוח",
+     "ar": "تدريب القوة",
+     "he_verified": true
+    },
+    {
+     "en": "HIIT",
+     "meaning": "high-intensity intervals",
+     "he": "אימון אינטרוולים בעצימות גבוהה (HIIT)",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Functional training",
+     "meaning": "movement-based training",
+     "he": "אימון פונקציונלי",
+     "ar": "تدريب وظيفي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Pilates, reformer",
+     "meaning": "method; the machine",
+     "he": "פילאטיס, רפורמר",
+     "ar": "بيلاتس; reformer not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Yoga",
+     "meaning": "",
+     "he": "יוגה",
+     "ar": "يوغا",
+     "he_verified": true
+    },
+    {
+     "en": "Boxing",
+     "meaning": "",
+     "he": "אגרוף",
+     "ar": "ملاكمة",
+     "he_verified": true
+    },
+    {
+     "en": "Small-group training",
+     "meaning": "2 to about 6 people",
+     "he": "אימון בקבוצות קטנות",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Online coaching",
+     "meaning": "remote programme with check-ins",
+     "he": "ליווי אונליין (not verified)",
+     "ar": "تدريب عن بعد (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Warm-up, cool-down",
+     "meaning": "",
+     "he": "חימום, שחרור",
+     "ar": "إحماء, تهدئة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Set, rep",
+     "meaning": "groups and repetitions of an exercise",
+     "he": "סט, חזרה",
+     "ar": "مجموعة, تكرار (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Nutrition plan",
+     "meaning": "eating guidance",
+     "he": "תפריט תזונה",
+     "ar": "خطة غذائية (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Body composition",
+     "meaning": "fat and muscle proportions",
+     "he": "הרכב גוף",
+     "ar": "تكوين الجسم (not verified)",
+     "he_verified": true
+    }
    ]
   },
   "food-stall": {
@@ -1605,6 +4135,211 @@
     "https://www.mscheezious.com",
     "https://veracruzallnatural.com",
     "https://www.cousinsmainelobster.com"
+   ],
+   "terms": [
+    {
+     "en": "Stall",
+     "meaning": "a counter in a market or on the street",
+     "he": "דוכן",
+     "ar": "بسطة / كشك",
+     "he_verified": true
+    },
+    {
+     "en": "Kiosk",
+     "meaning": "a small fixed booth",
+     "he": "קיוסק",
+     "ar": "كشك",
+     "he_verified": true
+    },
+    {
+     "en": "Food truck",
+     "meaning": "a vehicle that cooks and serves",
+     "he": "פודטראק / משאית אוכל",
+     "ar": "عربة طعام / فود ترك (loanword; not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Cart",
+     "meaning": "a hand-pushed or towed unit",
+     "he": "עגלה",
+     "ar": "عربة",
+     "he_verified": true
+    },
+    {
+     "en": "Pitch",
+     "meaning": "the spot where a trader stands",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Street food",
+     "meaning": "food sold to eat standing or walking",
+     "he": "אוכל רחוב",
+     "ar": "أكل شوارع (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Menu",
+     "meaning": "the list of what is sold",
+     "he": "תפריט",
+     "ar": "قائمة الطعام / منيو",
+     "he_verified": true
+    },
+    {
+     "en": "Dish, portion",
+     "meaning": "one item as served",
+     "he": "מנה",
+     "ar": "طبق / وجبة",
+     "he_verified": true
+    },
+    {
+     "en": "Side",
+     "meaning": "a small item next to the main one",
+     "he": "תוספת",
+     "ar": "طبق جانبي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Extra, topping",
+     "meaning": "added for a charge",
+     "he": "תוספת בתשלום",
+     "ar": "إضافة",
+     "he_verified": true
+    },
+    {
+     "en": "Special",
+     "meaning": "an item for today or this week only",
+     "he": "מנת היום / ספיישל",
+     "ar": "طبق اليوم",
+     "he_verified": true
+    },
+    {
+     "en": "Sold out",
+     "meaning": "none left today",
+     "he": "אזל",
+     "ar": "نفدت الكمية (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Takeaway (UK), to go (US)",
+     "meaning": "food to carry away",
+     "he": "טייק אוויי",
+     "ar": "سفري (Levant) / تيك أواي",
+     "he_verified": true
+    },
+    {
+     "en": "Pre-order",
+     "meaning": "ordering before arriving",
+     "he": "הזמנה מראש",
+     "ar": "طلب مسبق",
+     "he_verified": true
+    },
+    {
+     "en": "Delivery",
+     "meaning": "brought to the buyer",
+     "he": "משלוח",
+     "ar": "توصيل",
+     "he_verified": true
+    },
+    {
+     "en": "Queue (UK), line (US)",
+     "meaning": "people waiting",
+     "he": "תור",
+     "ar": "طابور / دور",
+     "he_verified": true
+    },
+    {
+     "en": "Cash only",
+     "meaning": "no cards",
+     "he": "מזומן בלבד",
+     "ar": "نقداً فقط",
+     "he_verified": true
+    },
+    {
+     "en": "Allergens",
+     "meaning": "ingredients that cause allergic reactions",
+     "he": "אלרגנים",
+     "ar": "مسببات الحساسية",
+     "he_verified": true
+    },
+    {
+     "en": "Vegetarian",
+     "meaning": "no meat or fish",
+     "he": "צמחוני",
+     "ar": "نباتي",
+     "he_verified": true
+    },
+    {
+     "en": "Vegan",
+     "meaning": "no animal products",
+     "he": "טבעוני",
+     "ar": "نباتي صرف (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Gluten-free",
+     "meaning": "no gluten",
+     "he": "ללא גלוטן",
+     "ar": "خالٍ من الغلوتين",
+     "he_verified": true
+    },
+    {
+     "en": "Kosher",
+     "meaning": "permitted under Jewish dietary law",
+     "he": "כשר",
+     "ar": "كوشير (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Kosher certificate",
+     "meaning": "the document behind the claim",
+     "he": "תעודת כשרות",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Halal",
+     "meaning": "permitted under Islamic dietary law",
+     "he": "חלאל",
+     "ar": "حلال",
+     "he_verified": true
+    },
+    {
+     "en": "Catering, private hire",
+     "meaning": "serving at someone's event",
+     "he": "קייטרינג / אירועים פרטיים",
+     "ar": "تموين حفلات (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Trader",
+     "meaning": "the person running a stall",
+     "he": "בעל דוכן",
+     "ar": "صاحب البسطة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Street trading licence",
+     "meaning": "permission to sell in a public place",
+     "he": "רישיון רוכלות (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Hygiene rating",
+     "meaning": "an inspection score shown to the public",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Residency",
+     "meaning": "a stall trading inside a bar or food hall for a period",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    }
    ]
   },
   "garage": {
@@ -1719,6 +4454,239 @@
     "https://www.artsautomotive.com",
     "https://www.cleggauto.com",
     "https://www.wrenchpatrol.com"
+   ],
+   "terms": [
+    {
+     "en": "Garage, repair shop (US: auto repair shop)",
+     "meaning": "the business",
+     "he": "מוסך",
+     "ar": "كراج / ورشة تصليح سيارات",
+     "he_verified": true
+    },
+    {
+     "en": "Mechanic, technician",
+     "meaning": "the person doing the work",
+     "he": "מכונאי",
+     "ar": "ميكانيكي",
+     "he_verified": true
+    },
+    {
+     "en": "Service (scheduled maintenance)",
+     "meaning": "the periodic check and fluid change",
+     "he": "טיפול (טיפול תקופתי)",
+     "ar": "صيانة دورية",
+     "he_verified": true
+    },
+    {
+     "en": "Repair",
+     "meaning": "fixing a fault",
+     "he": "תיקון",
+     "ar": "تصليح",
+     "he_verified": true
+    },
+    {
+     "en": "Diagnosis, diagnostics",
+     "meaning": "finding the cause, often with a scan tool",
+     "he": "אבחון תקלות / דיאגנוסטיקה",
+     "ar": "فحص (not verified for the trade term)",
+     "he_verified": true
+    },
+    {
+     "en": "Estimate, quote",
+     "meaning": "the price given before work",
+     "he": "הצעת מחיר",
+     "ar": "عرض سعر",
+     "he_verified": true
+    },
+    {
+     "en": "Labour (US: labor)",
+     "meaning": "the charge for time",
+     "he": "עבודה (שעת עבודה)",
+     "ar": "أجرة اليد (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Parts",
+     "meaning": "what is fitted",
+     "he": "חלפים",
+     "ar": "قطع غيار",
+     "he_verified": true
+    },
+    {
+     "en": "Original parts (OEM)",
+     "meaning": "made by or for the car's manufacturer",
+     "he": "חלפים מקוריים",
+     "ar": "قطع غيار أصلية",
+     "he_verified": true
+    },
+    {
+     "en": "Aftermarket parts",
+     "meaning": "made by another manufacturer",
+     "he": "חלפים תחליפיים",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Annual roadworthiness test (UK: MOT; Israel: \"test\")",
+     "meaning": "the legally required inspection",
+     "he": "טסט (מבחן רישוי שנתי)",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Brakes, brake pads, discs (US: rotors)",
+     "meaning": "",
+     "he": "בלמים, רפידות, דיסקים",
+     "ar": "فرامل (pads and discs: not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Tyres (US: tires)",
+     "meaning": "",
+     "he": "צמיגים",
+     "ar": "إطارات",
+     "he_verified": true
+    },
+    {
+     "en": "Wheel alignment",
+     "meaning": "setting the wheel angles",
+     "he": "כיוון פרונט",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Oil change",
+     "meaning": "",
+     "he": "החלפת שמן",
+     "ar": "تغيير زيت",
+     "he_verified": true
+    },
+    {
+     "en": "Battery",
+     "meaning": "",
+     "he": "מצבר",
+     "ar": "بطارية",
+     "he_verified": true
+    },
+    {
+     "en": "Clutch",
+     "meaning": "",
+     "he": "מצמד (colloquial: קלאץ')",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Gearbox (US: transmission)",
+     "meaning": "",
+     "he": "תיבת הילוכים (colloquial: גיר)",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Timing belt",
+     "meaning": "",
+     "he": "רצועת טיימינג",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Exhaust",
+     "meaning": "",
+     "he": "מערכת פליטה (colloquial: אגזוז)",
+     "ar": "عادم (not verified for workshop use)",
+     "he_verified": true
+    },
+    {
+     "en": "Suspension",
+     "meaning": "",
+     "he": "מתלים",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Air conditioning",
+     "meaning": "",
+     "he": "מיזוג אוויר",
+     "ar": "تكييف",
+     "he_verified": true
+    },
+    {
+     "en": "Bodywork, panel beating",
+     "meaning": "repairing dents and panels",
+     "he": "פחחות",
+     "ar": "سمكرة",
+     "he_verified": true
+    },
+    {
+     "en": "Paint",
+     "meaning": "",
+     "he": "צבע",
+     "ar": "دهان",
+     "he_verified": true
+    },
+    {
+     "en": "Warning light, check-engine light",
+     "meaning": "",
+     "he": "נורת אזהרה, נורת מנוע",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Mileage, odometer reading",
+     "meaning": "",
+     "he": "קילומטראז'",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Registration number, plate",
+     "meaning": "",
+     "he": "מספר רישוי",
+     "ar": "رقم اللوحة",
+     "he_verified": true
+    },
+    {
+     "en": "Courtesy car (US: loaner)",
+     "meaning": "a car lent during the repair",
+     "he": "רכב חלופי",
+     "ar": "سيارة بديلة",
+     "he_verified": true
+    },
+    {
+     "en": "Towing, recovery",
+     "meaning": "",
+     "he": "גרירה",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Warranty",
+     "meaning": "",
+     "he": "אחריות",
+     "ar": "ضمان",
+     "he_verified": true
+    },
+    {
+     "en": "Authorised garage",
+     "meaning": "approved by the manufacturer or importer",
+     "he": "מוסך מורשה",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Pre-purchase inspection",
+     "meaning": "checking a used car before buying",
+     "he": "בדיקה לפני קנייה",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Hybrid, electric vehicle",
+     "meaning": "",
+     "he": "רכב היברידי, רכב חשמלי",
+     "ar": "سيارة هجينة، سيارة كهربائية",
+     "he_verified": true
+    }
    ]
   },
   "hair-salon": {
@@ -1825,6 +4793,232 @@
     "https://www.hareandbone.co.uk",
     "https://www.hershesons.com",
     "https://www.ruffians.co.uk"
+   ],
+   "terms": [
+    {
+     "en": "Hair salon",
+     "meaning": "the business",
+     "he": "מספרה",
+     "ar": "صالون",
+     "he_verified": true
+    },
+    {
+     "en": "Barbershop",
+     "meaning": "men's cuts and beards",
+     "he": "מספרת גברים / ברבר שופ",
+     "ar": "صالون حلاقة",
+     "he_verified": true
+    },
+    {
+     "en": "Stylist, hairdresser",
+     "meaning": "the person cutting",
+     "he": "ספר / ספרית, מעצב/ת שיער",
+     "ar": "مصفف شعر / كوافير",
+     "he_verified": true
+    },
+    {
+     "en": "Barber",
+     "meaning": "cuts and shaves men",
+     "he": "ספר",
+     "ar": "حلاق",
+     "he_verified": true
+    },
+    {
+     "en": "Colourist",
+     "meaning": "specialises in colour",
+     "he": "צבעי/ת (not verified as common usage)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Appointment",
+     "meaning": "a booked time",
+     "he": "תור",
+     "ar": "موعد",
+     "he_verified": true
+    },
+    {
+     "en": "Walk-in",
+     "meaning": "no appointment needed",
+     "he": "ללא תור מראש",
+     "ar": "بدون موعد",
+     "he_verified": true
+    },
+    {
+     "en": "Consultation",
+     "meaning": "a talk before a big change",
+     "he": "ייעוץ",
+     "ar": "استشارة",
+     "he_verified": true
+    },
+    {
+     "en": "Cut",
+     "meaning": "haircut",
+     "he": "תספורת",
+     "ar": "قص شعر",
+     "he_verified": true
+    },
+    {
+     "en": "Trim",
+     "meaning": "a small cut to tidy",
+     "he": "קיצוץ קצוות (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Fringe (UK), bangs (US)",
+     "meaning": "hair cut over the forehead",
+     "he": "פוני",
+     "ar": "غرّة",
+     "he_verified": true
+    },
+    {
+     "en": "Blow-dry (UK), blowout (US)",
+     "meaning": "wash and dry into a style",
+     "he": "פן",
+     "ar": "سشوار",
+     "he_verified": true
+    },
+    {
+     "en": "Updo",
+     "meaning": "hair pinned up for an event",
+     "he": "תסרוקת ערב (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Bridal hair",
+     "meaning": "wedding styling",
+     "he": "תסרוקת כלה",
+     "ar": "تسريحة عروس",
+     "he_verified": true
+    },
+    {
+     "en": "Colour, tint",
+     "meaning": "all-over colour",
+     "he": "צבע",
+     "ar": "صبغة",
+     "he_verified": true
+    },
+    {
+     "en": "Root touch-up, regrowth",
+     "meaning": "colouring only the new growth",
+     "he": "צבע שורשים",
+     "ar": "صبغة جذور (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Highlights",
+     "meaning": "lighter strands",
+     "he": "גוונים",
+     "ar": "هايلايت (loanword; not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Balayage",
+     "meaning": "hand-painted lightening",
+     "he": "בלייאז'",
+     "ar": "بالياج (loanword; not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Toner, gloss",
+     "meaning": "adjusts the shade after lightening",
+     "he": "טונר",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Bleach, lightening",
+     "meaning": "removing colour",
+     "he": "הבהרה",
+     "ar": "تفتيح (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Colour correction",
+     "meaning": "fixing a colour that went wrong",
+     "he": "תיקון צבע",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Patch test, skin test",
+     "meaning": "allergy test before colour",
+     "he": "בדיקת רגישות (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Straightening, smoothing, keratin",
+     "meaning": "long-lasting smoothing treatment",
+     "he": "החלקה",
+     "ar": "تمليس / كيراتين",
+     "he_verified": true
+    },
+    {
+     "en": "Perm",
+     "meaning": "long-lasting curl",
+     "he": "סלסול",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Extensions",
+     "meaning": "added hair",
+     "he": "תוספות שיער",
+     "ar": "وصلات شعر (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Treatment, mask",
+     "meaning": "conditioning care",
+     "he": "טיפול / מסכה",
+     "ar": "علاج (not verified) / ماسك",
+     "he_verified": true
+    },
+    {
+     "en": "Fade",
+     "meaning": "men's cut, short to shorter",
+     "he": "פייד",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Beard trim",
+     "meaning": "shaping the beard",
+     "he": "עיצוב זקן",
+     "ar": "تحديد لحية (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Hot-towel shave",
+     "meaning": "traditional wet shave",
+     "he": "גילוח (not verified for the full term)",
+     "ar": "حلاقة ذقن (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Price list, menu",
+     "meaning": "the list of services and prices",
+     "he": "מחירון",
+     "ar": "قائمة الأسعار",
+     "he_verified": true
+    },
+    {
+     "en": "No-show",
+     "meaning": "booked and did not come",
+     "he": "הברזה (slang; not verified for formal use)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Chair rental",
+     "meaning": "a stylist renting a place in a salon",
+     "he": "השכרת עמדה / כיסא",
+     "ar": "not verified",
+     "he_verified": true
+    }
    ]
   },
   "hotel-guesthouse": {
@@ -1974,6 +5168,281 @@
     "https://hotelpeterandpaul.com",
     "https://www.sanjosehotel.com",
     "https://thefifearms.com"
+   ],
+   "terms": [
+    {
+     "en": "Hotel",
+     "meaning": "",
+     "he": "מלון / בית מלון",
+     "ar": "فندق",
+     "he_verified": true
+    },
+    {
+     "en": "Boutique hotel",
+     "meaning": "small, individually designed",
+     "he": "מלון בוטיק",
+     "ar": "فندق بوتيك",
+     "he_verified": true
+    },
+    {
+     "en": "Guesthouse",
+     "meaning": "a small, owner-run place to stay",
+     "he": "בית הארחה",
+     "ar": "بيت ضيافة / نُزُل",
+     "he_verified": true
+    },
+    {
+     "en": "Bed and breakfast",
+     "meaning": "a room with breakfast",
+     "he": "לינה וארוחת בוקר",
+     "ar": "مبيت وإفطار",
+     "he_verified": true
+    },
+    {
+     "en": "Rural cabin or holiday unit",
+     "meaning": "in Israel, the common small-accommodation form",
+     "he": "צימר",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Hostel",
+     "meaning": "shared rooms",
+     "he": "אכסניה",
+     "ar": "نُزُل شبابي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Room",
+     "meaning": "",
+     "he": "חדר",
+     "ar": "غرفة",
+     "he_verified": true
+    },
+    {
+     "en": "Suite",
+     "meaning": "a room with a separate sitting area",
+     "he": "סוויטה",
+     "ar": "جناح",
+     "he_verified": true
+    },
+    {
+     "en": "Double room",
+     "meaning": "one large bed",
+     "he": "חדר זוגי",
+     "ar": "غرفة مزدوجة",
+     "he_verified": true
+    },
+    {
+     "en": "Twin room",
+     "meaning": "two separate beds",
+     "he": "חדר עם שתי מיטות נפרדות",
+     "ar": "غرفة بسريرين منفصلين",
+     "he_verified": true
+    },
+    {
+     "en": "Family room",
+     "meaning": "sleeps parents and children",
+     "he": "חדר משפחתי",
+     "ar": "غرفة عائلية",
+     "he_verified": true
+    },
+    {
+     "en": "En suite",
+     "meaning": "bathroom inside the room",
+     "he": "חדר רחצה צמוד (not verified)",
+     "ar": "حمّام خاص",
+     "he_verified": false
+    },
+    {
+     "en": "Sleeps",
+     "meaning": "how many people a room takes",
+     "he": "מתאים ל-N אורחים",
+     "ar": "يتّسع لـ N أشخاص (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Night",
+     "meaning": "the unit sold",
+     "he": "לילה",
+     "ar": "ليلة",
+     "he_verified": true
+    },
+    {
+     "en": "Rate",
+     "meaning": "the price for a room on a date",
+     "he": "תעריף",
+     "ar": "سعر",
+     "he_verified": true
+    },
+    {
+     "en": "Availability",
+     "meaning": "which nights are free",
+     "he": "זמינות / חדרים פנויים",
+     "ar": "التوفّر (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Booking, reservation",
+     "meaning": "",
+     "he": "הזמנה",
+     "ar": "حجز",
+     "he_verified": true
+    },
+    {
+     "en": "Check-in / check-out",
+     "meaning": "arrival and departure times",
+     "he": "צ'ק-אין / צ'ק-אאוט; קבלת חדר / פינוי חדר",
+     "ar": "تسجيل الوصول / تسجيل المغادرة",
+     "he_verified": true
+    },
+    {
+     "en": "Reception, front desk",
+     "meaning": "",
+     "he": "קבלה",
+     "ar": "الاستقبال",
+     "he_verified": true
+    },
+    {
+     "en": "Breakfast included",
+     "meaning": "",
+     "he": "כולל ארוחת בוקר",
+     "ar": "يشمل الإفطار",
+     "he_verified": true
+    },
+    {
+     "en": "Half board",
+     "meaning": "breakfast and dinner",
+     "he": "חצי פנסיון",
+     "ar": "نصف إقامة",
+     "he_verified": true
+    },
+    {
+     "en": "Full board",
+     "meaning": "all three meals",
+     "he": "פנסיון מלא",
+     "ar": "إقامة كاملة",
+     "he_verified": true
+    },
+    {
+     "en": "Room only",
+     "meaning": "no meals",
+     "he": "לינה בלבד",
+     "ar": "مبيت فقط (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Minimum stay",
+     "meaning": "fewest nights bookable",
+     "he": "מינימום לילות",
+     "ar": "حدّ أدنى لعدد الليالي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "High season / low season",
+     "meaning": "",
+     "he": "עונת שיא / מחוץ לעונה",
+     "ar": "موسم الذروة / خارج الموسم",
+     "he_verified": true
+    },
+    {
+     "en": "Midweek / weekend",
+     "meaning": "",
+     "he": "אמצע שבוע / סוף שבוע",
+     "ar": "وسط الأسبوع / نهاية الأسبوع",
+     "he_verified": true
+    },
+    {
+     "en": "Deposit",
+     "meaning": "part payment in advance",
+     "he": "מקדמה",
+     "ar": "عربون / دفعة مقدّمة",
+     "he_verified": true
+    },
+    {
+     "en": "Cancellation policy",
+     "meaning": "",
+     "he": "מדיניות ביטול / דמי ביטול",
+     "ar": "سياسة الإلغاء",
+     "he_verified": true
+    },
+    {
+     "en": "Non-refundable",
+     "meaning": "",
+     "he": "ללא החזר כספי",
+     "ar": "غير قابل للاسترداد",
+     "he_verified": true
+    },
+    {
+     "en": "No-show",
+     "meaning": "booked and did not arrive",
+     "he": "אי-הגעה",
+     "ar": "عدم الحضور (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Occupancy",
+     "meaning": "how many guests in a room; also how full the property is",
+     "he": "תפוסה",
+     "ar": "نسبة الإشغال",
+     "he_verified": true
+    },
+    {
+     "en": "Cot (UK), crib (US)",
+     "meaning": "a baby's bed",
+     "he": "עריסה / מיטת תינוק",
+     "ar": "سرير أطفال",
+     "he_verified": true
+    },
+    {
+     "en": "Extra bed",
+     "meaning": "",
+     "he": "מיטה נוספת",
+     "ar": "سرير إضافي",
+     "he_verified": true
+    },
+    {
+     "en": "Tourist tax, city tax",
+     "meaning": "a local charge per person per night",
+     "he": "מס תיירות (not verified as an Israeli term)",
+     "ar": "ضريبة سياحية (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Exclusive use, buyout",
+     "meaning": "hiring the whole property",
+     "he": "סגירת מתחם (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Channel manager",
+     "meaning": "software that keeps one calendar across sales sites",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Overbooking",
+     "meaning": "more bookings than rooms",
+     "he": "אוברבוקינג / רישום יתר",
+     "ar": "حجز زائد",
+     "he_verified": true
+    },
+    {
+     "en": "Parking",
+     "meaning": "",
+     "he": "חניה",
+     "ar": "موقف سيارات",
+     "he_verified": true
+    },
+    {
+     "en": "Pool",
+     "meaning": "",
+     "he": "בריכה",
+     "ar": "مسبح",
+     "he_verified": true
+    }
    ]
   },
   "kindergarten": {
@@ -2086,6 +5555,176 @@
     "https://www.vivvi.com",
     "https://www.thelearningexperience.com",
     "https://www.fennies.com"
+   ],
+   "terms": [
+    {
+     "en": "Kindergarten, preschool",
+     "meaning": "setting for ages about 3 to 6",
+     "he": "גן ילדים",
+     "ar": "روضة أطفال",
+     "he_verified": true
+    },
+    {
+     "en": "Daycare, nursery (UK)",
+     "meaning": "setting for babies and toddlers",
+     "he": "מעון יום / פעוטון",
+     "ar": "حضانة",
+     "he_verified": true
+    },
+    {
+     "en": "Family daycare, childminder (UK)",
+     "meaning": "care for a few children in a home",
+     "he": "משפחתון",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Private kindergarten",
+     "meaning": "not run by the municipality",
+     "he": "גן פרטי",
+     "ar": "روضة خاصة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Teacher (kindergarten)",
+     "meaning": "leads the group",
+     "he": "גננת / גנן",
+     "ar": "معلمة روضة / مربية",
+     "he_verified": true
+    },
+    {
+     "en": "Assistant",
+     "meaning": "supports the teacher",
+     "he": "סייעת",
+     "ar": "مساعدة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Caregiver (babies)",
+     "meaning": "cares for under-threes",
+     "he": "מטפלת",
+     "ar": "حاضنة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Group, class, room",
+     "meaning": "children of one age band",
+     "he": "קבוצה / כיתה",
+     "ar": "صف / مجموعة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Babies / toddlers / preschoolers",
+     "meaning": "age bands",
+     "he": "תינוקייה / פעוטות / בוגרים",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Registration, enrolment",
+     "meaning": "securing a place",
+     "he": "רישום / הרשמה",
+     "ar": "تسجيل",
+     "he_verified": true
+    },
+    {
+     "en": "Waiting list",
+     "meaning": "queue for a place",
+     "he": "רשימת המתנה",
+     "ar": "قائمة الانتظار",
+     "he_verified": true
+    },
+    {
+     "en": "Tuition, fees",
+     "meaning": "the price",
+     "he": "שכר לימוד",
+     "ar": "رسوم / أقساط",
+     "he_verified": true
+    },
+    {
+     "en": "Registration fee",
+     "meaning": "one-time charge",
+     "he": "דמי רישום",
+     "ar": "رسوم تسجيل",
+     "he_verified": true
+    },
+    {
+     "en": "Visit, tour",
+     "meaning": "seeing the place before registering",
+     "he": "ביקור / סיור היכרות",
+     "ar": "زيارة",
+     "he_verified": true
+    },
+    {
+     "en": "Open day",
+     "meaning": "a set day for visits",
+     "he": "יום פתוח",
+     "ar": "يوم مفتوح",
+     "he_verified": true
+    },
+    {
+     "en": "Settling-in, adaptation",
+     "meaning": "first days with a parent present",
+     "he": "ימי הסתגלות",
+     "ar": "فترة التأقلم (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Daily schedule",
+     "meaning": "order of the day",
+     "he": "סדר יום",
+     "ar": "البرنامج اليومي",
+     "he_verified": true
+    },
+    {
+     "en": "Long day, extended day",
+     "meaning": "care after the main programme",
+     "he": "צהרון",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Nap, rest time",
+     "meaning": "sleep during the day",
+     "he": "שנת צהריים / מנוחה",
+     "ar": "قيلولة",
+     "he_verified": true
+    },
+    {
+     "en": "Staff-to-child ratio",
+     "meaning": "children per adult",
+     "he": "יחס צוות-ילדים (not verified as the common phrase)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Licence",
+     "meaning": "permission to operate",
+     "he": "רישיון הפעלה / סמל מעון (not verified)",
+     "ar": "ترخيص",
+     "he_verified": false
+    },
+    {
+     "en": "Pick-up, collection",
+     "meaning": "taking the child home",
+     "he": "איסוף",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Curriculum, approach",
+     "meaning": "how the children learn",
+     "he": "תוכנית חינוכית / גישה",
+     "ar": "منهج",
+     "he_verified": true
+    },
+    {
+     "en": "Play-based learning",
+     "meaning": "learning through play",
+     "he": "למידה דרך משחק",
+     "ar": "التعلم باللعب (not verified)",
+     "he_verified": true
+    }
    ]
   },
   "landing-page": {
@@ -2214,6 +5853,169 @@
     "https://cal.com",
     "https://www.buildingasecondbrain.com",
     "https://arc.net"
+   ],
+   "terms": [
+    {
+     "en": "Landing page",
+     "meaning": "a one-goal page",
+     "he": "דף נחיתה",
+     "ar": "صفحة هبوط",
+     "he_verified": true
+    },
+    {
+     "en": "Call to action (CTA)",
+     "meaning": "the main button and its words",
+     "he": "קריאה לפעולה",
+     "ar": "دعوة إلى اتخاذ إجراء",
+     "he_verified": true
+    },
+    {
+     "en": "Hero, above the fold",
+     "meaning": "the first screen",
+     "he": "אזור הפתיחה / מעל לקפל (not verified as common)",
+     "ar": "القسم الرئيسي (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Headline",
+     "meaning": "the main line",
+     "he": "כותרת",
+     "ar": "عنوان رئيسي",
+     "he_verified": true
+    },
+    {
+     "en": "Value proposition",
+     "meaning": "why this offer is worth it",
+     "he": "הצעת ערך",
+     "ar": "عرض القيمة",
+     "he_verified": true
+    },
+    {
+     "en": "Benefit",
+     "meaning": "what the visitor gains",
+     "he": "תועלת",
+     "ar": "فائدة / ميزة",
+     "he_verified": true
+    },
+    {
+     "en": "Feature",
+     "meaning": "what the product does or has",
+     "he": "פיצ'ר / תכונה",
+     "ar": "خاصية",
+     "he_verified": true
+    },
+    {
+     "en": "Social proof",
+     "meaning": "evidence that others use and like it",
+     "he": "הוכחה חברתית",
+     "ar": "الدليل الاجتماعي",
+     "he_verified": true
+    },
+    {
+     "en": "Testimonial",
+     "meaning": "a quote from a real user",
+     "he": "המלצה",
+     "ar": "شهادة / توصية",
+     "he_verified": true
+    },
+    {
+     "en": "Lead",
+     "meaning": "a person who left contact details",
+     "he": "ליד",
+     "ar": "عميل محتمل",
+     "he_verified": true
+    },
+    {
+     "en": "Conversion",
+     "meaning": "a visitor doing the main action",
+     "he": "המרה",
+     "ar": "تحويل",
+     "he_verified": true
+    },
+    {
+     "en": "Conversion rate",
+     "meaning": "the share of visitors who convert",
+     "he": "יחס המרה",
+     "ar": "معدل التحويل",
+     "he_verified": true
+    },
+    {
+     "en": "Waiting list, waitlist",
+     "meaning": "sign up to hear when available",
+     "he": "רשימת המתנה",
+     "ar": "قائمة الانتظار",
+     "he_verified": true
+    },
+    {
+     "en": "Preorder",
+     "meaning": "pay or reserve before release",
+     "he": "הזמנה מוקדמת",
+     "ar": "طلب مسبق",
+     "he_verified": true
+    },
+    {
+     "en": "Free trial",
+     "meaning": "use free for a limited time",
+     "he": "תקופת ניסיון חינם",
+     "ar": "تجربة مجانية",
+     "he_verified": true
+    },
+    {
+     "en": "Pricing table, plans",
+     "meaning": "comparison of plans",
+     "he": "טבלת מחירים, מסלולים",
+     "ar": "جدول الأسعار، الباقات",
+     "he_verified": true
+    },
+    {
+     "en": "Sold out, out of stock",
+     "meaning": "not available",
+     "he": "אזל מהמלאי",
+     "ar": "نفد من المخزون",
+     "he_verified": true
+    },
+    {
+     "en": "A/B test",
+     "meaning": "comparing two versions",
+     "he": "בדיקת A/B",
+     "ar": "اختبار A/B",
+     "he_verified": true
+    },
+    {
+     "en": "Opt-in",
+     "meaning": "agreeing to receive messages",
+     "he": "הסכמה לקבלת דיוור (not verified as exact)",
+     "ar": "الموافقة على الاشتراك (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Unsubscribe",
+     "meaning": "stop receiving messages",
+     "he": "הסרה מרשימת תפוצה",
+     "ar": "إلغاء الاشتراك",
+     "he_verified": true
+    },
+    {
+     "en": "Campaign",
+     "meaning": "a time-bound marketing effort",
+     "he": "קמפיין",
+     "ar": "حملة",
+     "he_verified": true
+    },
+    {
+     "en": "Lead magnet",
+     "meaning": "a free thing given for an email",
+     "he": "מגנט לידים",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Footnote, fine print",
+     "meaning": "qualifying small text",
+     "he": "הערת שוליים, אותיות קטנות",
+     "ar": "حاشية، الشروط الدقيقة (not verified)",
+     "he_verified": true
+    }
    ]
   },
   "lawyer": {
@@ -2327,6 +6129,253 @@
     "https://www.kingsleynapley.co.uk",
     "https://www.mishcon.com",
     "https://www.harbottle.com"
+   ],
+   "terms": [
+    {
+     "en": "Lawyer, attorney, advocate",
+     "meaning": "",
+     "he": "עורך/ת דין",
+     "ar": "محامٍ / محامية",
+     "he_verified": true
+    },
+    {
+     "en": "Law firm, law office",
+     "meaning": "",
+     "he": "משרד עורכי דין",
+     "ar": "مكتب محاماة",
+     "he_verified": true
+    },
+    {
+     "en": "Partner / associate",
+     "meaning": "owner / employed lawyer",
+     "he": "שותף/ה / עורך דין שכיר",
+     "ar": "شريك / not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Trainee, intern",
+     "meaning": "not yet licensed",
+     "he": "מתמחה",
+     "ar": "محامٍ متدرب",
+     "he_verified": true
+    },
+    {
+     "en": "Notary",
+     "meaning": "certifies documents",
+     "he": "נוטריון",
+     "ar": "كاتب عدل",
+     "he_verified": true
+    },
+    {
+     "en": "Mediator",
+     "meaning": "helps parties agree",
+     "he": "מגשר/ת",
+     "ar": "وسيط",
+     "he_verified": true
+    },
+    {
+     "en": "Client",
+     "meaning": "",
+     "he": "לקוח/ה",
+     "ar": "موكّل",
+     "he_verified": true
+    },
+    {
+     "en": "First consultation",
+     "meaning": "",
+     "he": "פגישת ייעוץ ראשונית",
+     "ar": "استشارة أولية",
+     "he_verified": true
+    },
+    {
+     "en": "Legal advice",
+     "meaning": "",
+     "he": "ייעוץ משפטי",
+     "ar": "استشارة قانونية",
+     "he_verified": true
+    },
+    {
+     "en": "Representation",
+     "meaning": "acting for a client",
+     "he": "ייצוג",
+     "ar": "تمثيل قانوني",
+     "he_verified": true
+    },
+    {
+     "en": "Fee, legal fee",
+     "meaning": "",
+     "he": "שכר טרחה",
+     "ar": "أتعاب المحاماة",
+     "he_verified": true
+    },
+    {
+     "en": "Fee agreement, engagement letter",
+     "meaning": "",
+     "he": "הסכם שכר טרחה",
+     "ar": "اتفاقية أتعاب",
+     "he_verified": true
+    },
+    {
+     "en": "Retainer",
+     "meaning": "fixed periodic fee",
+     "he": "ריטיינר",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Court fee",
+     "meaning": "paid to the court",
+     "he": "אגרת בית משפט",
+     "ar": "رسوم المحكمة",
+     "he_verified": true
+    },
+    {
+     "en": "Power of attorney",
+     "meaning": "",
+     "he": "ייפוי כוח",
+     "ar": "توكيل / وكالة",
+     "he_verified": true
+    },
+    {
+     "en": "Lawyer-client privilege",
+     "meaning": "",
+     "he": "חיסיון עורך דין-לקוח",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Confidentiality",
+     "meaning": "",
+     "he": "סודיות",
+     "ar": "السرية",
+     "he_verified": true
+    },
+    {
+     "en": "Conflict of interest",
+     "meaning": "",
+     "he": "ניגוד עניינים",
+     "ar": "تضارب مصالح",
+     "he_verified": true
+    },
+    {
+     "en": "Claim, lawsuit",
+     "meaning": "",
+     "he": "תביעה",
+     "ar": "دعوى",
+     "he_verified": true
+    },
+    {
+     "en": "Claimant / defendant",
+     "meaning": "",
+     "he": "תובע / נתבע",
+     "ar": "مدّعٍ / مدّعى عليه",
+     "he_verified": true
+    },
+    {
+     "en": "Court",
+     "meaning": "",
+     "he": "בית משפט",
+     "ar": "محكمة",
+     "he_verified": true
+    },
+    {
+     "en": "Hearing",
+     "meaning": "",
+     "he": "דיון",
+     "ar": "جلسة",
+     "he_verified": true
+    },
+    {
+     "en": "Appeal",
+     "meaning": "",
+     "he": "ערעור",
+     "ar": "استئناف",
+     "he_verified": true
+    },
+    {
+     "en": "Limitation period",
+     "meaning": "time limit to sue",
+     "he": "התיישנות",
+     "ar": "تقادم",
+     "he_verified": true
+    },
+    {
+     "en": "Contract, agreement",
+     "meaning": "",
+     "he": "חוזה / הסכם",
+     "ar": "عقد / اتفاقية",
+     "he_verified": true
+    },
+    {
+     "en": "Will / inheritance",
+     "meaning": "",
+     "he": "צוואה / ירושה",
+     "ar": "وصية / ميراث",
+     "he_verified": true
+    },
+    {
+     "en": "Divorce",
+     "meaning": "",
+     "he": "גירושין",
+     "ar": "طلاق",
+     "he_verified": true
+    },
+    {
+     "en": "Custody",
+     "meaning": "",
+     "he": "משמורת",
+     "ar": "حضانة",
+     "he_verified": true
+    },
+    {
+     "en": "Mediation / arbitration",
+     "meaning": "",
+     "he": "גישור / בוררות",
+     "ar": "وساطة / تحكيم",
+     "he_verified": true
+    },
+    {
+     "en": "Family law",
+     "meaning": "",
+     "he": "דיני משפחה",
+     "ar": "قانون الأحوال الشخصية",
+     "he_verified": true
+    },
+    {
+     "en": "Employment law",
+     "meaning": "",
+     "he": "דיני עבודה",
+     "ar": "قانون العمل",
+     "he_verified": true
+    },
+    {
+     "en": "Property law, real estate",
+     "meaning": "",
+     "he": "מקרקעין / נדל\"ן",
+     "ar": "قانون العقارات",
+     "he_verified": true
+    },
+    {
+     "en": "Personal injury, torts",
+     "meaning": "",
+     "he": "נזיקין",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Criminal law",
+     "meaning": "",
+     "he": "פלילי",
+     "ar": "القانون الجنائي",
+     "he_verified": true
+    },
+    {
+     "en": "Legal aid",
+     "meaning": "publicly funded help",
+     "he": "סיוע משפטי",
+     "ar": "مساعدة قانونية",
+     "he_verified": true
+    }
    ]
   },
   "musician-band": {
@@ -2441,6 +6490,211 @@
     "https://www.gogopenguin.co.uk",
     "https://www.hotjazzbiscuits.co.uk",
     "https://www.downforthecount.co.uk"
+   ],
+   "terms": [
+    {
+     "en": "Band",
+     "meaning": "",
+     "he": "להקה",
+     "ar": "فرقة موسيقية",
+     "he_verified": true
+    },
+    {
+     "en": "Musician",
+     "meaning": "",
+     "he": "מוזיקאי / מוזיקאית",
+     "ar": "موسيقي",
+     "he_verified": true
+    },
+    {
+     "en": "Singer",
+     "meaning": "",
+     "he": "זמר / זמרת",
+     "ar": "مغني / مغنية",
+     "he_verified": true
+    },
+    {
+     "en": "Gig, show, concert",
+     "meaning": "a live performance",
+     "he": "הופעה",
+     "ar": "حفلة",
+     "he_verified": true
+    },
+    {
+     "en": "Tour",
+     "meaning": "a run of shows",
+     "he": "סיבוב הופעות",
+     "ar": "جولة (not verified as the music term)",
+     "he_verified": true
+    },
+    {
+     "en": "Venue",
+     "meaning": "where the show happens",
+     "he": "מקום ההופעה",
+     "ar": "مكان الحفل (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Tickets",
+     "meaning": "",
+     "he": "כרטיסים",
+     "ar": "تذاكر",
+     "he_verified": true
+    },
+    {
+     "en": "Sold out",
+     "meaning": "",
+     "he": "אזל / נמכר עד תום (not verified)",
+     "ar": "نفدت التذاكر (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Support act",
+     "meaning": "plays before the main act",
+     "he": "מופע חימום",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Doors",
+     "meaning": "time the venue opens",
+     "he": "פתיחת דלתות (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Album",
+     "meaning": "",
+     "he": "אלבום",
+     "ar": "ألبوم",
+     "he_verified": true
+    },
+    {
+     "en": "Single",
+     "meaning": "one released song",
+     "he": "סינגל",
+     "ar": "أغنية منفردة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "EP",
+     "meaning": "short release",
+     "he": "EP / מיני-אלבום (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Release date",
+     "meaning": "",
+     "he": "תאריך יציאה (not verified)",
+     "ar": "تاريخ الإصدار (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Pre-order, pre-save",
+     "meaning": "",
+     "he": "הזמנה מוקדמת (pre-save: not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Streaming",
+     "meaning": "",
+     "he": "סטרימינג (loanword)",
+     "ar": "بث (not verified as the music term)",
+     "he_verified": true
+    },
+    {
+     "en": "Merchandise (merch)",
+     "meaning": "",
+     "he": "מרצ'נדייז (loanword; not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Mailing list",
+     "meaning": "",
+     "he": "רשימת תפוצה",
+     "ar": "قائمة بريدية",
+     "he_verified": true
+    },
+    {
+     "en": "Manager",
+     "meaning": "",
+     "he": "מנהל אישי",
+     "ar": "مدير أعمال",
+     "he_verified": true
+    },
+    {
+     "en": "Booking agent",
+     "meaning": "sells the act's shows",
+     "he": "סוכן הופעות (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Press kit (EPK)",
+     "meaning": "material for promoters and press",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Technical rider, stage plot",
+     "meaning": "technical needs and stage layout",
+     "he": "ריידר (loanword; not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Set, setlist",
+     "meaning": "a block of songs; the list",
+     "he": "סט, רשימת שירים (setlist: not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Cover song",
+     "meaning": "someone else's song",
+     "he": "קאבר",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Line-up",
+     "meaning": "who is playing",
+     "he": "הרכב",
+     "ar": "تشكيلة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Wedding band",
+     "meaning": "",
+     "he": "להקה לחתונות / להקת אירועים",
+     "ar": "فرقة أعراس (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "First dance",
+     "meaning": "",
+     "he": "ריקוד ראשון (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "DJ",
+     "meaning": "",
+     "he": "די ג'יי",
+     "ar": "دي جي",
+     "he_verified": true
+    },
+    {
+     "en": "Sound system (PA)",
+     "meaning": "",
+     "he": "הגברה",
+     "ar": "نظام صوت (not verified)",
+     "he_verified": true
+    }
    ]
   },
   "nonprofit": {
@@ -2553,6 +6807,141 @@
     "https://www.againstmalaria.com",
     "https://www.roomtoread.org",
     "https://www.crisis.org.uk"
+   ],
+   "terms": [
+    {
+     "en": "Nonprofit, charity",
+     "meaning": "the organisation",
+     "he": "עמותה / ארגון ללא כוונת רווח / ארגון צדקה",
+     "ar": "منظمة غير ربحية / جمعية خيرية",
+     "he_verified": true
+    },
+    {
+     "en": "Registered charity",
+     "meaning": "officially registered",
+     "he": "עמותה רשומה",
+     "ar": "جمعية خيرية مسجلة",
+     "he_verified": true
+    },
+    {
+     "en": "Donation",
+     "meaning": "",
+     "he": "תרומה",
+     "ar": "تبرع",
+     "he_verified": true
+    },
+    {
+     "en": "Donor",
+     "meaning": "",
+     "he": "תורם",
+     "ar": "متبرع",
+     "he_verified": true
+    },
+    {
+     "en": "Monthly donation, recurring gift",
+     "meaning": "",
+     "he": "הוראת קבע / תרומה חודשית",
+     "ar": "تبرع شهري",
+     "he_verified": true
+    },
+    {
+     "en": "Fundraising",
+     "meaning": "",
+     "he": "גיוס כספים",
+     "ar": "جمع التبرعات",
+     "he_verified": true
+    },
+    {
+     "en": "Appeal, campaign",
+     "meaning": "a fundraising drive",
+     "he": "קמפיין גיוס",
+     "ar": "حملة تبرعات",
+     "he_verified": true
+    },
+    {
+     "en": "Beneficiary",
+     "meaning": "person the work helps",
+     "he": "מוטב / נתמך (not verified as preferred usage)",
+     "ar": "مستفيد",
+     "he_verified": false
+    },
+    {
+     "en": "Volunteer",
+     "meaning": "",
+     "he": "מתנדב",
+     "ar": "متطوع",
+     "he_verified": true
+    },
+    {
+     "en": "Impact",
+     "meaning": "results of the work",
+     "he": "השפעה / אימפקט",
+     "ar": "الأثر",
+     "he_verified": true
+    },
+    {
+     "en": "Overheads, operating costs",
+     "meaning": "",
+     "he": "הוצאות הנהלה וכלליות / הוצאות תפעול",
+     "ar": "التكاليف التشغيلية",
+     "he_verified": true
+    },
+    {
+     "en": "Tax receipt",
+     "meaning": "",
+     "he": "קבלה לצורכי מס (סעיף 46)",
+     "ar": "إيصال ضريبي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Restricted gift",
+     "meaning": "given for one purpose",
+     "he": "תרומה מיועדת (not verified)",
+     "ar": "تبرع مخصص (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Legacy gift, bequest",
+     "meaning": "gift in a will",
+     "he": "צוואה לטובת עמותה / עיזבון",
+     "ar": "وصية خيرية (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "In honour, in memory",
+     "meaning": "",
+     "he": "לכבוד / לזכר / לעילוי נשמת",
+     "ar": "تكريمًا لـ / إحياءً لذكرى (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Matching gift",
+     "meaning": "an employer or funder doubles the gift",
+     "he": "תרומה תואמת / מצ'ינג",
+     "ar": "تبرع مطابق (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Gift Aid (UK)",
+     "meaning": "UK tax scheme adding to gifts",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Zakat, sadaqah",
+     "meaning": "Islamic obligatory and voluntary giving",
+     "he": "not applicable",
+     "ar": "زكاة, صدقة",
+     "he_verified": true
+    },
+    {
+     "en": "Tzedakah",
+     "meaning": "Jewish charitable giving",
+     "he": "צדקה",
+     "ar": "not applicable",
+     "he_verified": true
+    }
    ]
   },
   "personal-site": {
@@ -2665,6 +7054,162 @@
     "https://simonwillison.net",
     "https://www.robinsloan.com",
     "https://craigmod.com"
+   ],
+   "terms": [
+    {
+     "en": "Personal site, personal website",
+     "meaning": "one person's own site",
+     "he": "אתר אישי",
+     "ar": "موقع شخصي",
+     "he_verified": true
+    },
+    {
+     "en": "Homepage",
+     "meaning": "the first page",
+     "he": "דף הבית",
+     "ar": "الصفحة الرئيسية",
+     "he_verified": true
+    },
+    {
+     "en": "About page",
+     "meaning": "who the person is",
+     "he": "אודות",
+     "ar": "من أنا / نبذة عني",
+     "he_verified": true
+    },
+    {
+     "en": "Bio",
+     "meaning": "a short description of a person",
+     "he": "ביו / תיאור קצר",
+     "ar": "نبذة شخصية / سيرة ذاتية مختصرة",
+     "he_verified": true
+    },
+    {
+     "en": "Blog",
+     "meaning": "a dated series of posts",
+     "he": "בלוג",
+     "ar": "مدونة",
+     "he_verified": true
+    },
+    {
+     "en": "Post",
+     "meaning": "one dated entry",
+     "he": "פוסט / רשומה",
+     "ar": "تدوينة / منشور",
+     "he_verified": true
+    },
+    {
+     "en": "Essay",
+     "meaning": "a longer considered piece",
+     "he": "מסה",
+     "ar": "مقالة",
+     "he_verified": true
+    },
+    {
+     "en": "Note",
+     "meaning": "a short post",
+     "he": "פתק / רשימה קצרה (not verified as usage)",
+     "ar": "ملاحظة",
+     "he_verified": false
+    },
+    {
+     "en": "Archive",
+     "meaning": "all past posts",
+     "he": "ארכיון",
+     "ar": "أرشيف",
+     "he_verified": true
+    },
+    {
+     "en": "Tag, category",
+     "meaning": "a label grouping posts",
+     "he": "תגית, קטגוריה",
+     "ar": "وسم، تصنيف",
+     "he_verified": true
+    },
+    {
+     "en": "Feed, RSS",
+     "meaning": "a machine-readable list of new posts",
+     "he": "פיד, RSS",
+     "ar": "خلاصة (not verified), RSS",
+     "he_verified": true
+    },
+    {
+     "en": "Newsletter",
+     "meaning": "regular email to subscribers",
+     "he": "ניוזלטר / עלון",
+     "ar": "نشرة إخبارية / نشرة بريدية",
+     "he_verified": true
+    },
+    {
+     "en": "Subscribe, unsubscribe",
+     "meaning": "join or leave a list",
+     "he": "להירשם, להסיר / ביטול הרשמה",
+     "ar": "اشترك، إلغاء الاشتراك",
+     "he_verified": true
+    },
+    {
+     "en": "Now page",
+     "meaning": "what the person is doing at present",
+     "he": "עמוד \"עכשיו\" (not verified as usage)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Contact form",
+     "meaning": "a form that sends a message",
+     "he": "טופס יצירת קשר",
+     "ar": "نموذج اتصال",
+     "he_verified": true
+    },
+    {
+     "en": "Pen name",
+     "meaning": "a name used instead of the real name",
+     "he": "שם עט",
+     "ar": "اسم مستعار",
+     "he_verified": true
+    },
+    {
+     "en": "Syndicate",
+     "meaning": "publish copies elsewhere",
+     "he": "הפצה (not verified for this sense)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Permalink",
+     "meaning": "a post's permanent address",
+     "he": "קישור קבוע",
+     "ar": "رابط دائم",
+     "he_verified": true
+    },
+    {
+     "en": "Affiliate link",
+     "meaning": "a link that pays a commission",
+     "he": "קישור שותפים",
+     "ar": "رابط تسويق بالعمولة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Speaking, talks",
+     "meaning": "public talks",
+     "he": "הרצאות",
+     "ar": "محاضرات",
+     "he_verified": true
+    },
+    {
+     "en": "Membership",
+     "meaning": "paid access to extra content",
+     "he": "מנוי / חברות",
+     "ar": "عضوية / اشتراك",
+     "he_verified": true
+    },
+    {
+     "en": "Colophon",
+     "meaning": "how the site was made",
+     "he": "קולופון (not verified as web usage)",
+     "ar": "not verified",
+     "he_verified": false
+    }
    ]
   },
   "photographer": {
@@ -2778,6 +7323,218 @@
     "https://peterhurley.com",
     "https://www.sachinkhona.com",
     "https://jimmynelson.com"
+   ],
+   "terms": [
+    {
+     "en": "Photographer",
+     "meaning": "the person",
+     "he": "צלם / צלמת",
+     "ar": "مصوّر / مصوّرة",
+     "he_verified": true
+    },
+    {
+     "en": "Photo studio",
+     "meaning": "the place or business",
+     "he": "סטודיו לצילום",
+     "ar": "استوديو تصوير",
+     "he_verified": true
+    },
+    {
+     "en": "Photo shoot, session",
+     "meaning": "a booked time of photographing",
+     "he": "צילומים / סשן צילום",
+     "ar": "جلسة تصوير",
+     "he_verified": true
+    },
+    {
+     "en": "Wedding photography",
+     "meaning": "photographing weddings",
+     "he": "צילום חתונות",
+     "ar": "تصوير الأعراس",
+     "he_verified": true
+    },
+    {
+     "en": "Elopement",
+     "meaning": "a very small wedding, often just the couple",
+     "he": "חתונה אינטימית (not verified as equivalent)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Engagement shoot, pre-wedding",
+     "meaning": "photos of the couple before the wedding",
+     "he": "צילומי טרום חתונה / צילומי זוגיות",
+     "ar": "جلسة تصوير قبل الزفاف (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Second shooter",
+     "meaning": "a second photographer at an event",
+     "he": "צלם נוסף / צלם שני",
+     "ar": "مصوّر ثانٍ (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Portrait",
+     "meaning": "a photo of a person",
+     "he": "פורטרט / דיוקן",
+     "ar": "بورتريه / صورة شخصية",
+     "he_verified": true
+    },
+    {
+     "en": "Headshot",
+     "meaning": "a head-and-shoulders portrait for work",
+     "he": "תמונת פרופיל / צילום תדמית (not verified as exact)",
+     "ar": "صورة شخصية مهنية (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Newborn photography",
+     "meaning": "photos of new babies",
+     "he": "צילום ניו בורן",
+     "ar": "تصوير المواليد (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Product photography",
+     "meaning": "photos of products for sale",
+     "he": "צילום מוצרים",
+     "ar": "تصوير المنتجات",
+     "he_verified": true
+    },
+    {
+     "en": "Package, collection",
+     "meaning": "a priced set of services",
+     "he": "חבילה",
+     "ar": "باقة",
+     "he_verified": true
+    },
+    {
+     "en": "Retainer, deposit",
+     "meaning": "money paid to hold the date",
+     "he": "מקדמה",
+     "ar": "عربون",
+     "he_verified": true
+    },
+    {
+     "en": "Contract",
+     "meaning": "the written agreement",
+     "he": "חוזה / הסכם",
+     "ar": "عقد",
+     "he_verified": true
+    },
+    {
+     "en": "Edit, retouch",
+     "meaning": "adjusting images after the shoot",
+     "he": "עריכה, ריטוש",
+     "ar": "تعديل، رتوش",
+     "he_verified": true
+    },
+    {
+     "en": "Proof",
+     "meaning": "a preview image for choosing",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Client gallery",
+     "meaning": "private online delivery of photos",
+     "he": "גלריית לקוח (not verified as standard)",
+     "ar": "معرض العميل (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Album",
+     "meaning": "a printed book of the photos",
+     "he": "אלבום",
+     "ar": "ألبوم",
+     "he_verified": true
+    },
+    {
+     "en": "Print",
+     "meaning": "a printed photograph",
+     "he": "הדפס",
+     "ar": "طبعة / صورة مطبوعة",
+     "he_verified": true
+    },
+    {
+     "en": "Fine-art print",
+     "meaning": "a print sold as art",
+     "he": "הדפס אמנותי",
+     "ar": "طبعة فنية (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Limited edition",
+     "meaning": "a fixed number of prints",
+     "he": "מהדורה מוגבלת",
+     "ar": "إصدار محدود",
+     "he_verified": true
+    },
+    {
+     "en": "Open edition",
+     "meaning": "prints without a fixed number",
+     "he": "מהדורה פתוחה (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Signed and numbered",
+     "meaning": "each print signed and given its number",
+     "he": "חתום וממוספר",
+     "ar": "موقّع ومرقّم (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Model release",
+     "meaning": "a person's written consent to use their image",
+     "he": "טופס הסכמה / שחרור זכויות (not verified as standard)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Licence, licensing",
+     "meaning": "permission to use an image, often for a fee",
+     "he": "רישיון שימוש",
+     "ar": "ترخيص",
+     "he_verified": true
+    },
+    {
+     "en": "Copyright",
+     "meaning": "the right to the image",
+     "he": "זכויות יוצרים",
+     "ar": "حقوق الطبع والنشر",
+     "he_verified": true
+    },
+    {
+     "en": "Watermark",
+     "meaning": "a mark over an image to deter copying",
+     "he": "סימן מים",
+     "ar": "علامة مائية",
+     "he_verified": true
+    },
+    {
+     "en": "Golden hour",
+     "meaning": "the light just after sunrise or before sunset",
+     "he": "שעת הזהב",
+     "ar": "الساعة الذهبية",
+     "he_verified": true
+    },
+    {
+     "en": "On location",
+     "meaning": "outside a studio",
+     "he": "צילומי חוץ",
+     "ar": "تصوير خارجي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Workshop",
+     "meaning": "a hands-on class",
+     "he": "סדנה",
+     "ar": "ورشة عمل",
+     "he_verified": true
+    }
    ]
   },
   "portfolio": {
@@ -2898,6 +7655,190 @@
     "https://www.jessicahische.is",
     "https://www.draplin.com",
     "https://olsonkundig.com"
+   ],
+   "terms": [
+    {
+     "en": "Portfolio",
+     "meaning": "the collection of one's work",
+     "he": "תיק עבודות",
+     "ar": "ملف أعمال / بورتفوليو",
+     "he_verified": true
+    },
+    {
+     "en": "Case study",
+     "meaning": "a project explained in detail",
+     "he": "חקר מקרה / קייס סטאדי",
+     "ar": "دراسة حالة",
+     "he_verified": true
+    },
+    {
+     "en": "Project",
+     "meaning": "one piece of work for one client",
+     "he": "פרויקט",
+     "ar": "مشروع",
+     "he_verified": true
+    },
+    {
+     "en": "Selected work",
+     "meaning": "the owner's chosen projects",
+     "he": "עבודות נבחרות",
+     "ar": "أعمال مختارة",
+     "he_verified": true
+    },
+    {
+     "en": "Brief",
+     "meaning": "what the client asked for",
+     "he": "בריף",
+     "ar": "موجز (not verified as trade usage)",
+     "he_verified": true
+    },
+    {
+     "en": "Client",
+     "meaning": "who commissioned the work",
+     "he": "לקוח",
+     "ar": "عميل",
+     "he_verified": true
+    },
+    {
+     "en": "Commission",
+     "meaning": "a paid request to make work",
+     "he": "הזמנת עבודה (not verified as trade usage)",
+     "ar": "تكليف (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Studio",
+     "meaning": "a small creative firm",
+     "he": "סטודיו",
+     "ar": "استوديو",
+     "he_verified": true
+    },
+    {
+     "en": "Agency",
+     "meaning": "a larger firm, often with strategy and media",
+     "he": "סוכנות / משרד פרסום (for advertising)",
+     "ar": "وكالة",
+     "he_verified": true
+    },
+    {
+     "en": "Brand identity",
+     "meaning": "logo, type, colour and rules for a brand",
+     "he": "זהות מותגית / מיתוג",
+     "ar": "هوية العلامة التجارية",
+     "he_verified": true
+    },
+    {
+     "en": "Logo",
+     "meaning": "the brand's mark",
+     "he": "לוגו",
+     "ar": "شعار",
+     "he_verified": true
+    },
+    {
+     "en": "Packaging",
+     "meaning": "design of boxes, labels, containers",
+     "he": "אריזה / עיצוב אריזות",
+     "ar": "تغليف",
+     "he_verified": true
+    },
+    {
+     "en": "Illustration",
+     "meaning": "drawn images",
+     "he": "איור",
+     "ar": "رسم توضيحي",
+     "he_verified": true
+    },
+    {
+     "en": "Lettering",
+     "meaning": "drawn letters, as opposed to fonts",
+     "he": "לטרינג / כתב יד מעוצב (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Typeface, font",
+     "meaning": "a designed alphabet",
+     "he": "גופן",
+     "ar": "خط",
+     "he_verified": true
+    },
+    {
+     "en": "Art direction",
+     "meaning": "deciding the look of a shoot or campaign",
+     "he": "ארט דיירקשן / ניהול אמנותי (not verified)",
+     "ar": "إدارة فنية",
+     "he_verified": false
+    },
+    {
+     "en": "Motion graphics",
+     "meaning": "animated design",
+     "he": "מושן גרפיקס",
+     "ar": "موشن جرافيك (loanword; not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Industrial design",
+     "meaning": "design of physical products",
+     "he": "עיצוב תעשייתי",
+     "ar": "تصميم صناعي",
+     "he_verified": true
+    },
+    {
+     "en": "Architect",
+     "meaning": "designs buildings; often a protected title",
+     "he": "אדריכל/ית",
+     "ar": "مهندس معماري",
+     "he_verified": true
+    },
+    {
+     "en": "Interior design",
+     "meaning": "design of indoor spaces",
+     "he": "עיצוב פנים",
+     "ar": "تصميم داخلي",
+     "he_verified": true
+    },
+    {
+     "en": "Mock-up",
+     "meaning": "a simulated image of a design in use",
+     "he": "הדמיה / מוקאפ",
+     "ar": "نموذج (not verified as trade usage)",
+     "he_verified": true
+    },
+    {
+     "en": "Credits",
+     "meaning": "who did what",
+     "he": "קרדיטים",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Deliverables",
+     "meaning": "what the client receives",
+     "he": "תוצרים",
+     "ar": "المخرجات (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Retainer",
+     "meaning": "an ongoing monthly agreement",
+     "he": "ריטיינר",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Enquiry, inquiry",
+     "meaning": "a first message from a possible client",
+     "he": "פנייה",
+     "ar": "استفسار",
+     "he_verified": true
+    },
+    {
+     "en": "Non-disclosure agreement (NDA)",
+     "meaning": "a promise to keep work secret",
+     "he": "הסכם סודיות",
+     "ar": "اتفاقية عدم إفصاح",
+     "he_verified": true
+    }
    ]
   },
   "product-docs": {
@@ -3019,6 +7960,204 @@
     "https://docs.github.com/en",
     "https://support.1password.com",
     "https://help.kagi.com/kagi/"
+   ],
+   "terms": [
+    {
+     "en": "Documentation, docs",
+     "meaning": "all the written help for a product",
+     "he": "תיעוד",
+     "ar": "توثيق",
+     "he_verified": true
+    },
+    {
+     "en": "Help centre, help center",
+     "meaning": "the public home of user help",
+     "he": "מרכז עזרה",
+     "ar": "مركز المساعدة",
+     "he_verified": true
+    },
+    {
+     "en": "Knowledge base",
+     "meaning": "a searchable set of help articles",
+     "he": "מאגר ידע",
+     "ar": "قاعدة المعرفة",
+     "he_verified": true
+    },
+    {
+     "en": "User guide, user manual",
+     "meaning": "the full instructions for users",
+     "he": "מדריך למשתמש",
+     "ar": "دليل المستخدم",
+     "he_verified": true
+    },
+    {
+     "en": "Getting started, quick start",
+     "meaning": "the first steps for a new user",
+     "he": "תחילת עבודה (not verified as standard)",
+     "ar": "البدء (not verified as standard)",
+     "he_verified": false
+    },
+    {
+     "en": "Tutorial",
+     "meaning": "a guided lesson that builds something end to end",
+     "he": "מדריך / הדרכה",
+     "ar": "برنامج تعليمي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "How-to guide",
+     "meaning": "steps for one task",
+     "he": "מדריך \"איך ל...\" (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Concept, explanation",
+     "meaning": "a page that explains how something works, without steps",
+     "he": "הסבר (not verified as a page type)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Reference",
+     "meaning": "exact lists of settings, fields, commands",
+     "he": "תיעוד עזר / רפרנס (not verified)",
+     "ar": "مرجع",
+     "he_verified": false
+    },
+    {
+     "en": "API reference",
+     "meaning": "the reference for programmers",
+     "he": "תיעוד API",
+     "ar": "مرجع واجهة برمجة التطبيقات (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Troubleshooting",
+     "meaning": "finding and fixing a problem",
+     "he": "פתרון תקלות",
+     "ar": "استكشاف الأخطاء وإصلاحها",
+     "he_verified": true
+    },
+    {
+     "en": "FAQ",
+     "meaning": "frequently asked questions",
+     "he": "שאלות נפוצות",
+     "ar": "الأسئلة الشائعة",
+     "he_verified": true
+    },
+    {
+     "en": "Release notes, changelog",
+     "meaning": "what changed in each version",
+     "he": "הערות גרסה / הערות שחרור (not verified which is more common)",
+     "ar": "ملاحظات الإصدار",
+     "he_verified": false
+    },
+    {
+     "en": "Known issue",
+     "meaning": "a problem the maker knows about",
+     "he": "בעיה ידועה",
+     "ar": "مشكلة معروفة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Workaround",
+     "meaning": "a way around a problem until it is fixed",
+     "he": "פתרון עוקף",
+     "ar": "حل بديل (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Deprecated",
+     "meaning": "still exists, will be removed",
+     "he": "מיושן / יוצא משימוש (not verified)",
+     "ar": "مهمل (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Prerequisite",
+     "meaning": "what you need before you start",
+     "he": "דרישות מקדימות",
+     "ar": "المتطلبات المسبقة",
+     "he_verified": true
+    },
+    {
+     "en": "Step",
+     "meaning": "one action in a procedure",
+     "he": "שלב",
+     "ar": "خطوة",
+     "he_verified": true
+    },
+    {
+     "en": "Screenshot",
+     "meaning": "a picture of the screen",
+     "he": "צילום מסך",
+     "ar": "لقطة شاشة",
+     "he_verified": true
+    },
+    {
+     "en": "Callout, admonition",
+     "meaning": "a boxed note, tip or warning",
+     "he": "תיבת הערה (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Warning",
+     "meaning": "caution before a risky action",
+     "he": "אזהרה",
+     "ar": "تحذير",
+     "he_verified": true
+    },
+    {
+     "en": "Breadcrumb",
+     "meaning": "the trail showing where a page sits",
+     "he": "פירורי לחם",
+     "ar": "مسار التنقل (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Sidebar, navigation",
+     "meaning": "the list of sections and pages",
+     "he": "תפריט צד / ניווט",
+     "ar": "الشريط الجانبي",
+     "he_verified": true
+    },
+    {
+     "en": "Search",
+     "meaning": "finding a page by words",
+     "he": "חיפוש",
+     "ar": "بحث",
+     "he_verified": true
+    },
+    {
+     "en": "Version",
+     "meaning": "a release of the product",
+     "he": "גרסה",
+     "ar": "إصدار",
+     "he_verified": true
+    },
+    {
+     "en": "Code sample, snippet",
+     "meaning": "a short piece of code to copy",
+     "he": "דוגמת קוד",
+     "ar": "مقتطف برمجي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Localisation, translation",
+     "meaning": "adapting docs to another language",
+     "he": "לוקליזציה / תרגום",
+     "ar": "توطين / ترجمة",
+     "he_verified": true
+    },
+    {
+     "en": "Technical writer",
+     "meaning": "the person who writes docs",
+     "he": "כותב/ת טכני/ת",
+     "ar": "كاتب تقني (not verified)",
+     "he_verified": true
+    }
    ]
   },
   "real-estate-agent": {
@@ -3145,6 +8284,239 @@
     "https://www.winkworth.co.uk",
     "https://www.compass.com",
     "https://www.hiltonhyland.com"
+   ],
+   "terms": [
+    {
+     "en": "Real-estate agent (UK estate agent; US broker, agent)",
+     "meaning": "acts for the owner",
+     "he": "מתווך / מתווכת נדל\"ן",
+     "ar": "وسيط عقاري / سمسار",
+     "he_verified": true
+    },
+    {
+     "en": "Brokerage, agency",
+     "meaning": "the business",
+     "he": "משרד תיווך",
+     "ar": "مكتب وساطة عقارية (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Property",
+     "meaning": "what is sold or let",
+     "he": "נכס",
+     "ar": "عقار",
+     "he_verified": true
+    },
+    {
+     "en": "Listing",
+     "meaning": "a property on the market",
+     "he": "נכס למכירה / להשכרה; \"מודעה\" for an advert",
+     "ar": "إعلان عقاري (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Seller, vendor",
+     "meaning": "owner selling",
+     "he": "מוכר",
+     "ar": "بائع",
+     "he_verified": true
+    },
+    {
+     "en": "Landlord",
+     "meaning": "owner letting",
+     "he": "משכיר",
+     "ar": "مؤجّر",
+     "he_verified": true
+    },
+    {
+     "en": "Buyer",
+     "meaning": "",
+     "he": "קונה",
+     "ar": "مشترٍ",
+     "he_verified": true
+    },
+    {
+     "en": "Tenant, renter",
+     "meaning": "",
+     "he": "שוכר",
+     "ar": "مستأجر",
+     "he_verified": true
+    },
+    {
+     "en": "Valuation, market appraisal",
+     "meaning": "the agent's view of the price",
+     "he": "הערכת מחיר / הערכת שווי (a licensed appraiser is שמאי, a different job)",
+     "ar": "تقييم (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Asking price",
+     "meaning": "the price the seller asks",
+     "he": "מחיר מבוקש",
+     "ar": "السعر المطلوب (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Guide price, offers over",
+     "meaning": "an indication, not fixed",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Price on application (POA)",
+     "meaning": "no public price",
+     "he": "מחיר לפי פנייה (not verified)",
+     "ar": "السعر عند الطلب (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Under offer",
+     "meaning": "an offer accepted, not yet final",
+     "he": "בתהליך / יש הצעה (not verified as standard)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Sold subject to contract (STC, UK)",
+     "meaning": "agreed, contracts not exchanged",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Exchange, completion (UK); closing (US)",
+     "meaning": "the legal steps of the sale",
+     "he": "חתימת חוזה / מסירה (not verified as equivalents)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Let agreed",
+     "meaning": "a tenant found, not yet moved in",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Viewing (UK), showing (US)",
+     "meaning": "visiting the property",
+     "he": "ביקור בנכס / סיור בנכס (not verified)",
+     "ar": "معاينة (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Open house",
+     "meaning": "public viewing at set times",
+     "he": "בית פתוח",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Sole agency, exclusive",
+     "meaning": "only this agent may sell",
+     "he": "בלעדיות",
+     "ar": "حصرية (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Commission, agent's fee",
+     "meaning": "the agent's payment",
+     "he": "דמי תיווך",
+     "ar": "عمولة",
+     "he_verified": true
+    },
+    {
+     "en": "Brokerage agreement",
+     "meaning": "signed order for the agent's services",
+     "he": "הזמנת שירותי תיווך",
+     "ar": "عقد وساطة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Freehold, leasehold, share of freehold (UK)",
+     "meaning": "forms of ownership",
+     "he": "not verified as equivalents",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Land registry extract",
+     "meaning": "official ownership record",
+     "he": "נסח טאבו",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Service charge (UK), HOA fee (US)",
+     "meaning": "shared building costs",
+     "he": "ועד בית (not verified as equivalent)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Municipal property tax",
+     "meaning": "local tax on the home",
+     "he": "ארנונה",
+     "ar": "ضريبة الأملاك / الأرنونا (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Energy performance certificate (EPC)",
+     "meaning": "energy rating",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Floor plan",
+     "meaning": "drawing of the rooms",
+     "he": "תוכנית דירה / שרטוט",
+     "ar": "مخطط الشقة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Square metres",
+     "meaning": "size",
+     "he": "מ\"ר",
+     "ar": "متر مربع",
+     "he_verified": true
+    },
+    {
+     "en": "Rooms, bedrooms",
+     "meaning": "counting differs by country",
+     "he": "חדרים (living room counted)",
+     "ar": "غرف",
+     "he_verified": true
+    },
+    {
+     "en": "Safe room",
+     "meaning": "reinforced room (Israel)",
+     "he": "ממ\"ד",
+     "ar": "غرفة محصّنة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Lift, parking, balcony, floor",
+     "meaning": "key features",
+     "he": "מעלית, חניה, מרפסת, קומה",
+     "ar": "مصعد، موقف سيارات، شرفة، طابق",
+     "he_verified": true
+    },
+    {
+     "en": "Multiple listing service (MLS, US)",
+     "meaning": "shared listings database",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Realtor",
+     "meaning": "a trademark in the US for members of one association",
+     "he": "not used",
+     "ar": "not used",
+     "he_verified": true
+    }
    ]
   },
   "restaurant": {
@@ -3273,6 +8645,260 @@
     "https://www.rochellecanteen.com",
     "https://www.zunicafe.com",
     "https://www.dishoom.com"
+   ],
+   "terms": [
+    {
+     "en": "Restaurant",
+     "meaning": "the business",
+     "he": "מסעדה",
+     "ar": "مطعم",
+     "he_verified": true
+    },
+    {
+     "en": "Menu",
+     "meaning": "the list of dishes",
+     "he": "תפריט",
+     "ar": "قائمة الطعام / منيو",
+     "he_verified": true
+    },
+    {
+     "en": "Dish",
+     "meaning": "one item",
+     "he": "מנה",
+     "ar": "طبق",
+     "he_verified": true
+    },
+    {
+     "en": "Starter (UK), appetizer (US)",
+     "meaning": "first course",
+     "he": "מנה ראשונה",
+     "ar": "مقبلات",
+     "he_verified": true
+    },
+    {
+     "en": "Main course (UK), entree (US)",
+     "meaning": "the central dish",
+     "he": "מנה עיקרית",
+     "ar": "طبق رئيسي",
+     "he_verified": true
+    },
+    {
+     "en": "Side",
+     "meaning": "served next to the main",
+     "he": "תוספת",
+     "ar": "طبق جانبي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Dessert, pudding (UK)",
+     "meaning": "sweet course",
+     "he": "קינוח",
+     "ar": "حلويات / تحلية",
+     "he_verified": true
+    },
+    {
+     "en": "A la carte",
+     "meaning": "each dish chosen and priced alone",
+     "he": "א-לה-קארט",
+     "ar": "حسب الطلب (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Set menu, prix fixe",
+     "meaning": "several courses for one price",
+     "he": "תפריט קבוע (not verified)",
+     "ar": "قائمة ثابتة (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Tasting menu",
+     "meaning": "many small courses chosen by the kitchen",
+     "he": "תפריט טעימות",
+     "ar": "قائمة تذوق",
+     "he_verified": true
+    },
+    {
+     "en": "Business lunch",
+     "meaning": "a weekday lunch deal",
+     "he": "עסקית",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Dish of the day, special",
+     "meaning": "not on the printed menu",
+     "he": "מנת היום / ספיישל",
+     "ar": "طبق اليوم",
+     "he_verified": true
+    },
+    {
+     "en": "Sharing plates",
+     "meaning": "dishes for the middle of the table",
+     "he": "מנות לחלוקה (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Reservation, booking",
+     "meaning": "a held table",
+     "he": "הזמנת מקום / הזמנת שולחן",
+     "ar": "حجز",
+     "he_verified": true
+    },
+    {
+     "en": "Walk-in",
+     "meaning": "arriving without a reservation",
+     "he": "ללא הזמנה מראש",
+     "ar": "بدون حجز",
+     "he_verified": true
+    },
+    {
+     "en": "Party",
+     "meaning": "the group at one table",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Covers",
+     "meaning": "number of guests served",
+     "he": "סועדים",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Service",
+     "meaning": "a sitting period (lunch, dinner)",
+     "he": "סרוויס (trade slang; not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Last orders",
+     "meaning": "latest time the kitchen takes an order",
+     "he": "הזמנה אחרונה (not verified)",
+     "ar": "آخر طلب (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "No-show",
+     "meaning": "booked and did not come",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Service charge",
+     "meaning": "a percentage added to the bill",
+     "he": "דמי שירות",
+     "ar": "رسوم الخدمة",
+     "he_verified": true
+    },
+    {
+     "en": "Tip",
+     "meaning": "money given to staff by choice",
+     "he": "טיפ / תשר",
+     "ar": "بقشيش / إكرامية",
+     "he_verified": true
+    },
+    {
+     "en": "Bill (UK), check (US)",
+     "meaning": "what the guest pays",
+     "he": "חשבון",
+     "ar": "حساب / فاتورة",
+     "he_verified": true
+    },
+    {
+     "en": "Corkage",
+     "meaning": "a fee for bringing your own wine",
+     "he": "דמי חליצה",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Wine list",
+     "meaning": "the list of wines",
+     "he": "תפריט יינות",
+     "ar": "قائمة النبيذ (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "By the glass",
+     "meaning": "wine sold per glass",
+     "he": "בכוס",
+     "ar": "بالكأس (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Chef",
+     "meaning": "head of the kitchen",
+     "he": "שף",
+     "ar": "شيف / طاهٍ",
+     "he_verified": true
+    },
+    {
+     "en": "Waiter, server",
+     "meaning": "serves the table",
+     "he": "מלצר / מלצרית",
+     "ar": "نادل",
+     "he_verified": true
+    },
+    {
+     "en": "Host",
+     "meaning": "seats the guests",
+     "he": "מארח / מארחת",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Private dining",
+     "meaning": "a room or area for one group",
+     "he": "חדר פרטי / אירוע פרטי",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Allergens",
+     "meaning": "ingredients that cause allergic reactions",
+     "he": "אלרגנים",
+     "ar": "مسببات الحساسية",
+     "he_verified": true
+    },
+    {
+     "en": "Vegetarian / vegan",
+     "meaning": "no meat or fish / no animal products",
+     "he": "צמחוני / טבעוני",
+     "ar": "نباتي / نباتي صرف (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Kosher / kosher certificate",
+     "meaning": "permitted under Jewish dietary law / the document",
+     "he": "כשר / תעודת כשרות",
+     "ar": "كوشير (not verified) / not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Halal",
+     "meaning": "permitted under Islamic dietary law",
+     "he": "חלאל",
+     "ar": "حلال",
+     "he_verified": true
+    },
+    {
+     "en": "Takeaway (UK), to go (US)",
+     "meaning": "food to carry away",
+     "he": "טייק אוויי",
+     "ar": "سفري (Levant)",
+     "he_verified": true
+    },
+    {
+     "en": "Delivery",
+     "meaning": "brought to the guest",
+     "he": "משלוח",
+     "ar": "توصيل",
+     "he_verified": true
+    }
    ]
   },
   "tour-guide": {
@@ -3392,6 +9018,134 @@
     "https://www.eatingeurope.com",
     "https://www.devourtours.com",
     "https://freetoursbyfoot.com"
+   ],
+   "terms": [
+    {
+     "en": "Tour guide",
+     "meaning": "the person leading",
+     "he": "מדריך טיולים / מורה דרך",
+     "ar": "مرشد سياحي",
+     "he_verified": true
+    },
+    {
+     "en": "Licensed guide",
+     "meaning": "guide holding an official licence",
+     "he": "מורה דרך מוסמך (not verified as the formal term)",
+     "ar": "مرشد سياحي مرخّص (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Tour",
+     "meaning": "the guided trip",
+     "he": "סיור",
+     "ar": "جولة",
+     "he_verified": true
+    },
+    {
+     "en": "Walking tour",
+     "meaning": "tour on foot",
+     "he": "סיור רגלי",
+     "ar": "جولة سيرًا على الأقدام (not verified as common usage)",
+     "he_verified": true
+    },
+    {
+     "en": "Food tour",
+     "meaning": "tastings along a route",
+     "he": "סיור קולינרי",
+     "ar": "جولة طعام (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Day trip",
+     "meaning": "full day outside the city",
+     "he": "טיול יום",
+     "ar": "رحلة يومية",
+     "he_verified": true
+    },
+    {
+     "en": "Private tour",
+     "meaning": "only one party",
+     "he": "סיור פרטי",
+     "ar": "جولة خاصة",
+     "he_verified": true
+    },
+    {
+     "en": "Group tour",
+     "meaning": "shared with strangers",
+     "he": "סיור קבוצתי",
+     "ar": "جولة جماعية",
+     "he_verified": true
+    },
+    {
+     "en": "Meeting point",
+     "meaning": "where the tour starts",
+     "he": "נקודת מפגש",
+     "ar": "نقطة الالتقاء",
+     "he_verified": true
+    },
+    {
+     "en": "Itinerary, route",
+     "meaning": "the list of stops",
+     "he": "מסלול",
+     "ar": "مسار / برنامج الرحلة",
+     "he_verified": true
+    },
+    {
+     "en": "Departure",
+     "meaning": "one tour on one date and time",
+     "he": "יציאה (not verified in this sense)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Pay what you wish, free tour",
+     "meaning": "visitor decides the tip",
+     "he": "סיור בתשלום לפי בחירה / \"סיור חינם\"",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Skip the line",
+     "meaning": "pre-booked entry",
+     "he": "ללא תור (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Audio guide",
+     "meaning": "recorded commentary",
+     "he": "מדריך קולי",
+     "ar": "دليل صوتي",
+     "he_verified": true
+    },
+    {
+     "en": "Group size",
+     "meaning": "maximum people",
+     "he": "גודל קבוצה",
+     "ar": "حجم المجموعة",
+     "he_verified": true
+    },
+    {
+     "en": "Tip, gratuity",
+     "meaning": "money given to the guide",
+     "he": "טיפ",
+     "ar": "بقشيش",
+     "he_verified": true
+    },
+    {
+     "en": "Cancellation policy",
+     "meaning": "rules for cancelling",
+     "he": "מדיניות ביטולים",
+     "ar": "سياسة الإلغاء",
+     "he_verified": true
+    },
+    {
+     "en": "Accessibility",
+     "meaning": "who can join",
+     "he": "נגישות",
+     "ar": "إمكانية الوصول",
+     "he_verified": true
+    }
    ]
   },
   "tutor-courses": {
@@ -3505,6 +9259,169 @@
     "https://www.citylit.ac.uk",
     "https://www.leiths.com",
     "https://www.ihlondon.com"
+   ],
+   "terms": [
+    {
+     "en": "Tutor, private tutor",
+     "meaning": "teaches one student or a few",
+     "he": "מורה פרטי / מורה פרטית",
+     "ar": "مدرس خصوصي",
+     "he_verified": true
+    },
+    {
+     "en": "Private lesson",
+     "meaning": "",
+     "he": "שיעור פרטי",
+     "ar": "درس خصوصي",
+     "he_verified": true
+    },
+    {
+     "en": "Tutoring agency",
+     "meaning": "matches tutors to families",
+     "he": "not verified",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Learning centre",
+     "meaning": "premises for after-school tuition",
+     "he": "מרכז למידה",
+     "ar": "مركز تعليمي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Course",
+     "meaning": "fixed programme",
+     "he": "קורס",
+     "ar": "دورة",
+     "he_verified": true
+    },
+    {
+     "en": "Workshop",
+     "meaning": "short practical session",
+     "he": "סדנה",
+     "ar": "ورشة عمل",
+     "he_verified": true
+    },
+    {
+     "en": "Lesson",
+     "meaning": "one teaching session",
+     "he": "שיעור",
+     "ar": "درس",
+     "he_verified": true
+    },
+    {
+     "en": "Group lesson",
+     "meaning": "",
+     "he": "שיעור קבוצתי",
+     "ar": "درس جماعي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Trial lesson",
+     "meaning": "first lesson to try",
+     "he": "שיעור ניסיון",
+     "ar": "درس تجريبي (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Enrolment, registration",
+     "meaning": "",
+     "he": "הרשמה",
+     "ar": "تسجيل",
+     "he_verified": true
+    },
+    {
+     "en": "Level",
+     "meaning": "",
+     "he": "רמה",
+     "ar": "مستوى",
+     "he_verified": true
+    },
+    {
+     "en": "Beginner, intermediate, advanced",
+     "meaning": "",
+     "he": "מתחילים, מתקדמים (intermediate: not verified)",
+     "ar": "مبتدئ, متوسط, متقدم",
+     "he_verified": false
+    },
+    {
+     "en": "Placement test, assessment",
+     "meaning": "test to find the level",
+     "he": "מבחן מיון / אבחון",
+     "ar": "امتحان تحديد المستوى (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Exam preparation",
+     "meaning": "",
+     "he": "הכנה לבחינות",
+     "ar": "التحضير للامتحانات",
+     "he_verified": true
+    },
+    {
+     "en": "Matriculation exams (Israel)",
+     "meaning": "national school-leaving exams",
+     "he": "בגרות",
+     "ar": "not verified",
+     "he_verified": true
+    },
+    {
+     "en": "Homework",
+     "meaning": "",
+     "he": "שיעורי בית",
+     "ar": "واجبات منزلية / وظائف (regional)",
+     "he_verified": true
+    },
+    {
+     "en": "Syllabus, curriculum",
+     "meaning": "",
+     "he": "תוכנית לימודים / סילבוס",
+     "ar": "منهاج",
+     "he_verified": true
+    },
+    {
+     "en": "Certificate",
+     "meaning": "",
+     "he": "תעודה",
+     "ar": "شهادة",
+     "he_verified": true
+    },
+    {
+     "en": "Online lesson",
+     "meaning": "",
+     "he": "שיעור אונליין / שיעור מקוון",
+     "ar": "درس عبر الإنترنت (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Learning difficulties, special needs",
+     "meaning": "",
+     "he": "לקויות למידה",
+     "ar": "صعوبات تعلم",
+     "he_verified": true
+    },
+    {
+     "en": "Progress report",
+     "meaning": "",
+     "he": "דוח התקדמות (not verified)",
+     "ar": "تقرير تقدم (not verified)",
+     "he_verified": false
+    },
+    {
+     "en": "Cohort, intake",
+     "meaning": "a group starting together",
+     "he": "מחזור",
+     "ar": "دفعة (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Open day",
+     "meaning": "",
+     "he": "יום פתוח",
+     "ar": "يوم مفتوح",
+     "he_verified": true
+    }
    ]
   },
   "wedding": {
@@ -3630,6 +9547,134 @@
     "https://www.sarahhaywood.com",
     "https://www.colincowie.com",
     "https://www.mindyweiss.com"
+   ],
+   "terms": [
+    {
+     "en": "Wedding",
+     "meaning": "the event",
+     "he": "חתונה",
+     "ar": "زفاف / عرس",
+     "he_verified": true
+    },
+    {
+     "en": "Bride, groom",
+     "meaning": "",
+     "he": "כלה, חתן",
+     "ar": "عروس, عريس",
+     "he_verified": true
+    },
+    {
+     "en": "Couple",
+     "meaning": "",
+     "he": "זוג",
+     "ar": "العروسان (in the wedding sense)",
+     "he_verified": true
+    },
+    {
+     "en": "Ceremony",
+     "meaning": "the marriage itself",
+     "he": "טקס / חופה (Jewish ceremony)",
+     "ar": "مراسم الزفاف / عقد القران (contract; not verified for all communities)",
+     "he_verified": true
+    },
+    {
+     "en": "Reception",
+     "meaning": "the celebration after",
+     "he": "קבלת פנים",
+     "ar": "حفل الاستقبال",
+     "he_verified": true
+    },
+    {
+     "en": "Save the date",
+     "meaning": "early notice of the date",
+     "he": "שמרו את התאריך",
+     "ar": "احفظوا التاريخ (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Invitation",
+     "meaning": "",
+     "he": "הזמנה",
+     "ar": "دعوة",
+     "he_verified": true
+    },
+    {
+     "en": "RSVP",
+     "meaning": "please reply",
+     "he": "אישור הגעה",
+     "ar": "تأكيد الحضور",
+     "he_verified": true
+    },
+    {
+     "en": "Plus-one",
+     "meaning": "a guest's companion",
+     "he": "+1 / מלווה",
+     "ar": "مرافق",
+     "he_verified": true
+    },
+    {
+     "en": "Dress code",
+     "meaning": "",
+     "he": "קוד לבוש",
+     "ar": "قواعد اللباس (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Gift registry",
+     "meaning": "list of wished gifts",
+     "he": "רשימת מתנות",
+     "ar": "قائمة الهدايا (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Venue",
+     "meaning": "",
+     "he": "אולם / גן אירועים / מקום האירוע",
+     "ar": "قاعة أفراح",
+     "he_verified": true
+    },
+    {
+     "en": "Exclusive use",
+     "meaning": "the whole venue for one wedding",
+     "he": "שימוש בלעדי (not verified as trade usage)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Dry hire",
+     "meaning": "venue only, own suppliers",
+     "he": "השכרת מקום בלבד (not verified)",
+     "ar": "not verified",
+     "he_verified": false
+    },
+    {
+     "en": "Wedding planner",
+     "meaning": "",
+     "he": "מפיק/ת אירועים / מתכנן/ת חתונות",
+     "ar": "منظم حفلات زفاف",
+     "he_verified": true
+    },
+    {
+     "en": "Viewing, site visit",
+     "meaning": "couple visits the venue",
+     "he": "סיור במקום",
+     "ar": "زيارة المكان (not verified)",
+     "he_verified": true
+    },
+    {
+     "en": "Henna night",
+     "meaning": "pre-wedding celebration in some communities",
+     "he": "חינה",
+     "ar": "ليلة الحناء",
+     "he_verified": true
+    },
+    {
+     "en": "Seating plan",
+     "meaning": "who sits where",
+     "he": "סידורי הושבה",
+     "ar": "ترتيب الجلوس (not verified)",
+     "he_verified": true
+    }
    ]
   }
  }

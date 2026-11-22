@@ -96,6 +96,30 @@ def _references(body: str) -> list[str]:
     return urls
 
 
+def _terms(body: str, slug: str) -> list[dict]:
+    """Section 6: the trade's words. `he_verified` is False when the author marked the Hebrew "not verified" (or left
+    it empty): such a word is never handed to a model as the trade's word."""
+    out, header = [], None
+    for line in body.splitlines():
+        if not _ROW.match(line):
+            continue
+        cells = _cells(line)
+        if header is None:
+            header = [c.lower() for c in cells]
+            if header[:4] != ['english', 'meaning', 'hebrew', 'arabic']:
+                raise DomainError(f'{slug}: section "6. Professional language" table must be English | Meaning | '
+                                  f'Hebrew | Arabic; found {cells}')
+            continue
+        if set(''.join(cells)) <= set('-: '):
+            continue                                         # the separator row
+        en, meaning, he, ar = (cells + ['', '', '', ''])[:4]
+        verified = bool(he) and 'not verified' not in he.lower()
+        out.append({'en': en, 'meaning': meaning, 'he': he, 'ar': ar, 'he_verified': verified})
+    if not out:
+        raise DomainError(f'{slug}: section "6. Professional language" has no terms')
+    return out
+
+
 def parse(text: str, slug: str) -> dict:
     """One domain file -> one record. Raises DomainError naming the domain and the field."""
     first = text.splitlines()[0] if text.strip() else ''
@@ -119,7 +143,8 @@ def parse(text: str, slug: str) -> dict:
         raise DomainError(f'{slug}: {len(refs)} references; {MIN_REFERENCES} to {MAX_REFERENCES} are required')
     if len(set(refs)) != len(refs):
         raise DomainError(f'{slug}: a reference is listed twice')
-    return {'slug': slug, 'name': first[2:].strip(), 'mandatory_facts': facts, 'references': refs}
+    terms = _terms(sections['6. Professional language'], slug)
+    return {'slug': slug, 'name': first[2:].strip(), 'mandatory_facts': facts, 'references': refs, 'terms': terms}
 
 
 def build(docs: Path = DOCS) -> dict:
@@ -148,6 +173,16 @@ def domain_for(category: str | None) -> dict | None:
         raise DomainError(f'unknown category {category!r}')
     slug = data['categories'][category]
     return None if slug is None else data['domains'][slug]
+
+
+MAX_TRADE_WORDS = 40
+
+
+def trade_words(domain: dict | None) -> list[str]:
+    """The trade's Hebrew words a model may be given: only those the author did not mark 'not verified', at most 40."""
+    if not domain:
+        return []
+    return [t['he'] for t in domain['terms'] if t['he_verified']][:MAX_TRADE_WORDS]
 
 
 def _render(data: dict) -> str:

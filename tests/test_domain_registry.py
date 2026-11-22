@@ -140,3 +140,47 @@ class TheRouteRecordsItsDomain(unittest.TestCase):
         self.assertEqual(evidence['category'], 'lawyers')
         self.assertIsNone(evidence['domain'])
         self.assertEqual(evidence['domain_facts'], [])
+
+
+class TheTradeWords(unittest.TestCase):
+    """Section 6 of each domain: the trade's words. Only a Hebrew word the author did not mark 'not verified' is
+    handed to the copy model, and the model is told never to add a service from it."""
+
+    def test_unverified_hebrew_is_kept_but_marked(self):
+        terms = D.load()['domains']['hair-salon']['terms']
+        by_en = {t['en']: t for t in terms}
+        self.assertTrue(by_en['Appointment']['he_verified'])
+        self.assertEqual(by_en['Appointment']['he'], 'תור')
+        self.assertFalse(by_en['Colourist']['he_verified'])              # "צבעי/ת (not verified as common usage)"
+
+    def test_only_verified_words_are_given_to_a_model(self):
+        salon = D.load()['domains']['hair-salon']
+        words = D.trade_words(salon)
+        self.assertIn('תור', words)
+        self.assertFalse([t['he'] for t in salon['terms'] if not t['he_verified'] and t['he'] in words])
+        self.assertLessEqual(len(words), D.MAX_TRADE_WORDS)
+        self.assertEqual(D.trade_words(None), [])
+
+    def test_a_term_table_with_other_columns_fails_loudly(self):
+        bad = GOOD.replace('| English | Meaning | Hebrew | Arabic |', '| English | Hebrew | Meaning | Arabic |', 1)
+        with self.assertRaises(D.DomainError) as ctx:
+            D.parse(bad, 'hair-salon')
+        self.assertIn('6. Professional language', str(ctx.exception))
+
+    def test_the_writer_receives_only_verified_words_and_the_rule(self):
+        from types import SimpleNamespace
+        from omni_prod.site_content import agents as A
+        route = TheRouteRecordsItsDomain()._decide()
+        self.assertTrue(route.domain_words)
+        lawyer = {t['he'] for t in D.load()['domains']['lawyer']['terms'] if t['he_verified']}
+        self.assertLessEqual(set(route.domain_words), lawyer)
+        unverified = [t['he'] for t in D.load()['domains']['lawyer']['terms'] if not t['he_verified'] and t['he']]
+        self.assertFalse(set(unverified) & set(route.domain_words))
+        self.assertIn('trade_words', A._CONTENT_SYSTEM)
+        self.assertIn('never use one to add a service', A._CONTENT_SYSTEM)
+        from omni_prod.site_content import facts as Fx
+        from omni_prod.site_content.schema import offered_sections
+        sheet = Fx.fact_sheet(route.prompt)
+        offered, _ = offered_sections(sheet, route.palette_entry, route.order, route.outline_titles)
+        payload = A.ContentSiteGenerator.__new__(A.ContentSiteGenerator)._payload(route, sheet, offered)
+        self.assertEqual(payload['trade_words'], route.domain_words)

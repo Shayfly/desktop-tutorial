@@ -92,6 +92,7 @@ class Route:
     category_found: str | None = None
     domain: str | None = None
     domain_facts: list = field(default_factory=list)
+    domain_words: list = field(default_factory=list)       # the trade's verified Hebrew words (warehouse 127)
 
     def to_dict(self) -> dict:
         return {'route': self.route, 'reason': self.reason, 'palette': self.palette, 'direction': self.direction,
@@ -166,11 +167,12 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
     from ..section_library import DIRECTIONS
     named = VP.category_of(request_text)
     category = named or VP.nearest_category(request_text)[0]
-    from ..domain_registry import domain_for
+    from ..domain_registry import domain_for, trade_words
     domain = domain_for(category)
     domain_kw = dict(category=category, category_found='named' if named else 'nearest',
                      domain=domain['slug'] if domain else None,
-                     domain_facts=[f['fact'] for f in domain['mandatory_facts'] if f['when'] is None] if domain else [])
+                     domain_facts=[f['fact'] for f in domain['mandatory_facts'] if f['when'] is None] if domain else [],
+                     domain_words=trade_words(domain))
     palette, colours = VP.palette_for(category)
     if palette not in DIRECTIONS['palettes']:
         return Route(LEGACY, f'palette_not_in_library: {palette}')

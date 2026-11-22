@@ -191,6 +191,74 @@
    "expect_failed": [
     "test_a_category_without_a_domain_is_recorded_as_none"
    ]
+  },
+  {
+   "id": "NC12",
+   "what": "an unverified Hebrew word is handed to the writer as the trade's word",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    return [t['he'] for t in domain['terms'] if t['he_verified']][:MAX_TRADE_WORDS]\n",
+     "new": "    return [t['he'] for t in domain['terms'] if t['he']][:MAX_TRADE_WORDS]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_only_verified_words_are_given_to_a_model"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the writer never receives the trade's words",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "                'trade_words': list(getattr(route, 'domain_words', None) or []),\n",
+     "new": "                'trade_words': [],  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_the_writer_receives_only_verified_words_and_the_rule"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the writer is not told never to add a service from a trade word",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "says it; never use one to add a service, a product or a claim the customer did not write.",
+     "new": "says it."
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_the_writer_receives_only_verified_words_and_the_rule"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "a term table with its columns in another order is read silently",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "            if header[:4] != ['english', 'meaning', 'hebrew', 'arabic']:\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_term_table_with_other_columns_fails_loudly"
+   ]
   }
  ]
 }
