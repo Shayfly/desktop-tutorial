@@ -24,7 +24,7 @@ const T = {
     discDone:'האפיון הושלם. זה הסיכום — בדקו אותו לפני אישור.', showSummary:'הצגת הסיכום והעלות',
     src_message:'מהבקשה שלכם', src_answer:'התשובה שלכם', src_delegated:'נבחר עבורכם', src_default:'ברירת מחדל',
     sumGoal:'המטרה', sumIncluded:'כלול', sumExcluded:'לא כלול בשלב זה', semanticTitle:'כך פירשנו את הבקשה', semanticIncluded:'נדרש במוצר', semanticExcluded:'לא התבקש', semanticUncertain:'צריך הבהרה', sumAssumptions:'החלטות שבחרנו עבורכם (אפשר לשנות)',
-    updateRequest:'עדכן את הבקשה', approveBuild:'אשר והתחל בנייה', approvalExpired:'האישור פג. בדקו את הסיכום ואשרו שוב.',
+    updateRequest:'עדכן את הבקשה', approveBuild:'לאשר ולהתחיל לבנות', approvalExpired:'האישור פג. בדקו את הסיכום ואשרו שוב.',
     builtTitle:'מה נבנה עד עכשיו', newBuild:'מוצר חדש בפרויקט חדש', newProjectPlus:'+ פרויקט חדש', newProjectHint:'לכל מוצר פרויקט משלו. תנו לו שם, ואז תתארו מה לבנות.', nameRequired:'צריך לתת לפרויקט שם.', builtVersion:'גרסה נוכחית', files:'קבצים',
     progress:'התקדמות הבנייה', modifyTitle:'מה תרצו לשנות?', modifySend:'שליחת שינוי', versions:'גרסאות',
     evidence:'פרטים טכניים ועדויות', refresh:'רענון', openTab:'פתיחה בלשונית חדשה',
@@ -33,15 +33,15 @@ const T = {
     manageProject:'ניהול פרויקט', rename:'שינוי שם', saveName:'שמירת השם', archive:'העברה לארכיון',
     newProject:'פרויקט חדש', close:'סגירה',
     promptPlaceholder:'לדוגמה: מערכת לניהול תורים למספרה, עם יומן לספרים, הזמנה עצמית ללקוחות ותזכורות במייל.',
-    propTitle:'ההצעה שלכם', propLooks:'ככה זה ייראה', propGeneric:'הצעה כללית', propEstimate:'הערכה', propPrice:'מחיר לבנייה', propIncluded:'כלול', propExcluded:'לא כלול', propFacts:'הפרטים שלכם, כמו שכתבתם', propApprove:'אשר ובנה', propChange:'שנה משהו', propEdit:'שנה', propUp:'הזז למעלה', propDown:'הזז למטה', propRemove:'הסר', propSave:'שמור', propUndo:'בטל את השינוי האחרון', propApproving:'מאשרים ומתחילים לבנות…', propNotYet:'ההצעה עוד לא מוכנה: נשלים את הפרטים בשיחה.',
+    propTitle:'ההצעה שלכם', propLooks:'ככה זה ייראה', propGeneric:'הצעה כללית', propEstimate:'הערכה', propPrice:'מחיר לבנייה', propIncluded:'כלול', propExcluded:'לא כלול', propFacts:'הפרטים שלכם, כמו שכתבתם', propApprove:'לאשר ולהתחיל לבנות', propChange:'שנה משהו', propEdit:'שנה', propUp:'הזז למעלה', propDown:'הזז למטה', propRemove:'הסר', propSave:'שמור', propUndo:'בטל את השינוי האחרון', propApproving:'מאשרים ומתחילים לבנות…', propNotYet:'ההצעה עוד לא מוכנה: נשלים את הפרטים בשיחה.',
     planTitle:'התוכנית', understood:'מה הבנו', roles:'משתמשים', data:'נתונים', integrations:'חיבורים',
     capabilities:'יכולות שהבנייה צריכה', infrastructure:'תשתית לאפליקציה', cost:'עלות',
     estimated:'הערכה', maximum:'מקסימום מאושר', questions:'שאלות לפני שמתחילים', blockersTitle:'מה חוסם כרגע',
-    creditsRequired:'קרדיטים לבנייה', creditsRemaining:'קרדיטים שנותרו', quoteStatus:'תמחור',
-    confirm:'אשרו והתחילו בנייה', editRequest:'עריכת הבקשה', costUnknown:'לא ניתן לחשב',
+    creditsRequired:'מחיר הבנייה (יורד מהיתרה שלכם)', creditsRemaining:'היתרה שלכם', quoteStatus:'המחיר',
+    confirm:'לאשר ולהתחיל לבנות', editRequest:'עריכת הבקשה', costUnknown:'לא ניתן לחשב',
     byPipeline:'בתוך הבנייה', byProvider:'ספק חיצוני', required:'נדרש', optional:'רשות',
     st_LIVE:'פעיל', st_PARTIAL:'מוגדר, לא נבדק', st_NOT_CONFIGURED:'לא מוגדר', st_BLOCKED:'חסום',
-    st_SELF_CONTAINED:'מובנה באפליקציה', st_PRICED:'מאושר', st_UNKNOWN:'לא ניתן לתמחר', st_NOT_AUTHORIZED:'לא מאושר',
+    st_SELF_CONTAINED:'מובנה באפליקציה', st_PRICED:'מאושר', st_UNKNOWN:'עוד אין מחיר', st_NOT_AUTHORIZED:'לא מאושר',
     stepPlanning:'תכנון', stepContract:'חוזה בנייה', stepInfra:'תשתית', stepAssets:'נכסים (אייקון ותמונות)',
     stepGenerate:'יצירת קוד, בנייה, בדיקות ותיקונים', stepGates:'בדיקות איכות, אבטחה וזכויות', stepPreview:'תצוגה מקדימה',
     noteGenerate:'הבנייה, הבדיקות והתיקונים רצים בשלב אחד. מספר סבבי התיקון מדווח בסיום.',
@@ -121,15 +121,15 @@ const T = {
     b_qa_budget_denied:'תקציב אב־הטיפוס אינו מאפשר את הבנייה הזו. בדקו את יתרת בדיקות הפיתוח או נסו בקשה מצומצמת יותר.',
     qaBudgetTitle:'תקציב בדיקות אב־טיפוס — פרטי', qaBudgetRemaining:'יתרה פנימית מוערכת',
     qaBudgetLimit:'מגבלת הרשאה לבנייה אחת', qaBudgetActual:'אלה רישומי העלות של 148AI; לא יתרות אצל ספקי ה־AI.',
-    b_cost_quote_unknown:'לחלק מהדרישות אין הצעת מחיר מאומתת, ולכן אי אפשר להתחיל בבנייה.',
+    b_cost_quote_unknown:'לחלק ממה שביקשתם עוד אין מחיר, ולכן אי אפשר להתחיל לבנות.',
     b_cost_quote_unavailable:'לא התקבלה הצעת מחיר מאומתת לבנייה.',
-    b_spec_not_approved:'לפני שמתחילים לבנות, צריך לאשר את המפרט. אפשר לעשות את זה כאן.',
-    b_plan_not_verified:'התוכנית עוד לא נבדקה מול המפרט. אשרו את המפרט ונכין תוכנית בדוקה.',
-    b_approval_state_unavailable:'אי אפשר לבדוק כרגע את אישור המפרט בשרת הזה, ולכן לא מתחילים לבנות. נסו שוב מאוחר יותר.',
-    b_brief_stale:'הבקשה השתנתה מאז שאושרה. אשרו את המפרט הנוכחי.',
+    b_spec_not_approved:'לפני שמתחילים לבנות, צריך לאשר שהבנתי נכון את הבקשה: לחצו על "כן, זה נכון".',
+    b_plan_not_verified:'התוכנית עוד לא מוכנה. אשרו שהבנתי נכון את הבקשה ואכין אותה: לחצו על "כן, זה נכון".',
+    b_approval_state_unavailable:'כרגע אי אפשר לבדוק אם אישרתם את הבקשה, ולכן לא מתחילים לבנות. זה אצלנו, לא אצלכם. נסו שוב בעוד כמה דקות.',
+    b_brief_stale:'הבקשה השתנתה מאז שאישרתם אותה. אשרו את הבקשה כמו שהיא עכשיו: לחצו על "כן, זה נכון".',
     readinessBuilt:'הבנייה האחרונה הסתיימה בהצלחה', readinessNextBlocked:'בנייה נוספת לא אפשרית כרגע',     readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע', readinessUnknown:'מוכנות הפרויקט טרם נבדקה', readinessRunning:'בניית הפרויקט מתבצעת', readinessDetails:'לפרטים',
-    readinessBlockedHelp:'האפיון יכול להיות ישים טכנית, אך אישור הבנייה חסום עד להשלמת הדרישות, הספקים, התמחור והתקציב.',
-    quoteMissingTitle:'דרישות שחסרה להן הצעת מחיר:', quoteMissingHelp:'אם יכולת אינה חלק מהבקשה שלכם, ערכו את האפיון. אם היא נדרשת, יש לאמת ספק ותמחור לפני התחלת הבנייה.', unknownBlocker:'נדרש בירור נוסף לפני התחלת הבנייה.',
+    readinessBlockedHelp:l=>`עוד אי אפשר להתחיל לבנות, ואין לנו כרגע הסבר מדויק למה. אפשר לשנות את הבקשה ולנסות שוב: לחצו על "${l}".`,
+    quoteMissingTitle:'מה שעוד אין לו מחיר:', quoteMissingHelp:l=>`אם אפשר לוותר על זה, הורידו את זה מהבקשה ונבנה בלי זה: לחצו על "${l}".`, quoteUnverified:'לחלק ממה שביקשתם עוד אין לנו מחיר, ולכן אי אפשר להתחיל לבנות.', unknownBlocker:'נדרש בירור נוסף לפני התחלת הבנייה.',
     k_database:'מסד נתונים', k_auth_session:'התחברות וסשנים', k_object_storage:'אחסון קבצים', k_scheduled_http:'משימות מתוזמנות', k_outbound:'מיילים ו-webhooks',
     newChat:'שיחה חדשה · פרויקט חדש', searchProjects:'חיפוש פרויקטים', canBuildTitle:'מה אפשר לבנות היום', noMatches:'לא נמצאו פרויקטים',
     hideSidebar:'הסתרת הסרגל', showSidebar:'הצגת הסרגל', previewToggle:'תצוגה', expandPreview:'הגדלת התצוגה', shrinkPreview:'הקטנת התצוגה',
@@ -137,7 +137,7 @@ const T = {
     chatPlaceholder:'כתבו מה תרצו לבנות או לשנות…', you:'אתם', assistant:'148AI',
     chatHelloTitle:'מה נבנה היום?', chatHello:'ספרו במילים שלכם מה אתם צריכים — אני אשאל רק מה שחשוב, אציע תוכנית ועלות, ושום דבר לא ייבנה בלי האישור שלכם.',
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
-    actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actApproveSpec:'אישור המפרט',
+    actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאשר ולהתחיל לבנות', actApproveSpec:'כן, זה נכון',
     windowsTitle:'חלונות באתר', windowsHint:'סמנו כל חלון שתרצו באתר. חלון שלא מסומן לא ייבנה.',
     canonAck:'אני מאשר/ת בנייה בלי הפרטים החסרים שלמעלה (הם לא יומצאו, והחלק שתלוי בהם יושמט)', actConfirmMod:'שליחת השינוי לביצוע',
     delegateShort:'בחרו עבורי', convNotReady:'השיחה החכמה עוד לא מותקנת בשרת הזה (חסר עדכון מסד נתונים 036). השאלות המודרכות עובדות כרגיל.', fallbackNote:'השיחה החכמה עוד לא מותקנת בשרת הזה, אז עברתי לשאלות המודרכות. הן מופיעות בלשונית "דרישות" ונשמרות.', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
@@ -173,15 +173,15 @@ const T = {
     manageProject:'Manage project', rename:'Rename', saveName:'Save name', archive:'Archive',
     newProject:'New project', close:'Close',
     promptPlaceholder:'For example: an appointment system for a barbershop, with a calendar for barbers, self-booking for customers and email reminders.',
-    propTitle:'Your proposal', propLooks:'This is how it will look', propGeneric:'General suggestion', propEstimate:'estimate', propPrice:'Build price', propIncluded:'Included', propExcluded:'Not included', propFacts:'Your details, as you wrote them', propApprove:'Approve and build', propChange:'Change something', propEdit:'Change', propUp:'Move up', propDown:'Move down', propRemove:'Remove', propSave:'Save', propUndo:'Undo the last change', propApproving:'Approving and starting the build…', propNotYet:'The proposal is not ready yet: we will complete the details in the conversation.',
+    propTitle:'Your proposal', propLooks:'This is how it will look', propGeneric:'General suggestion', propEstimate:'estimate', propPrice:'Build price', propIncluded:'Included', propExcluded:'Not included', propFacts:'Your details, as you wrote them', propApprove:'Approve and start building', propChange:'Change something', propEdit:'Change', propUp:'Move up', propDown:'Move down', propRemove:'Remove', propSave:'Save', propUndo:'Undo the last change', propApproving:'Approving and starting the build…', propNotYet:'The proposal is not ready yet: we will complete the details in the conversation.',
     planTitle:'The plan', understood:'What we understood', roles:'Users', data:'Data', integrations:'Integrations',
     capabilities:'Capabilities the build needs', infrastructure:'App infrastructure', cost:'Cost',
     estimated:'Estimate', maximum:'Approved maximum', questions:'Questions before we start', blockersTitle:'What is blocking right now',
-    creditsRequired:'Credits for this build', creditsRemaining:'Credits remaining', quoteStatus:'Pricing',
-    confirm:'Approve and start build', editRequest:'Edit request', costUnknown:'Cannot be calculated',
+    creditsRequired:'Price of this build (taken from your balance)', creditsRemaining:'Your balance', quoteStatus:'The price',
+    confirm:'Approve and start building', editRequest:'Edit request', costUnknown:'Cannot be calculated',
     byPipeline:'in the build', byProvider:'external provider', required:'required', optional:'optional',
     st_LIVE:'Live', st_PARTIAL:'Configured, not verified', st_NOT_CONFIGURED:'Not configured', st_BLOCKED:'Blocked',
-    st_SELF_CONTAINED:'Built into the app', st_PRICED:'Authorized', st_UNKNOWN:'Cannot be priced', st_NOT_AUTHORIZED:'Not authorized',
+    st_SELF_CONTAINED:'Built into the app', st_PRICED:'Authorized', st_UNKNOWN:'No price yet', st_NOT_AUTHORIZED:'Not authorized',
     stepPlanning:'Planning', stepContract:'Build contract', stepInfra:'Infrastructure', stepAssets:'Assets (icon and images)',
     stepGenerate:'Generating code, building, testing and repairing', stepGates:'Quality, security and rights gates', stepPreview:'Preview',
     noteGenerate:'Build, tests and repairs run as one step. The number of repair rounds is reported at the end.',
@@ -258,15 +258,15 @@ const T = {
     b_qa_budget_denied:'The prototype QA budget cannot authorize this build. Check the testing balance or reduce the request.',
     qaBudgetTitle:'Private prototype testing budget', qaBudgetRemaining:'Estimated internal allowance left',
     qaBudgetLimit:'Per-build testing limit', qaBudgetActual:'These are 148AI spend records, not your AI providers’ account balances.',
-    b_cost_quote_unknown:'Some required capabilities have no verified quote; the build cannot start.',
+    b_cost_quote_unknown:'Part of what you asked for has no price yet, so the build cannot start.',
     b_cost_quote_unavailable:'No verified build quote was returned.',
-    b_spec_not_approved:'Approve the spec before the build starts. You can do it right here.',
-    b_plan_not_verified:'The plan has not been checked against the spec yet. Approve the spec and we will prepare a checked plan.',
-    b_approval_state_unavailable:'The spec approval cannot be checked on this server right now, so no build starts. Try again later.',
-    b_brief_stale:'The request changed since it was approved. Approve the current spec.',
+    b_spec_not_approved:'Before the build starts, confirm that I understood the request: press "Yes, that is right".',
+    b_plan_not_verified:'The plan is not ready yet. Confirm that I understood the request and I will prepare it: press "Yes, that is right".',
+    b_approval_state_unavailable:'We cannot check right now whether you confirmed the request, so no build starts. This is on our side, not yours. Try again in a few minutes.',
+    b_brief_stale:'The request changed after you confirmed it. Confirm it as it is now: press "Yes, that is right".',
     readinessBuilt:'The last build finished successfully', readinessNextBlocked:'Another build is not possible right now',     readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet', readinessUnknown:'Project readiness has not been checked', readinessRunning:'Project build in progress', readinessDetails:'Details',
-    readinessBlockedHelp:'Technical feasibility alone is not build authorization. Requirements, providers, pricing and budget must be verified.',
-    quoteMissingTitle:'Requirements without verified pricing:', quoteMissingHelp:'If a capability was not requested, edit the specification. Otherwise its provider and price must be verified before building.', unknownBlocker:'Further checks are needed before building.',
+    readinessBlockedHelp:l=>`The build cannot start yet, and we have no exact reason to give you right now. You can change the request and try again: press "${l}".`,
+    quoteMissingTitle:'What has no price yet:', quoteMissingHelp:l=>`If you can do without it, take it out of the request and we will build without it: press "${l}".`, quoteUnverified:'Part of what you asked for has no price yet, so the build cannot start.', unknownBlocker:'Further checks are needed before building.',
     k_database:'database', k_auth_session:'sign-in and sessions', k_object_storage:'file storage', k_scheduled_http:'scheduled jobs', k_outbound:'email and webhooks',
     newChat:'New chat · new project', searchProjects:'Search projects', canBuildTitle:'What can be built today', noMatches:'No projects found',
     hideSidebar:'Hide sidebar', showSidebar:'Show sidebar', previewToggle:'Preview', expandPreview:'Enlarge preview', shrinkPreview:'Restore preview size',
@@ -275,7 +275,7 @@ const T = {
     aiFallback:'This reply was built from fixed rules, without an AI model.',
     chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
-    actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actApproveSpec:'Approve the spec',
+    actShowPlan:'Show summary, plan and cost', actApprove:'Approve and start building', actApproveSpec:'Yes, that is right',
     windowsTitle:'Windows on the site', windowsHint:'Tick each window you want on the site. A window left unticked is not built.',
     canonAck:'I confirm building without the missing details above (they are not invented; the part that needs them is left out)', actConfirmMod:'Send this change',
     delegateShort:'Choose for me', convNotReady:'The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work.', fallbackNote:'The conversation is not installed on this server yet, so I switched to the guided questions. They are in the "Requirements" tab and are saved.', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
@@ -365,6 +365,8 @@ function explain(err) {
   if (err.detail && err.detail.error === 'capability_not_feasible') return capabilityBlockMessage(err.detail);
   if (err.detail && ['spec_not_approved', 'plan_not_verified', 'approval_state_unavailable', 'brief_stale'].includes(err.detail.error))
     return t(`b_${err.detail.error}`);     // a human sentence, never the server's English (the status stays 409)
+  const said = err.detail && typeof err.detail.error === 'string' ? (t('serverSaid') || {})[err.detail.error] : null;
+  if (said) return said;                    // plain words in the customer's language, never the server's English sentence
   switch (err.status) {
     case 0: return err.detail === 'timeout' ? t('errTimeout') : t('errNet');
     case 401: return t('err401');
@@ -873,7 +875,7 @@ function renderPlan() {
       h('strong', {}, readinessView(S.build, p).mode === 'built' ? `${t('readinessBuilt')}. ${p.can_build ? t('readinessReady') : t('readinessNextBlocked')}`
                        : p.can_build ? t('readinessReady') : t('readinessBlocked')),
       !p.can_build && p.blocked_reason ? h('p', { class: 'blockedReason' }, p.blocked_reason.message) : null,
-      !p.can_build ? h('p', {}, p.blocked_reason ? p.blocked_reason.next : t('readinessBlockedHelp')) : null),
+      !p.can_build ? h('p', {}, p.blocked_reason ? p.blocked_reason.next : t('readinessBlockedHelp')(requestEditLabel(p))) : null),
     ...briefKids,
     ...(mediaLines(p).length ? [h('h3', {}, t('mediaTitle')), h('ul', { class: 'facts media' }, mediaLines(p).map(x => h('li', {}, x)))] : []),
     h('h3', {}, t('understood')),
@@ -919,15 +921,13 @@ function renderPlan() {
     // provider quote. A configured-but-unpriced capability needs operator
     // pricing or an explicit, user-approved scope change.
     if (p.blockers.some(b => b.code === 'cost_quote_unknown' || b.code === 'cost_quote_unavailable')) {
-      titles.push(S.lang === 'he'
-        ? 'הצעת המחיר אינה מאומתת. היתרה המוצגת אינה אישור לבנייה; יש להשלים תמחור ספק או להסיר דרישה באישורכם.'
-        : 'The provider quote is unverified. Displayed credits do not authorize a build; configure pricing or approve a scope change.');
+      titles.push(t('quoteUnverified'));
     }
     kids.push(h('h3', {}, t('blockersTitle')), h('ul', { class: 'blockers' }, titles.map(x => h('li', {}, x))),
       ...(Array.isArray(p.unavailable_requirements) && p.unavailable_requirements.length ? [
         h('h4', {}, t('quoteMissingTitle')),
         h('ul', { class: 'quoteMissing' }, p.unavailable_requirements.map(g => h('li', {}, nameForMissing(g)))),
-        h('p', { class: 'hint' }, t('quoteMissingHelp'))
+        h('p', { class: 'hint' }, t('quoteMissingHelp')(requestEditLabel(p)))
       ] : []),
       // 409 spec_not_approved / plan_not_verified: the same approval button as in the conversation, right here
       ...(p.brief_fingerprint && p.blockers.some(b => ['spec_not_approved', 'plan_not_verified', 'brief_stale'].includes(b.code)) ? [
@@ -942,7 +942,7 @@ function renderPlan() {
       p.brief_revision ? t('approveBuild') : t('confirm')),
     h('button', { class: 'secondary', onclick: () => {
       if (S.disc) { beginBriefEdit(); }
-      else $('chatInput').focus(); } }, p.brief_revision ? t('updateRequest') : t('editRequest'))));
+      else $('chatInput').focus(); } }, requestEditLabel(p))));
   kids.push(h('p',{id:'planMsg',class:'msg',role:'alert'},S.buildAdmissionError||''));
   panel.replaceChildren(...kids);
 }
