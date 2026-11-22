@@ -1,0 +1,322 @@
+{
+ "pr": "gate-words-132",
+ "sha256": [
+  "tests/test_gate_words.py",
+  "omni_prod/gate_words.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a new check id appears in the code (a failure-id constant) with no customer words",
+   "mutations": [
+    {
+     "file": "omni_prod/runtime_load.py",
+     "old": "ACCEPTANCE_ID = 'gate-G8-runtime-load'\n",
+     "new": "ACCEPTANCE_ID = 'gate-G8-runtime-load'\nNEW_FAILURE_ID = 'gate-NEW-check'  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_every_id_the_chain_can_produce_has_words_in_every_language"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a new kind is added to a check's own closed list (a window code) with no customer words",
+   "mutations": [
+    {
+     "file": "omni_prod/window_catalog.py",
+     "old": "CODES = ('WINDOW_MISSING', 'WINDOW_RULE', 'WINDOW_ORDER', 'WINDOW_TWO_OPEN', 'WINDOW_REJECTED')",
+     "new": "CODES = ('WINDOW_MISSING', 'WINDOW_RULE', 'WINDOW_ORDER', 'WINDOW_TWO_OPEN', 'WINDOW_REJECTED', 'WINDOW_NEW')"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_every_kind_a_check_lists_in_its_own_code_has_words"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the words of a Hebrew customer are the English ones (registry)",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "    what, why = getattr(entry, lang)\n",
+     "new": "    what, why = getattr(entry, 'en' if lang == 'he' else lang)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_hebrew_and_arabic_carry_no_english_and_english_no_hebrew",
+    "test_no_machinery_word_reaches_the_customer",
+    "test_a_real_gate_failure_reaches_the_conversation_in_the_customers_words",
+    "test_a_missing_phone_is_said_as_the_owner_wrote_it_and_asks_for_the_number",
+    "test_each_language_reads_its_own_words"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the failed-build message composes a Hebrew customer's findings in English",
+   "mutations": [
+    {
+     "file": "omni_prod/build_announcement.py",
+     "old": "                said.append(gate_words.words(k, lang))\n",
+     "new": "                said.append(gate_words.words(k, 'en'))  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_phone_is_said_as_the_owner_wrote_it_and_asks_for_the_number",
+    "test_a_real_consistency_failure_is_said_by_its_kind",
+    "test_a_real_gate_failure_reaches_the_conversation_in_the_customers_words",
+    "test_at_most_three_findings_are_listed_and_the_rest_counted",
+    "test_d1_a_finding_with_no_words_does_not_take_the_worded_ones_down",
+    "test_d2_one_missing_fact_keeps_its_own_step",
+    "test_d2_two_missing_facts_name_the_button_once_at_the_end",
+    "test_d3_a_step_missing_in_one_language_is_loud_and_never_a_crash",
+    "test_each_language_reads_its_own_words",
+    "test_one_action_when_the_findings_need_different_ones"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a finding passes with no next action (the shared Hebrew \"try again\" step is emptied)",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "    'he': {'retry': 'זה אצלנו, לא אצלכם. אפשר לנסות שוב: לחצו על \"' + RETRY_BUTTON['he'] + '\".',",
+     "new": "    'he': {'retry': '',  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_a_real_consistency_failure_is_said_by_its_kind",
+    "test_a_real_gate_failure_reaches_the_conversation_in_the_customers_words",
+    "test_at_most_three_findings_are_listed_and_the_rest_counted",
+    "test_d1_a_finding_with_no_words_does_not_take_the_worded_ones_down",
+    "test_every_entry_says_what_why_and_one_next_action_named_as_its_button",
+    "test_every_id_the_chain_can_produce_has_words_in_every_language",
+    "test_hebrew_and_arabic_carry_no_english_and_english_no_hebrew",
+    "test_no_machinery_word_reaches_the_customer"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "an entry with no valid action is served instead of refused",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "    if entry.action not in ACTIONS:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_an_entry_with_no_action_or_no_next_step_is_refused"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a technical term from the dictionary reaches the customer (\"server\" in the try-again step)",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "    'he': {'retry': 'זה אצלנו, לא אצלכם. אפשר לנסות שוב: לחצו על \"' + RETRY_BUTTON['he'] + '\".',",
+     "new": "    'he': {'retry': 'זו תקלה בשרת שלנו. אפשר לנסות שוב: לחצו על \"' + RETRY_BUTTON['he'] + '\".',"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py",
+    "tests/test_customer_words.py"
+   ],
+   "expect_failed": [
+    "test_no_machinery_word_reaches_the_customer",
+    "test_the_words_file_is_customer_text_and_holds_no_platform_word",
+    "test_a_real_gate_failure_reaches_the_conversation_in_the_customers_words",
+    "test_the_failure_route_holds_no_platform_word",
+    "test_no_other_customer_text_gains_a_platform_word"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the customer never sees the sentence: the announcement drops the findings",
+   "mutations": [
+    {
+     "file": "omni_prod/build_announcement.py",
+     "old": "lang=str(request.get('lang') or 'he'), findings=keys)",
+     "new": "lang=str(request.get('lang') or 'he'), findings=())  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_phone_is_said_as_the_owner_wrote_it_and_asks_for_the_number",
+    "test_a_real_gate_failure_reaches_the_conversation_in_the_customers_words",
+    "test_d1_a_finding_with_no_words_does_not_take_the_worded_ones_down"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a finding with no words is guessed (given another check's words) instead of raised and logged",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "    raise NoWords(f'no customer words for the check {aid!r} ({msg[:80]!r}) (omni_prod/gate_words.WORDS)')",
+     "new": "    return 'QUALITY'  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_a_check_with_no_words_raises_and_is_never_guessed",
+    "test_a_finding_with_no_words_is_logged_and_the_general_sentence_said",
+    "test_d1_a_finding_with_no_words_does_not_take_the_worded_ones_down"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the consistency kinds are no longer told apart: every one gets the general words, and an unknown check's kind is no longer refused",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "_CONSISTENCY = re.compile(r'^consistency \\(([a-z_]+)\\):')",
+     "new": "_CONSISTENCY = re.compile(r'^NEVER(x)$')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_a_check_with_no_words_raises_and_is_never_guessed",
+    "test_every_kind_a_check_lists_in_its_own_code_has_words",
+    "test_a_real_consistency_failure_is_said_by_its_kind"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the owner's example loses its words: a missing phone has no customer sentence",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "    'needs:phone': _e(",
+     "new": "    'needs:telephone': _e(  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_phone_is_said_as_the_owner_wrote_it_and_asks_for_the_number",
+    "test_d1_an_unknown_fact_does_not_hide_the_known_one",
+    "test_d2_one_missing_fact_keeps_its_own_step",
+    "test_d2_two_missing_facts_name_the_button_once_at_the_end",
+    "test_every_kind_a_check_lists_in_its_own_code_has_words",
+    "test_no_words_for_a_check_nobody_can_fail"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "D1: one finding with no words takes the worded ones down again (the first one raises)",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "        except NoWords as exc:\n            unworded.append(str(exc))\n            continue\n",
+     "new": "        except NoWords:\n            raise  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_a_finding_with_no_words_is_logged_and_the_general_sentence_said",
+    "test_d1_a_finding_with_no_words_does_not_take_the_worded_ones_down"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "D1: an unknown missing fact hides the known one",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "                unworded.append(f'no customer words for the missing fact {name!r} (omni_prod/gate_words.WORDS)')\n",
+     "new": "                return [], [f'no customer words for the missing fact {name!r}']  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_d1_an_unknown_fact_does_not_hide_the_known_one"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "D2: with two missing facts, the first fact's own step is the last line (and the button is named twice when each step is said)",
+   "mutations": [
+    {
+     "file": "omni_prod/build_announcement.py",
+     "old": "            parts.append(f\"{w['what']} — {w['why']}.\")\n",
+     "new": "            parts.append(f\"{w['what']} — {w['why']}. {w['next']}\")  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_a_real_gate_failure_reaches_the_conversation_in_the_customers_words",
+    "test_at_most_three_findings_are_listed_and_the_rest_counted",
+    "test_d2_one_missing_fact_keeps_its_own_step",
+    "test_d2_two_missing_facts_name_the_button_once_at_the_end",
+    "test_one_action_when_the_findings_need_different_ones"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "D2: several steps of one action: the first finding's own step is said instead of the shared one",
+   "mutations": [
+    {
+     "file": "omni_prod/build_announcement.py",
+     "old": "        final = steps[0] if len(steps) == 1 else (gate_words.NEXT[lang][step] if steps else None)\n",
+     "new": "        final = steps[0] if steps else None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_d2_two_missing_facts_name_the_button_once_at_the_end"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "D3: a step missing in one language passes through as None (a TypeError in the worker's finally)",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "    if not nxt:                      # D3 (review 2026-11-22): a next action of its own, missing in this language\n        raise NoWords(f'no next action in {lang!r} for {key!r} (omni_prod/gate_words.WORDS)')\n",
+     "new": "    pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_d3_a_step_missing_in_one_language_is_loud_and_never_a_crash"
+   ]
+  }
+ ]
+}
