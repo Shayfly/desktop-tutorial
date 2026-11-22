@@ -143,36 +143,30 @@ jobs:
           NC_JOBS: "4"    # 2026-11-17: the 4 cores of the runner; output is the same as a serial run, in the same order
         run: python scripts/run_negative_controls.py
   publish-report:
-    # smoke/ci-last-run.md: the latest main CI result, readable without job logs.
-    # main pushes only. The bot never pushes to main: the report goes to the
-    # ci/v24-report branch and a PR, which main's protection reviews/merges like
-    # any other, and auto-merges (squash) when its requirements are met. The
-    # condition stays refs/heads/main on purpose: that is the run whose result is being reported; the branch push is a different ref, so it
-    # never re-enters this job. The merged report commit lands on main again, so
-    # the message guard below stops that push from opening another report PR.
+    # smoke/ci-last-run.md (the latest main CI result, readable without job logs) is published where it cannot rot
+    # (2026-11-21, #146): in the run's summary and as the artifact `ci-last-run`. It used to be force-pushed to the
+    # ci/v24-report branch with a PR set to auto-merge. That PR (#146) stayed open from 2026-10-26: every report
+    # rewrites the file, so the additive-only check (`light`) failed it on every push, and auto-merge stands against
+    # CLAUDE.md section 2.5 (no auto-merge in place of approval). Now nothing is pushed and nothing waits to merge: the job
+    # only reads (contents: read), and the file is no longer kept in the repository.
     needs: test
     if: >-
       always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && !startsWith(github.event.head_commit.message, 'chore: v24-ci results')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write        # push the ci/v24-report branch (never main)
-      pull-requests: write   # open the report PR
-      actions: write         # dispatch the required checks on the report branch (see "on:")
+      contents: read
     steps:
-      # This job pushes the report, so its checkout keeps credentials
-      # (the test jobs keep persist-credentials: false and a read-only token).
+      # The report job only reads, like the test jobs: no credentials are kept.
       - uses: actions/checkout@v4
         with:
-          ref: main
-          persist-credentials: true
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: pytest-report
           path: report
         continue-on-error: true
-      - name: Write smoke/ci-last-run.md
+      - name: Write the report (run summary and artifact)
         env:
           TEST_RESULT: ${{ needs.test.result }}
           RUN_ID: ${{ github.run_id }}
@@ -180,7 +174,7 @@ jobs:
           COMMIT: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          mkdir -p smoke
+          mkdir -p report
           python - <<'PY'
           import os, collections, datetime, xml.etree.ElementTree as ET
           path = 'report/pytest-report.xml'
@@ -232,36 +226,16 @@ jobs:
                   v = per[m]
                   lines.append(f"| `{m}` | {'FAIL' if v['fail'] else 'PASS'} | {v['pass']} | {v['fail']} | {v['skip']} |")
           lines += ['', '_Test names and counts only; failure messages are not published._']
-          open('smoke/ci-last-run.md', 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
+          text = '\n'.join(lines) + '\n'
+          open('report/ci-last-run.md', 'w', encoding='utf-8').write(text)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write(text)
           PY
-      - name: Commit the report to a branch and open a PR
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPORT_BRANCH: ci/v24-report
-        run: |
-          git config user.name "ci-bot"
-          git config user.email "ci-bot@148ai.dev"
-          git add smoke/ci-last-run.md
-          if git diff --cached --quiet; then echo "no change"; exit 0; fi
-          git checkout -b "$REPORT_BRANCH"
-          git commit -m "chore: v24-ci results"
-          # Bot-owned branch; each report supersedes the previous one. main is never touched.
-          git push --force origin "HEAD:refs/heads/$REPORT_BRANCH"
-          PR="$(gh pr list --head "$REPORT_BRANCH" --base main --state open --json number --jq '.[0].number')"
-          if [ -z "$PR" ]; then
-            gh pr create --base main --head "$REPORT_BRANCH" \
-              --title "chore: v24-ci results" \
-              --body "Automated CI result report (smoke/ci-last-run.md). Auto-merges (squash) once main's protection is satisfied."
-            PR="$(gh pr list --head "$REPORT_BRANCH" --base main --state open --json number --jq '.[0].number')"
-          fi
-          # The required checks must RUN on the report commit (GITHUB_TOKEN events start no workflow): dispatch both.
-          gh workflow run v24-ci.yml --ref "$REPORT_BRANCH"
-          gh workflow run v11-overlay-ci.yml --ref "$REPORT_BRANCH"
-          echo "::notice title=publish-report::report PR #$PR on $REPORT_BRANCH @ $(git rev-parse --short HEAD); test and validate dispatched on it"
-          # Auto-merge waits for main's required checks/reviews; it never bypasses them.
-          # The squash subject keeps the 'chore: v24-ci results' prefix the job guard relies on.
-          gh pr merge "$PR" --auto --squash --subject "chore: v24-ci results" \
-            || echo "::warning title=publish-report::auto-merge not enabled on PR #$PR (repo setting 'Allow auto-merge' or main protection missing); it needs a manual merge"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-last-run
+          path: report/ci-last-run.md
+          retention-days: 30
   compose-config:
     runs-on: ubuntu-latest
     timeout-minutes: 5

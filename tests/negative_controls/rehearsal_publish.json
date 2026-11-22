@@ -1,0 +1,24 @@
+{
+  "pr": "rehearsal-publish-no-push",
+  "sha256": [".github/workflows/golden-rehearsal.yml", "tests/test_rehearsal_publishes_without_pushing.py"],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "publish-taxonomy gets write access again (the road back to a direct push)",
+      "mutations": [{"file": ".github/workflows/golden-rehearsal.yml",
+                     "old": "    permissions:\n      contents: read\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: main\n          persist-credentials: false",
+                     "new": "    permissions:\n      contents: write\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: main\n          persist-credentials: false"}],
+      "targets": ["tests/test_rehearsal_publishes_without_pushing.py"],
+      "expect_failed": ["test_it_only_reads_and_keeps_no_credentials"]
+    },
+    {
+      "id": "NC2",
+      "what": "the report no longer reaches the run summary",
+      "mutations": [{"file": ".github/workflows/golden-rehearsal.yml",
+                     "old": "          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as out:",
+                     "new": "          with open(os.devnull, 'a', encoding='utf-8') as out:"}],
+      "targets": ["tests/test_rehearsal_publishes_without_pushing.py"],
+      "expect_failed": ["test_it_reports_in_the_summary_and_as_an_artifact"]
+    }
+  ]
+}
