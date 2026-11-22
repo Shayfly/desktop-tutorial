@@ -3,7 +3,10 @@
    design editor measured on seven businesses) and adds layout variants. Every value comes from the design
    contract (omni_prod/g_apple/contract.py): colours var(--color-*) or color-mix() of them, sizes var(--text-*),
    spacing var(--space-*), two weights, one radius, two motion durations. No custom property is defined here.
-   Right-to-left by logical properties. Section tones are assigned by page position (page()), not per section. */
+   Right-to-left by logical properties. Section tones are assigned by page position (page()), not per section.
+   The second colour (contract version 2, the owner 2026-11-22: the customer says which colour takes less space) marks
+   small things only: the eyebrow, the numbers, the step circles, the FAQ sign, a quote's edge. The primary stays the one
+   action colour (buttons, links, focus, primary sections). */
 
 /* ---------- base ---------- */
 *, *::before, *::after { box-sizing: border-box; }
@@ -33,7 +36,7 @@ a:active { opacity: 0.8; }
 .section--primary .eyebrow, .section--primary .title, .section--primary .lead, .section--primary p { color: var(--color-on-primary); }
 .section--primary a:focus-visible, .panel a:focus-visible { outline-color: var(--color-on-primary); }
 .section.section--flush { padding-block-start: 0; }
-.eyebrow { font-size: var(--text-14); font-weight: var(--weight-bold); color: var(--color-primary); margin-block-end: var(--space-16); }
+.eyebrow { font-size: var(--text-14); font-weight: var(--weight-bold); color: var(--color-accent-text); margin-block-end: var(--space-16); }
 .title { font-size: var(--text-40); font-weight: var(--weight-bold); line-height: 1.15; letter-spacing: -0.01em;
   margin-block-end: var(--space-16); max-width: 40rem; }
 .lead { font-size: var(--text-20); color: var(--color-muted); max-width: 35rem; }
@@ -119,7 +122,7 @@ bdi, .hours-seg { white-space: nowrap; }
 .stat { display: flex; flex-direction: column-reverse; justify-content: flex-end; padding: var(--space-32) var(--space-24);
   border-inline-start: 1px solid var(--color-border); }
 .stat:first-child { border-inline-start: 0; }
-.stat dd { font-size: var(--text-40); font-weight: var(--weight-bold); line-height: 1.1; color: var(--color-primary);
+.stat dd { font-size: var(--text-40); font-weight: var(--weight-bold); line-height: 1.1; color: var(--color-accent-text);
   font-variant-numeric: tabular-nums; }
 .stat dt { color: var(--color-muted); margin-block-start: var(--space-8); }
 
@@ -177,7 +180,8 @@ bdi, .hours-seg { white-space: nowrap; }
 /* ---------- testimonials (the customer's own only) ---------- */
 .quotes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); gap: var(--space-24); }
 .quote { margin: 0; padding: var(--space-32); background: var(--color-bg); border: 1px solid var(--color-border);
-  border-radius: var(--radius); display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-24); }
+  border-radius: var(--radius); display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-24);
+  border-inline-start: 2px solid var(--color-accent); }
 .quote blockquote { margin: 0; font-size: var(--text-20); line-height: 1.5; }
 .quote figcaption { color: var(--color-muted); font-weight: var(--weight-bold); }
 
@@ -186,7 +190,7 @@ bdi, .hours-seg { white-space: nowrap; }
   gap: var(--space-32); }
 .steps li { counter-increment: step; position: relative; padding-block-start: var(--space-64); }
 .steps li::before { content: counter(step); position: absolute; top: 0; inset-inline-start: 0; display: grid; place-items: center;
-  width: 3rem; height: 3rem; border-radius: 50%; background: var(--color-primary); color: var(--color-on-primary);
+  width: 3rem; height: 3rem; border-radius: 50%; background: var(--color-accent); color: var(--color-on-accent);
   font-weight: var(--weight-bold); font-size: var(--text-20); }
 .steps li::after { content: ""; position: absolute; top: 1.5rem; inset-inline: 4rem 0; border-block-start: 1px dashed var(--color-border); }
 .steps li:last-child::after { display: none; }
@@ -204,7 +208,7 @@ bdi, .hours-seg { white-space: nowrap; }
 .faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
   gap: var(--space-16); padding-block: var(--space-24); font-size: var(--text-20); font-weight: var(--weight-bold); line-height: 1.3; }
 .faq summary::-webkit-details-marker { display: none; }
-.faq summary::after { content: "+"; content: "+" / ""; flex: none; font-size: var(--text-24); color: var(--color-primary);
+.faq summary::after { content: "+"; content: "+" / ""; flex: none; font-size: var(--text-24); color: var(--color-accent-text);
   transition: transform var(--motion-base) var(--motion-ease); }
 .faq details[open] summary::after { transform: rotate(45deg); }
 .faq summary:hover { color: var(--color-primary); }
