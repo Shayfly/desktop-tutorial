@@ -751,6 +751,7 @@
   },
   {
    "id": "C11",
+   "drill_workflow": "drill-c11.yml",
    "control": "drain refuses without a verified rollback",
    "file_v3": ".github/workflows/deploy-worker.yml",
    "type": "drill",
@@ -840,6 +841,7 @@
   },
   {
    "id": "C16",
+   "drill_workflow": "drill-c16.yml",
    "control": "main protection blocks a merge on red",
    "file_v3": "GitHub settings (branch protection of main)",
    "type": "assertion",
@@ -878,6 +880,7 @@
   },
   {
    "id": "C18",
+   "drill_workflow": "drill-c18-alert.yml",
    "control": "the alert fires",
    "file_v3": "",
    "type": "drill",
@@ -892,6 +895,7 @@
   },
   {
    "id": "C19",
+   "drill_workflow": "drill-c19.yml",
    "control": "kill switch",
    "file_v3": "OMNI_ZERO_COST_MODE",
    "type": "drill",
