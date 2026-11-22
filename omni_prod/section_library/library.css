@@ -362,6 +362,28 @@ bdi, .hours-seg { white-space: nowrap; }
 /* ---------- phone action bar ---------- */
 .mobile-bar { display: none; }
 
+/* ---------- cookie banner (window_catalog cookie_banner): in the page flow above the header, never fixed, so it
+   covers nothing -- not the main action, not the phone action bar. Text and close on one row, the two answers below it
+   on a phone; one row from 641px. Every control is at least 3rem (48px) both ways. ---------- */
+.cookie-banner { background: var(--color-surface); border-block-end: 1px solid var(--color-border); }
+.cookie-banner .wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+  gap: var(--space-8) var(--space-16); padding-block: var(--space-16); }
+.cookie-text { grid-column: 1; grid-row: 1; font-size: var(--text-14); line-height: 1.5; }
+.cookie-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--space-8); }
+.cookie-banner .btn, .cookie-close { min-width: 3rem; min-height: 3rem; }
+.cookie-close { grid-column: 2; grid-row: 1; display: grid; place-items: center; padding: var(--space-8); font: inherit;
+  color: var(--color-text); background: transparent; border: 0; border-radius: var(--radius); cursor: pointer; }
+.cookie-close svg { width: var(--space-24); height: var(--space-24); }
+.cookie-close:hover { color: var(--color-primary); }
+@media (max-width: 640px) {
+  .cookie-banner .wrap { padding-block: var(--space-8); }      /* under a quarter of a 320x568 screen */
+}
+@media (min-width: 641px) {
+  .cookie-banner .wrap { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .cookie-actions { grid-column: 2; grid-row: 1; }
+  .cookie-close { grid-column: 3; }
+}
+
 /* ---------- tablet ---------- */
 @media (max-width: 960px) {
   .hero .wrap, .split, .contact, .band, .faq-layout, .aside-layout { grid-template-columns: minmax(0, 1fr); }

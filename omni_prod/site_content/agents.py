@@ -410,7 +410,7 @@ class ContentSiteGenerator:
 
     def _render(self, doc, sheet, route):
         return R.render(doc, sheet, route.contract, expect_fp=route.contract_fp, direction=route.direction,
-                        year=route.year, outline_titles=route.outline_titles, order=route.order)
+                        year=route.year, outline_titles=route.outline_titles, order=route.order, windows=route.windows)
 
 
 # ---- after a failed round -------------------------------------------------------------------------------------------------
@@ -509,7 +509,8 @@ class ContentSiteRepairer:
             if V.blocking(problems):
                 raise SiteContentInvalid('the repair rewrite made the document invalid', problems)
             html, _ = R.render(doc, sheet, route.contract, expect_fp=route.contract_fp, direction=route.direction,
-                               year=route.year, outline_titles=route.outline_titles, order=route.order)
+                               year=route.year, outline_titles=route.outline_titles, order=route.order,
+                               windows=route.windows)
         except SiteRenderDefect as exc:
             self.trace.append({'declined': 'platform_render_defect', 'why': str(exc)[:1500]})
             raise RepairDeclined('platform_render_defect', str(exc), paid_call=self.agent.calls > called) from exc

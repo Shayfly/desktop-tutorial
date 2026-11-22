@@ -176,7 +176,7 @@ class ThePrepass(unittest.TestCase):
                         year='2026', outline_titles={'services': 'תחומי התמחות', 'about': 'על המשרד',
                                                      'process': 'איך זה עובד', 'faq': 'שאלות נפוצות',
                                                      'contact': 'צור קשר'},
-                        order=['hero', 'services', 'about', 'process', 'faq', 'contact'])[0]
+                        order=['hero', 'services', 'about', 'process', 'faq', 'contact'], windows=())[0]
 
     def review(self, found):
         return [f for f in found['block'] if f['acceptance_id'] == 'REVIEW']

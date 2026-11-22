@@ -18,9 +18,10 @@ path, and no fallback to the legacy generator once the route was chosen.
 
 Slice 1 scope: Hebrew; content_only_approved; one main phone, at most one address and one e-mail; WhatsApp only when the
 customer's own words name it and its number is known; every palette in section_library.DIRECTIONS; no approved
-windows; no uploaded logo; images only in the hero and story places; the customer's outline only when every title maps
-to a library section (OUTLINE_MAP, exact titles, never guessed); no plan-governed approved criteria. Headings use the
-body font (the discovery display-font change is deferred).
+window the library does not render (it renders section_library.RENDERED_WINDOWS: the cookie banner, DECISIONS.md
+question 14 (b)); no uploaded logo; images only in the hero and story places; the customer's outline only when
+every title maps to a library section (OUTLINE_MAP, exact titles, never guessed); no plan-governed approved
+criteria. Headings use the body font (the discovery display-font change is deferred).
 """
 from __future__ import annotations
 
@@ -86,11 +87,12 @@ class Route:
     outline_titles: dict = field(default_factory=dict)
     title: str = ''
     year: str = ''
+    windows: tuple[str, ...] = ()          # the approved windows the library renders on this route
 
     def to_dict(self) -> dict:
         return {'route': self.route, 'reason': self.reason, 'palette': self.palette, 'direction': self.direction,
                 'contract': self.contract_fp, 'contract_source': self.contract_source, 'canon_hash': self.canon_hash,
-                'order': self.order, 'outline_titles': self.outline_titles}
+                'order': self.order, 'outline_titles': self.outline_titles, 'windows': list(self.windows)}
 
 
 def _norm_title(title: str) -> str:
@@ -139,12 +141,14 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
     from ..uploaded_assets import _BINDING, _IMAGE_BINDING
     if _BINDING.search(prompt or ''):
         return Route(LEGACY, 'uploaded_logo')
+    from ..section_library import RENDERED_WINDOWS
     from ..window_catalog import approved_in_prompt
-    windows = approved_in_prompt(prompt)
+    approved = approved_in_prompt(prompt)
+    windows = [w for w in approved if w not in RENDERED_WINDOWS]       # approved, and not rendered by the library
     if windows:
-        # The library renders no window yet, so an approved one still goes to the old path -- but by name: the owner's
-        # build bld_ab78f528 (2026-11-22) went legacy as 'approved_windows' and nobody could tell which window did it
-        # (cookie_banner and question_widget are offered to every site).
+        # A window the library does not render still goes to the old path -- by name: the owner's build bld_ab78f528
+        # (2026-11-22) went legacy as 'approved_windows' and nobody could tell which window did it (cookie_banner and
+        # question_widget are offered to every site). The library renders the cookie banner (DECISIONS.md 14 (b)).
         return Route(LEGACY, 'approved_windows: ' + ', '.join(windows))
     from . import facts as Fx
     request_text = Fx.request_text(prompt)
@@ -189,7 +193,7 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
                  direction=entry['direction'], voice=entry['voice'], contract=contract,
                  contract_fp=contract['fingerprint'], contract_source=source, canon_hash=sheet.canon_hash,
                  order=order, outline_titles=titles, title=sheet.name or 'אתר תדמית',
-                 year=year or str(datetime.date.today().year))
+                 year=year or str(datetime.date.today().year), windows=tuple(approved))
 
 
 def install(engine, *, prompt: str, gateway, request=None, plan_governed: bool = False, year: str | None = None) -> Route:
