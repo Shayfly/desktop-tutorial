@@ -71,12 +71,11 @@ services:
       # founder's -- after the router's vision guard (#368) and the live probe (6/6 models, run 43689691749).
       # Back to founder-only without a code change: OMNI_IMAGE_MATCH=founder in WORKER_ENV_OVERRIDES, then redeploy.
       OMNI_IMAGE_MATCH: ${OMNI_IMAGE_MATCH:-all}
-      # The owner, 2026-11-21 (inbox/001): "the new engine is turned on for his account before anything else in the
-      # queue". The content route (omni_prod/site_content: the model writes the copy, the platform renders the section
-      # library) runs for the listed accounts only; every other account builds as before. Account ids, not secrets.
-      # Off without a code change: OMNI_SITE_LIBRARY=off in WORKER_ENV_OVERRIDES, then redeploy.
-      OMNI_SITE_LIBRARY: ${OMNI_SITE_LIBRARY:-accounts}
-      OMNI_SITE_LIBRARY_ACCOUNTS: ${OMNI_SITE_LIBRARY_ACCOUNTS:-usr_GCWlMxENgr9vpwph}
+      # The owner, 2026-11-22 (DECISIONS.md): the new engine (omni_prod/site_content: the model writes the copy, the
+      # platform renders the section library) is the DEFAULT for content sites, every account. Apps, and every request
+      # the route cannot serve, keep the existing path (site_content.decide names the reason). The old path stays as the
+      # fall-back switch for 72 hours: OMNI_SITE_LIBRARY=off in WORKER_ENV_OVERRIDES, then redeploy -- no code change.
+      OMNI_SITE_LIBRARY: ${OMNI_SITE_LIBRARY:-on}
     depends_on:
       sandbox-runner:
         condition: service_healthy
