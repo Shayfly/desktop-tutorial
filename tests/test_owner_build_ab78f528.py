@@ -3,7 +3,8 @@
 Its server served the generated image (preview smoke PASS) and two of our own checks still failed it in turns:
   * the consistency gate: 'acceptance step s4 calls /assets/148ai-image-1.webp but no server route handles it';
   * the image check: 'generated image ... is not on the page' whenever the page wrote '/assets/...'.
-And the route: it went to the old path as 'approved_windows' without saying which window.
+And the route: it went to the old path as 'approved_windows' without saying which window. Since DECISIONS.md
+question 14 (b) the library renders the cookie banner itself, so only the question widget is named.
 
 The fixtures are the build's own files, read back from production (build-evidence run 45014896178, read-only):
 app.py is 3,803 characters, the length that run printed; project.json is the manifest it printed.
@@ -206,6 +207,8 @@ class TheImageCheck(unittest.TestCase):
 
 class TheRouteNamesTheWindow(unittest.TestCase):
     def test_the_owners_two_windows_are_named(self):
+        # of the owner's two windows, the library renders the cookie banner (section_library.RENDERED_WINDOWS); the
+        # question widget is the one that still sends the build to the old path, and the reason names it alone
         from unittest import mock
         from omni_prod import site_content
         from omni_prod.window_catalog import prompt_lines
@@ -215,7 +218,7 @@ class TheRouteNamesTheWindow(unittest.TestCase):
                   'Product kind: CONTENT-ONLY website.\n' + '\n'.join(prompt_lines(['cookie_banner', 'question_widget'])))
         with mock.patch.dict(os.environ, {'OMNI_SITE_LIBRARY': 'on'}):
             route = site_content.decide(prompt)
-        self.assertEqual((route.route, route.reason), ('legacy', 'approved_windows: cookie_banner, question_widget'))
+        self.assertEqual((route.route, route.reason), ('legacy', 'approved_windows: question_widget'))
 
 
 if __name__ == '__main__':

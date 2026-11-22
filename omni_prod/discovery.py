@@ -962,7 +962,22 @@ def window_offer(brief: 'Brief', lang: str = 'he') -> list[dict]:
     if not is_website(brief):
         return []
     from .window_catalog import offer
-    return offer(lang, approved_windows(brief), rejected_windows(brief), text=brief.prompt)   # only what fits
+    out = offer(lang, approved_windows(brief), rejected_windows(brief), text=brief.prompt)   # only what fits
+    v = brief.values()
+    if _content_only(v, 'none' if v.get('login') == 'none' else 'x') and not _question_channel(brief.prompt):
+        # DECISIONS 14 (a), 2026-11-22: the question widget opens a form, and a content-only site saves nothing, so with
+        # no WhatsApp and no e-mail the question has nowhere to go -- the owner's build bld_ab78f528 failed the browser
+        # check on exactly that form (dead_form 'q-form'). It is not offered; a decision already made stays shown.
+        out = [w for w in out if w['id'] != 'question_widget' or w['state'] is not None]
+    return out
+
+
+def _question_channel(prompt: str) -> bool:
+    """A channel the question widget can hand a question to: the customer's WhatsApp number or e-mail address, read by
+    the content route's own fact sheet (a negated WhatsApp, 'אין לנו וואטסאפ', is no channel)."""
+    from .site_content.facts import fact_sheet
+    sheet = fact_sheet(prompt or '')
+    return bool(sheet.whatsapp or sheet.email)
 
 
 def requirements_text(brief: Brief) -> str:

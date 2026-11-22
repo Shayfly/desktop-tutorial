@@ -47,7 +47,7 @@ jobs:
           exit 1
       - name: Browser tests
         timeout-minutes: 4
-        run: python -m pytest -q -rs --junitxml=browser.xml tests/test_section_library.py tests/test_section_library_conformance.py tests/test_site_content_engine.py
+        run: python -m pytest -q -rs --junitxml=browser.xml tests/test_section_library.py tests/test_section_library_conformance.py tests/test_site_content_engine.py tests/test_library_cookie_banner.py
       - name: No test may be skipped
         if: always()
         run: |
@@ -72,4 +72,8 @@ jobs:
         env:
           NC_ENV: browser
           NC_JOBS: "2"
-        run: python scripts/run_negative_controls.py section_library
+        # 2026-11-22: the library's cookie banner (DECISIONS 14 b) has 3 browser-only controls of its own (NC7-NC9)
+        run: |
+          python scripts/run_negative_controls.py section_library; a=$?
+          python scripts/run_negative_controls.py library_cookie_banner; b=$?
+          exit $(( a | b ))

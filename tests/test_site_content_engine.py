@@ -241,7 +241,8 @@ class TheRouteThroughTheRealChain(unittest.TestCase):
         core, sheet = engine, engine.site_sheet
         route = engine.site_route
         html, _ = R.render(bad_doc, sheet, route.contract, expect_fp=route.contract_fp, direction=route.direction,
-                           year=route.year, outline_titles=route.outline_titles, order=route.order)
+                           year=route.year, outline_titles=route.outline_titles, order=route.order,
+                           windows=route.windows)
         repo = dict(result.repository, **{R.PAGE: html, R.SITE_JSON: R.site_json(
             bad_doc, json.loads(result.repository[R.SITE_JSON])['binds'])})
 

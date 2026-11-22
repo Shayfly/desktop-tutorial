@@ -1,0 +1,187 @@
+{
+ "pr": "library-cookie-banner",
+ "sha256": [
+  "tests/test_library_cookie_banner.py",
+  "tests/test_owner_build_ab78f528.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "RENDERED_WINDOWS emptied: the library renders no window (the cookie banner goes legacy again)",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "RENDERED_WINDOWS = frozenset({'cookie_banner'})",
+     "new": "RENDERED_WINDOWS = frozenset()"
+    }
+   ],
+   "targets": [
+    "tests/test_library_cookie_banner.py::TheRoute",
+    "tests/test_owner_build_ab78f528.py::TheRouteNamesTheWindow"
+   ],
+   "expect_failed": [
+    "test_a_content_site_that_approved_only_the_cookie_banner_takes_the_library",
+    "test_every_other_approved_window_still_goes_legacy_by_name",
+    "test_the_library_renders_exactly_the_cookie_banner_and_refuses_any_other_window",
+    "test_the_owners_two_windows_are_named"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the route keeps no windows (decide() drops them: the page would carry no banner)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "windows=tuple(approved))",
+     "new": "windows=())"
+    }
+   ],
+   "targets": [
+    "tests/test_library_cookie_banner.py::TheRoute"
+   ],
+   "expect_failed": [
+    "test_a_content_site_that_approved_only_the_cookie_banner_takes_the_library"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the banner controls lose data-148-close (the window probe must fail)",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": " data-148-close=\"accept\">אישור",
+     "new": ">אישור"
+    },
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": " data-148-close=\"necessary\">רק הכרחי",
+     "new": ">רק הכרחי"
+    },
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "class=\"cookie-close\" data-148-close=\"necessary\" ",
+     "new": "class=\"cookie-close\" "
+    }
+   ],
+   "targets": [
+    "tests/test_library_cookie_banner.py::TheBannerOnThePage"
+   ],
+   "expect_failed": [
+    "test_every_control_answers_closes_and_is_named",
+    "test_the_window_probe_finds_no_failure"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the 44px minimum of the banner controls removed",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": ".cookie-banner .btn, .cookie-close { min-width: 3rem; min-height: 3rem; }\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_library_cookie_banner.py::TheBannerOnThePage"
+   ],
+   "expect_failed": [
+    "test_every_control_is_at_least_44_css_px"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the answer is no longer written to sessionStorage (static: the script)",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "try{{sessionStorage.setItem(k,c.dataset[\"148Close\"]);}}catch(x){{}}",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_library_cookie_banner.py::TheBannerOnThePage"
+   ],
+   "expect_failed": [
+    "test_it_is_hidden_until_its_script_shows_it_and_the_answer_is_kept_for_the_visit"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the banner fixed to the bottom of the screen (the design measured and rejected): static",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": ".cookie-banner { background: var(--color-surface); border-block-end: 1px solid var(--color-border); }",
+     "new": ".cookie-banner { position: fixed; inset-inline: 0; bottom: 0; z-index: 25; background: var(--color-surface); border-block-end: 1px solid var(--color-border); }"
+    }
+   ],
+   "targets": [
+    "tests/test_library_cookie_banner.py::TheBannerOnThePage"
+   ],
+   "expect_failed": [
+    "test_it_sits_in_the_page_flow_above_the_header_never_over_the_phone_bar"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the answer is no longer written to sessionStorage: in Chromium it comes back after a reload",
+   "envs": [
+    "browser"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "try{{sessionStorage.setItem(k,c.dataset[\"148Close\"]);}}catch(x){{}}",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_library_cookie_banner.py::InChromium"
+   ],
+   "expect_failed": [
+    "test_an_answer_hides_it_and_it_stays_hidden_after_a_reload"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the banner fixed to the bottom: in Chromium it covers the hero panel link (visual check) and the phone bar",
+   "envs": [
+    "browser"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": ".cookie-banner { background: var(--color-surface); border-block-end: 1px solid var(--color-border); }",
+     "new": ".cookie-banner { position: fixed; inset-inline: 0; bottom: 0; z-index: 25; background: var(--color-surface); border-block-end: 1px solid var(--color-border); }"
+    }
+   ],
+   "targets": [
+    "tests/test_library_cookie_banner.py::InChromium"
+   ],
+   "expect_failed": [
+    "test_on_a_phone_it_takes_at_most_a_quarter_and_never_covers_the_bar_or_the_main_action",
+    "test_the_production_visual_check_finds_nothing_it_enforces_with_the_banner_open"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the content generator renders without the route's windows: the real chain's window gate fails the build",
+   "envs": [
+    "browser"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "order=route.order, windows=route.windows)\n\n",
+     "new": "order=route.order, windows=())\n\n"
+    }
+   ],
+   "targets": [
+    "tests/test_library_cookie_banner.py::TheRealChain"
+   ],
+   "expect_failed": [
+    "test_ready_in_round_0_with_the_window_gate_satisfied"
+   ]
+  }
+ ]
+}

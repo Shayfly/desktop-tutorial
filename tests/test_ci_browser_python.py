@@ -45,6 +45,7 @@ class TheBrowserJob(unittest.TestCase):
         tests = self.run_of('Browser tests')['run']
         self.assertIn('tests/test_section_library.py', tests)
         self.assertIn('tests/test_site_content_engine.py', tests)
+        self.assertIn('tests/test_library_cookie_banner.py', tests)        # DECISIONS 14 b
         self.assertIn('--junitxml=browser.xml', tests)
         guard = self.run_of('No test may be skipped')
         self.assertEqual(guard['if'], 'always()')
@@ -54,6 +55,8 @@ class TheBrowserJob(unittest.TestCase):
         step = self.run_of('Negative controls (browser)')
         self.assertEqual(step['env']['NC_ENV'], 'browser')
         self.assertIn('run_negative_controls.py section_library', step['run'])
+        self.assertIn('run_negative_controls.py library_cookie_banner', step['run'])
+        self.assertIn('exit $(( a | b ))', step['run'])                     # one failing spec fails the step
         spec = json.loads((ROOT / 'tests/negative_controls/section_library.json').read_text(encoding='utf-8'))
         for control in spec['controls']:
             needs_browser = set(control['expect_failed']) <= set(BROWSER_ONLY)
