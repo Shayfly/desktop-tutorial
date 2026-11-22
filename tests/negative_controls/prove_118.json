@@ -1,0 +1,179 @@
+{
+ "pr": "prove-118",
+ "sha256": [
+  "tests/test_postdeploy_image_proofs.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "an inlined image is taken for a file",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "    inline = [s for s in srcs if s.strip().lower().startswith('data:')]\n",
+     "new": "    inline = []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_image_proofs.py"
+   ],
+   "expect_failed": [
+    "test_an_inlined_image_fails_the_first_two"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a data: URI elsewhere in the HTML is not looked for",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "        ('118: no data: in the served HTML', 'data:' not in (html or ''),\n",
+     "new": "        ('118: no data: in the served HTML', not inline,\n"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_image_proofs.py"
+   ],
+   "expect_failed": [
+    "test_a_data_uri_left_elsewhere_in_the_html_fails_proof_two"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the weight is compared with itself (no counterfactual)",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "            inlined_bytes += len(uri) - len(src.encode('utf-8'))\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_image_proofs.py"
+   ],
+   "expect_failed": [
+    "test_a_file_image_passes_all_three_with_the_measured_ratio",
+    "test_the_served_page_goes_through_the_proofs"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a page with no image counts as proven",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "        return [('118: image checks', None, f'NOT RUN: the served page has no <img> ({html_bytes} bytes)')]\n",
+     "new": "        return [('118: image checks', True, 'no image')]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_image_proofs.py"
+   ],
+   "expect_failed": [
+    "test_a_page_without_any_image_is_not_run_never_a_pass"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the paid stage never checks the served page",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "    record_image_proofs(view['preview_url'], page[1], access)      # warehouse 118, on the page the preview serves\n",
+     "new": "    pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_image_proofs.py"
+   ],
+   "expect_failed": [
+    "test_the_served_page_goes_through_the_proofs"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the workflow input never reaches the container",
+   "mutations": [
+    {
+     "file": ".github/workflows/postdeploy-checks.yml",
+     "old": "                    -e POSTDEPLOY_PAID_PROMPT -v \"$RUNNER_TEMP/pd:/out\"",
+     "new": "                    -v \"$RUNNER_TEMP/pd:/out\""
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_image_proofs.py"
+   ],
+   "expect_failed": [
+    "test_the_workflow_passes_the_input_into_the_container"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "an image file that is not served counts as a file",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "        ('118: the image is a file the page references', not inline and len(served) == len(files) and bool(files),\n",
+     "new": "        ('118: the image is a file the page references', not inline,\n"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_image_proofs.py"
+   ],
+   "expect_failed": [
+    "test_a_file_that_is_not_served_fails"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the QA cap input accepts more than the 2.00 per-build cap",
+   "mutations": [
+    {
+     "file": ".github/workflows/postdeploy-checks.yml",
+     "old": "sys.exit(0 if d.Decimal(\"0\") < v <= d.Decimal(\"2.00\") else 1)",
+     "new": "sys.exit(0 if d.Decimal(\"0\") < v else 1)"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_image_proofs.py"
+   ],
+   "expect_failed": [
+    "test_the_cap_accepts_up_to_two_dollars_and_nothing_else"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the QA cap default goes back to 0.50, which blocks every content-site build",
+   "mutations": [
+    {
+     "file": ".github/workflows/postdeploy-checks.yml",
+     "old": "default: \"2.00\"",
+     "new": "default: \"0.50\""
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_image_proofs.py"
+   ],
+   "expect_failed": [
+    "test_the_default_is_two_dollars"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a push (no inputs) falls back to 0.50 instead of 2.00",
+   "mutations": [
+    {
+     "file": ".github/workflows/postdeploy-checks.yml",
+     "old": "-e OMNI_QA_BUILD_MAX_USD=${QA_BUILD_MAX:-2.00}",
+     "new": "-e OMNI_QA_BUILD_MAX_USD=${QA_BUILD_MAX:-0.50}"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_image_proofs.py"
+   ],
+   "expect_failed": [
+    "test_the_default_is_two_dollars"
+   ]
+  }
+ ]
+}
