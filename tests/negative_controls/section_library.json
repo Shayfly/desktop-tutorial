@@ -168,12 +168,9 @@
     }
    ],
    "targets": [
-    "tests/test_section_library.py",
-    "tests/test_section_library_conformance.py"
+    "tests/test_section_library.py"
    ],
    "expect_failed": [
-    "test_every_variant_in_every_direction_passes_every_gate_and_never_scrolls_sideways",
-    "test_nothing_scrolls_sideways_in_any_direction_or_shape",
     "test_nothing_scrolls_sideways_on_a_phone_or_a_wide_screen"
    ],
    "envs": [

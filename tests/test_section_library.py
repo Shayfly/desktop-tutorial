@@ -70,12 +70,19 @@ class TheLibrary(unittest.TestCase):
         page_html = re.sub(r'<link[^>]+fonts\.g[^>]+>', '', self.doc)      # offline: the fallback font, same layout rules
         with sync_playwright() as p:
             b = p.chromium.launch()
-            over = {}
+            over, narrow = {}, {}
             for w in (320, 390, 1440):
                 pg = b.new_page(viewport={'width': w, 'height': 800})
                 pg.set_content(page_html)
                 over[w] = pg.evaluate('document.documentElement.scrollWidth - window.innerWidth')
+                # 2026-11-22 (CI run 44987201290): whether a field at its default width overflows a 320px phone depends
+                # on the fonts of the machine -- on CI's Chromium it did not, so a page whose fields had lost their
+                # width rule still passed. The rule itself is read: every form field fills its row, on every width.
+                narrow[w] = pg.evaluate('''[...document.querySelectorAll(".field input, .field select, .field textarea")]
+                    .filter(e => Math.abs(e.getBoundingClientRect().width - e.parentElement.clientWidth) > 1)
+                    .map(e => e.tagName + (e.name ? "[" + e.name + "]" : ""))''')
             b.close()
+        self.assertEqual(narrow, {320: [], 390: [], 1440: []})      # the rule, independent of the machine's fonts
         self.assertEqual(over, {320: 0, 390: 0, 1440: 0})
 
     def test_the_production_visual_check_finds_nothing_it_enforces_on_a_phone_or_a_desktop(self):
