@@ -1598,7 +1598,7 @@ class ConversationSupervisor:
         said = '; '.join(label for _, _, label in labels)
         props = [Proposal(d.BY_ID[q].field, v, 'high', label) for q, v, label in labels if v != d.DELEGATE]
         if any(v == d.DELEGATE for _, v, _ in labels):
-            said += ' ' + ('you decide' if lang == 'en' else 'תחליט אתה')
+            said += ' ' + ('תחליט אתה' if lang == 'he' else 'you decide')
         return said, props, False
 
     @staticmethod
