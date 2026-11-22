@@ -39,8 +39,8 @@ A rule without enforcement is a wish. Each rule says what is forbidden, how it i
 
 1. **The red team does not write the fix.**
    - *Forbidden:* the agent that reported a finding must not author the commit that fixes it.
-   - *Enforced today:* **NOT ENFORCED.** Every agent pushes as the same GitHub user, so GitHub cannot tell authors apart. There is no CODEOWNERS file and no branch protection.
-   - *Missing:* a `Found-by:` trailer on every finding-driven commit, plus a CI check that fails when `Found-by` names the same agent as the commit's `Co-Authored-By`.
+   - *Enforced today:* **PARTIAL** (corrected 2026-11-21). `.github/workflows/finding-attribution.yml` (`scripts/check_finding_attribution.py`) fails a commit whose `Found-by:` names the same agent as its `Co-Authored-By`. main's branch protection requires `test` and `validate` (C16, live since 2026-10-20; `enforce_admins` off). Every agent still pushes as the same GitHub user, so GitHub itself cannot tell authors apart, and since 2026-11-21 only one agent works (`OWNERS.md`).
+   - *Missing:* a separate, non-admin GitHub identity per agent, so that authorship is a fact GitHub records and not only a trailer.
 
 2. **The seam rule.**
    - *Forbidden:* a test at a boundary (sandbox policy, the verification chain, the transport, money) that uses a permissive double instead of the real boundary code.
@@ -64,5 +64,5 @@ A rule without enforcement is a wish. Each rule says what is forbidden, how it i
 
 4. **A critical path that has not run for 7 days is broken.**
    - *Forbidden:* reporting a critical path (deploy-worker, golden rehearsal, Golden E2E, postdeploy verify-replay, backup-restore) as working when its last successful run is older than 7 days.
-   - *Enforced today:* **NOT ENFORCED.** No scheduled job checks run age. The data exists (the workflow run history; `smoke/rehearsal-builds.jsonl` timestamps), but nothing reads it.
-   - *Missing:* a daily scheduled check that marks a path BROKEN when its last green run is older than 7 days.
+   - *Enforced today:* **ENFORCED daily** (corrected 2026-11-21). `.github/workflows/critical-path-freshness.yml` (`scripts/check_critical_path_freshness.py`, since 2026-11-19) marks a path BROKEN when its last green step is older than 7 days.
+   - *Missing:* the paths that run only when dispatched (golden rehearsal, Golden E2E) still need someone to run them; `smoke/rehearsal-builds.jsonl` stopped at 2026-10-19 because its job pushed to main, which main's protection rejects.
