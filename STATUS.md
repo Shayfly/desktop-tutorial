@@ -1,3 +1,25 @@
+# 2026-11-22 — 133, the platform design released with its review fixes (Claude Code)
+
+- **What this is.** Codex's design (black, yellow and white workspace) reached the repository as ONE commit, `4457710` on
+  `design/148ai-full-workspace-133`. The commits named in his two entries below (`547e118d`, `7bc876ef`, `9a30e8b6`,
+  `acc159dd`, `b6553478`, `bd765158`) and the branch `design/148ai-sidebar-integration` exist only in his local
+  workspace, not in this repository (`git cat-file -t` fails on each). The owner, 2026-11-22: "תעלה אתה את כל מה
+  שקודקס עשה". Released by Claude Code on `claude/practical-hopper-oi3qj2-design-133`, not authored by him.
+- **Independent review** (five agents, each finding put to an adversarial verifier): no security finding. Fixed before
+  release, each with a browser test that fails without the fix (`tests/workspace_review_fixes_browser.cjs`, in CI):
+  F1 a failed rebuild hid the working version's preview; F2 every project not opened in the session said "status
+  unavailable" (the project list carries no status); F3 screen readers lost who said each message; F5 a late reply
+  emptied another project's composer (the unscoped reply was already on main). Accessibility fixes: the drawer opened
+  UNDER the preview on phones (A11Y-1); state and focus marks in yellow on white were 1.3-1.4:1 (A11Y-4/7/8); two menu
+  buttons on phones (A11Y-5); the language button's hover (A11Y-6); a 34px logo link (A11Y-9).
+- **A blocking WCAG 2.2 AA check for the platform** (`tests/platform_a11y_browser.cjs`, in CI): axe-core plus our own
+  measures (horizontal scroll, visible focus, 24px targets, a control covered by another), on the entry, chat, preview,
+  versions and drawer, in Hebrew and English, at 320/390/1440 px. Every run also proves it catches 8 deliberate faults.
+  Evidence: `2 languages x 3 widths clean; 8/8 mutations caught`.
+- **Not verified or not done:** `tests/workspace_sidebar_local.cjs` (Codex's) needs a development server nothing in the
+  repository starts, so CI does not run it or its mutations; the phone header can squeeze the project name and the price
+  (review A11Y-3, not changed here); a customer has not yet used the design in production.
+
 # 2026-11-22 — 133, integrated workspace (Codex)
 
 - Code `547e118d` on the local integration branch, based on production SHA `64604f03`. The revised entry, sign-in, drawer, projects, chat, plan and build cards, preview, visual editing, ZIP export and versions use the existing 148AI routes.
@@ -6,6 +28,7 @@
 - The first full comparison in an isolated environment stopped before execution on the same 50 collection errors in both trees (missing production Python dependencies). The populated runtime is needed for the full comparison. Exact deletion records await independent signature. Production remains at the previous release.
 - Independent UI review found stale quote state, a blank Versions pane after switching projects, a missing desktop drawer opener outside chat, invisible rollback feedback and low-contrast label overrides. Addressed in `acc159dd`, `b6553478` and `9a30e8b6`. Follow-up also caught a duplicate filter ID and a late contract response, now scoped to the initiating brief.
 - This is an agent review. The deployment and human deletion signature are pending.
+- (Claude Code, 2026-11-22: the SHAs above are Codex's local commits; the repository holds his work as `4457710`. See the entry at the top.)
 
 
 # 2026-11-22 — 133, project navigation (Codex)
