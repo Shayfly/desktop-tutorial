@@ -245,6 +245,39 @@ def _served(prefix: str, server: str) -> bool:
     return all(re.search(r'''['"]%s['"]''' % re.escape(s), server) for s in segments)
 
 
+_CARRIED = re.compile(r'/assets/([^/?#]+)')
+# What the step's path becomes in the redacted copy a repair model reads: the transform removes the file and writes
+# its marker (repository_assets.CarriedImage.unplace), so '/assets/148ai-image-1.webp' reads '/148ai-asset://image/1'.
+_CARRIED_MARKER = re.compile(r'/148ai-asset://(?:logo|upload/[0-9]{1,3}|image/[0-9]{1,3})')
+
+
+def _carried_image(step: dict, repo: dict[str, str]) -> bool:
+    """An acceptance step that GETs an image the platform carries as a file (warehouse 118): the exact path
+    /assets/<name> whose file is a valid carried envelope for that name (the sandbox's own decode: header, type
+    matching the suffix, digest), or -- in the redacted copy the repair agent checks -- that image's marker. Such a
+    step is not a missing route: the generated server is told to answer GET /assets/<name>, and whether it does is
+    proved by running the step (and by the preview smoke), not by reading the server for the word 'assets' --
+    'assets' is a generic segment here, so the reading never counted a startswith('/assets/') handler. Found on
+    the owner's build bld_ab78f528 (2026-11-22): its server served the image (preview smoke PASS) and this check
+    still blocked it for five rounds. Anything else -- another method, another directory, a sub-directory, a query,
+    a file that is not there or is not a valid envelope for its name -- is judged as before."""
+    from .repository_assets import AssetCarryError, decode
+    if str(step.get('method') or 'GET').upper() != 'GET':
+        return False
+    path = str(step.get('path') or '')
+    if _CARRIED_MARKER.fullmatch(path):
+        return True
+    m = _CARRIED.fullmatch(path)
+    if not m:
+        return False
+    rel = f'assets/{m.group(1)}'
+    try:
+        decode(rel, repo.get(rel))           # None, plain text or a broken envelope raise AssetCarryError
+    except AssetCarryError:
+        return False
+    return True
+
+
 def _routes(repo: dict[str, str], out: list[Finding], report: ConsistencyReport) -> None:
     server = _server_text(repo)
     if not server.strip():
@@ -272,6 +305,8 @@ def _routes(repo: dict[str, str], out: list[Finding], report: ConsistencyReport)
             return
         for persona in plan.get('personas') or []:
             for step in (persona or {}).get('steps') or []:
+                if _carried_image(step or {}, repo):
+                    continue
                 prefix = _static_prefix(str((step or {}).get('path', '')))
                 if prefix and not _served(prefix, server):
                     out.append(Finding('routes', '.omni/project.json', None,

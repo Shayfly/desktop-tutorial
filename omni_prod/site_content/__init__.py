@@ -140,8 +140,12 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
     if _BINDING.search(prompt or ''):
         return Route(LEGACY, 'uploaded_logo')
     from ..window_catalog import approved_in_prompt
-    if approved_in_prompt(prompt):
-        return Route(LEGACY, 'approved_windows')
+    windows = approved_in_prompt(prompt)
+    if windows:
+        # The library renders no window yet, so an approved one still goes to the old path -- but by name: the owner's
+        # build bld_ab78f528 (2026-11-22) went legacy as 'approved_windows' and nobody could tell which window did it
+        # (cookie_banner and question_widget are offered to every site).
+        return Route(LEGACY, 'approved_windows: ' + ', '.join(windows))
     from . import facts as Fx
     request_text = Fx.request_text(prompt)
     places = [m_[5] for m_ in _IMAGE_BINDING.finditer(prompt or '')]

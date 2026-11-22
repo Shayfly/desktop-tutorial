@@ -294,6 +294,13 @@ def _strip_comments(path: str, source: str) -> str:
     return re.sub(r'<!--.*?-->|/\*.*?\*/|^\s*//[^\n]*', '', source, flags=re.S | re.M)
 
 
+def _names_the_image(src: str, img: GeneratedImage) -> bool:
+    """True when an <img src> names this image: its marker, or its file path in any form repository_assets.names_file
+    accepts ('assets/x', './assets/x', '/assets/x', with or without a query or fragment)."""
+    from .repository_assets import names_file
+    return src == img.marker or names_file(src, img.uri)
+
+
 def placement(repo: dict, img: GeneratedImage) -> str:
     """'ok', 'missing' (no visible <img> with this image) or 'no_alt' (used, but every use has an empty alt)."""
     used = False
@@ -302,7 +309,7 @@ def placement(repo: dict, img: GeneratedImage) -> str:
             continue
         for tag in _IMG_TAG.findall(_strip_comments(path, source)):
             src = re.search(r'\bsrc\s*=\s*(?:\{\s*)?(["\'`])(.*?)\1', tag, re.I | re.S)
-            if not src or src.group(2) not in (img.uri, img.marker):
+            if not src or not _names_the_image(src.group(2), img):
                 continue
             used = True
             alt = _ALT.search(tag)
