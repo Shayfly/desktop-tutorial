@@ -1,0 +1,22 @@
+{
+ "_about": "Platform words still in customer text, per file (omni_prod.customer_words.scan). A ratchet: a count may only go down; the conversation route is not listed because it is zero.",
+ "counts": {
+  "omni_prod/build_readiness.py": {
+   "מסד נתונים": 2,
+   "מסלול": 4,
+   "קרדיטים": 1
+  },
+  "omni_prod/assets/app.js": {
+   "לשונית": 3,
+   "מסד נתונים": 2,
+   "מסלול": 4,
+   "מפעיל השרת": 1,
+   "ספק חיצוני": 1,
+   "ספקים": 1,
+   "פריסה": 1,
+   "קרדיטים": 4,
+   "שרת": 13,
+   "תשתית": 3
+  }
+ }
+}
