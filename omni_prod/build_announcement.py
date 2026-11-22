@@ -13,7 +13,8 @@ Warehouse 132 (the owner, 2026-11-22): the message also says WHAT stopped the bu
 action, in the customer's words -- one sentence per finding from omni_prod/gate_words (at most MAX_SHOWN, what only
 the customer can change first), read from the failed checks the build's evidence carries. The one action follows the
 findings: a finding only the customer can fix makes it "edit the request". A finding with no words is logged as an
-error (BUILD_FINDING_UNWORDED) and the message keeps its general sentence: never a raw check name, never no message.
+error (BUILD_FINDING_UNWORDED) and left out; with none worded, the message keeps its general sentence: never a raw
+check name, never no message.
 """
 from __future__ import annotations
 
@@ -70,23 +71,27 @@ def message_for(*, build_id: str, error_code: str | None, billing: str | None, l
     findings), said one sentence each before the action; empty = the general sentence alone, as before."""
     lang = lang if lang in TEXT else 'he'           # as before 132: a language with no texts reads Hebrew
     T = TEXT[lang]
-    keys = list(findings or ())
     customer = error_code in CUSTOMER_FIXES
     parts = [T['failed']]
     final = None
-    if keys:
+    keys, said = [], []
+    if findings:
         from . import gate_words
-        said = [gate_words.words(k, lang) for k in keys]
+        for k in findings:
+            try:
+                said.append(gate_words.words(k, lang))
+                keys.append(k)
+            except gate_words.NoWords as exc:     # D3: logged and left out, never a crash in the worker's finally
+                _LOG.error('BUILD_FINDING_UNWORDED build=%s: %s -- not said', build_id, exc)
+    if said:
         customer = customer or any(w['action'] == 'edit' for w in said)
         step = 'edit' if customer else 'retry'
-        final = next((w['next'] for w in said if w['action'] == step), None) or T['needs_input' if customer else 'retry']
-        told = {final}
+        # D2 (review 2026-11-22): the button is named once, at the end. One finding's own step is said as it is;
+        # findings with different steps of the same action share that action's general step.
+        steps = list(dict.fromkeys(w['next'] for w in said if w['action'] == step))
+        final = steps[0] if len(steps) == 1 else (gate_words.NEXT[lang][step] if steps else None)
         for w in said[:MAX_SHOWN]:
-            sentence = f"{w['what']} — {w['why']}."
-            if w['action'] == step and w['next'] not in told:        # one action: another action's step is not said
-                sentence += ' ' + w['next']
-                told.add(w['next'])
-            parts.append(sentence)
+            parts.append(f"{w['what']} — {w['why']}.")
         if len(said) > MAX_SHOWN:
             parts.append(MORE[lang].format(n=len(said) - MAX_SHOWN))
     if billing == 'released':
@@ -112,12 +117,11 @@ def announce_if_failed(witness: FailureWitness, *, conversation, request: dict |
         return False
     evidence = witness.failed.get('evidence_json') or {}
     from . import gate_words
-    try:
-        keys = gate_words.findings(gate_words.verification_failures(evidence), error_code=witness.failed.get('error_code'),
-                                   error_message=witness.failed.get('error_message'))
-    except gate_words.NoWords as exc:
-        _LOG.error('BUILD_FINDING_UNWORDED build=%s: %s -- the customer reads the general sentence', build_id, exc)
-        keys = []
+    keys, unworded = gate_words.collect(gate_words.verification_failures(evidence),
+                                        error_code=witness.failed.get('error_code'),
+                                        error_message=witness.failed.get('error_message'))
+    for reason in unworded:                   # D1: each one loud; the worded findings are still said
+        _LOG.error('BUILD_FINDING_UNWORDED build=%s: %s -- not said', build_id, reason)
     msg = message_for(build_id=build_id, error_code=witness.failed.get('error_code'),
                       billing=evidence.get('billing'), lang=str(request.get('lang') or 'he'), findings=keys)
     try:

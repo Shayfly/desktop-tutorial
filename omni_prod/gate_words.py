@@ -622,32 +622,51 @@ def words(key: str, lang: str) -> dict:
     if entry.action not in ACTIONS:
         raise ValueError(f'gate_words: {key!r} has the action {entry.action!r}; one of {ACTIONS}')
     what, why = getattr(entry, lang)
-    nxt = (entry.next or {}).get(lang) if entry.next is not None else NEXT[lang][entry.action]
+    nxt = entry.next.get(lang) if entry.next is not None else NEXT[lang][entry.action]
+    if not nxt:                      # D3 (review 2026-11-22): a next action of its own, missing in this language
+        raise NoWords(f'no next action in {lang!r} for {key!r} (omni_prod/gate_words.WORDS)')
     return {'what': what, 'why': why, 'next': nxt, 'action': entry.action}
 
 
 def findings(failures, *, error_code=None, error_message=None) -> list[str]:
     """The keys of what stopped a build, each once, in the order the customer reads them: what only the customer can
     change first. A build that waits for a fact from the customer is said by that fact alone (fact_canon); with no
-    fact named, [] (the announcement's own sentence asks for the detail). Raises NoWords (see key_of)."""
+    fact named, [] (the announcement's own sentence asks for the detail). Raises NoWords (see key_of) for the first
+    finding with no words; `collect` says the worded ones and lists the rest."""
+    keys, unworded = collect(failures, error_code=error_code, error_message=error_message)
+    if unworded:
+        raise NoWords(unworded[0])
+    return keys
+
+
+def collect(failures, *, error_code=None, error_message=None) -> tuple[list[str], list[str]]:
+    """(keys, unworded): the keys of `findings`, and one NoWords reason per finding that has no words. A finding with
+    no words is listed, never guessed, and never takes the worded ones down with it (D1, review 2026-11-22: one new
+    check with no words used to leave the customer with the general sentence alone)."""
+    keys: list[str] = []
+    unworded: list[str] = []
     if error_code == 'needs_customer_input':
         m = _MISSING.search(str(error_message or ''))
-        keys = []
         for name in (m.group(1).split(',') if m else ()):
             name = name.strip()
-            if name and 'needs:' + name not in WORDS:
-                raise NoWords(f'no customer words for the missing fact {name!r} (omni_prod/gate_words.WORDS)')
-            if name and 'needs:' + name not in keys:
+            if not name:
+                continue
+            if 'needs:' + name not in WORDS:
+                unworded.append(f'no customer words for the missing fact {name!r} (omni_prod/gate_words.WORDS)')
+            elif 'needs:' + name not in keys:
                 keys.append('needs:' + name)
-        return keys
-    keys = []
+        return keys, unworded
     for f in failures or ():
         if not isinstance(f, dict):
             continue
-        key = key_of(f.get('acceptance_id'), f.get('message'))
+        try:
+            key = key_of(f.get('acceptance_id'), f.get('message'))
+        except NoWords as exc:
+            unworded.append(str(exc))
+            continue
         if key is not None and key not in keys:
             keys.append(key)
-    return sorted(keys, key=lambda k: WORDS[k].action != 'edit')      # stable: the order of the checks otherwise
+    return sorted(keys, key=lambda k: WORDS[k].action != 'edit'), unworded      # stable: the checks' order otherwise
 
 
 def verification_failures(evidence) -> list:

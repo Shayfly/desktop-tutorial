@@ -334,6 +334,71 @@ class TheCustomerReadsIt(unittest.TestCase):
         self.assertNotIn('findings', m['interpretation'])
 
 
+class TheReviewFindings(unittest.TestCase):
+    """The independent review of 132 (2026-11-22): D1, D2 and D3, each reproduced before it was fixed."""
+
+    def test_d1_a_finding_with_no_words_does_not_take_the_worded_ones_down(self):
+        failures = [{'acceptance_id': 'gate-G11-links_tel', 'message': 'TEL_BROKEN x'},
+                    {'acceptance_id': 'AC-1', 'message': 'tests failed'}]          # AC-1: no words (see above)
+        keys, unworded = G.collect(failures)
+        self.assertEqual(keys, ['gate-G11-links_tel'])
+        self.assertEqual(len(unworded), 1)
+        self.assertIn("'AC-1'", unworded[0])
+        with self.assertRaises(G.NoWords):                                         # the strict form still raises
+            G.findings(failures)
+        witness = FailureWitness(BuildHarness().jobs)
+        witness.failed = {'error_code': 'verification_failed',
+                          'evidence_json': {'gates': {'verification': {'failures': failures}}}}
+        store = MemoryConversationStore()
+        with self.assertLogs('omni_prod.build_announcement', 'ERROR') as logs:
+            self.assertTrue(announce_if_failed(witness, conversation=store, request=REQUEST, build_id='bld_d1'))
+        self.assertIn("BUILD_FINDING_UNWORDED build=bld_d1: no customer words for the check 'AC-1'", '\n'.join(logs.output))
+        [m] = store.messages_for('prj_words')
+        self.assertIn(G.words('gate-G11-links_tel', 'he')['what'], m['content'])
+        self.assertEqual(m['interpretation']['findings'], ['gate-G11-links_tel'])
+
+    def test_d1_an_unknown_fact_does_not_hide_the_known_one(self):
+        keys, unworded = G.collect((), error_code='needs_customer_input',
+                                   error_message='missing from the customer: fax, phone')
+        self.assertEqual(keys, ['needs:phone'])
+        self.assertEqual(len(unworded), 1)
+        self.assertIn("'fax'", unworded[0])
+
+    def test_d2_two_missing_facts_name_the_button_once_at_the_end(self):
+        keys = G.findings((), error_code='needs_customer_input', error_message='missing from the customer: phone, hours')
+        self.assertEqual(keys, ['needs:phone', 'needs:hours'])
+        for lang, button in (('he', BA.EDIT_BUTTON['he']), ('en', BA.EDIT_BUTTON['en'])):
+            with self.subTest(lang):
+                content = message_for(build_id='b', error_code='needs_customer_input', billing='released', lang=lang,
+                                      findings=keys)['content']
+                self.assertEqual(content.count(button), 1, content)
+                self.assertTrue(content.endswith(BA.TEXT[lang]['refunded'] + ' ' + G.NEXT[lang]['edit']), content)
+                for k in keys:
+                    self.assertIn(G.words(k, lang)['what'], content)
+                    self.assertNotIn(G.words(k, lang)['next'], content)     # each fact's own step is not said too
+        ar = message_for(build_id='b', error_code='needs_customer_input', billing=None, lang='ar', findings=keys)
+        self.assertTrue(ar['content'].endswith(G.NEXT['ar']['edit']), ar['content'])
+
+    def test_d2_one_missing_fact_keeps_its_own_step(self):
+        content = message_for(build_id='b', error_code='needs_customer_input', billing='released',
+                              findings=['needs:phone'])['content']
+        self.assertTrue(content.endswith('לא חויבתם. כתבו את המספר בבקשה: לחצו על "עריכת הבקשה".'), content)
+        self.assertEqual(content.count(BA.EDIT_BUTTON['he']), 1)
+
+    def test_d3_a_step_missing_in_one_language_is_loud_and_never_a_crash(self):
+        entry = G.Entry('edit', ('חסר פקס', 'כך'), ('ينقص الفاكس', 'هكذا'), ('The fax is missing', 'so'),
+                        next={'he': 'כתבו את הפקס בבקשה.'})
+        with mock.patch.dict(G.WORDS, {'needs:fax': entry}):
+            with self.assertRaises(G.NoWords):
+                G.words('needs:fax', 'ar')
+            with self.assertLogs('omni_prod.build_announcement', 'ERROR') as logs:
+                msg = message_for(build_id='bld_d3', error_code='needs_customer_input', billing=None, lang='ar',
+                                  findings=['needs:fax'])
+        self.assertIn("BUILD_FINDING_UNWORDED build=bld_d3: no next action in 'ar' for 'needs:fax'", '\n'.join(logs.output))
+        self.assertEqual(msg['content'], BA.TEXT['ar']['failed'] + ' ' + BA.TEXT['ar']['needs_input'])
+        self.assertNotIn('findings', msg['interpretation'])
+
+
 class TheCountPerRoute(unittest.TestCase):
     def test_the_failure_route_holds_no_platform_word(self):
         for path in ('omni_prod/build_announcement.py', 'omni_prod/gate_words.py', 'omni_prod/build_readiness.py'):

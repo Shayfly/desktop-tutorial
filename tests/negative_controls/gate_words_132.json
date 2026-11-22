@@ -66,20 +66,24 @@
    "mutations": [
     {
      "file": "omni_prod/build_announcement.py",
-     "old": "        said = [gate_words.words(k, lang) for k in keys]\n",
-     "new": "        said = [gate_words.words(k, 'en') for k in keys]  # NEGATIVE CONTROL\n"
+     "old": "                said.append(gate_words.words(k, lang))\n",
+     "new": "                said.append(gate_words.words(k, 'en'))  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
     "tests/test_gate_words.py"
    ],
    "expect_failed": [
-    "test_a_real_gate_failure_reaches_the_conversation_in_the_customers_words",
     "test_a_missing_phone_is_said_as_the_owner_wrote_it_and_asks_for_the_number",
     "test_a_real_consistency_failure_is_said_by_its_kind",
+    "test_a_real_gate_failure_reaches_the_conversation_in_the_customers_words",
+    "test_at_most_three_findings_are_listed_and_the_rest_counted",
+    "test_d1_a_finding_with_no_words_does_not_take_the_worded_ones_down",
+    "test_d2_one_missing_fact_keeps_its_own_step",
+    "test_d2_two_missing_facts_name_the_button_once_at_the_end",
+    "test_d3_a_step_missing_in_one_language_is_loud_and_never_a_crash",
     "test_each_language_reads_its_own_words",
-    "test_one_action_when_the_findings_need_different_ones",
-    "test_at_most_three_findings_are_listed_and_the_rest_counted"
+    "test_one_action_when_the_findings_need_different_ones"
    ]
   },
   {
@@ -96,9 +100,14 @@
     "tests/test_gate_words.py"
    ],
    "expect_failed": [
-    "test_every_entry_says_what_why_and_one_next_action_named_as_its_button",
+    "test_a_real_consistency_failure_is_said_by_its_kind",
     "test_a_real_gate_failure_reaches_the_conversation_in_the_customers_words",
-    "test_at_most_three_findings_are_listed_and_the_rest_counted"
+    "test_at_most_three_findings_are_listed_and_the_rest_counted",
+    "test_d1_a_finding_with_no_words_does_not_take_the_worded_ones_down",
+    "test_every_entry_says_what_why_and_one_next_action_named_as_its_button",
+    "test_every_id_the_chain_can_produce_has_words_in_every_language",
+    "test_hebrew_and_arabic_carry_no_english_and_english_no_hebrew",
+    "test_no_machinery_word_reaches_the_customer"
    ]
   },
   {
@@ -154,8 +163,9 @@
     "tests/test_gate_words.py"
    ],
    "expect_failed": [
+    "test_a_missing_phone_is_said_as_the_owner_wrote_it_and_asks_for_the_number",
     "test_a_real_gate_failure_reaches_the_conversation_in_the_customers_words",
-    "test_a_missing_phone_is_said_as_the_owner_wrote_it_and_asks_for_the_number"
+    "test_d1_a_finding_with_no_words_does_not_take_the_worded_ones_down"
    ]
   },
   {
@@ -173,7 +183,8 @@
    ],
    "expect_failed": [
     "test_a_check_with_no_words_raises_and_is_never_guessed",
-    "test_a_finding_with_no_words_is_logged_and_the_general_sentence_said"
+    "test_a_finding_with_no_words_is_logged_and_the_general_sentence_said",
+    "test_d1_a_finding_with_no_words_does_not_take_the_worded_ones_down"
    ]
   },
   {
@@ -209,9 +220,102 @@
     "tests/test_gate_words.py"
    ],
    "expect_failed": [
+    "test_a_missing_phone_is_said_as_the_owner_wrote_it_and_asks_for_the_number",
+    "test_d1_an_unknown_fact_does_not_hide_the_known_one",
+    "test_d2_one_missing_fact_keeps_its_own_step",
+    "test_d2_two_missing_facts_name_the_button_once_at_the_end",
     "test_every_kind_a_check_lists_in_its_own_code_has_words",
-    "test_no_words_for_a_check_nobody_can_fail",
-    "test_a_missing_phone_is_said_as_the_owner_wrote_it_and_asks_for_the_number"
+    "test_no_words_for_a_check_nobody_can_fail"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "D1: one finding with no words takes the worded ones down again (the first one raises)",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "        except NoWords as exc:\n            unworded.append(str(exc))\n            continue\n",
+     "new": "        except NoWords:\n            raise  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_a_finding_with_no_words_is_logged_and_the_general_sentence_said",
+    "test_d1_a_finding_with_no_words_does_not_take_the_worded_ones_down"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "D1: an unknown missing fact hides the known one",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "                unworded.append(f'no customer words for the missing fact {name!r} (omni_prod/gate_words.WORDS)')\n",
+     "new": "                return [], [f'no customer words for the missing fact {name!r}']  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_d1_an_unknown_fact_does_not_hide_the_known_one"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "D2: with two missing facts, the first fact's own step is the last line (and the button is named twice when each step is said)",
+   "mutations": [
+    {
+     "file": "omni_prod/build_announcement.py",
+     "old": "            parts.append(f\"{w['what']} — {w['why']}.\")\n",
+     "new": "            parts.append(f\"{w['what']} — {w['why']}. {w['next']}\")  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_a_real_gate_failure_reaches_the_conversation_in_the_customers_words",
+    "test_at_most_three_findings_are_listed_and_the_rest_counted",
+    "test_d2_one_missing_fact_keeps_its_own_step",
+    "test_d2_two_missing_facts_name_the_button_once_at_the_end",
+    "test_one_action_when_the_findings_need_different_ones"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "D2: several steps of one action: the first finding's own step is said instead of the shared one",
+   "mutations": [
+    {
+     "file": "omni_prod/build_announcement.py",
+     "old": "        final = steps[0] if len(steps) == 1 else (gate_words.NEXT[lang][step] if steps else None)\n",
+     "new": "        final = steps[0] if steps else None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_d2_two_missing_facts_name_the_button_once_at_the_end"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "D3: a step missing in one language passes through as None (a TypeError in the worker's finally)",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "    if not nxt:                      # D3 (review 2026-11-22): a next action of its own, missing in this language\n        raise NoWords(f'no next action in {lang!r} for {key!r} (omni_prod/gate_words.WORDS)')\n",
+     "new": "    pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_d3_a_step_missing_in_one_language_is_loud_and_never_a_crash"
    ]
   }
  ]
