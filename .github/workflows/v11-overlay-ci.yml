@@ -28,11 +28,11 @@ jobs:
       # Audited registry snapshots refer to the PR HEAD, not GitHub's
       # synthetic merge SHA, which can include unrelated base-branch changes.
       # Merge compatibility still requires a separately verified merge gate.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install dependencies
@@ -42,7 +42,7 @@ jobs:
       # Boundary: the lint proves a canary row exists and names an existing test, not that the canary fails when the
       # control breaks (that is the drill).
       - name: Base registry from main (registry_lint R4)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: main
           path: .base-main

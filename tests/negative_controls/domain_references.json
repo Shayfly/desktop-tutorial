@@ -1,0 +1,114 @@
+{
+ "pr": "domain-references",
+ "sha256": [
+  "tests/test_domain_references.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a 404 counts as alive",
+   "mutations": [
+    {
+     "file": "tools/domain_references.py",
+     "old": "    if status >= 400:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_references.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_of_dead_is_named",
+    "test_one_dead_of_five_leaves_a_domain_short"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "an empty or blocked page counts as alive",
+   "mutations": [
+    {
+     "file": "tools/domain_references.py",
+     "old": "    if size < MIN_BODY:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_references.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_of_dead_is_named"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a domain below five live references is not reported",
+   "mutations": [
+    {
+     "file": "tools/domain_references.py",
+     "old": "'needs_replacement': live < MIN_LIVE}",
+     "new": "'needs_replacement': False}"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_references.py"
+   ],
+   "expect_failed": [
+    "test_a_domain_below_five_live_references_fails_even_with_nothing_dead",
+    "test_each_kind_of_dead_is_named",
+    "test_one_dead_of_five_leaves_a_domain_short"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a dead reference leaves the run green",
+   "mutations": [
+    {
+     "file": "tools/domain_references.py",
+     "old": "    return 1 if result['dead'] or result['short'] else 0\n",
+     "new": "    return 0  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_references.py"
+   ],
+   "expect_failed": [
+    "test_a_domain_below_five_live_references_fails_even_with_nothing_dead",
+    "test_the_tool_exits_red_on_a_dead_reference_and_green_otherwise"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a runner with no network reports every reference dead",
+   "mutations": [
+    {
+     "file": "tools/domain_references.py",
+     "old": "    if total and all(why.startswith('no answer') for _, _, why in result['dead']) and len(result['dead']) == total:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_references.py"
+   ],
+   "expect_failed": [
+    "test_no_network_is_not_207_dead_sites"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a domain below five live references only warns",
+   "mutations": [
+    {
+     "file": "tools/domain_references.py",
+     "old": "    return 1 if result['dead'] or result['short'] else 0\n",
+     "new": "    return 1 if result['dead'] else 0  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_references.py"
+   ],
+   "expect_failed": [
+    "test_a_domain_below_five_live_references_fails_even_with_nothing_dead"
+   ]
+  }
+ ]
+}

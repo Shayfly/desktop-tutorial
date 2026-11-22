@@ -1,0 +1,149 @@
+{
+ "pr": "drills-by-themselves",
+ "sha256": [
+  ".github/workflows/drill-c16.yml",
+  ".github/workflows/drill-c19.yml",
+  ".github/workflows/drill-c11.yml",
+  ".github/workflows/drill-c18-alert.yml",
+  "tests/test_drills_run_by_themselves.py",
+  "CONTROLS.json"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "C16 passes on any 405, whatever GitHub refused for",
+   "mutations": [
+    {
+     "file": ".github/workflows/drill-c16.yml",
+     "old": "[ \"$main_before\" = \"$main_after\" ] && printf '%s' \"$msg\" | grep -qi 'status check'; then",
+     "new": "[ \"$main_before\" = \"$main_after\" ]; then  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_drills_run_by_themselves.py"
+   ],
+   "expect_failed": [
+    "test_a_405_for_another_reason_is_not_pass"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "C16 makes only one of the two required checks red",
+   "mutations": [
+    {
+     "file": ".github/workflows/drill-c16.yml",
+     "old": "for name in test validate; do",
+     "new": "for name in test; do  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_drills_run_by_themselves.py"
+   ],
+   "expect_failed": [
+    "test_both_required_checks_are_completed_as_failure_on_the_drill_head"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "C16 attempts the merge on a PR GitHub cannot merge for another reason",
+   "mutations": [
+    {
+     "file": ".github/workflows/drill-c16.yml",
+     "old": "[ \"$m\" = \"true\" ] || notrun",
+     "new": "true || notrun  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_drills_run_by_themselves.py"
+   ],
+   "expect_failed": [
+    "test_a_pr_github_cannot_merge_for_another_reason_is_not_run"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "C19 runs once a month: one failed run lets the monthly record lapse",
+   "mutations": [
+    {
+     "file": ".github/workflows/drill-c19.yml",
+     "old": "- cron: '27 3 1,16 * *'",
+     "new": "- cron: '27 3 1 * *'"
+    }
+   ],
+   "targets": [
+    "tests/test_drills_run_by_themselves.py"
+   ],
+   "expect_failed": [
+    "test_one_failed_run_never_lets_the_record_lapse"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the C18 alert half passes on a dead verdict without the drill issue",
+   "mutations": [
+    {
+     "file": ".github/workflows/drill-c18-alert.yml",
+     "old": "             && grep -q 'opened and closed drill issue #' \"$RUNNER_TEMP/alert.out\"; then",
+     "new": "             ; then  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_drills_run_by_themselves.py"
+   ],
+   "expect_failed": [
+    "test_dead_without_the_issue_is_fail"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the C11 drill checks out code on the production runner",
+   "mutations": [
+    {
+     "file": ".github/workflows/drill-c11.yml",
+     "old": "    steps:\n      - name: C11 --",
+     "new": "    steps:\n      - uses: actions/checkout@v5\n      - name: C11 --"
+    }
+   ],
+   "targets": [
+    "tests/test_drills_run_by_themselves.py"
+   ],
+   "expect_failed": [
+    "test_no_drill_job_on_the_production_runner_checks_out_code"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a failed C19 drill opens no issue",
+   "mutations": [
+    {
+     "file": ".github/workflows/drill-c19.yml",
+     "old": "        if: failure()",
+     "new": "        if: false"
+    }
+   ],
+   "targets": [
+    "tests/test_drills_run_by_themselves.py"
+   ],
+   "expect_failed": [
+    "test_a_failed_drill_opens_an_issue"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "C16 is not registered: R3 never reads its runs",
+   "mutations": [
+    {
+     "file": "CONTROLS.json",
+     "old": "   \"drill_workflow\": \"drill-c16.yml\",\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_drills_run_by_themselves.py"
+   ],
+   "expect_failed": [
+    "test_the_four_drills_are_registered"
+   ]
+  }
+ ]
+}

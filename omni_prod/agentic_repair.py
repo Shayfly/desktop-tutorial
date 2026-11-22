@@ -28,6 +28,7 @@ import os
 import re
 
 from .build_control import BuildCancelled, BuildDeadline
+from .model_gateway import ModelJSONRejected
 from .repository_patch import parse_patch
 
 _MAX_READ_CHARS = 60_000
@@ -61,6 +62,32 @@ _SYSTEM = (
     'counted. File content keeps every '
     'newline and indentation. Submit before you run out of steps (steps_left).'
 )
+
+
+_STR = {'type': 'string'}
+_EDITS = {'type': 'array', 'items': {'type': 'object', 'additionalProperties': False, 'required': ['path', 'old', 'new'],
+                                     'properties': {'path': _STR, 'old': _STR, 'new': _STR}}}
+_FILES = {'type': 'array', 'items': {'type': 'object', 'additionalProperties': False, 'required': ['path', 'content'],
+                                     'properties': {'path': _STR, 'content': _STR}}}
+
+
+def _one(action: str, required: list[str], **props) -> dict:
+    return {'type': 'object', 'additionalProperties': False, 'required': ['action', *required],
+            'properties': {'action': {'type': 'string', 'enum': [action]}, **props}}
+
+
+# The four actions of _SYSTEM as one JSON Schema. Repair JSON (production, 14 days to 2026-11-22): 99 of 310 Sonnet
+# repair answers were rejected for prose before the JSON, and every rejection ended the agentic round (the loop broke and
+# the classic repair answered instead). The native Anthropic API decodes the answer against this schema.
+ACTION_SCHEMA = {'anyOf': [
+    _one('read', ['paths'], paths={'type': 'array', 'items': _STR}),
+    _one('search', ['pattern'], pattern=_STR),
+    _one('edit', [], edits=_EDITS, files=_FILES),
+    _one('submit', [], note=_STR, edits=_EDITS, files=_FILES),
+]}
+
+# A rejected answer is told back to the model, which then answers again; two in a row end the round (bounded, loud).
+MAX_CONSECUTIVE_REJECTED = 2
 
 
 class AgenticRepairAgent:
@@ -150,6 +177,7 @@ class AgenticRepairAgent:
         work = dict(base)
         history: list[dict] = []
         submitted = False
+        rejected_in_a_row = 0
         for step in range(self.max_steps):
             payload = {
                 'spec': spec.to_dict() if hasattr(spec, 'to_dict') else {},
@@ -161,16 +189,31 @@ class AgenticRepairAgent:
                 'history': _trim(history),
             }
             try:
-                kwargs = dict(system=_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=32000)
+                kwargs = dict(system=_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=32000,
+                              schema=ACTION_SCHEMA)
                 if getattr(self.gateway, 'accepts_task_tag', False):
                     from .autonomous_agents import _code_shape_guard
                     kwargs['validate'] = lambda d: _code_shape_guard({'files': d.get('files')} if isinstance(d, dict) else {})
                 data = self.gateway.complete_json(**kwargs)
             except (BuildCancelled, BuildDeadline):
                 raise                       # the owner's stop and the build's time limit are never swallowed
+            except ModelJSONRejected as exc:
+                # Not the end of the round: the model is told why its answer was refused and answers again.
+                rejected_in_a_row += 1
+                why = str((getattr(exc, 'diagnostic', None) or {}).get('reason') or exc)[:200]
+                self.trace.append({'step': step, 'rejected': why})
+                if rejected_in_a_row >= MAX_CONSECUTIVE_REJECTED:
+                    self.trace.append({'step': step, 'error': f'{rejected_in_a_row} answers in a row were not one JSON '
+                                                              'action; the round stops here'})
+                    break
+                history.append({'step': step, 'request': None,
+                                'result': {'error': f'your last answer was refused ({why}). Answer with ONE JSON '
+                                                    'object choosing one action, and nothing before or after it.'}})
+                continue
             except Exception as exc:
                 self.trace.append({'step': step, 'error': f'{type(exc).__name__}: {exc}'[:200]})
                 break
+            rejected_in_a_row = 0
             action = str((data or {}).get('action', '')).lower() if isinstance(data, dict) else ''
             if action == 'read':
                 result = self._read(work, data.get('paths'))

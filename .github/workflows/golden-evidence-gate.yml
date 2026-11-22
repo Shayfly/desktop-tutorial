@@ -28,14 +28,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Download evidence from this run
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         continue-on-error: true  # Still emit four FAILs and UNKNOWN when the artifact is missing.
         with:
           name: golden-e2e-evidence
@@ -56,7 +56,7 @@ jobs:
             | tee golden-evidence-result.json
       - name: Preserve the verdict even on failure
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: golden-evidence-verdict
           path: golden-evidence-result.json

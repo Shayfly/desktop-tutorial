@@ -1,0 +1,96 @@
+name: Drill C11 (drain refuses without a verified rollback)
+
+# Monthly drill C11 (CONTROLS.json): the deploy's drain refuses, BEFORE stopping anything, when no verified rollback
+# image can be kept. First run by hand on 2026-11-21 (run 44933990232, attempt 2). Since 2026-11-21 (the owner: Codex's
+# tasks, monthly drills automation, are Claude's) it runs on main by itself, on the 1st and the 16th -- twice a month,
+# so one failed run never lets the monthly record lapse; registry_lint R3 reads these runs from GitHub (drill_workflow).
+# Expected, stated before every run: drain.sh exits 1 with "NOT draining, nothing was stopped" and "cannot save a
+# rollback image", writes drain-failed, attempts no stop/kill/rm/up/run/restart/down (the wrapper refuses and records
+# every one), and the same containers run before and after. Anything else = FAIL, and an issue says so. A drill-setup
+# error (the preflight cannot list the worker) is NOT RUN, never PASS or FAIL.
+on:
+  schedule:
+    - cron: '37 3 1,16 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: worker-host-drills
+  cancel-in-progress: false
+
+jobs:
+  c11-drain-refuses:
+    # C11: the deploy's drain refuses, BEFORE stopping anything, when no verified rollback image can be kept. The real
+    # drain.sh (fetched at this commit; no checkout on the worker host, which would clean the deploy's workspace) runs on
+    # the real host against the live containers; a wrapper makes `docker tag` fail and finds no existing rollback image,
+    # and it refuses every stop/kill/rm/up/run/restart/down, so even a broken refusal could stop nothing. PASS needs the
+    # refusal for the right reason: "cannot save a rollback image".
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: C11 -- drain.sh with no verified rollback must refuse and stop nothing
+        run: |
+          set -uo pipefail
+          D="$RUNNER_TEMP/c11"; mkdir -p "$D"
+          for f in drain.sh docker-compose.yml; do
+            curl -sf -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.raw" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/infra/worker-host/$f?ref=$GITHUB_SHA" -o "$D/$f" \
+              || { echo "::error title=C11 not run::cannot fetch $f"; exit 1; }
+          done
+          : > "$D/.env"                                   # compose needs the file; `ps` needs no values
+          # Attempt 2 (Claude's bug in attempt 1, run 44932757080): only OMNI_SANDBOX_SHARED_SECRET got a placeholder;
+          # compose also requires OMNI_PREVIEW_RUNTIME_HOST (docker-compose.yml:144), so `docker compose ps` failed and
+          # drain.sh refused at "cannot list container" before the rollback check. Every ${VAR:?} the compose file
+          # requires now gets a placeholder (values are never read by `ps`), and a preflight proves the listing works.
+          for v in $(grep -oE '\$\{[A-Z0-9_]+:\?' "$D/docker-compose.yml" | sed -E 's/^\$\{//; s/:\?$//' | sort -u); do
+            export "$v=drill-placeholder"; echo "placeholder for required compose variable $v"
+          done
+          REAL=$(command -v docker)
+          SHIM="$RUNNER_TEMP/drillbin"; mkdir -p "$SHIM"
+          cat > "$SHIM/docker" <<EOF
+          #!/usr/bin/env bash
+          case "\$*" in
+            tag\ *) echo "drill: docker tag refused" >&2; exit 1;;
+            *"image inspect omni-rollback/"*) echo "drill: no rollback image" >&2; exit 1;;
+            stop*|kill*|rm*|run*|start*|restart*|"compose stop"*|"compose kill"*|"compose rm"*|"compose down"*|"compose up"*|"compose run"*|"compose restart"*|"compose start"*)
+              echo "DRILL-BLOCKED: \$*" >&2; echo "\$*" >> "$RUNNER_TEMP/blocked"; exit 1;;
+          esac
+          exec "$REAL" "\$@"
+          EOF
+          chmod +x "$SHIM/docker"
+          pre=$(cd "$D" && PATH="$SHIM:$PATH" docker compose ps -q worker 2>"$RUNNER_TEMP/pre.err"); pre_rc=$?
+          if [ "$pre_rc" -ne 0 ] || [ -z "$pre" ]; then
+            echo "::error title=C11 NOT RUN (drill setup)::docker compose cannot list the worker from the drill directory (exit $pre_rc): $(tr '\n' ' ' < "$RUNNER_TEMP/pre.err" | cut -c1-300)"; exit 1
+          fi
+          echo "::notice title=C11 preflight::the drill directory lists the live worker container ${pre:0:12} (project omni-worker)"
+          before=$(docker ps --format '{{.Names}} {{.Status}}' | sort | cut -d' ' -f1 | tr '\n' ' ')
+          set +e
+          (cd "$D" && PATH="$SHIM:$PATH" DEPLOY_STATE_DIR="$RUNNER_TEMP/drill-state" ACTIVE_JOBS_CMD=true bash ./drain.sh) > "$RUNNER_TEMP/drain.out" 2>&1
+          rc=$?
+          set -e
+          after=$(docker ps --format '{{.Names}} {{.Status}}' | sort | cut -d' ' -f1 | tr '\n' ' ')
+          echo "::notice title=C11 drain exit $rc::$(tr '\n' ' ' < "$RUNNER_TEMP/drain.out" | cut -c1-900)"
+          echo "::notice title=C11 stop attempts blocked by the wrapper::$(cat "$RUNNER_TEMP/blocked" 2>/dev/null | tr '\n' ';')"
+          echo "::notice title=C11 running containers before / after::$before / $after"
+          [ -s "$RUNNER_TEMP/blocked" ] && { echo "::error title=C11 FAIL::drain tried to stop consumers without a verified rollback"; exit 1; }
+          if [ "$rc" -eq 1 ] && grep -q 'NOT draining, nothing was stopped' "$RUNNER_TEMP/drain.out" \
+             && grep -q 'cannot save a rollback image' "$RUNNER_TEMP/drain.out" && [ -f "$RUNNER_TEMP/drill-state/drain-failed" ] \
+             && [ "$before" = "$after" ]; then
+            echo "::notice title=C11 PASS::drain refused before stopping anything because no rollback image could be kept (exit 1, drain-failed written, the same containers running)"
+          else
+            echo "::error title=C11 FAIL::drain did not refuse for the rollback reason (exit $rc)"; exit 1
+          fi
+      - name: A failed drill opens an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/issues" \
+            -d "{\"title\":\"DRILL FAILED: C11 drain refuses without a rollback ($(date -u +%F))\",\"labels\":[\"drill-failed\"],\"body\":\"The scheduled drill C11 failed or could not run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. FAIL is the finding; NOT RUN means the drill itself could not be set up.\"}" \
+            >/dev/null && echo "issue opened"

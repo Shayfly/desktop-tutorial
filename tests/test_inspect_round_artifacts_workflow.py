@@ -129,7 +129,7 @@ class Contract(unittest.TestCase):
         self.assertEqual(len(prints), 5)
         self.assertTrue(all(s.get('if') == 'always()' for s in prints))
         upload = next(s for s in job['steps'] if s['name'] == 'Upload the round zips')
-        self.assertEqual(upload['uses'], 'actions/upload-artifact@v4')
+        self.assertEqual(upload['uses'], 'actions/upload-artifact@v6')
         self.assertEqual(upload['if'], 'always() && matrix.slice == 0')
         self.assertIn('/rounds/zips/', upload['with']['path'])
         names = [s['name'] for s in job['steps']]

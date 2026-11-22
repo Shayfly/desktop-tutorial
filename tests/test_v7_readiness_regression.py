@@ -92,7 +92,7 @@ class V7ReadinessTests(unittest.TestCase):
     def test_project_quota_has_distinct_client_remedy(self):
         js = (ASSETS / "app.js").read_text(encoding="utf-8")
         self.assertIn("err.detail.code === 'project_limit_reached'", js)
-        self.assertIn("זו אינה בעיית קרדיטים", js)
+        self.assertIn("זו לא בעיה של יתרה", js)
         self.assertIn("err.detail.active_projects", js)
         self.assertIn("err.detail.max_projects", js)
 

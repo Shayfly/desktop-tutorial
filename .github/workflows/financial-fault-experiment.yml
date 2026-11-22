@@ -38,11 +38,11 @@ jobs:
           --health-cmd "pg_isready -U fault_test -d fault_experiment"
           --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
@@ -70,7 +70,7 @@ jobs:
           FINANCIAL_FAULT_DATABASE_URL: postgresql://fault_test:ci-fixture-only@127.0.0.1:55487/fault_experiment
           FINANCIAL_FAULT_OUTPUT_DIR: financial-fault-evidence
         run: python -m pytest -q tests/integration/test_financial_fault_experiment.py --junitxml=financial-fault-acceptance.xml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: financial-fault-${{ github.event.pull_request.head.sha }}

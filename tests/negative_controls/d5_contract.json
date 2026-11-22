@@ -1,0 +1,76 @@
+{
+ "pr": "d5-contract",
+ "sha256": [
+  "tests/test_default_hero_on_the_contract.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the contract does not pass the brief (the bug as it was)",
+   "mutations": [
+    {
+     "file": "omni_prod/product_architect.py",
+     "old": "semantic_decisions=semantic_decisions, full_prompt=prompt)",
+     "new": "semantic_decisions=semantic_decisions)"
+    }
+   ],
+   "targets": [
+    "tests/test_default_hero_on_the_contract.py"
+   ],
+   "expect_failed": [
+    "test_a_content_site_without_a_photo_gets_an_optional_main_image"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the brain drops the full prompt on its way to the creative plan",
+   "mutations": [
+    {
+     "file": "omni_prod/universal_brain.py",
+     "old": "        creative = self.creative.plan(prompt, targets=plan.targets, full_prompt=full_prompt)\n",
+     "new": "        creative = self.creative.plan(prompt, targets=plan.targets)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_default_hero_on_the_contract.py"
+   ],
+   "expect_failed": [
+    "test_a_content_site_without_a_photo_gets_an_optional_main_image"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "D5 reads the customer's words only again",
+   "mutations": [
+    {
+     "file": "omni_prod/media_pipeline.py",
+     "old": "        elif default_hero(full_prompt if full_prompt is not None else prompt):\n",
+     "new": "        elif default_hero(prompt):  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_default_hero_on_the_contract.py"
+   ],
+   "expect_failed": [
+    "test_a_content_site_without_a_photo_gets_an_optional_main_image"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "'no pictures' is ignored",
+   "mutations": [
+    {
+     "file": "omni_prod/media_pipeline.py",
+     "old": "            and not _NO_PICTURES.search(text.split('--- Approved project brief')[0]))",
+     "new": "            )"
+    }
+   ],
+   "targets": [
+    "tests/test_default_hero_on_the_contract.py"
+   ],
+   "expect_failed": [
+    "test_no_pictures_means_no_image"
+   ]
+  }
+ ]
+}

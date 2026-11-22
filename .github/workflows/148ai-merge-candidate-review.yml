@@ -28,12 +28,12 @@ jobs:
     timeout-minutes: 20
     steps:
       # Deliberately checkout the synthetic merge SHA, unlike source-truth CI.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Show merge identity
@@ -62,7 +62,7 @@ jobs:
         run: python -m omni_prod.agent_os.audit
       - name: Store merge test results and computed reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 148ai-merge-compatibility-report
           path: |

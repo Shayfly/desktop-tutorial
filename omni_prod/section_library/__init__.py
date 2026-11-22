@@ -482,6 +482,59 @@ def footer(c: dict, rendered: list[str]) -> str:
             f'<p class="legal">© {year}{e(c["name"])}</p></div></footer>')
 
 
+# ---- in-page windows (omni_prod/window_catalog.py) the library renders itself, deterministically ---------------------
+# The owner's decision (DECISIONS.md question 14 (b), 2026-11-22): a content site whose customer approved only windows
+# listed here takes the library; any other approved window sends the build to the legacy path, by name
+# (site_content.decide). A window id passed to page() that is not listed here raises.
+RENDERED_WINDOWS = frozenset({'cookie_banner'})
+COOKIE_KEY = '148-cookie-consent'       # sessionStorage: the visitor's answer ('accept' / 'necessary') for this visit
+COOKIE_TEXT = 'האתר עשוי להשתמש בעוגיות. בחרו אם לאשר את כולן או רק את ההכרחיות לפעולתו.'
+
+
+def cookie_banner() -> str:
+    """The cookie banner of window_catalog's spec, with its script. It is IN THE PAGE FLOW, above the header, never
+    fixed: a bar fixed to the bottom of a 390x844 phone covered the hero panel's phone link of the owner's law-firm
+    brief (y 818-838), which the production visual check (visual_qa, rule 'overlap', enforced) fails. In the flow it
+    covers nothing -- not the main call to action, not the phone action bar -- and pushes the first screen down by its
+    own height (under a quarter of a phone screen). Hidden in the markup; its script, right after it, shows it before
+    the rest of the page is parsed unless this visit already answered (sessionStorage; a storage the browser refuses
+    shows it again, never throws). "אישור" stores 'accept', "רק הכרחי" and the close button store 'necessary'.
+    The script reads each answer through `dataset` and never spells the close attribute: the window probe looks for
+    that attribute near the root, so only the controls themselves can satisfy it."""
+    close = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
+             'aria-hidden="true" focusable="false"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>')
+    return (f'<div class="cookie-banner" id="cookie-banner" data-148-window="cookie_banner" role="region" '
+            f'aria-label="הודעת עוגיות" hidden><div class="wrap">'
+            f'<p class="cookie-text">{e(COOKIE_TEXT)}</p>'
+            f'<div class="cookie-actions">'
+            f'<button type="button" class="btn btn-primary" data-148-close="accept">אישור</button>'
+            f'<button type="button" class="btn btn-secondary" data-148-close="necessary">רק הכרחי</button></div>'
+            f'<button type="button" class="cookie-close" data-148-close="necessary" aria-label="סגירת ההודעה">{close}'
+            f'</button></div></div>'
+            f'<script>(function(){{var b=document.getElementById("cookie-banner"),k="{COOKIE_KEY}",a=null;'
+            f'try{{a=sessionStorage.getItem(k);}}catch(x){{}}if(!a)b.hidden=false;'
+            f'b.querySelectorAll("button").forEach(function(c){{c.addEventListener("click",function(){{'
+            f'try{{sessionStorage.setItem(k,c.dataset["148Close"]);}}catch(x){{}}b.hidden=true;}});}});'
+            f'}})();</script>')
+
+
+WINDOW_RENDERERS = {'cookie_banner': cookie_banner}
+
+
+def windows_markup(windows) -> str:
+    """The markup of the approved windows, in the order given. A window the library does not render, or one named
+    twice, raises: the route never sends one here (site_content.decide), and nothing is dropped silently."""
+    windows = list(windows or ())
+    unknown = sorted(w for w in windows if w not in RENDERED_WINDOWS)
+    if unknown or len(set(windows)) != len(windows):
+        raise ValueError(f'windows {windows!r}: the library renders only {sorted(RENDERED_WINDOWS)}, each once '
+                         f'(not rendered: {unknown})')
+    missing = RENDERED_WINDOWS - set(WINDOW_RENDERERS)
+    if missing:
+        raise KeyError(f'RENDERED_WINDOWS names windows with no renderer: {sorted(missing)}')
+    return ''.join(WINDOW_RENDERERS[w]() for w in windows)
+
+
 def mobile_bar(c: dict) -> str:
     # away while the first screen (which carries the same actions) is on screen: the production visual check reads a
     # fixed bar over the hero's own links as an overlap (the content route's real chain, 2026-11-21)
@@ -570,12 +623,14 @@ def _schema(c: dict) -> str:
     return f'<script type="application/ld+json">{raw}</script>'
 
 
-def page(content: dict, contract: dict, order: list[str] | None = None) -> tuple[str, list[str]]:
+def page(content: dict, contract: dict, order: list[str] | None = None, windows=()) -> tuple[str, list[str]]:
     """(html, skipped section keys). `contract` is a G-APPLE contract (contract.build). `order` is the customer's own
-    outline as section keys (the hero always opens the page); without it, ORDER. A missing required fact, an unknown
-    section key or an unknown art direction raises; nothing is filled in silently."""
+    outline as section keys (the hero always opens the page); without it, ORDER. `windows` are the approved window ids
+    (window_catalog), each one of RENDERED_WINDOWS. A missing required fact, an unknown section key, an unknown art
+    direction or a window the library does not render raises; nothing is filled in silently."""
     c = content
     _need(c, REQUIRED, 'page')
+    window_html = windows_markup(windows)
     sequence = ORDER
     if order is not None:
         known = dict(ORDER)
@@ -609,8 +664,8 @@ def page(content: dict, contract: dict, order: list[str] | None = None) -> tuple
         # no hero photo: the page's first image is still the first one the browser meets -- it is not deferred
         body = body.replace(' loading="lazy"', ' loading="eager"', 1)
     single = any(n in contract['tokens'].get('--font-display', '') for n in DIRECTIONS['single_weight_display'])
-    markup = (f'<a class="skip" href="#main">דלגו לתוכן</a>{header(c, rendered)}<main id="main">{body}</main>'
-              f'{footer(c, rendered)}{mobile_bar(c)}{SCRIPT}')
+    markup = (f'<a class="skip" href="#main">דלגו לתוכן</a>{window_html}{header(c, rendered)}'
+              f'<main id="main">{body}</main>{footer(c, rendered)}{mobile_bar(c)}{SCRIPT}')
     classes = {k for m in re.findall(r'class="([^"]*)"', markup) for k in m.split()}
     attrs = {'data-direction': direction, **({'data-display-weight': 'regular'} if single else {})}
     head = (f'<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'

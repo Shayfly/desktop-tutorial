@@ -48,14 +48,15 @@ class OmniUniversalBrain:
         self.rights = RightsEngine()
         self.capability_planner = CapabilityPlanner(CapabilityRegistry())
 
-    def decide(self, prompt: str, *, target_markets: tuple[str, ...] = ('US', 'EU', 'IL'), semantic_decisions=()) -> BrainDecision:
+    def decide(self, prompt: str, *, target_markets: tuple[str, ...] = ('US', 'EU', 'IL'), semantic_decisions=(),
+               full_prompt: str | None = None) -> BrainDecision:
         plan = self.planner.plan(prompt)
         agents = plan_team(
             target='web', has_ui=True,
             has_mobile=('android' in plan.targets or 'ios' in plan.targets),
             has_game=('game3d' in plan.targets),
         ).to_dict()
-        creative = self.creative.plan(prompt, targets=plan.targets)
+        creative = self.creative.plan(prompt, targets=plan.targets, full_prompt=full_prompt)
         # Honor semantic disambiguation in the asset manifest as well as the
         # provider/capability DAG: no unrequested narration from a font name.
         from .semantic_capabilities import overrides

@@ -42,12 +42,12 @@ def cost_range(spec: Spec) -> tuple[int, int]:
 
 
 _TEXT = {
-    'he': {'stage_u': 'שלב 1 מתוך 2 — אני מקשיב ומבין מה לבנות', 'stage_p': 'שלב 2 מתוך 2 — המפרט אושר, אני מתכנן',
-           'cost': 'הערכת עלות: {lo}–{hi} קרדיטים. הטווח יצטמצם כשהמפרט ייסגר; לא מתחילים שום דבר בתשלום בלי אישור שלך.'},
-    'ar': {'stage_u': 'المرحلة 1 من 2 — أستمع وأفهم ما يجب بناؤه', 'stage_p': 'المرحلة 2 من 2 — تمت الموافقة على المواصفات، أخطط الآن',
-           'cost': 'تقدير التكلفة: {lo}–{hi} رصيدًا. سيضيق النطاق عند إغلاق المواصفات؛ لا يبدأ أي عمل مدفوع دون موافقتك.'},
-    'en': {'stage_u': 'Step 1 of 2 — I am listening to understand what to build', 'stage_p': 'Step 2 of 2 — the spec is approved, I am planning',
-           'cost': 'Cost estimate: {lo}–{hi} credits. The range narrows when the spec is closed; nothing paid starts without your approval.'},
+    'he': {'stage_u': 'שלב 1 מתוך 2 — אני מקשיב ומבין מה לבנות', 'stage_p': 'שלב 2 מתוך 2 — אישרתם מה שהבנתי, אני מתכנן',
+           'cost': 'הערכת מחיר: בין {lo} ל-{hi} מהיתרה שלכם. הטווח יצטמצם כשנסכם מה בונים; שום דבר בתשלום לא מתחיל בלי אישור שלכם.'},
+    'ar': {'stage_u': 'المرحلة 1 من 2 — أستمع وأفهم ما يجب بناؤه', 'stage_p': 'المرحلة 2 من 2 — وافقتم على ما فهمته، أخطط الآن',
+           'cost': 'تقدير السعر: بين {lo} و{hi} من رصيدكم. يضيق النطاق عندما نتفق على ما سنبنيه؛ لا يبدأ أي عمل مدفوع دون موافقتكم.'},
+    'en': {'stage_u': 'Step 1 of 2 — I am listening to understand what to build', 'stage_p': 'Step 2 of 2 — you approved what I understood, I am planning',
+           'cost': 'Price estimate: between {lo} and {hi} from your balance. The range narrows once we agree what to build; nothing paid starts without your approval.'},
 }
 
 

@@ -282,6 +282,21 @@
    "observed": "gate exit 0 (started 0 and queued 0 on every queue, no running build); killed 18:31:00Z; restart policy unless-stopped did not restart it within 30 s (Docker treats docker kill as a manual stop; a crash or OOM would restart); recovery 1 'docker start omni-worker-worker-1' at the ceiling; running 30 s after the kill; '*** Listening on omni-builds' 18:31:34Z; no alert from anything",
    "follow_up": "warehouse 121 (the dead-worker alert), built immediately; the alert path is drilled before C18 is called green",
    "recorded_by": "Claude, 2026-11-21, from the run's annotations (job 136942434446)"
+  },
+  {
+   "control": "C18",
+   "date": "2026-11-21",
+   "result": "PASS (the alert half)",
+   "sha": "062599671854bf82b936949bc69c2d2fc30abee1",
+   "runs": [
+    "44942838520",
+    "44942942630"
+   ],
+   "workflow": ".github/workflows/worker-alert.yml (warehouse 121, #487), workflow_dispatch on main",
+   "expected": "stated before (DECISIONS question 8, recommendation a): on a queue with no consumer the real Redis read finds no worker, an issue is opened (the owner's notification) and closed by the drill, and the run is red; on the real build queue the live worker is found and nothing is opened",
+   "observed": "run 44942838520 (drill_queue omni-drill-no-consumer): 'no worker is registered on the queue', 'opened and closed drill issue #489', exit 1; run 44942942630 (real queue): 'omni-builds: 1 live: 2d145487c24c4c60a4f5941a26303c4f (idle, heartbeat 81s ago)', 'nothing open', exit 0",
+   "closes": "the C18 finding of run 44935937685 (no alert existed); the recovery half is that run's 30-second restore",
+   "recorded_by": "Claude, 2026-11-21, from the runs' annotations"
   }
  ],
  "s01": {
@@ -736,6 +751,7 @@
   },
   {
    "id": "C11",
+   "drill_workflow": "drill-c11.yml",
    "control": "drain refuses without a verified rollback",
    "file_v3": ".github/workflows/deploy-worker.yml",
    "type": "drill",
@@ -825,6 +841,7 @@
   },
   {
    "id": "C16",
+   "drill_workflow": "drill-c16.yml",
    "control": "main protection blocks a merge on red",
    "file_v3": "GitHub settings (branch protection of main)",
    "type": "assertion",
@@ -863,6 +880,7 @@
   },
   {
    "id": "C18",
+   "drill_workflow": "drill-c18-alert.yml",
    "control": "the alert fires",
    "file_v3": "",
    "type": "drill",
@@ -877,6 +895,7 @@
   },
   {
    "id": "C19",
+   "drill_workflow": "drill-c19.yml",
    "control": "kill switch",
    "file_v3": "OMNI_ZERO_COST_MODE",
    "type": "drill",

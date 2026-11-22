@@ -47,7 +47,7 @@ def contract():
 def render(doc=None, sheet=None, c=None):
     c = c or contract()
     return R.render(doc or FIXTURE['scripted_content'], sheet or Fx.fact_sheet(PROMPT), c, expect_fp=c['fingerprint'],
-                    direction='formal', year='2026', outline_titles=TITLES, order=ORDER)
+                    direction='formal', year='2026', outline_titles=TITLES, order=ORDER, windows=())
 
 
 def visible(doc: str) -> str:
@@ -145,7 +145,7 @@ class ThePage(unittest.TestCase):
         sheet = Fx.fact_sheet(PROMPT)
         with self.assertRaises(R.SiteRenderDefect):
             R.render(FIXTURE['scripted_content'], sheet, self.contract, expect_fp='0' * 16, direction='formal',
-                     year='2026', outline_titles=TITLES, order=ORDER)
+                     year='2026', outline_titles=TITLES, order=ORDER, windows=())
         bound = R.binds(sheet, self.contract, '2026')
         R.check_binds(dict(bound), bound)
         with self.assertRaises(R.SiteRenderDefect):

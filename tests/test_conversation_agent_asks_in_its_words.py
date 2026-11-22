@@ -47,9 +47,16 @@ class TheModelAsksIt(unittest.TestCase):
         self.assertIn('personal_data', ctx['asked_with_buttons'])
 
     def test_the_checklist_is_the_products_not_the_last_messages(self):
-        from omni_prod.intake.question_skills import checklist
-        ctx = context('כן', held_brief(), '1')
-        self.assertEqual(ctx['expert_checklist'], checklist('website'))
+        # warehouse 127: for a website the kind of business's own mandatory facts come first, then the product's
+        # checklist; the context is fitted to 2,400 characters from the end (fit_context), never cut mid-JSON
+        from omni_prod.intake.question_skills import checklist, domain_facts
+        brief = held_brief()
+        ctx = context('כן', brief, '1')
+        full = domain_facts(brief.prompt) + checklist('website')
+        got = ctx['expert_checklist']
+        self.assertTrue(domain_facts(brief.prompt))                       # a door company has a domain file
+        self.assertTrue(got)
+        self.assertEqual(got, full[:len(got)])                             # the product's list, in order, never the last message's
 
 
 if __name__ == '__main__':

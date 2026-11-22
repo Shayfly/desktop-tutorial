@@ -73,6 +73,8 @@ _CONTENT_SYSTEM = (
     "visitors in the plural (אתם).\n"
     "- When the customer listed the page's sections, follow what they wrote for each section, in their words where "
     "they gave words (a hero title or a button text in quotes is used as written).\n"
+    "- trade_words are this trade's own Hebrew words. Use them to name what the customer wrote, the way the trade "
+    "says it; never use one to add a service, a product or a claim the customer did not write.\n"
     "- Respect every bound (characters, items). Leave an optional field out rather than inventing content for it.\n"
     "Return only the JSON object."
 )
@@ -332,6 +334,7 @@ class ContentSiteGenerator:
         from ..skill_units import gate as G
         return {'request': sheet.for_model(), 'palette': route.palette, 'direction': route.direction,
                 'voice': route.voice,
+                'trade_words': list(getattr(route, 'domain_words', None) or []),
                 'schema': K.schema_for_model(offered, route.outline_titles, name_given=bool(sheet.name),
                                              layouts=LAYOUTS),
                 'checks': G.rules_text(('HE', 'G10', 'BRAND'))}
@@ -410,7 +413,7 @@ class ContentSiteGenerator:
 
     def _render(self, doc, sheet, route):
         return R.render(doc, sheet, route.contract, expect_fp=route.contract_fp, direction=route.direction,
-                        year=route.year, outline_titles=route.outline_titles, order=route.order)
+                        year=route.year, outline_titles=route.outline_titles, order=route.order, windows=route.windows)
 
 
 # ---- after a failed round -------------------------------------------------------------------------------------------------
@@ -509,7 +512,8 @@ class ContentSiteRepairer:
             if V.blocking(problems):
                 raise SiteContentInvalid('the repair rewrite made the document invalid', problems)
             html, _ = R.render(doc, sheet, route.contract, expect_fp=route.contract_fp, direction=route.direction,
-                               year=route.year, outline_titles=route.outline_titles, order=route.order)
+                               year=route.year, outline_titles=route.outline_titles, order=route.order,
+                               windows=route.windows)
         except SiteRenderDefect as exc:
             self.trace.append({'declined': 'platform_render_defect', 'why': str(exc)[:1500]})
             raise RepairDeclined('platform_render_defect', str(exc), paid_call=self.agent.calls > called) from exc

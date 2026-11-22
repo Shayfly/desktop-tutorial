@@ -16,7 +16,7 @@
    "expect_failed": ["test_the_list_says_what_the_banner_says", "test_every_server_reason_has_the_same_words_in_the_ui"]},
   {"id": "NC3", "what": "the generic line says the plan does not authorize variable cost again",
    "mutations": [{"file": "omni_prod/assets/app.js",
-                  "old": "    b_plan_cannot_authorize_cost:'המסלול שלך לא מכסה את הבנייה הזו.',",
+                  "old": "    b_plan_cannot_authorize_cost:'הבנייה הזו גדולה ממה שכלול אצלכם.',",
                   "new": "    b_plan_cannot_authorize_cost:'המסלול הנוכחי לא מאשר עלות משתנה בתשלום.',"}],
    "targets": ["tests/test_plan_reason_ui.py"],
    "expect_failed": ["test_an_unknown_reason_gets_the_servers_generic_line"]},

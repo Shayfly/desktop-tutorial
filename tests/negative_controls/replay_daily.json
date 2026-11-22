@@ -1,0 +1,24 @@
+{
+  "pr": "replay-daily",
+  "sha256": [".github/workflows/postdeploy-checks.yml", "tests/test_replay_runs_daily.py"],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "the daily schedule is dropped (verify-replay goes stale again, as from 2026-10-20 to 2026-11-21)",
+      "mutations": [{"file": ".github/workflows/postdeploy-checks.yml",
+                     "old": "  schedule:\n    - cron: '43 2 * * *'\n",
+                     "new": ""}],
+      "targets": ["tests/test_replay_runs_daily.py"],
+      "expect_failed": ["test_it_runs_every_day"]
+    },
+    {
+      "id": "NC2",
+      "what": "the paid stage (a real build with model spend) starts running on the schedule",
+      "mutations": [{"file": ".github/workflows/postdeploy-checks.yml",
+                     "old": "        if: inputs.stage == 'paid'",
+                     "new": "        if: (inputs.stage || 'paid') == 'paid'"}],
+      "targets": ["tests/test_replay_runs_daily.py"],
+      "expect_failed": ["test_only_verify_replay_defaults_on_a_schedule", "test_the_paid_and_free_stages_never_run_by_themselves"]
+    }
+  ]
+}

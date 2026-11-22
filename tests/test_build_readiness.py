@@ -92,7 +92,7 @@ class PrimaryBlocker(unittest.TestCase):
         self.assertEqual(len({b['message'] for b in (req, gate, quote)}), 3)
         self.assertEqual(len({b['next'] for b in (req, gate, quote)}), 3)
         self.assertIn('האם צריך התחברות?', req['message'])
-        self.assertIn('תקציב הבנייה', quote['message'])
+        self.assertIn('סכום הבנייה של החודש נגמר', quote['message'])      # warehouse 132: no 'תקציב/מסלול'
 
     def test_requirements_before_gate_before_price(self):
         b = R.primary_blocker({'can_build': False, 'status': 'READY',
@@ -135,7 +135,7 @@ class ChatAgreesWithBanner(unittest.TestCase):
         self.assertEqual(seen[-1], ('p1', 'he'))     # 77 also checks before gate 1; gate 2 is the last call
         self.assertNotIn('approve_build', [a['type'] for a in t.actions])
         self.assertIn('לא ניתן להתחיל בבנייה כרגע', t.reply)
-        self.assertIn('תקציב הבנייה של המסלול לחודש הזה נגמר', t.reply)
+        self.assertIn('סכום הבנייה של החודש נגמר', t.reply)
 
     def test_typing_approve_gets_no_button_the_banner_refuses(self):
         blocked = {'can_build': False, 'status': 'READY', 'blockers': [{'code': 'cost_quote_unavailable'}]}

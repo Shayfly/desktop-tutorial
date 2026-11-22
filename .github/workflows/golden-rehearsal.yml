@@ -106,7 +106,7 @@ jobs:
           PY
           exit $rc
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: rehearsal-taxonomy
@@ -114,26 +114,29 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-  # Appends this rehearsal to smoke/failure-taxonomy.jsonl (one line per failure) and smoke/rehearsal-builds.jsonl
-  # (one line per build) on main and reports first_pass_yield = first-pass builds / builds. [skip ci] commit.
+  # Reports this rehearsal's failure taxonomy and first-pass result in the run summary and as the artifact
+  # rehearsal-taxonomy-report. Until 2026-11-21 this job appended to smoke/*.jsonl and pushed straight to main; main's
+  # protection (C16, live since 2026-10-20) rejects every direct push, so every rehearsal since then ended red here
+  # (critical-path freshness counted the path BROKEN although the rehearsal step passed) and smoke/rehearsal-builds.jsonl
+  # still holds one build, of 2026-10-19. Nothing is pushed now; the job only reads.
   publish-taxonomy:
     needs: rehearsal
     if: always() && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
-          persist-credentials: true
-      - uses: actions/download-artifact@v4
+          persist-credentials: false
+      - uses: actions/download-artifact@v7
         continue-on-error: true            # a missing artifact is evidence too: the build is recorded as no_artifact
         with:
           name: rehearsal-taxonomy
           path: taxonomy
-      - name: Append and report first_pass_yield
+      - name: Report this rehearsal (run summary and artifact)
         if: ${{ !cancelled() }}
         run: |
           set -euo pipefail
@@ -144,23 +147,24 @@ jobs:
             : > taxonomy/failures.jsonl
             echo "::warning title=publish-taxonomy::no taxonomy artifact from the rehearsal job; recorded as no_artifact"
           fi
-          cat taxonomy/failures.jsonl >> smoke/failure-taxonomy.jsonl
-          cat taxonomy/builds.jsonl >> smoke/rehearsal-builds.jsonl
           python3 - <<'PY'
-          import json, collections
-          builds = [json.loads(l) for l in open('smoke/rehearsal-builds.jsonl') if l.strip()]
-          fails = [json.loads(l) for l in open('smoke/failure-taxonomy.jsonl') if l.strip()]
-          fp = sum(1 for b in builds if b.get('first_pass'))
+          import json, collections, os
+          builds = [json.loads(l) for l in open('taxonomy/builds.jsonl') if l.strip()]
+          fails = [json.loads(l) for l in open('taxonomy/failures.jsonl') if l.strip()]
           last = builds[-1]
           by_layer = collections.Counter(f['layer'] for f in fails if f['run_id'] == last['run_id'])
           dist = collections.Counter((f['layer'], f['failure_type']) for f in fails if f['run_id'] == last['run_id'])
           print('TAXONOMY-DISTRIBUTION ' + json.dumps({f'{l}/{t}': n for (l, t), n in sorted(dist.items())}))
-          print(f"::notice title=first_pass_yield::{fp}/{len(builds)} = {fp / len(builds):.0%} over all recorded rehearsals; "
-                f"this run: outcome={last.get('outcome')} first_pass={last.get('first_pass')} "
-                f"repair_rounds={last.get('repair_rounds')} failures_by_layer={dict(by_layer)}")
+          line = (f"this run: outcome={last.get('outcome')} first_pass={last.get('first_pass')} "
+                  f"repair_rounds={last.get('repair_rounds')} failures_by_layer={dict(by_layer)}")
+          print(f"::notice title=rehearsal result::{line}")
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as out:
+              out.write(f"## Rehearsal {os.environ['GITHUB_RUN_ID']}\n\n- {line}\n- taxonomy: "
+                        + json.dumps({f'{l}/{t}': n for (l, t), n in sorted(dist.items())}) + "\n")
           PY
-          git config user.name smoke-bot && git config user.email smoke-bot@148ai.dev
-          git add smoke/failure-taxonomy.jsonl smoke/rehearsal-builds.jsonl
-          git commit -q -m "chore: rehearsal taxonomy ${{ github.run_id }} [skip ci]"
-          for i in 1 2 3; do git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0; sleep 5; done
-          echo "::error title=publish-taxonomy::could not push the taxonomy to main"; exit 1
+      - uses: actions/upload-artifact@v6
+        if: ${{ !cancelled() }}
+        with:
+          name: rehearsal-taxonomy-report
+          path: taxonomy/
+          retention-days: 90

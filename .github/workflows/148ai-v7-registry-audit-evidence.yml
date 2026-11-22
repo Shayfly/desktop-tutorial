@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
@@ -39,7 +39,7 @@ jobs:
               raise SystemExit("No generated artifacts changed; inspect CI cause")
           print("generated_changed_files="+str(sum(p.is_file() for p in base.rglob("*"))))
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: regenerated-registry-evidence
           path: regenerated-registry-evidence/

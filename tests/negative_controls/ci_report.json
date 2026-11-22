@@ -1,0 +1,43 @@
+{
+  "pr": "ci-report-no-bot-pr",
+  "sha256": [
+    ".github/workflows/v24-ci.yml",
+    "tests/test_ci_report_has_no_bot_pr.py"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "the report job gets write access to the repository again",
+      "mutations": [
+        {
+          "file": ".github/workflows/v24-ci.yml",
+          "old": "      contents: read\n    steps:\n      # The report job only reads, like the test jobs: no credentials are kept.",
+          "new": "      contents: write\n    steps:\n      # The report job only reads, like the test jobs: no credentials are kept."
+        }
+      ],
+      "targets": [
+        "tests/test_ci_report_has_no_bot_pr.py"
+      ],
+      "expect_failed": [
+        "test_it_only_reads"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "the report is no longer written to the run summary",
+      "mutations": [
+        {
+          "file": ".github/workflows/v24-ci.yml",
+          "old": "          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:",
+          "new": "          with open(os.devnull, 'a', encoding='utf-8') as summary:"
+        }
+      ],
+      "targets": [
+        "tests/test_ci_report_has_no_bot_pr.py"
+      ],
+      "expect_failed": [
+        "test_it_publishes_the_report_in_the_run_summary_and_as_an_artifact"
+      ]
+    }
+  ]
+}

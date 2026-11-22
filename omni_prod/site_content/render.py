@@ -193,14 +193,15 @@ def binds(sheet, contract: dict, year: str) -> dict:
 
 
 def render(doc: dict, sheet, contract: dict, *, expect_fp: str, direction: str, year: str, outline_titles: dict,
-           order: list[str] | None) -> tuple[str, list[str]]:
-    """(html, skipped). The contract must be the one the route locked; anything the library refuses is a platform
-    defect, raised as SiteRenderDefect -- never filled in."""
+           order: list[str] | None, windows) -> tuple[str, list[str]]:
+    """(html, skipped). The contract must be the one the route locked; `windows` are the route's approved windows
+    (Route.windows: the library renders them). Anything the library refuses is a platform defect, raised as
+    SiteRenderDefect -- never filled in."""
     if contract.get('fingerprint') != expect_fp:
         raise SiteRenderDefect(f"design contract {contract.get('fingerprint')} is not the route's {expect_fp}")
     content = to_library(doc, sheet, direction=direction, year=year, outline_titles=outline_titles, order=order)
     try:
-        return L.page(content, contract, order=order)
+        return L.page(content, contract, order=order, windows=windows)
     except (KeyError, ValueError, TypeError) as exc:
         raise SiteRenderDefect(f'the section library refused the content: {type(exc).__name__}: {exc}') from exc
 
