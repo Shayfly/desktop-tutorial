@@ -69,7 +69,7 @@ def message_for(*, build_id: str, error_code: str | None, billing: str | None, l
                 findings=()) -> dict:
     """The assistant message for a failed build: text + the one action. `findings`: gate_words keys (gate_words.
     findings), said one sentence each before the action; empty = the general sentence alone, as before."""
-    lang = lang if lang in TEXT else 'he'           # as before 132: a language with no texts reads Hebrew
+    lang = lang if lang in TEXT else 'en'   # #505: an Arabic customer reads English, not Hebrew, until Arabic is written
     T = TEXT[lang]
     customer = error_code in CUSTOMER_FIXES
     parts = [T['failed']]

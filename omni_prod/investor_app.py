@@ -1921,7 +1921,10 @@ def _brief_repo():
 
 
 def _lang(request: Request) -> str:
-    return 'en' if (request.query_params.get('lang') or '').lower().startswith('en') else 'he'
+    # 2026-11-22: the platform speaks Hebrew, English and Arabic. A text the server has only in Hebrew and English is
+    # sent to an Arabic customer in English ('he' if lang == 'he' else 'en'), never in Hebrew.
+    lang = (request.query_params.get('lang') or '').lower()
+    return 'en' if lang.startswith('en') else 'ar' if lang.startswith('ar') else 'he'
 
 
 def _discovery_view(row, lang: str) -> dict:
