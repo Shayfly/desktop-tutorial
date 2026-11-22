@@ -160,6 +160,7 @@ const VE = (() => {
     const bar = $('inspectBar');
     if (on && !st.ready) {
       bar.hidden = false; bar.className = 'inspectBar warn'; bar.replaceChildren(h('span', {}, t('inspectorMissing')));
+      setPane('preview');   // review F4 (2026-11-22): the warning lives in the preview; from the edit pane it was never seen
     } else if (st.inspecting) {
       bar.hidden = false; bar.className = 'inspectBar';
       bar.replaceChildren(h('span', {}, t('picking')), h('button', { type: 'button', class: 'ghost', onclick: () => setInspect(false) }, t('stopPicking')));
