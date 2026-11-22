@@ -761,3 +761,26 @@ button.secondary:not(.danger):hover{border-color:var(--v-yellow-line)}
 
 /* the bottom tabs: white, the selected one underlined (kept in ink: the example's yellow line is 1.4:1 on white) */
 .workspace #mobileTabs{background:var(--v-card);border-block-start:1px solid var(--v-line)}
+
+/* "זה מה שנבנה": gate 1's spec as the example's card (a white card, a light bar with the stage, label/value rows,
+   cream side cards for the price and the next step) */
+.bubble.withCard{background:none;border:0;padding:0;width:100%;max-width:min(62rem,100%);white-space:normal}
+.specCard{background:var(--v-card);border:1px solid var(--v-line);border-radius:12px;box-shadow:var(--v-shadow);overflow:hidden}
+.specBar{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--v-bar);
+  border-block-end:1px solid var(--v-line);padding:11px 14px}
+.specBody{display:grid;grid-template-columns:minmax(0,1fr) minmax(14rem,20rem);gap:20px;padding:20px 22px}
+.specMain h2{font-size:clamp(1.75rem,3.6vw,2.375rem);font-weight:700;line-height:1.15;margin:0 0 12px;color:var(--v-ink)}
+.specMain h3{font-size:1rem;font-weight:700;margin:18px 0 4px;color:var(--v-ink)}
+.specRows{margin:0}
+.specRows>div{display:grid;grid-template-columns:minmax(6rem,9rem) minmax(0,1fr);gap:12px;padding:9px 0;border-block-end:1px solid var(--v-line)}
+.specRows dt{font-weight:700;color:var(--v-ink)}
+.specRows dd{margin:0;color:var(--v-muted);overflow-wrap:anywhere}
+.specRows dd .pill{margin-inline-start:8px}
+.specNote{margin:12px 0 0;padding:10px 12px;border-radius:12px;background:#fff0e2;color:#823e18;border:1px solid #f0d4ba}
+.specSide{display:grid;gap:12px;align-content:start}
+.specSide .inset{border:1px solid var(--v-line);background:var(--v-cream);border-radius:15px;padding:14px}
+.specSide .inset.fire{background:var(--v-fire);border-color:var(--v-fire-line)}
+.specSide h3{font-size:1rem;font-weight:700;margin:0 0 6px;color:var(--v-ink)}
+.specSide p{margin:0;color:var(--v-muted)}
+.bubble.withCard .acts,.bubble.withCard .windowsChoice{margin-top:12px}
+@media(max-width:700px){.specBody{grid-template-columns:minmax(0,1fr);padding:16px}.specRows>div{grid-template-columns:minmax(0,1fr);gap:2px}}

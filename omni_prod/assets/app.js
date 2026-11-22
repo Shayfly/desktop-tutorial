@@ -369,6 +369,8 @@ Object.assign(T.he, {
     ['דף למבצע', 'אני רוצה דף שמציג מבצע או הצעה ומאפשר להשאיר פרטים.'],
   ],
   textSize: 'גודל טקסט', textSizes: { normal: 'רגיל', large: 'גדול', xlarge: 'גדול מאוד' },
+  specYours: 'המפרט שלך', specTitle: 'זה מה שנבנה', specFacts: 'פרטי העסק, כמו שכתבתם', specDefault: 'בחירה שלנו, אפשר לשנות',
+  specPrice: 'מחיר', specNext: 'מה עכשיו',
 });
 Object.assign(T.en, {
   hero: 'Describe what you need in your own words.',
@@ -392,6 +394,8 @@ Object.assign(T.en, {
     ['A special offer', 'I want a page that shows a special offer and lets people leave their details.'],
   ],
   textSize: 'Text size', textSizes: { normal: 'Normal', large: 'Large', xlarge: 'Extra large' },
+  specYours: 'Your spec', specTitle: 'This is what we will build', specFacts: 'Your business details, as you wrote them',
+  specDefault: 'our choice, you can change it', specPrice: 'Price', specNext: 'What now',
 });
 
 const $ = id => document.getElementById(id);
@@ -2035,6 +2039,23 @@ function actionButtons(actions) {
   }
   return out.length ? h('div', { class: 'acts' }, out) : null;
 }
+// "זה מה שנבנה": the spec rows, the business details as the customer wrote them, notes, price and the next step
+function specCard(card) {
+  const rows = list => h('dl', { class: 'specRows' }, list.map(r => h('div', {},
+    h('dt', {}, r.label), h('dd', { dir: 'auto' }, r.value, r.default ? h('span', { class: 'pill' }, t('specDefault')) : null))));
+  return h('section', { class: 'specCard', 'aria-label': t('specTitle') },
+    h('header', { class: 'specBar' }, h('strong', {}, t('specYours')), h('span', { class: 'pill warn' }, card.stage)),
+    h('div', { class: 'specBody' },
+      h('div', { class: 'specMain' },
+        h('h2', {}, t('specTitle')),
+        (card.rows || []).length ? rows(card.rows) : null,
+        (card.facts || []).length ? h('h3', {}, t('specFacts')) : null,
+        (card.facts || []).length ? rows(card.facts) : null,
+        ...(card.notes || []).map(n => h('p', { class: 'specNote', dir: 'auto' }, n))),
+      h('aside', { class: 'specSide' },
+        card.price ? h('div', { class: 'inset fire' }, h('h3', {}, t('specPrice')), h('p', {}, card.price)) : null,
+        card.next ? h('div', { class: 'inset' }, h('h3', {}, t('specNext')), h('p', {}, card.next)) : null)));
+}
 function renderChat() {
   const box = $('thread'); if (!box) return;
   const msgs = (S.projectId && S.chat && S.chat.messages) || [];   // a new conversation (no project yet) opens on the welcome
@@ -2053,6 +2074,11 @@ function renderChat() {
   msgs.forEach((m, i) => {
     // review F3 (2026-11-22): the speaker, said to screen readers; an aria-label on a plain div is not read
     const bubble = h('div', { class: `bubble ${m.role}`, dir: 'auto' }, h('span', { class: 'sr' }, `${m.role === 'customer' ? t('you') : t('assistant')}: `), m.content);
+    // the owner's example (2026-11-23): gate 1's spec is shown as the card "זה מה שנבנה" in place of the paragraph;
+    // the card carries every part of the message (omni_prod/conversation/spec_card.py), and the message stays the record
+    const specAct = i === lastAssistant ? (m.actions && m.actions.length ? m.actions : ((S.chat.turn && S.chat.turn.actions) || []))
+      .find(a => a.type === 'approve_spec' && a.card) : null;
+    if (specAct) { bubble.lastChild.replaceWith(specCard(specAct.card)); bubble.classList.add('withCard'); }
     if (m.role === 'assistant' && m.ai_status === 'fallback')
       bubble.append(h('p', { class: 'hint aiFallback' }, t('aiFallback')));
     if (m.attachments && m.attachments.length) bubble.append(h('div', { class: 'thumbs' }, m.attachments.map(a =>
