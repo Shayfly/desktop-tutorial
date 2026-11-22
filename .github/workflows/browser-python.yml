@@ -84,4 +84,5 @@ jobs:
           python scripts/run_negative_controls.py section_library; a=$?
           python scripts/run_negative_controls.py library_cookie_banner; b=$?
           NC_SCOPE=declared python scripts/run_negative_controls.py typography_126_129; c=$?
-          exit $(( a | b | c ))
+          b=$(( b | c ))
+          exit $(( a | b ))
