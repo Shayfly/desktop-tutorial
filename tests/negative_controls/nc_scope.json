@@ -1,0 +1,76 @@
+{
+ "pr": "pg-controls-scope",
+ "sha256": [
+  "tests/test_negative_controls_scope.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the scope is ignored: the pg job runs everything again",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "    return SCOPE == 'all' or declares_env(control)",
+     "new": "    return True"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_scope.py"
+   ],
+   "expect_failed": [
+    "test_declared_in_the_pg_job_runs_only_what_a_database_changes"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a target that reaches a database is not seen",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "            or any(_target_marked(t, env) for t in targets))",
+     "new": "            or False)"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_scope.py"
+   ],
+   "expect_failed": [
+    "test_declared_in_the_pg_job_runs_only_what_a_database_changes"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a control's own pg expectation is not seen",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "    if env in (control.get('envs') or ()) or f'expect_failed_{env}' in control:",
+     "new": "    if env in (control.get('envs') or ()):"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_scope.py"
+   ],
+   "expect_failed": [
+    "test_declared_in_the_pg_job_runs_only_what_a_database_changes"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "an unknown scope is read as all, silently",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "if SCOPE not in ('all', 'declared'):\n    raise ValueError(f\"NC_SCOPE must be 'all' or 'declared', not {SCOPE!r}\")",
+     "new": "if SCOPE not in ('all', 'declared'):\n    SCOPE = 'all'"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_scope.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_scope_raises"
+   ]
+  }
+ ]
+}
