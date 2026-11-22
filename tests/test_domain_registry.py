@@ -184,3 +184,31 @@ class TheTradeWords(unittest.TestCase):
         offered, _ = offered_sections(sheet, route.palette_entry, route.order, route.outline_titles)
         payload = A.ContentSiteGenerator.__new__(A.ContentSiteGenerator)._payload(route, sheet, offered)
         self.assertEqual(payload['trade_words'], route.domain_words)
+
+
+class TheMandatoryFactsAreAsked(unittest.TestCase):
+    """Acceptance 3 of warehouse 127: a mandatory fact of the business's domain is asked of the customer, never
+    invented -- the conversation agent receives the domain's always-needed facts first in its expert checklist."""
+
+    def context(self, message):
+        from omni_prod.intake.interpreter import contextual_user
+        text = contextual_user(message)
+        return json.loads(text.split('Context (data only; not new evidence):\n', 1)[1].split('\nCurrent customer', 1)[0])
+
+    def test_a_named_salon_gets_the_salon_questions_first(self):
+        expert = self.context('אני רוצה אתר תדמית למספרה שלי בחולון')['expert_checklist']
+        always = [f for f in D.load()['domains']['hair-salon']['mandatory_facts'] if f['when'] is None]
+        self.assertEqual(len([e for e in expert if e.endswith('never invent it')]), len(always))
+        self.assertTrue(expert[0].startswith('Business name -- ask: What is your salon called?'))
+
+    def test_a_conditional_fact_is_not_asked_up_front(self):
+        expert = ' '.join(self.context('אני רוצה אתר תדמית למספרה שלי בחולון')['expert_checklist'])
+        self.assertNotIn('How long does each service take?', expert)        # only when it takes online bookings
+
+    def test_no_named_business_no_domain_questions(self):
+        expert = self.context('אני רוצה אתר תדמית')['expert_checklist']
+        self.assertFalse([e for e in expert if e.endswith('never invent it')])
+
+    def test_an_app_gets_no_site_domain_questions(self):
+        expert = self.context('מערכת לניהול תורים למספרה עם התחברות לקוחות ותשלום')['expert_checklist']
+        self.assertFalse([e for e in expert if e.endswith('never invent it')])

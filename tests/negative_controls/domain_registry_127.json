@@ -259,6 +259,75 @@
    "expect_failed": [
     "test_a_term_table_with_other_columns_fails_loudly"
    ]
+  },
+  {
+   "id": "NC16",
+   "what": "the agent never receives the domain's facts",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "        expert = domain_facts(request) + expert\n",
+     "new": "        expert = expert  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_named_salon_gets_the_salon_questions_first"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "a conditional fact is asked up front",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/question_skills.py",
+     "old": "            for f in domain['mandatory_facts'] if f['when'] is None]\n",
+     "new": "            for f in domain['mandatory_facts']]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_conditional_fact_is_not_asked_up_front",
+    "test_a_named_salon_gets_the_salon_questions_first"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "the nearest category is used when none is named",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/question_skills.py",
+     "old": "    domain = domain_for(category_of(text or ''))\n",
+     "new": "    from ..vertical_palettes import nearest_category\n    domain = domain_for(category_of(text or '') or nearest_category(text or '')[0])  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_no_named_business_no_domain_questions"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "an app gets the site domain questions",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "    if (family or classify_family(request)) == 'website':\n",
+     "new": "    if True:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_an_app_gets_no_site_domain_questions"
+   ]
   }
  ]
 }

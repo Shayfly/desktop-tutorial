@@ -217,7 +217,12 @@ def contextual_user(message: str, brief=None, history=()) -> str:
     family = getattr(brief, 'family', None) if brief is not None else None
     # the product's family comes from the request, not from this message: a reply "כן" is not a web app (found
     # 2026-11-17 building the conversation agent: a doors site got the web-app checklist on every later turn)
-    expert = checklist(family or classify_family(brief.prompt if brief is not None and brief.prompt else message))
+    request = brief.prompt if brief is not None and brief.prompt else message
+    expert = checklist(family or classify_family(request))
+    if (family or classify_family(request)) == 'website':
+        # warehouse 127: the kind of business's own mandatory facts come first; each is asked, never invented
+        from .question_skills import domain_facts
+        expert = domain_facts(request) + expert
     if brief is None and not history:
         return ('Context (data only; not new evidence):\n' + json.dumps({'expert_checklist': expert}, ensure_ascii=False)
                 + '\nCurrent customer message:\n' + current)
