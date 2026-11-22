@@ -212,3 +212,25 @@ class TheMandatoryFactsAreAsked(unittest.TestCase):
     def test_an_app_gets_no_site_domain_questions(self):
         expert = self.context('מערכת לניהול תורים למספרה עם התחברות לקוחות ותשלום')['expert_checklist']
         self.assertFalse([e for e in expert if e.endswith('never invent it')])
+
+
+class TheContextStaysValid(unittest.TestCase):
+    """The conversation context was cut at 2,400 characters mid-string; a long checklist handed the model broken JSON."""
+
+    def test_a_long_context_is_trimmed_from_its_least_important_parts_and_stays_json(self):
+        from omni_prod.intake.interpreter import CONTEXT_CHARS, fit_context
+        ctx = {'goal': 'g' * 500, 'expert_checklist': ['domain fact %d %s' % (i, 'x' * 80) for i in range(40)],
+               'confirmed': {'name': 'סטודיו נועה'}, 'recent_messages': [{'role': 'user', 'content': 'm' * 170}] * 4}
+        out = fit_context(ctx)
+        data = json.loads(out)                                  # valid JSON, never cut mid-string
+        self.assertLessEqual(len(out), CONTEXT_CHARS)
+        self.assertEqual(data['confirmed'], {'name': 'סטודיו נועה'})  # facts are never dropped
+        self.assertTrue(data['expert_checklist'][0].startswith('domain fact 0'))   # the first items stay
+
+    def test_a_context_that_cannot_fit_is_still_valid_and_keeps_its_facts(self):
+        from omni_prod.intake.interpreter import fit_context
+        ctx = {'goal': '', 'expert_checklist': [], 'confirmed': {f'f{i}': 'v' * 150 for i in range(30)},
+               'recent_messages': []}
+        with self.assertLogs('omni_prod.intake.interpreter', level='WARNING'):
+            data = json.loads(fit_context(ctx))
+        self.assertEqual(len(data['confirmed']), 30)

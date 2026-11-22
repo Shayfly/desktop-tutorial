@@ -328,6 +328,41 @@
    "expect_failed": [
     "test_an_app_gets_no_site_domain_questions"
    ]
+  },
+  {
+   "id": "NC20",
+   "what": "the context is cut mid-string again",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "    return json.dumps(ctx, ensure_ascii=False)\n",
+     "new": "    return json.dumps(context, ensure_ascii=False)[:limit]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_context_that_cannot_fit_is_still_valid_and_keeps_its_facts",
+    "test_a_long_context_is_trimmed_from_its_least_important_parts_and_stays_json"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "the first checklist items (the domain's facts) are dropped first",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "        ctx['expert_checklist'].pop()\n",
+     "new": "        ctx['expert_checklist'].pop(0)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_long_context_is_trimmed_from_its_least_important_parts_and_stays_json"
+   ]
   }
  ]
 }
