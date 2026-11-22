@@ -79,7 +79,8 @@ def prompt_rule() -> str:
 
 CUSTOMER_TEXT = ('omni_prod/intake/venice.py', 'omni_prod/intake/approval_flow.py', 'omni_prod/intake/interpreter.py',
                  'omni_prod/conversation/supervisor.py', 'omni_prod/discovery.py', 'omni_prod/window_catalog.py',
-                 'omni_prod/build_readiness.py', 'omni_prod/build_announcement.py', 'omni_prod/assets/app.js')
+                 'omni_prod/build_readiness.py', 'omni_prod/build_announcement.py', 'omni_prod/assets/app.js',
+                 'omni_prod/gate_words.py')        # every blocking finding, in the customer's words (warehouse 132)
 # The conversation-and-approval route: here the count is zero, not a ratchet (the owner, 2026-11-22: "this is the heart").
 CONVERSATION = ('omni_prod/intake/venice.py', 'omni_prod/intake/approval_flow.py', 'omni_prod/intake/interpreter.py',
                 'omni_prod/conversation/supervisor.py', 'omni_prod/discovery.py', 'omni_prod/window_catalog.py')
