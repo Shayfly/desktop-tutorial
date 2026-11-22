@@ -32,6 +32,20 @@ class ExecutionReport:
     # commands, read from the runner's own summary. None = no recognised runner reported a count.
     tests_executed: int | None = None
 
+class RepairDeclined(Exception):
+    """A repairer that will not repair this round, with the reason the loop records as its stop_reason (the content
+    route, omni_prod/site_content: a failure the platform owns -- 'platform_render_defect' -- is a library or fact-sheet
+    bug, not something a paid model round can fix). The loop ends on its best version, exactly as a stop-loss does.
+    `paid_call` says whether the repairer called a model before it declined: a round declined before any call is not
+    counted as a repair round."""
+
+    def __init__(self, stop_reason: str, detail: str = '', *, paid_call: bool = False):
+        super().__init__(f'{stop_reason}: {detail}' if detail else stop_reason)
+        self.stop_reason = stop_reason
+        self.detail = detail
+        self.paid_call = paid_call
+
+
 @dataclass(frozen=True)
 class AutonomousResult:
     status: str
@@ -335,6 +349,14 @@ class AutonomousProductEngine:
                     repo_summary=self._repair_summary(repo, failures),
                     failures=failures,
                 )
+            except RepairDeclined as exc:
+                # the content route (omni_prod/site_content): a platform-owned failure stops without a paid round
+                self.trace.append({'round': rounds, 'repair_declined': exc.stop_reason, 'detail': exc.detail[:400],
+                                   'paid_call': exc.paid_call})
+                if not exc.paid_call:
+                    rounds -= 1          # declined before any model call: this repair round did not run
+                stop_reason = exc.stop_reason
+                break
             except Exception as exc:
                 # The owner's butcher builds, 2026-11-17 (bld_6323468a, bld_c0b2b43b): three rounds were verified, then
                 # no model route answered the repair with valid JSON (prose before it, an answer cut at its length, an

@@ -89,3 +89,4 @@
 | NODE24 | Claude Code (was Codex) | Not started | 39 workflow files on actions/checkout@v4, 16 on setup-python@v5 |
 | AGENTS-DRIFT | Claude Code (was Codex) | Not started | AGENTS.md rules 1 and 4 say NOT ENFORCED; C16 is live since 2026-10-20 and critical-path freshness runs daily |
 | YIELD-DB | Claude Code | Not started | first_pass_yield (the founder's metric, 2026-10-19) from build_jobs, daily: 11 of 48 builds ready in 35 days, 0 first-pass (Neon, read-only, 2026-11-21) |
+| SITE-CONTENT-1 | Claude Code | Local commits, not pushed; review fixes committed (0eae688..422f929); CTO's full suite pending | content-document route slice 1 behind OMNI_SITE_LIBRARY (off); real-chain engine tests 6/6 with Chromium (CI: browser-python job, not yet run); NC site_content 44/44, section_library 7/7 default + 10/10 browser |
