@@ -195,7 +195,7 @@ Never a default, whatever the customer left out: an item, a price, a status of "
 | Removed item's link breaks | A shared link leads to an error page | Looks neglected | Rule 19 |
 | Large images not resized | Pages crawl on a phone; images appear late | Leaves before seeing anything | Resize on upload; placeholder while loading |
 | Image used without permission | (The visitor sees nothing wrong) | A takedown demand or a bill | Mandatory fact 8; credit field |
-| Template text left on the page | Sees placeholder words instead of content | Looks unfinished; distrust | Check every published page for unfilled fields (one rejected reference, in section 9, shows this) |
+| Template text left on the page | Sees placeholder words instead of content | Looks unfinished; distrust | Check every published page for unfilled fields; seen on two business sites loaded for the craftsman and real-estate files |
 | Units missing or mixed | Measures the wrong size | A returned item or a piece that does not fit | Rule 6 |
 | Collection object shown as "on display" but in store | Visits to see it and cannot | A disappointed visit | Rule 17 |
 
