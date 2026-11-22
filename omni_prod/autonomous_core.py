@@ -149,29 +149,36 @@ class AutonomousProductEngine:
             found = detect(repo)
             if not found:
                 continue
-            fixed = False
+            fixed, said, outcome = False, '', 'not_attempted'
             for _ in range(pf.MAX_FIXES_PER_ISSUE):
                 failure = describe(found)
                 transform = getattr(self, 'repository_transform', None)
                 if transform is not None and hasattr(transform, 'redact_text'):
                     failure = {k: transform.redact_text(v) if isinstance(v, str) else v for k, v in failure.items()}
+                said = str(failure.get('message') or '')[:300]      # after redaction: what was wrong, for the record
                 try:
                     patch = self.repairer.repair(spec=spec, repo_summary=self._repair_summary(repo, [failure]),
                                                  failures=[failure])
                 except Exception:   # the cheap fix is optional; the real round still runs
+                    outcome = 'repairer_error'
                     break
                 keep = allowed(found)
                 narrow = tuple(p for p in patch or () if getattr(p, 'path', None) in keep)
                 if not narrow:
+                    outcome = 'patch_outside_the_allowed_files'
                     break
                 candidate = apply_patch(repo, narrow)
                 if transform is not None:
                     candidate = transform(candidate)
                 if not detect(candidate):
-                    repo, fixed = candidate, True
+                    repo, fixed, outcome = candidate, True, 'repaired'
                     break
+                outcome = 'still_failing_after_the_patch'
+            # 2026-11-21: the message and the outcome are recorded. Without them nobody could say afterwards WHAT the
+            # plan lacked in 18 production builds, or why 5 of them were not repaired (the investigation of that day).
             self._preflight_events.append({'layer': 'preflight', 'failure_type': kind, 'round_index': round_index,
-                                           'chain_depth': 0, 'was_repaired': fixed})
+                                           'chain_depth': 0, 'was_repaired': fixed, 'message': said,
+                                           'outcome': outcome})
         return repo
 
     def _observed_failures(self, report):

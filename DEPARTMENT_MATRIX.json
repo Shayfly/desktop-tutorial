@@ -1,9 +1,9 @@
 {
  "schema": "department-matrix/1",
  "summary": {
-  "IMPLEMENTED": 13,
+  "IMPLEMENTED": 14,
   "NOT_IMPLEMENTED": 3,
-  "PARTIAL": 2
+  "PARTIAL": 1
  },
  "departments": [
   {
@@ -74,9 +74,8 @@
    },
    "support_agents": {},
    "skills": {
-    "IMPLEMENTED": 3,
-    "NOT_IMPLEMENTED": 12,
-    "REAL_SERVER_VERIFIED": 1
+    "IMPLEMENTED": 4,
+    "NOT_IMPLEMENTED": 12
    },
    "missing_roles": [],
    "missing_adapters": [],
@@ -208,9 +207,9 @@
     "analytics_agent": "NOT_IMPLEMENTED"
    },
    "skills": {
-    "IMPLEMENTED": 4,
+    "IMPLEMENTED": 5,
     "NOT_IMPLEMENTED": 16,
-    "REAL_SERVER_VERIFIED": 4
+    "REAL_SERVER_VERIFIED": 3
    },
    "missing_roles": [],
    "missing_adapters": [],
@@ -254,19 +253,19 @@
   {
    "key": "D10",
    "name": "DevOps, Cloud & Infrastructure",
-   "readiness": "PARTIAL",
+   "readiness": "IMPLEMENTED",
    "responsibilities": "workers, sandboxes, previews, backups",
    "core_agents": {
     "infrastructure_agent": "IMPLEMENTED",
-    "deployment_agent": "REAL_SERVER_VERIFIED"
+    "deployment_agent": "IMPLEMENTED"
    },
    "support_agents": {
     "backup_recovery_agent": "REAL_SERVER_VERIFIED"
    },
    "skills": {
-    "IMPLEMENTED": 11,
+    "IMPLEMENTED": 14,
     "NOT_IMPLEMENTED": 6,
-    "REAL_SERVER_VERIFIED": 15,
+    "REAL_SERVER_VERIFIED": 12,
     "UNIT_TESTED": 1
    },
    "missing_roles": [],

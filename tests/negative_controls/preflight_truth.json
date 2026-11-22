@@ -1,0 +1,62 @@
+{
+ "pr": "preflight-truth",
+ "sha256": [
+  "omni_prod/autonomous_core.py",
+  "tests/test_round_preflight.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the preflight event drops what was wrong",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "'was_repaired': fixed, 'message': said,",
+     "new": "'was_repaired': fixed, 'message': '',"
+    }
+   ],
+   "targets": [
+    "tests/test_round_preflight.py"
+   ],
+   "expect_failed": [
+    "test_a_syntax_error_is_fixed_before_the_chain_and_costs_no_round",
+    "test_missing_plan_coverage_is_fixed_in_the_plan_before_the_round_counts"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a fix that touched the wrong files is recorded as never attempted",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "                    outcome = 'patch_outside_the_allowed_files'\n",
+     "new": "                    pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_round_preflight.py"
+   ],
+   "expect_failed": [
+    "test_an_unfixable_syntax_error_still_reaches_the_chain_and_costs_a_real_round"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a successful fix is not recorded as repaired",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "repo, fixed, outcome = candidate, True, 'repaired'",
+     "new": "repo, fixed, outcome = candidate, True, 'not_attempted'"
+    }
+   ],
+   "targets": [
+    "tests/test_round_preflight.py"
+   ],
+   "expect_failed": [
+    "test_a_syntax_error_is_fixed_before_the_chain_and_costs_no_round",
+    "test_missing_plan_coverage_is_fixed_in_the_plan_before_the_round_counts"
+   ]
+  }
+ ]
+}
