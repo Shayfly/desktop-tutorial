@@ -1,0 +1,378 @@
+{
+ "pr": "images-as-files",
+ "sha256": [
+  "tests/test_images_as_files.py",
+  "omni_prod/repository_assets.py",
+  "omni_prod/generated_images.py",
+  "omni_prod/uploaded_assets.py",
+  "omni_prod/preview_smoke.py",
+  "omni_prod/preview_runtime.py",
+  "omni_prod/unified_engine.py",
+  "omni_prod/workspace.py",
+  "omni_prod/sandbox_request_policy.py",
+  "omni_prod/sandbox_service.py",
+  "tests/fixtures/butcher_served_page_2026_11_14.json",
+  "BRAND_PACK/148AI-logo-master-transparent.png",
+  "BRAND_PACK/148AI-logo-64.png",
+  "omni_prod/gate_regression.py",
+  "omni_prod/investor_app.py",
+  "tools/ui_visual_edit/preview_host.py",
+  ".github/workflows/inspect-round-artifacts.yml",
+  "tests/test_v24_native_remote.py",
+  "tests/test_generated_images_in_page.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the image is re-inlined into the page as a data: URI (the butcher, bld_83529c13)",
+   "mutations": [
+    {
+     "file": "omni_prod/repository_assets.py",
+     "old": "            out[path] = rx.sub(self._reference(path), text) if isinstance(text, str) and not is_envelope(text) else text\n",
+     "new": "            out[path] = rx.sub('data:' + self.mime + ';base64,' + self.encoded, text) if isinstance(text, str) and not is_envelope(text) else text\n"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_a_reference_in_a_script_template_literal_or_after_a_semicolon_is_read_whole",
+    "test_a_reference_that_resolves_to_a_404_fails_the_preview_loudly",
+    "test_an_image_in_a_stylesheet_in_a_sub_directory_is_reached",
+    "test_the_business_facts_are_inside_the_45000_characters_the_truth_gate_reads",
+    "test_the_export_holds_the_image_files_and_the_exported_site_serves_them",
+    "test_the_gate_regression_serves_an_approved_build_that_carries_an_image",
+    "test_the_model_never_sees_or_keeps_the_image",
+    "test_the_page_has_no_data_image_uri",
+    "test_the_preview_work_directory_serves_the_image_as_a_file"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the saved version drops the image file",
+   "mutations": [
+    {
+     "file": "omni_prod/workspace.py",
+     "old": "            for path, content in repo.items(): zf.writestr(path, content)\n",
+     "new": "            for path, content in repo.items(): content.startswith('148ai-binary:') or zf.writestr(path, content)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_the_gate_regression_serves_an_approved_build_that_carries_an_image",
+    "test_the_saved_version_keeps_the_image_file"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the preview smoke no longer checks that the server serves /assets",
+   "mutations": [
+    {
+     "file": "omni_prod/preview_smoke.py",
+     "old": "if verdict == \"OK\":\n    # Warehouse 118",
+     "new": "if False:\n    # Warehouse 118"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_a_reference_in_a_script_template_literal_or_after_a_semicolon_is_read_whole",
+    "test_a_reference_that_resolves_to_a_404_fails_the_preview_loudly",
+    "test_a_server_that_does_not_serve_assets_fails_the_preview_loudly",
+    "test_an_image_in_a_stylesheet_in_a_sub_directory_is_reached",
+    "test_the_sandbox_got_the_image_as_a_file_and_served_it_with_its_type"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the preview work directory drops the image file",
+   "mutations": [
+    {
+     "file": "omni_prod/preview_runtime.py",
+     "old": "    materialize(root, repository)\n",
+     "new": "    materialize(root, {p: c for p, c in repository.items() if not c.startswith('148ai-binary:')})\n"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_the_preview_work_directory_serves_the_image_as_a_file"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the export drops the image file",
+   "mutations": [
+    {
+     "file": "omni_prod/unified_engine.py",
+     "old": "        return zip_bytes(repository)\n",
+     "new": "        return zip_bytes({p: c for p, c in repository.items() if not c.startswith('148ai-binary:')})\n"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_the_export_holds_the_image_files_and_the_exported_site_serves_them"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the sandbox runner writes the envelope as text instead of the image bytes",
+   "mutations": [
+    {
+     "file": "omni_prod/repository_assets.py",
+     "old": "        target.write_bytes(file_bytes(safe, content))\n",
+     "new": "        target.write_text(content, encoding='utf-8')\n"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_a_jpeg_is_served_as_image_jpeg",
+    "test_a_reference_in_a_script_template_literal_or_after_a_semicolon_is_read_whole",
+    "test_a_reference_that_resolves_to_a_404_fails_the_preview_loudly",
+    "test_a_server_that_does_not_serve_assets_fails_the_preview_loudly",
+    "test_an_image_in_a_stylesheet_in_a_sub_directory_is_reached",
+    "test_the_business_facts_are_inside_the_45000_characters_the_truth_gate_reads",
+    "test_the_gate_regression_serves_an_approved_build_that_carries_an_image",
+    "test_the_preview_work_directory_serves_the_image_as_a_file",
+    "test_the_same_page_with_the_image_inlined_loses_the_late_fact",
+    "test_the_sandbox_got_the_image_as_a_file_and_served_it_with_its_type"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the model reads the image file (its bytes) in the repair summary",
+   "mutations": [
+    {
+     "file": "omni_prod/generated_images.py",
+     "old": "            out = carried.unplace(out)\n",
+     "new": "            pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_an_image_in_a_stylesheet_in_a_sub_directory_is_reached",
+    "test_the_model_never_sees_or_keeps_the_image"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a tampered image envelope passes the sandbox request policy",
+   "mutations": [
+    {
+     "file": "omni_prod/sandbox_request_policy.py",
+     "old": "                decode(path, content)\n",
+     "new": "                pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_a_tampered_image_is_refused_by_the_request_policy",
+    "test_the_sandbox_service_endpoint_writes_the_image_bytes"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the gate regression writes the image file as text (every approved build with an image would fail the workflow)",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_regression.py",
+     "old": "        repository_assets.materialize(Path(root), staged)\n",
+     "new": "        [(Path(root) / p).parent.mkdir(parents=True, exist_ok=True) or (Path(root) / p).write_text(t, encoding='utf-8') for p, t in staged.items()]\n"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_the_gate_regression_serves_an_approved_build_that_carries_an_image"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the smoke checks only /assets/<name>, not the reference the page or the stylesheet resolves to",
+   "mutations": [
+    {
+     "file": "omni_prod/preview_smoke.py",
+     "old": "if verdict == \"OK\" and names:\n    # Warehouse 118 (review",
+     "new": "if verdict == \"OK\" and names:\n    print(\"PREVIEW-ASSETS \" + json.dumps(names))\nif False:\n    # Warehouse 118 (review"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_a_reference_in_a_script_template_literal_or_after_a_semicolon_is_read_whole",
+    "test_a_reference_that_resolves_to_a_404_fails_the_preview_loudly",
+    "test_an_image_in_a_stylesheet_in_a_sub_directory_is_reached"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a stylesheet in a sub-directory gets the plain relative path (it resolves to /static/assets/..., a 404)",
+   "mutations": [
+    {
+     "file": "omni_prod/repository_assets.py",
+     "old": "        return '../' * (len(PurePosixPath(holder).parts) - 1) + self.path\n",
+     "new": "        return self.path\n"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_an_image_in_a_stylesheet_in_a_sub_directory_is_reached"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "an image over 2,000,000 bytes cannot be carried although the upload accepts 3 MB (the logo)",
+   "mutations": [
+    {
+     "file": "omni_prod/repository_assets.py",
+     "old": "from .attachments import MAX_BYTES as MAX_ASSET_BYTES   # noqa: E402\n",
+     "new": "MAX_ASSET_BYTES = 2_000_000\n"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_a_logo_the_upload_accepts_is_carried"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the version download has no checksum of the zip it delivers (the header is the stored repository's again)",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "'X-Omni-Export-SHA256':hashlib.sha256(body).hexdigest()}",
+     "new": "'X-Omni-Export-SHA256':version.checksum}"
+    }
+   ],
+   "targets": [
+    "tests/test_v24_native_remote.py"
+   ],
+   "expect_failed": [
+    "test_download_of_a_version_with_an_image_file",
+    "test_download_version_zip"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the version download zips the envelope text instead of the image bytes",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    body=zip_bytes(dict(version.files),ordered=False)   # warehouse 118: images as files\n",
+     "new": "    _b=io.BytesIO(); _z=zipfile.ZipFile(_b,'w',zipfile.ZIP_DEFLATED); [_z.writestr(p,c) for p,c in version.files]; _z.close(); body=_b.getvalue()\n"
+    }
+   ],
+   "targets": [
+    "tests/test_v24_native_remote.py"
+   ],
+   "expect_failed": [
+    "test_download_of_a_version_with_an_image_file"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "the visual-edit preview host writes the image file as text",
+   "mutations": [
+    {
+     "file": "tools/ui_visual_edit/preview_host.py",
+     "old": "            materialize(Path(d), files)\n",
+     "new": "            [open(os.path.join(d, p), 'w').write(c) for p, c in files.items()]\n"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_the_visual_edit_preview_host_writes_through_the_one_writer"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "the round-artifacts print shortens only data: URIs, so an image file floods the notes with base64",
+   "mutations": [
+    {
+     "file": ".github/workflows/inspect-round-artifacts.yml",
+     "old": "                  text = _re.sub(r\"((?:data:[\\w/+.-]+|148ai-binary:v1;mime=[\\w/+.-]+;sha256=[0-9a-f]{64});base64,)([A-Za-z0-9+/=\\s]{200,})\", _elide, text)\n",
+     "new": "                  text = _re.sub(r\"(data:[\\w/+.-]+;base64,)([A-Za-z0-9+/=\\s]{200,})\", _elide, text)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_the_round_artifacts_print_shortens_an_image_file"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "a backtick ends no reference: a working image in a JS template literal fails the preview as a 404",
+   "mutations": [
+    {
+     "file": "omni_prod/preview_smoke.py",
+     "old": "text[i - 1] not in \" \\t\\r\\n\\\"'`()<>=,;\":",
+     "new": "text[i - 1] not in \" \\t\\r\\n\\\"'()<>=,\":"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_a_reference_in_a_script_template_literal_or_after_a_semicolon_is_read_whole"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "the sandbox runner endpoint writes the envelope as text instead of the image bytes",
+   "mutations": [
+    {
+     "file": "omni_prod/sandbox_service.py",
+     "old": "dest=root/p; dest.parent.mkdir(parents=True,exist_ok=True); dest.write_bytes(file_bytes(rel,content))",
+     "new": "dest=root/p; dest.parent.mkdir(parents=True,exist_ok=True); dest.write_text(content,encoding='utf-8')"
+    }
+   ],
+   "targets": [
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_the_sandbox_service_endpoint_writes_the_image_bytes",
+    "test_the_sandbox_service_writes_the_image_bytes"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "every file in a sub-directory gets ../ (src/App.jsx): the image checks no longer find the image on the page",
+   "mutations": [
+    {
+     "file": "omni_prod/repository_assets.py",
+     "old": "        if PurePosixPath(holder).suffix.lower() != '.css':\n            return self.path\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_generated_images_in_page.py",
+    "tests/test_images_as_files.py"
+   ],
+   "expect_failed": [
+    "test_jsx_literal_alt_passes"
+   ]
+  }
+ ]
+}

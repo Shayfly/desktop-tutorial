@@ -49,14 +49,16 @@ def served_page(repository: dict[str, str], *, timeout: int = 60) -> tuple[dict 
     """Start the product as the preview smoke does and return (rendered pages, smoke verdict line)."""
     from .preview_smoke import _SMOKE, _rendered_pages
     from .sandbox_script import staged_script
+    from . import repository_assets
     staged, argv = staged_script(repository, 'preview_smoke', _SMOKE)
     with tempfile.TemporaryDirectory(prefix='gate-regression-') as root:
         for path, text in staged.items():
             target = Path(root) / path
             if not target.resolve().is_relative_to(Path(root).resolve()):
                 raise ValueError(f'path escapes the repository: {path}')
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(text, encoding='utf-8')
+        # Warehouse 118: an image is an envelope in the repository; the work directory gets its bytes (the same
+        # writer as the sandbox and the preview), else the smoke's asset check fails every approved image build.
+        repository_assets.materialize(Path(root), staged)
         env = {'PATH': os.environ.get('PATH', '/usr/bin:/bin'), 'HOME': '/tmp', 'PYTHONDONTWRITEBYTECODE': '1'}
         cmd = [sys.executable if argv[0] == 'python' else argv[0], *argv[1:]]
         proc = subprocess.run(cmd, cwd=root, env=env, capture_output=True, text=True, timeout=timeout)
