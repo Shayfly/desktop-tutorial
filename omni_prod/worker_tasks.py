@@ -1158,6 +1158,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # G8 (stage F): the product keeps answering under load; warns until it is calibrated
         from .runtime_load import install as install_runtime_load
         install_runtime_load(engine)
+        # Warehouse 130 (first slice): an APP's data screens show loading, empty and error, and a server error reaches
+        # the customer as a sentence with an action. Decided from the approved request with the route's own test (never
+        # on a content-only site); the decision and its reason are in the evidence of every build. Warns until calibrated.
+        from .app_states import carry_rule as carry_app_states_rule, install as install_app_states
+        install_app_states(engine, prompt=prompt)
+        carry_app_states_rule(engine)
         # A4 (the owner 2026-11-16, stage D): one asset plan -- every image, uploaded or generated, has one place
         from .a4 import install as install_asset_plan
         build_prompt = install_asset_plan(engine, prompt=build_prompt)
@@ -1440,6 +1446,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
     evidence['g_apple'] = apple_gate_report(engine)           # the design contract and the gate's findings
     from .runtime_load import report as runtime_load_report
     evidence['runtime_load'] = runtime_load_report(engine)    # G8: the measurement of the last check
+    from .app_states import report as app_states_report
+    evidence['app_states'] = app_states_report(engine)        # warehouse 130: app or not (and why), the three states
     from .a4 import report as asset_plan_report
     evidence['asset_plan'] = asset_plan_report(engine)        # A4: which image is where, and the placement check
     target = BuildStatus.READY if ready else BuildStatus.FAILED
