@@ -157,23 +157,32 @@ def verified_plan(make_plan, brief, approved_fingerprint: str) -> tuple[dict | N
 
 # ------------------------------------------------------------------ customer text
 
+# Plain words (owner 2026-11-21): the customer reads no name of the machinery here -- what was understood, what it takes
+# from their balance, and the one button to press, called by the name the button really has. The two buttons' names
+# live here once; assets/app.js carries the same words (tests/test_plain_words_failure_and_approval.py compares them).
+# The verifier's own findings ({what}) and the plan's raw complexity ({cx}) stay in the stored record
+# (interpretation.verification, the plan's spec_gate) and are not said to the customer.
+CONFIRM_BUTTON = {'he': 'כן, זה נכון', 'en': 'Yes, that is right'}
+APPROVE_BUTTON = {'he': 'לאשר ולהתחיל לבנות', 'en': 'Approve and start building'}
+EDIT_BUTTON = {'he': 'עריכת הבקשה', 'en': 'Edit requirements'}
+
 TEXT = {
     'he': {'stage1': 'שלב 1 מתוך 2', 'stage2': 'שלב 2 מתוך 2',
-           'spec': 'זה המפרט שהבנתי: {summary}.',
-           'price': 'עלות הבנייה במסלול שלך: {c} קרדיטים.',
-           'exact_same': 'העלות: {exact} קרדיטים, כפי שנאמר.',
-           'range': 'הערכת עלות: {lo}–{hi} קרדיטים.',
-           'gate1': 'אם זה נכון, אשרו את המפרט ואז אכין תוכנית. לא נבנית תוכנית ולא מחויב דבר לפני האישור.',
-           'gate1_needed': 'קודם צריך לאשר את המפרט; לא מכינים תוכנית לפני כן.',
-           'stale': 'המפרט השתנה מאז שהוצג. זה המפרט העדכני; אשרו אותו כדי שאתכנן.',
-           'planned': 'המפרט אושר. הכנתי תוכנית והמאמת בדק אותה מול המפרט.',
-           'fixed': 'המאמת מצא ותיקן: {what}.',
-           'refused': 'התוכנית לא עברה את בדיקת המאמת ולכן לא מוצגת: {what}. לא מחויב דבר; אפשר לערוך את המפרט.',
-           'exact': 'העלות המדויקת: {exact} קרדיטים (הטווח שנאמר: {lo}–{hi}).',
-           'above': 'שימו לב: זה מעל הטווח שאמרתי ({lo}–{hi}) ב-{d} קרדיטים. הסיבה: המחיר המדויק נקבע לפי המסלול שלך ומורכבות התוכנית ({cx}), והוא גבוה ממה שהערכתי.',
-           'below': 'זה מתחת לטווח שאמרתי ({lo}–{hi}) ב-{d} קרדיטים: המחיר המדויק לפי המסלול שלך נמוך ממה שהערכתי.',
-           'exact_unknown': 'את העלות המדויקת אחשב באישור התקציב; עד אז הטווח הוא {lo}–{hi} קרדיטים.',
-           'gate2': 'כדי להתחיל לבנות, אשרו את התקציב.'},
+           'spec': 'זה מה שהבנתי שאתם רוצים: {summary}.',
+           'price': 'הבנייה הזו תוריד {c} מהיתרה שלכם.',
+           'exact_same': 'המחיר: {exact} מהיתרה שלכם, כמו שאמרתי.',
+           'range': 'הערכה: הבנייה תוריד בין {lo} ל-{hi} מהיתרה שלכם.',
+           'gate1': 'אם זה נכון, לחצו על "' + CONFIRM_BUTTON['he'] + '" ואכין תוכנית. שום דבר לא נבנה ולא חויבתם על שום דבר לפני כן.',
+           'gate1_needed': 'קודם צריך לאשר שהבנתי נכון; אני לא מכין תוכנית לפני כן.',
+           'stale': 'הבקשה השתנתה מאז שהצגתי אותה. זו הבקשה כמו שהיא עכשיו; אשרו אותה ואכין תוכנית.',
+           'planned': 'מעולה. הכנתי תוכנית.',
+           'fixed': 'תיקנתי אותה לפני שהצגתי אותה.',
+           'refused': 'לא הצלחתי להכין תוכנית שמתאימה למה שביקשתם. לא חויבתם. כתבו שוב במשפט אחד מה הכי חשוב לכם, או לחצו על "' + EDIT_BUTTON['he'] + '".',
+           'exact': 'המחיר המדויק: {exact} מהיתרה שלכם (קודם אמרתי {lo}–{hi}).',
+           'above': 'שימו לב: זה {d} יותר ממה שאמרתי ({lo}–{hi}). המחיר המדויק נקבע רק אחרי שהתוכנית מוכנה, והוא יצא גבוה מההערכה שלי.',
+           'below': 'זה {d} פחות ממה שאמרתי ({lo}–{hi}): המחיר המדויק יצא נמוך מההערכה שלי.',
+           'exact_unknown': 'את המחיר המדויק אחשב כשתאשרו את הבנייה; עד אז ההערכה היא בין {lo} ל-{hi} מהיתרה שלכם.',
+           'gate2': 'כדי להתחיל לבנות, לחצו על "' + APPROVE_BUTTON['he'] + '".'},
     'ar': {'stage1': 'المرحلة 1 من 2', 'stage2': 'المرحلة 2 من 2',
            'spec': 'هذه المواصفات كما فهمتها: {summary}.',
            'price': 'تكلفة البناء في باقتك: {c} رصيدًا.',
@@ -191,21 +200,21 @@ TEXT = {
            'exact_unknown': 'سأحسب التكلفة الدقيقة عند الموافقة على الميزانية؛ حتى ذلك الحين النطاق {lo}–{hi} رصيدًا.',
            'gate2': 'لبدء البناء، وافق على الميزانية.'},
     'en': {'stage1': 'Step 1 of 2', 'stage2': 'Step 2 of 2',
-           'spec': 'This is the spec as I understood it: {summary}.',
-           'price': 'This build costs {c} credits on your plan.',
-           'exact_same': 'The cost is {exact} credits, as said.',
-           'range': 'Cost estimate: {lo}–{hi} credits.',
-           'gate1': 'If it is right, approve the spec and I will prepare a plan. No plan is made and nothing is charged before you approve.',
-           'gate1_needed': 'The spec has to be approved first; no plan is made before that.',
-           'stale': 'The spec changed since it was shown. This is the current one; approve it and I will plan.',
-           'planned': 'The spec is approved. I prepared a plan and the verifier checked it against the spec.',
-           'fixed': 'The verifier found and fixed: {what}.',
-           'refused': 'The plan did not pass the verifier, so it is not shown: {what}. Nothing was charged; you can edit the spec.',
-           'exact': 'Exact cost: {exact} credits (the range I gave: {lo}–{hi}).',
-           'above': 'Note: this is above the range I gave ({lo}–{hi}) by {d} credits. Why: the exact price follows your plan and the plan\'s complexity ({cx}), and it is higher than my estimate.',
-           'below': 'This is below the range I gave ({lo}–{hi}) by {d} credits: the exact price on your plan is lower than my estimate.',
-           'exact_unknown': 'I will calculate the exact cost when you approve the budget; until then the range is {lo}–{hi} credits.',
-           'gate2': 'To start building, approve the budget.'},
+           'spec': 'This is what I understood you want: {summary}.',
+           'price': 'This build takes {c} from your balance.',
+           'exact_same': 'The price: {exact} from your balance, as I said.',
+           'range': 'Estimate: this build takes between {lo} and {hi} from your balance.',
+           'gate1': 'If it is right, press "' + CONFIRM_BUTTON['en'] + '" and I will prepare a plan. Nothing is built and you are charged for nothing before that.',
+           'gate1_needed': 'First confirm that I understood you; I do not prepare a plan before that.',
+           'stale': 'The request changed since I showed it. This is the request as it is now; confirm it and I will prepare a plan.',
+           'planned': 'Great. I prepared a plan.',
+           'fixed': 'I corrected it before showing it.',
+           'refused': 'I could not prepare a plan that fits what you asked for. You were not charged. Write again, in one sentence, what matters most to you, or press "' + EDIT_BUTTON['en'] + '".',
+           'exact': 'The exact price: {exact} from your balance (earlier I said {lo}–{hi}).',
+           'above': 'Note: this is {d} more than I said ({lo}–{hi}). The exact price is set only once the plan is ready, and it came out higher than my estimate.',
+           'below': 'This is {d} less than I said ({lo}–{hi}): the exact price came out lower than my estimate.',
+           'exact_unknown': 'I will calculate the exact price when you approve the build; until then the estimate is between {lo} and {hi} from your balance.',
+           'gate2': 'To start building, press "' + APPROVE_BUTTON['en'] + '".'},
 }
 
 

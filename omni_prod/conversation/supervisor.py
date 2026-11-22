@@ -33,6 +33,7 @@ from decimal import Decimal
 
 from .. import discovery as d
 from ..intake import agent as intake_agent
+from ..intake import approval_flow as AF      # the buttons' names, said in the texts below exactly as the buttons carry them
 from ..intake import contract as C
 from ..intake.interpreter import DeterministicInterpreter, interpreter_from_env, language_of
 
@@ -176,7 +177,7 @@ def _plan_view(plan: dict) -> dict:
 _TXT = {
     'he': {'got': 'הבנתי', 'assumed': 'בחרתי עבורכם (אפשר לשנות בכל רגע)', 'ask': 'כדי להמשיך אני צריך תשובה אחת קטנה',
            'content_saved': 'שמרתי את התוכן שכתבתם בסיכום הפרויקט, בדיוק כפי שנכתב. האישור הקודם בוטל — צריך לאשר את הגרסה המעודכנת.',
-           'ready_again': 'התוכנית מעודכנת ומוכנה. כדי להתחיל לבנות לחצו על "אישור והתחלת בנייה" — שום חיוב לא מתחיל לפני האישור.',
+           'ready_again': 'התוכנית מעודכנת ומוכנה. כדי להתחיל לבנות לחצו על "' + AF.APPROVE_BUTTON['he'] + '" — שום חיוב לא מתחיל לפני האישור.',
            'ready': 'יש לי תמונה מלאה. הכנתי תוכנית עבודה — אפשר לעבור עליה ולאשר. שום בנייה ושום חיוב לא מתחילים לפני אישור.',
            'blocked': 'יש דרישה שאי אפשר לבנות כרגע', 'nothing': 'לא זיהיתי פרטים חדשים. ספרו לי עוד על מה שתרצו, או שאלו "מה חסר?".',
            # owner 2026-11-18: an overrun stops the conversation and does not crash it -- said as it is, with the way on
@@ -188,7 +189,7 @@ _TXT = {
            'limit_daily_alt': 'הסוכן עדיין בהפסקה היומית ויחזור לענות בהמשך. גם ההודעה הזאת נשמרה.',
            'limit_ready': 'הנה הסיכום — אפשר לאשר אותו או לתקן:',
            'limit_incomplete': 'עוד חסר: {missing}.',
-           'limit_incomplete_any': 'כדי להתקדם, השלימו את המפרט בלשונית המפרט ואשרו משם.',
+           'limit_incomplete_any': 'כדי להתקדם, השלימו את הפרטים החסרים: לחצו על "' + AF.EDIT_BUTTON['he'] + '".',
            'limit_ask': 'ענו כאן במילים שלכם, בלי עלות:',
            'limit_still': 'השיחה עם הסוכן הסתיימה. מה שכתבתם נשמר.',
            'limit_still_alt': 'הסוכן כבר לא עונה בשיחה הזאת, אבל ההודעה נשמרה.',
@@ -199,9 +200,9 @@ _TXT = {
            'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
            'confirm_sensitive_words': 'זה נושא רגיש ({field}), אז אני צריך תשובה מפורשת שלכם, במילים.',
            'corrected': 'עדכנתי',
-           'cost': 'עלות הבנייה: {credits} קרדיטים. תקרת ההוצאה על מודלים לבנייה הזו: עד ${cap} (מוחזק לפני תחילת העבודה; מחויבת העלות בפועל).',
+           'cost': 'הבנייה תוריד {credits} מהיתרה שלכם. שום חיוב לא מתחיל לפני שתאשרו.',
            'canon_ack': 'לפני האישור: כתבו בהודעה את הפרטים החסרים שלמטה, או סמנו את התיבה שמאשרת בנייה בלעדיהם.',
-           'cost_unknown': 'את העלות המדויקת אחשב אחרי שהמפרט יאושר.', 'approve': 'כדי להתחיל, אשרו את הסיכום והעלות בכפתור "אישור והתחלת בנייה".',
+           'cost_unknown': 'את המחיר המדויק אחשב אחרי שתאשרו שהבנתי נכון.', 'approve': 'כדי להתחיל, לחצו על "' + AF.APPROVE_BUTTON['he'] + '".',
            'approve_not_ready': 'עדיין אי אפשר לאשר:', 'status_none': 'עדיין לא התחילה בנייה בפרויקט הזה.',
            'status': 'הבנייה האחרונה: {status}{phase}. משימות: {done} הושלמו, {running} בתהליך, {pending} ממתינות, {failed} נכשלו.',
            'modify': 'הבנתי שתרצו לשנות את המוצר הקיים. אשרו ואשלח את השינוי לצנרת השינויים (תוצג עלות לפני ביצוע).',
@@ -240,7 +241,7 @@ _TXT = {
            'safe_suffix': ' (safe default)',
            'got': 'Got it', 'assumed': 'I chose for you (change anything any time)', 'ask': 'To continue I need one short answer',
            'content_saved': 'I saved the content you wrote in the project summary, exactly as written. Any earlier approval is cancelled; please approve the updated version.',
-           'ready_again': 'The plan is up to date. To start, press "Approve and start build"; nothing is charged before you approve.',
+           'ready_again': 'The plan is up to date. To start, press "' + AF.APPROVE_BUTTON['en'] + '"; nothing is charged before you approve.',
            'ready': 'I have the full picture and prepared a work plan you can review and approve. Nothing is built or charged before you approve.',
            'blocked': 'Something you asked for cannot be built right now', 'nothing': 'I did not spot new details. Tell me more, or ask "what is missing?".',
            'limit_budget': 'This conversation reached its cost limit, so the assistant stops the open conversation here. What you wrote is saved.',
@@ -251,7 +252,7 @@ _TXT = {
            'limit_daily_alt': 'The assistant is still on its daily pause and will answer again later. This message is saved too.',
            'limit_ready': 'Here is the summary; you can approve it or correct it:',
            'limit_incomplete': 'Still missing: {missing}.',
-           'limit_incomplete_any': 'To go on, complete the specification in the specification tab and approve it there.',
+           'limit_incomplete_any': 'To go on, fill in the missing details: press "' + AF.EDIT_BUTTON['en'] + '".',
            'limit_ask': 'Answer here in your own words, at no cost:',
            'limit_still': 'The conversation with the assistant has ended. What you wrote is saved.',
            'limit_still_alt': 'The assistant no longer answers in this conversation, but your message is saved.',
@@ -263,10 +264,10 @@ _TXT = {
            'confirm_sensitive': 'This is sensitive ({field}), so I need your explicit confirmation with the button.',
            'confirm_sensitive_words': 'This is sensitive ({field}), so I need your explicit answer, in words.',
            'corrected': 'Updated',
-           'cost': 'This build costs {credits} credits. Model spending for it is capped at ${cap} (reserved before work starts; you are charged actual usage).',
+           'cost': 'This build takes {credits} from your balance. Nothing is charged before you approve.',
            'canon_ack': 'Before approving: send the missing details below in a message, or tick the box to build without them.',
-           'cost_unknown': 'I will calculate the exact cost once the spec is approved.',
-           'approve': 'To start, approve the summary and cost with "Approve and start building".',
+           'cost_unknown': 'I will calculate the exact price once you confirm that I understood you.',
+           'approve': 'To start, press "' + AF.APPROVE_BUTTON['en'] + '".',
            'approve_not_ready': 'It cannot be approved yet:', 'status_none': 'No build has started in this project yet.',
            'status': 'Latest build: {status}{phase}. Tasks: {done} done, {running} running, {pending} waiting, {failed} failed.',
            'modify': 'You want to change the existing product. Confirm and I will send it to the change pipeline (cost shown before it runs).',
@@ -454,8 +455,8 @@ class ConversationSupervisor:
             turn.brief_row = saved
             turn.questions = [d.BY_ID['unavailable']]
             names = ', '.join(dict.fromkeys(R.display_name(k, lang) for k in ask))
-            return [(f'{names} עדיין לא זמין אצלנו. לבנות בלעדיו? אם כן, זה ייכתב במפרט, והשאר ייבנה כרגיל.') if he else
-                    (f'{names} is not available yet. Build without it? If so, the spec says so and the rest is built as usual.')]
+            return [(f'{names} עדיין לא זמין אצלנו. לבנות בלעדיו? אם כן, זה ייכתב בסיכום שתאשרו, והשאר ייבנה כרגיל.') if he else
+                    (f'{names} is not available yet. Build without it? If so, the summary you confirm says so and the rest is built as usual.')]
         names = ', '.join(dict.fromkeys(R.display_name(k, lang) for k in keys))
         login = 'auth_session' in keys
         nxt = (('אפשר לבנות בלי התחברות — כתבו "בלי התחברות".' if login else 'ערכו את הבקשה בלעדיו.') if he else
@@ -804,7 +805,7 @@ class ConversationSupervisor:
         lang = lang or language_of(row.brief.prompt if row else 'שלום')
         t, T = AF.text(lang), _TXT['he' if lang == 'he' else 'en']
         turn = Turn('approve_spec', lang, '', row)
-        shown = {'he': 'אישרתי את המפרט', 'ar': 'وافقت على المواصفات'}.get(lang, 'I approve the spec')
+        shown = {'he': AF.CONFIRM_BUTTON['he'], 'ar': 'وافقت على المواصفات'}.get(lang, AF.CONFIRM_BUTTON['en'])
         current = row is not None and row.complete and brief_fingerprint == row.fingerprint
         feasible = current and self._feasibility(row).get('buildable')
         if feasible and self._contract_open(row):
