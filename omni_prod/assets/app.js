@@ -52,25 +52,36 @@ const T = {
     stopping:'העצירה תתבצע בסיום הצעד הנוכחי (עד כמה דקות).', buildCancelled:'הבנייה נעצרה. נחויב רק על מה שכבר נוצל.',
     liveLog:'מה קורה עכשיו', logEmpty:'ממתין לשרת הבנייה…', logNoBuild:'אין בנייה עדיין בפרויקט הזה.',
     checkingApproval:'מאמתים אישור ותקציב — הבנייה עדיין לא התחילה.',
-    uiEmpty:'הממשק שנוצר ריק', uiMissing:{form:'טופס', input:'שדות קלט', button:'כפתור', table:'טבלה', content:'תוכן'}, uiMissingLead:'חסרים בו', uiEmptyTail:'ולכן הגרסה לא אושרה.',
-    errCodes:{preview_no_build_queue:'הבנייה לא רצה בגרסה הזאת — זו גרסת בדיקה בלי תור בנייה. הקרדיטים הוחזרו.', build_not_found:'הבנייה לא התחילה: שרת הבנייה לא מצא אותה. לא חויבתם. נסו שוב, ואם זה חוזר פנו אלינו.', verification_failed:'הקוד שנוצר לא עבר את הבדיקות האוטומטיות גם אחרי סבבי תיקון.',
-      needs_customer_input:'הבנייה נעצרה בלי עוד סבבי תיקון: חסר פרט שרק אתם יכולים לתת. כתבו אותו בשיחה, או אשרו לבנות בלעדיו — לא נמציא אותו.',
-      release_policy_failed:'המוצר לא סומן כמוכן: אחת הבדיקות המחייבות (הפעלה, בדיקת התנהגות, בדיקת דפדפן או סקירת איכות) לא עברה או לא רצה. הפירוט בפרטים הטכניים.',
-      quality_gate_failed:'הקוד עבד, אבל לא עמד ברף האיכות הנדרש גם אחרי סבבי תיקון.',
-      preview_not_ready:'הקוד עבר את הבדיקות, אבל האתר לא עלה בהפעלת ניסיון ולכן לא אושר.',
-      security_gate_failed:'נמצאה בעיית אבטחה בקוד שנוצר, ולכן הוא לא אושר.',
-      rights_gate_not_clear:'הגרסה נשמרה, אבל חסר אישור זכויות לפני פרסום.',
-      unsupported_dependency:'הקוד ביקש ספרייה חיצונית שעדיין לא נתמכת בפלטפורמה.',
-      worker_lost:'הבנייה הפסיקה להגיב ושוחררה. לא חויבו קרדיטים. אפשר לנסות שוב.',
-      build_timeout:'הבנייה נמשכה יותר מדי זמן ונעצרה לפני שהושלמה. חויב רק מה שכבר נוצל. אפשר לנסות שוב.',
-      provider_liability_unknown:'הבנייה נעצרה באמצע. עוד לא ברור כמה נוצל, ולכן הסכום שמור עד שהחיוב יתברר. אפשר לנסות שוב.',
-      worker_exception:'אירעה תקלה פנימית במהלך הבנייה. הצוות קיבל את הפרטים.',
-      model_budget_exhausted:'הבנייה הגיעה לתקרת העלות שנקבעה לה ונעצרה לפני שהושלמה. אפשר לנסות שוב.',
-      model_unavailable:'ספקי ה־AI לא היו זמינים כרגע (עומס או מכסה). אפשר לנסות שוב בעוד כמה דקות.',
-      provider_quota_exhausted:'לפחות ספק AI אחד דיווח שנגמרה המכסה או יתרת הקרדיטים. אין כרגע ספק חלופי שהשלים את הבקשה. בדקו את הספק שמופיע בהמשך.',
-      model_policy_blocked:'מדיניות השימוש במודלים לא אפשרה את הבנייה בסביבה הזו.',
-      capability_gate_failed:'יכולת נדרשת (למשל יצירת תמונות) לא אומתה, ולכן הבנייה לא אושרה.',
-      image_mismatch:'התמונה שנוצרה לא מראה את מה שביקשתם, ולכן הבנייה נעצרה לפני כתיבת הקוד.'},
+    uiEmpty:'האתר שנבנה יצא ריק', uiMissing:{form:'טופס', input:'שדות קלט', button:'כפתור', table:'טבלה', content:'תוכן'}, uiMissingLead:'חסרים בו', uiEmptyTail:'אז לא מסרנו אותו.',
+    errCodes:{preview_no_build_queue:'בגרסת הבדיקה הזו של 148AI אי אפשר לבנות, ולכן הבנייה לא התחילה.', build_not_found:'הבנייה לא התחילה בגלל תקלה אצלנו.', verification_failed:'לא הצלחנו לבנות את האתר הפעם.',
+      needs_customer_input:'חסר פרט שרק אתם יכולים לתת, ולכן עצרנו את הבנייה. לא נמציא אותו.',
+      release_policy_failed:'בנינו את האתר, אבל הוא לא עבר את הבדיקות שלנו, אז לא מסרנו אותו.',
+      quality_gate_failed:'האתר נבנה אבל לא יצא מספיק טוב, אז לא מסרנו אותו.',
+      preview_not_ready:'בנינו את האתר, אבל הוא לא נפתח כשניסינו אותו, אז לא מסרנו אותו.',
+      security_gate_failed:'מצאנו באתר שנבנה בעיה שעלולה לסכן את המידע של המבקרים בו, אז לא מסרנו אותו.',
+      rights_gate_not_clear:'האתר נבנה ונשמר, אבל לא הצלחנו לוודא שמותר להשתמש בכל מה שיש בו (למשל תמונה או שם), ולכן הוא עוד לא מוכן.',
+      unsupported_dependency:'האתר שביקשתם צריך משהו שאנחנו עוד לא יודעים לבנות.',
+      worker_lost:'הבנייה נתקעה ועצרנו אותה.',
+      build_timeout:'הבנייה נמשכה יותר מדי זמן ועצרנו אותה לפני שהסתיימה.',
+      provider_liability_unknown:'הבנייה נעצרה באמצע. עוד לא ידוע אם חויבתם על מה שכבר נעשה.',
+      worker_exception:'משהו השתבש אצלנו בזמן הבנייה. זה לא בגללכם.',
+      model_budget_exhausted:'הבקשה גדולה מדי לבנייה אחת, והבנייה נעצרה לפני שהסתיימה.',
+      model_unavailable:'יש עומס אצלנו כרגע, והבנייה לא הושלמה. כדאי לחכות כמה דקות.',
+      provider_quota_exhausted:'יש עומס אצלנו כרגע, והבנייה לא הושלמה. כדאי לחכות כמה דקות.',
+      model_policy_blocked:'משהו השתבש אצלנו בזמן הבנייה. זה לא בגללכם.',
+      capability_gate_failed:'חלק מהאתר (למשל התמונות) לא הצלחנו להכין, אז לא מסרנו אותו.',
+      image_mismatch:'התמונה שנוצרה לא מראה את מה שביקשתם, ולכן עצרנו את הבנייה.'},
+    // Plain words (owner 2026-11-21): a failed build is said in the customer's terms -- what happened, what happened to their
+    // money (only when the record says so), and ONE action that exists. An unknown failure code gets failUnknown, never the
+    // raw text. serverSaid: the server's own English sentences (409/422), answered by their code.
+    failUnknown:'הבנייה לא הצליחה בגלל תקלה אצלנו.', failNotCharged:'לא חויבתם.',
+    failNext:{ retry:l=>`אפשר לנסות שוב: לחצו על "${l}".`, edit:l=>`אפשר לשנות את הבקשה ולנסות שוב: לחצו על "${l}".`, input:l=>`כתבו את הפרט החסר בבקשה: לחצו על "${l}".` },
+    failMissing:{ phone:'מספר הטלפון', hours:'שעות הפתיחה' },
+    ownerTech:'פרטים טכניים (מוצגים רק לחשבון הבעלים)',
+    serverSaid:{ build_contract_invalid:'התוכנית הזו כבר לא בתוקף. טענו את הדף מחדש ואשרו שוב.',
+      empty_message:'ההודעה ריקה. כתבו משהו, בחרו תשובה או צרפו תמונה.',
+      idempotency_conflict:'הבקשה הזו כבר נשלחה פעם עם פרטים אחרים. טענו את הדף מחדש ונסו שוב.',
+      approval_required:'קודם צריך לאשר שהבנתי נכון את הבקשה: לחצו בשיחה על "כן, זה נכון", ואז נסו שוב.' },
     techDetails:'פרטים טכניים', previewStarting:'מפעילים תצוגה מקדימה…', previewRunning:'התצוגה המקדימה פועלת.',
     previewNotPreviewable:'הגרסה הזאת לא ניתנת להצגה מקדימה: ', previewUnavailable:'תצוגה מקדימה לא זמינה בשרת הזה: ',
     previewFailed:'התצוגה המקדימה נכשלה: ', previewExpired:'התצוגה המקדימה פגה. אפשר להפעיל אותה מחדש.',
@@ -181,25 +192,33 @@ const T = {
     stopping:'The build stops when the current step ends (up to a few minutes).', buildCancelled:'The build was stopped. Only what was already used is charged.',
     liveLog:'What is happening now', logEmpty:'Waiting for the build server…', logNoBuild:'No build in this project yet.',
     checkingApproval:'Checking approval and budget — no build has started yet.',
-    uiEmpty:'The generated interface is empty', uiMissing:{form:'a form', input:'input fields', button:'a button', table:'a table', content:'content'}, uiMissingLead:'missing', uiEmptyTail:'so the version was not accepted.',
-    errCodes:{preview_no_build_queue:'The build did not run in this version: it is a test version without a build queue. The credits were returned.', build_not_found:'The build did not start: the build server could not find it. You were not charged. Try again; if it repeats, contact us.', verification_failed:'The generated code did not pass its automated checks, even after repair rounds.',
-      needs_customer_input:'The build stopped without more repair rounds: a detail only you can give is missing. Send it in the chat, or approve building without it -- we will not invent it.',
-      release_policy_failed:'The product was not marked ready: a mandatory check (start-up, behaviour, browser or quality review) did not pass or did not run. See the technical details.',
-      quality_gate_failed:'The code works but did not meet the quality bar, even after repair rounds.',
-      preview_not_ready:'The code passed its checks but the site did not start in a trial run, so it was not accepted.',
-      security_gate_failed:'A security problem was found in the generated code, so it was not accepted.',
-      rights_gate_not_clear:'The version was saved but needs rights clearance before publishing.',
-      unsupported_dependency:'The code asked for an external library the platform does not support yet.',
-      worker_lost:'The build stopped responding and was released. No credits were charged. You can try again.',
-      build_timeout:'The build took too long and was stopped before it finished. Only what was already used is charged. You can try again.',
-      provider_liability_unknown:'The build stopped part-way. What was used is not known yet, so the amount stays reserved until the charge is settled. You can try again.',
-      worker_exception:'An internal error occurred during the build. The details were recorded.',
-      model_budget_exhausted:'The build reached its cost ceiling and stopped before it was finished. You can try again.',
-      model_unavailable:'The AI providers were not available right now (load or quota). Try again in a few minutes.',
-      provider_quota_exhausted:'An AI provider reported exhausted quota/credits, and no fallback completed. Check the named provider below.',
-      model_policy_blocked:'The model usage policy did not allow this build in this environment.',
-      capability_gate_failed:'A required capability (such as image generation) was not verified, so the build was not accepted.',
-      image_mismatch:'The generated image does not show what you asked for, so the build stopped before any code was written.'},
+    uiEmpty:'The site that was built came out empty', uiMissing:{form:'a form', input:'input fields', button:'a button', table:'a table', content:'content'}, uiMissingLead:'missing', uiEmptyTail:'so we did not hand it over.',
+    errCodes:{preview_no_build_queue:'This test version of 148AI cannot build, so the build did not start.', build_not_found:'The build did not start because of a problem on our side.', verification_failed:'We could not build the site this time.',
+      needs_customer_input:'A detail only you can give is missing, so we stopped the build. We will not invent it.',
+      release_policy_failed:'We built the site, but it did not pass our checks, so we did not hand it over.',
+      quality_gate_failed:'The site was built but did not come out good enough, so we did not hand it over.',
+      preview_not_ready:'We built the site, but it did not open when we tried it, so we did not hand it over.',
+      security_gate_failed:'We found a problem in the built site that could put its visitors\' information at risk, so we did not hand it over.',
+      rights_gate_not_clear:'The site was built and saved, but we could not confirm that everything in it (a picture or a name, for example) may be used, so it is not ready yet.',
+      unsupported_dependency:'The site you asked for needs something we cannot build yet.',
+      worker_lost:'The build got stuck and we stopped it.',
+      build_timeout:'The build took too long and we stopped it before it finished.',
+      provider_liability_unknown:'The build stopped part-way. It is not known yet whether you were charged for what was already done.',
+      worker_exception:'Something went wrong on our side during the build. It was not caused by you.',
+      model_budget_exhausted:'The request is too big for one build, and the build stopped before it finished.',
+      model_unavailable:'We are very busy right now, and the build was not finished. It is worth waiting a few minutes.',
+      provider_quota_exhausted:'We are very busy right now, and the build was not finished. It is worth waiting a few minutes.',
+      model_policy_blocked:'Something went wrong on our side during the build. It was not caused by you.',
+      capability_gate_failed:'We could not prepare part of the site (the pictures, for example), so we did not hand it over.',
+      image_mismatch:'The generated image does not show what you asked for, so we stopped the build.'},
+    failUnknown:'The build did not succeed because of a problem on our side.', failNotCharged:'You were not charged.',
+    failNext:{ retry:l=>`You can try again: press "${l}".`, edit:l=>`You can change the request and try again: press "${l}".`, input:l=>`Add the missing detail to the request: press "${l}".` },
+    failMissing:{ phone:'the phone number', hours:'the opening hours' },
+    ownerTech:'Technical details (shown to the owner account only)',
+    serverSaid:{ build_contract_invalid:'This plan can no longer be used. Reload the page and approve again.',
+      empty_message:'The message is empty. Write something, choose an answer or attach an image.',
+      idempotency_conflict:'This request was already sent once with different details. Reload the page and try again.',
+      approval_required:'First confirm that I understood the request: press "Yes, that is right" in the chat, then try again.' },
     techDetails:'Technical details', previewStarting:'Starting preview…', previewRunning:'Preview is running.',
     previewNotPreviewable:'This version cannot be previewed: ', previewUnavailable:'Preview is not available on this server: ',
     previewFailed:'Preview failed: ', previewExpired:'The preview expired. You can start it again.',
@@ -1107,11 +1126,14 @@ function renderTrack() {
   if (status === 'ready') { msg.className = 'msg ok'; msg.textContent = t('buildReady'); const nr = notRunLine(b); if (nr) msg.append(h('div', { class: 'notrun' }, nr)); }
   else if (status === 'cancelled') { msg.textContent = t('buildCancelled'); }
   else if (status === 'failed') {
-    // Customer-facing reason; the raw technical message stays one click away.
-    msg.replaceChildren(`${t('buildFailed')}: ${friendlyError(b)}`);
-    const nr = notRunLine(b); if (nr) msg.append(h('div', { class: 'notrun' }, nr));   // warehouse 104
-    const why = stopReasonLine(b); if (why) msg.append(h('div', { class: 'stop' }, why));   // warehouse 102
-    if (b.error_message) msg.append(h('details', { class: 'tech' }, h('summary', {}, t('techDetails')), h('code', { dir: 'ltr' }, b.error_message)));
+    // Plain words (owner 2026-11-21): what happened, what happened to the money, and the one action -- as a button.
+    const fv = failureView(b);
+    msg.replaceChildren(fv.text);
+    msg.append(h('div', {}, failureButton(fv)));
+    // The checks that did not run (warehouse 104), why the repair stopped (warehouse 102) and the raw message: owner only.
+    const tech = ownerTech(b);
+    if (tech) msg.append(h('details', { class: 'tech' }, h('summary', {}, t('ownerTech')),
+      ...tech.lines.map(x => h('div', { class: 'notrun' }, x)), h('code', { dir: 'ltr' }, tech.raw)));
     // CEO 2026-11-08: a failed founder build keeps its best candidate as a draft version; open it next to the failures.
     if (b.result_version_id) {
       const btn = h('button', { class: 'btn', type: 'button' }, t('openDraftPreview'));
@@ -1243,9 +1265,10 @@ function friendlyError(b) {
   const known = (t('errCodes') || {})[b.error_code];
   // #335 (d): which detail is missing, in the customer's words
   if (b.error_code === 'needs_customer_input') {
-    const names = S.lang === 'en' ? { phone: 'the phone number', hours: 'the opening hours' } : { phone: 'מספר הטלפון', hours: 'שעות הפתיחה' };
+    const names = t('failMissing') || {};
     const m = String(b.error_message || '').match(/missing from the customer: ([a-z, ]+)/);
-    const what = m ? m[1].split(',').map(x => names[x.trim()] || x.trim()).join(', ') : '';
+    // a detail the table has no words for is not named at all: its internal key is never shown
+    const what = m ? m[1].split(',').map(x => names[x.trim()]).filter(Boolean).join(', ') : '';
     return known + (what ? ' (' + what + ')' : '');
   }
   if (b.error_code === 'image_mismatch') {
@@ -1254,12 +1277,6 @@ function friendlyError(b) {
     if (m) return known + (S.lang === 'en' ? ` Asked: "${m[1]}". The image shows: "${m[2]}".`
                                             : ` ביקשתם: "${m[1]}". בתמונה: "${m[2]}".`);
     return known;
-  }
-  if (b.error_code === 'provider_quota_exhausted') {
-    // Show the named route only when the server reported a quota response.
-    // This is NOT a provider billing balance; it can also be a rate/usage quota.
-    const match = String(b.error_message || '').match(/AI provider quota\/credits unavailable:\s*([^;]+)/);
-    return known + (match && match[1] ? ' — ' + match[1] : '');
   }
   // 2026-11-08: 'all model routes failed: ... does not fit the remaining budget' is the build budget running out,
   // not the providers being down (bld_e6b94762 showed 'providers unavailable' while every route was over budget).
@@ -1272,7 +1289,46 @@ function friendlyError(b) {
     const parts = (m ? m[1].split(',') : []).map(k => names[k]).filter(Boolean);
     return t('uiEmpty') + (parts.length ? ': ' + t('uiMissingLead') + ' ' + parts.join(', ') : '') + ', ' + t('uiEmptyTail');
   }
-  return known || b.error_message || b.error_code || '';
+  // No words for this code: one default line. The raw message and the code are the owner's (ownerTech), never the customer's.
+  return known || t('failUnknown');
+}
+// Who sees the technical blocks: only the owner's account. /api/v28/me says is_founder (pricing.m5_founder_account);
+// anything else -- false, missing, not loaded, not a boolean -- is a customer.
+function ownerView() {
+  return Boolean(S.me && S.me.is_founder === true);
+}
+// "You were not charged" is said only when the build's own record says the reservation was released (the worker's
+// evidence.billing; maintenance.reap_build), or for the three codes whose code path releases it without writing
+// evidence (maintenance.run_once worker_lost; worker_tasks._fail_build_not_found; investor_app._close_preview_build).
+const NOT_CHARGED_BILLING = ['released', 'exposure_checked_release'];
+const NOT_CHARGED_CODES = ['worker_lost', 'build_not_found', 'preview_no_build_queue'];
+// The charge is not known yet (maintenance: the reservation is held for reconciliation): never "not charged", whatever else is recorded.
+const CHARGE_UNKNOWN_CODES = ['provider_liability_unknown'];
+// The one action. Trying the same request again cannot help for these; the request itself has to change.
+const FAIL_ACTION = { needs_customer_input: 'input', model_budget_exhausted: 'edit', unsupported_dependency: 'edit', rights_gate_not_clear: 'edit' };
+function failureView(b) {
+  const what = friendlyError(b);
+  const billing = b.evidence && b.evidence.billing;
+  const notCharged = !CHARGE_UNKNOWN_CODES.includes(b.error_code)
+    && (NOT_CHARGED_BILLING.includes(billing) || (!billing && NOT_CHARGED_CODES.includes(b.error_code)));
+  const action = Object.prototype.hasOwnProperty.call(FAIL_ACTION, b.error_code) ? FAIL_ACTION[b.error_code] : 'retry';
+  const label = action === 'retry' ? t('actRetryBuild') : t('editAll');
+  const text = [what, notCharged ? t('failNotCharged') : '', t('failNext')[action](label)].filter(Boolean).join(' ');
+  return { what, notCharged, action, label, text };
+}
+function failureButton(fv) {
+  const go = fv.action === 'retry'
+    ? async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const c = $('confirmBtn'); if (c) c.focus(); }
+    : () => { if (S.disc) beginBriefEdit(); else { const i = $('chatInput'); if (i) i.focus(); } };
+  return h('button', { class: 'btn primary', type: 'button', onclick: go }, fv.label);
+}
+function ownerTech(b) {
+  if (!ownerView() || !b) return null;
+  const lines = [notRunLine(b), stopReasonLine(b)].filter(Boolean);
+  return { lines, raw: [b.error_code, b.error_message].filter(Boolean).join(': ') };
+}
+function requestEditLabel(p) {
+  return p && p.brief_revision ? t('updateRequest') : t('editRequest');
 }
 
 /* ---------- versions ---------- */
@@ -1691,7 +1747,7 @@ function renderChat() {
   if (S.build && S.build.status) {
     const st = String(S.build.status).toLowerCase();
     const counts = (S.tasks && S.tasks.tasks || []).reduce((a, x) => { a[x.state] = (a[x.state] || 0) + 1; return a; }, {});
-    const label = st === 'ready' ? t('buildReady') : st === 'failed' ? `${t('buildFailed')}: ${friendlyError(S.build)}` :
+    const label = st === 'ready' ? t('buildReady') : st === 'failed' ? friendlyError(S.build) :
       st === 'cancelled' ? t('buildCancelled') : `${t('buildRunning')}${S.build.phase ? ` · ${S.build.phase}` : ''}`;
     kids.push(h('button', { type: 'button', class: `statusline ghost${st === 'failed' ? ' bad' : ''}`, onclick: () => openTab('build') }, label,
       counts.SUCCEEDED ? ` · ${counts.SUCCEEDED} ${t('ts_SUCCEEDED')}` : ''));

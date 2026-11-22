@@ -1575,7 +1575,10 @@ def v28_me(request: Request) -> dict:
     try:
         token = _v28_bearer(request)
         a = _v28.account(token)
-        payload = {'id': a.id, 'email': a.email, 'created_at': a.created_at, 'subscription': _v28.subscription(token=token)}
+        # is_founder (owner 2026-11-21): the workspace shows the technical blocks of a failed build -- raw error text,
+        # check names, repair stop reasons -- to the owner's account only. The same check as everywhere (_founder).
+        payload = {'id': a.id, 'email': a.email, 'created_at': a.created_at, 'subscription': _v28.subscription(token=token),
+                   'is_founder': _founder(a.id)}
         identity = getattr(getattr(_v28, 'accounts', None), 'identity', None)
         if identity is not None:
             payload.update(identity.account_state(a.id))
