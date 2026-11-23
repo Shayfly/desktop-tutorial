@@ -20,7 +20,7 @@ const ROOT = path.join(__dirname, '..');
 const AXE = process.env.AXE_PATH || require.resolve('axe-core/axe.min.js');
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const WIDTHS = [320, 390, 1440];
-const LANGS = ['he', 'en'];
+const LANGS = ['he', 'en', 'ar'];
 const browserOptions = process.env.CHROMIUM_PATH
   ? { executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox', '--disable-gpu'] } : {};
 

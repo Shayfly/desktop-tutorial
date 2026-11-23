@@ -54,7 +54,7 @@ class FailureWitness:
 
 def message_for(*, build_id: str, error_code: str | None, billing: str | None, lang: str = 'he') -> dict:
     """The assistant message for a failed build: text + the one action."""
-    T = TEXT['en' if lang == 'en' else 'he']
+    T = TEXT['he' if lang == 'he' else 'en']   # an Arabic customer reads English, not Hebrew, until Arabic is written
     customer = error_code in CUSTOMER_FIXES
     parts = [T['failed']]
     if billing == 'released':

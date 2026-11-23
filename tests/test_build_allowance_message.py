@@ -108,5 +108,5 @@ class BuildAllowanceMessageTests(unittest.TestCase):
         self.assertIn("t('errPlanNotIncluded')", explain)
         self.assertIn("t('errAllowanceExhausted')", explain)
         self.assertNotIn('לשדרג', explain)
-        self.assertEqual(source.count('errPlanNotIncluded:'), 2)
-        self.assertEqual(source.count('errAllowanceExhausted:'), 2)
+        self.assertEqual(source.count('errPlanNotIncluded:'), 3)       # he, en, ar (2026-11-22: the platform in Arabic)
+        self.assertEqual(source.count('errAllowanceExhausted:'), 3)       # he, en, ar (2026-11-22: the platform in Arabic)

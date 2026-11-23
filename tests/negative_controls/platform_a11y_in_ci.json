@@ -71,6 +71,40 @@
    "expect_failed": [
     "test_the_design_review_fixes_run_too"
    ]
+  },
+  {
+   "id": "NC5",
+   "what": "the languages test is dropped from the browser job",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - run: node tests/ui_languages_browser.cjs\n",
+     "new": "      - run: echo skipped  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_platform_a11y_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_every_platform_language_is_checked_whole"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the accessibility check no longer covers Arabic",
+   "mutations": [
+    {
+     "file": "tests/platform_a11y_browser.cjs",
+     "old": "const LANGS = ['he', 'en', 'ar'];",
+     "new": "const LANGS = ['he', 'en'];  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_platform_a11y_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_every_platform_language_is_checked_whole"
+   ]
   }
  ]
 }

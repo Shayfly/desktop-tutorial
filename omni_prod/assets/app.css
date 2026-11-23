@@ -792,3 +792,14 @@ button.secondary:not(.danger):hover{border-color:var(--v-yellow-line)}
 .deviceSwitch button{min-height:44px;border-radius:10px;font-weight:500;color:var(--v-muted)}
 .deviceSwitch button[aria-pressed="true"]{background:var(--v-fire);color:var(--v-ink);box-shadow:inset 0 0 0 1px var(--v-fire-line);font-weight:700}
 .workspace[data-device="phone"] .stage .viewport{width:min(390px,100%);margin-inline:auto;flex:1 0 auto}
+/* the language picker (2026-11-22): a native select, so every language is one keyboard or screen-reader choice away */
+.langPick{min-height:44px;width:auto;padding-inline:.6rem;border:1px solid var(--rule);border-radius:var(--radius-control);background:var(--surface);color:var(--ink);font:inherit}
+body.signed-out .topbar .langPick{background:transparent;color:#f2e9d8;border-color:#40392d}
+body.signed-out .topbar .langPick option{color:#171610;background:#fff}
+/* review A11Y-3 (2026-11-22): on a narrow phone the status chip took the row and squeezed the project name to 28px
+   (English, 320px); the chip moves to its own full-width row under the name, so neither is cut */
+@media (max-width:420px){
+  .workspace>.mobileWorkspaceHead{flex-wrap:wrap;row-gap:4px}
+  .workspace .mobileWorkspaceHead .chatTitle{flex:1 1 0}
+  .workspace .mobileWorkspaceHead .pill{order:9;flex:1 0 100%;max-width:100%;text-align:center}
+}
