@@ -1,3 +1,25 @@
+# 2026-11-23 — tonight's fixes: the build no longer dies on a picture nobody asked for, the chat never ends, the phone (Claude Code)
+
+- **Merged** (all CI green on the exact head; the owner's approval in the chat): #514 `d6eb690` (build count from 2026-11-23),
+  #516 `e388915` (2D game kit, warehouse 134 stage 1), #517 `8be4aa7` (warehouse 134/135), #518 `e93d01b` (chat fixes),
+  #519 `c43095c` (image gate, logo, failure words).
+- **NOT live yet (verified):** neither #518 nor #519 was merged with a title ending in `[release]`, so Vercel canceled
+  production (deployment of `e93d01b`: CANCELED) and the worker run 45245404245 says "SKIP -- not a release". This PR's
+  merge, titled with `[release]`, releases Vercel; the worker needs "Run workflow" on Deploy build worker (main), because
+  a docs-only push does not trigger it.
+- **Root of three failed builds** (production, read-only): bld_7b541f93 (ShayFly), bld_4bb6207f and bld_6c8c2d3a (GOA),
+  all `image_mismatch: generated image(s) without the subject they were made from`. DECISIONS 5's default hero is
+  required=False ("never fails the build") but image_match blocked it for having no subject. Fixed in #519
+  (`image_match.check_optional`): kept only if checked and matching, otherwise dropped; an asked-for picture still blocks.
+  Evidence: tests/test_default_hero_never_fails_the_build.py (7), controls default_hero_never_fatal 5/5, lens11 9/9.
+  **Not verified:** a real production build after the release (needs a paid build).
+- **Chat** (#518): no turn cap (the ShayFly conversation closed after 8 turns that cost $0.003 in all); Enter is a new
+  line on a phone; the page returns to the top when the keyboard closes; a card opens as a sheet over the conversation
+  with the tabs reachable; the conversation rests above the message box. tests/phone_chat_browser.cjs: 4 checks, 6/6 faults.
+- **Open:** the bot re-asks a settled question (GOA, "האם זה אתר תוכן בלבד" twice); new details become "what is right?"
+  instead of being added (ShayFly lost its packages and prices); "מאשר" typed instead of the button (a money gate, not
+  built); one picture per destination (not built).
+
 # 2026-11-22 — the platform for everyone: no naming step, plain words, readable text, 44px controls (Claude, a second session beside Claude Code)
 
 - **The order.** The owner, 2026-11-22 23:18, after #503 went live: upgrade the platform's look to the level of the large
