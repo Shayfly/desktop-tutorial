@@ -1,0 +1,77 @@
+{
+ "pr": "uploaded-logo-and-honest-image-failure",
+ "sha256": [
+  "tests/test_uploaded_logo.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "an uploaded logo is recorded as 'later' again: the summary tells the customer no logo arrived",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "        new.fields['logo'] = {'value': 'uploaded', 'source': 'answer', 'question_id': 'image_kind', 'confidence': 'confirmed'}",
+     "new": "        new.fields['logo'] = {'value': 'later', 'source': 'answer', 'question_id': 'image_kind', 'confidence': 'confirmed'}"
+    }
+   ],
+   "targets": [
+    "tests/test_uploaded_logo.py::TheUploadedLogoShowsInTheSummary"
+   ],
+   "expect_failed": [
+    "test_an_uploaded_logo_sets_the_field_to_uploaded_and_keeps_the_asset",
+    "test_resaying_i_have_a_logo_never_downgrades_the_uploaded_one"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the 'uploaded' answer has no words of its own, so the summary falls back to a raw value",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "                      _o('uploaded', 'הלוגו שהעליתם', 'The logo you uploaded'),\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_uploaded_logo.py::TheUploadedLogoShowsInTheSummary"
+   ],
+   "expect_failed": [
+    "test_the_summary_names_the_uploaded_logo_in_every_language"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the uploaded logo asset is dropped the moment the field is not 'later' (the build loses the logo)",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "    if 'logo' in answers and new.values().get('logo') not in ('later', 'uploaded'):",
+     "new": "    if 'logo' in answers and new.values().get('logo') != 'later':"
+    }
+   ],
+   "targets": [
+    "tests/test_uploaded_logo.py::UploadedLogoTests"
+   ],
+   "expect_failed": [
+    "test_logo_attachment_is_bound_to_brief_fingerprint"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "re-saying \"I have a logo\" downgrades the uploaded logo and asks \"what is right?\"",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/agent.py",
+     "old": "        if p.field == 'logo' and p.value == 'later' and new.assets.get('logo'):\n            # the owner, 2026-11-23: a logo was uploaded (assets['logo'], field 'uploaded'). Re-saying \"I have a logo\"\n            # must not downgrade it to 'later' or raise a conflict -- the uploaded logo stands.\n            continue\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_uploaded_logo.py::TheUploadedLogoShowsInTheSummary"
+   ],
+   "expect_failed": [
+    "test_resaying_i_have_a_logo_never_downgrades_the_uploaded_one"
+   ]
+  }
+ ]
+}

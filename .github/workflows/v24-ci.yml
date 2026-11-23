@@ -279,6 +279,7 @@ jobs:
           node --check tests/spec_card_browser.cjs
           node --check tests/ui_languages_browser.cjs
           node --check tests/phone_chat_browser.cjs
+          node --check tests/image_failure_words_browser.cjs
       # axe-core: the WCAG engine of the platform accessibility check (the owner, 2026-11-22: accessible to everyone)
       - run: npm install --no-save --package-lock=false playwright@1.62.1 axe-core@4.10.3
       # 2026-10-27: `playwright install --with-deps` hung for the whole 5-minute step on 2 of the last ~15 runs
@@ -342,6 +343,9 @@ jobs:
       # takes the visible height and returns to the top when the keyboard closes; a card opens as a full sheet with a
       # close button -- each also fails with its fix removed
       - run: node tests/phone_chat_browser.cjs
+        timeout-minutes: 3
+      # an image the build never checked must not be reported as one that does not show what was asked (bld_7b541f93)
+      - run: node tests/image_failure_words_browser.cjs
         timeout-minutes: 3
   customer-ui:
     # Preserve the required check name and fail closed if classification fails.
