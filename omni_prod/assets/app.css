@@ -208,6 +208,8 @@ dialog::backdrop{background:rgba(8,16,28,.45)}
 /* ============ Wave A: conversation-first workspace (sidebar | chat | preview) ============ */
 :root{--sb-w:272px;--stage-w:42%}
 body.signed-in{height:100vh;height:100dvh;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+body.signed-in{height:var(--vvh,100dvh)}
+html:has(body.signed-in){overflow:hidden;height:100%}
 body.signed-in .topbar{display:none}
 body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
 .workspace{display:flex;flex:1;min-height:0}
@@ -835,4 +837,17 @@ body.signed-out .topbar .brand b{background:none;color:var(--v-yellow);padding:0
   .welcomeCopy #heroTitle{order:1}.welcomeCopy #heroLead{order:2}.auth{order:3}
   .welcomeCopy .howto{display:grid;order:4;margin:8px 0 0}
   .welcomeCopy .scope{order:5}
+}
+
+/* The owner, 2026-11-23 (phone): "תוכנית ועלות" opened as a box cut inside the conversation, with the chat showing under
+   it. On a phone a card opens as one full sheet over the conversation, with its title and a plain "close" button;
+   the conversation is back exactly where it was when it closes. */
+@media (max-width:900px){
+  .ctx.open{position:fixed;inset:0;z-index:60;max-height:none;height:var(--vvh,100dvh);overflow:auto;overscroll-behavior:contain;
+    padding:0 16px calc(24px + env(safe-area-inset-bottom));background:var(--paper);border:0;align-content:start}
+  .ctx.open .ctxToolbar{position:sticky;top:0;margin:0 -16px;border-radius:0;border:0;border-block-end:1px solid var(--rule);
+    padding:calc(10px + env(safe-area-inset-top)) 16px 10px;font-size:18px;background:var(--surface);box-shadow:0 2px 10px rgba(8,16,28,.06)}
+  .ctx.open #ctxMinimize{min-width:44px;min-height:44px;font-size:0;border:1px solid var(--rule);border-radius:12px;background:var(--surface)}
+  .ctx.open #ctxMinimize::after{content:attr(aria-label);font-size:15px;font-weight:600;padding-inline:12px}
+  .ctx.open .panel{box-shadow:none}
 }
