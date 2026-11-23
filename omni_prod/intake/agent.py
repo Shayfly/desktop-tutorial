@@ -93,6 +93,10 @@ def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True
         q = d.BY_ID.get(p.field)
         if q is None:
             continue
+        if p.field == 'logo' and p.value == 'later' and new.assets.get('logo'):
+            # the owner, 2026-11-23: a logo was uploaded (assets['logo'], field 'uploaded'). Re-saying "I have a logo"
+            # must not downgrade it to 'later' or raise a conflict -- the uploaded logo stands.
+            continue
         old = new.fields.get(p.field)
         origin = getattr(p, 'origin', 'deterministic')
         if p.field == 'content_only' and origin == 'model':

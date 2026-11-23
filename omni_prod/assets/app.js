@@ -70,7 +70,8 @@ const T = {
       provider_quota_exhausted:'יש עומס אצלנו כרגע, והבנייה לא הושלמה. כדאי לחכות כמה דקות.',
       model_policy_blocked:'משהו השתבש אצלנו בזמן הבנייה. זה לא בגללכם.',
       capability_gate_failed:'חלק מהאתר (למשל התמונות) לא הצלחנו להכין, אז לא מסרנו אותו.',
-      image_mismatch:'התמונה שנוצרה לא מראה את מה שביקשתם, ולכן עצרנו את הבנייה.'},
+      image_mismatch:'התמונה שנוצרה לא מראה את מה שביקשתם, ולכן עצרנו את הבנייה.',
+      image_not_described:'כדי להכין תמונה היינו צריכים לדעת מה היא מראה, וזה לא היה ברור בבקשה, אז עצרנו לפני שבנינו. כתבו מה התמונה צריכה להראות (למשל ״תמונה של כל יעד״) ונמשיך.'},
     // Plain words (owner 2026-11-21): a failed build is said in the customer's terms -- what happened, what happened to their
     // money (only when the record says so), and ONE action that exists. An unknown failure code gets failUnknown, never the
     // raw text. serverSaid: the server's own English sentences (409/422), answered by their code.
@@ -210,7 +211,8 @@ const T = {
       provider_quota_exhausted:'We are very busy right now, and the build was not finished. It is worth waiting a few minutes.',
       model_policy_blocked:'Something went wrong on our side during the build. It was not caused by you.',
       capability_gate_failed:'We could not prepare part of the site (the pictures, for example), so we did not hand it over.',
-      image_mismatch:'The generated image does not show what you asked for, so we stopped the build.'},
+      image_mismatch:'The generated image does not show what you asked for, so we stopped the build.',
+      image_not_described:'To make a picture we needed to know what it should show, and the request did not make it clear, so we stopped before building. Tell us what the picture should show (for example "a photo of each destination") and we continue.'},
     failUnknown:'The build did not succeed because of a problem on our side.', failNotCharged:'You were not charged.',
     failNext:{ retry:l=>`You can try again: press "${l}".`, edit:l=>`You can change the request and try again: press "${l}".`, input:l=>`Add the missing detail to the request: press "${l}".` },
     failMissing:{ phone:'the phone number', hours:'the opening hours' },
@@ -450,7 +452,7 @@ const T = {
     uiMissing: {"form":"استمارة","input":"حقول إدخال","button":"زر","table":"جدول","content":"محتوى"},
     uiMissingLead: "ينقصه",
     uiEmptyTail: "لذلك لم نسلّمه.",
-    errCodes: {"preview_no_build_queue":"لا يمكن البناء في هذه النسخة التجريبية من 148AI، لذلك لم يبدأ البناء.","build_not_found":"لم يبدأ البناء بسبب عطل لدينا.","verification_failed":"لم ننجح في بناء الموقع هذه المرة.","needs_customer_input":"تنقص معلومة لا يستطيع تقديمها إلا أنتم، لذلك أوقفنا البناء. لن نختلقها.","release_policy_failed":"بنينا الموقع، لكنه لم يجتز فحوصاتنا، لذلك لم نسلّمه.","quality_gate_failed":"بُني الموقع لكنه لم يخرج بجودة كافية، لذلك لم نسلّمه.","preview_not_ready":"بنينا الموقع، لكنه لم يُفتح عندما جرّبناه، لذلك لم نسلّمه.","security_gate_failed":"وجدنا في الموقع الذي بُني مشكلة قد تعرّض معلومات زوّاره للخطر، لذلك لم نسلّمه.","rights_gate_not_clear":"بُني الموقع وحُفظ، لكننا لم نتمكن من التأكد من أنه مسموح استخدام كل ما فيه (مثلًا صورة أو اسم)، لذلك ليس جاهزًا بعد.","unsupported_dependency":"الموقع الذي طلبتموه يحتاج إلى شيء لا نعرف كيف نبنيه بعد.","worker_lost":"علِق البناء فأوقفناه.","build_timeout":"استغرق البناء وقتًا أطول من اللازم، فأوقفناه قبل أن ينتهي.","provider_liability_unknown":"توقف البناء في منتصفه. لا يُعرف بعد إن كان قد خُصم منكم مقابل ما أُنجز حتى الآن.","worker_exception":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","model_budget_exhausted":"الطلب كبير جدًا على بناء واحد، وقد توقف البناء قبل أن ينتهي.","model_unavailable":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","provider_quota_exhausted":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","model_policy_blocked":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","capability_gate_failed":"لم نتمكن من تجهيز جزء من الموقع (مثلًا الصور)، لذلك لم نسلّمه.","image_mismatch":"الصورة التي أُنشئت لا تُظهر ما طلبتموه، لذلك أوقفنا البناء."},
+    errCodes: {"preview_no_build_queue":"لا يمكن البناء في هذه النسخة التجريبية من 148AI، لذلك لم يبدأ البناء.","build_not_found":"لم يبدأ البناء بسبب عطل لدينا.","verification_failed":"لم ننجح في بناء الموقع هذه المرة.","needs_customer_input":"تنقص معلومة لا يستطيع تقديمها إلا أنتم، لذلك أوقفنا البناء. لن نختلقها.","release_policy_failed":"بنينا الموقع، لكنه لم يجتز فحوصاتنا، لذلك لم نسلّمه.","quality_gate_failed":"بُني الموقع لكنه لم يخرج بجودة كافية، لذلك لم نسلّمه.","preview_not_ready":"بنينا الموقع، لكنه لم يُفتح عندما جرّبناه، لذلك لم نسلّمه.","security_gate_failed":"وجدنا في الموقع الذي بُني مشكلة قد تعرّض معلومات زوّاره للخطر، لذلك لم نسلّمه.","rights_gate_not_clear":"بُني الموقع وحُفظ، لكننا لم نتمكن من التأكد من أنه مسموح استخدام كل ما فيه (مثلًا صورة أو اسم)، لذلك ليس جاهزًا بعد.","unsupported_dependency":"الموقع الذي طلبتموه يحتاج إلى شيء لا نعرف كيف نبنيه بعد.","worker_lost":"علِق البناء فأوقفناه.","build_timeout":"استغرق البناء وقتًا أطول من اللازم، فأوقفناه قبل أن ينتهي.","provider_liability_unknown":"توقف البناء في منتصفه. لا يُعرف بعد إن كان قد خُصم منكم مقابل ما أُنجز حتى الآن.","worker_exception":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","model_budget_exhausted":"الطلب كبير جدًا على بناء واحد، وقد توقف البناء قبل أن ينتهي.","model_unavailable":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","provider_quota_exhausted":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","model_policy_blocked":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","capability_gate_failed":"لم نتمكن من تجهيز جزء من الموقع (مثلًا الصور)، لذلك لم نسلّمه.","image_mismatch":"الصورة التي أُنشئت لا تُظهر ما طلبتموه، لذلك أوقفنا البناء.","image_not_described":"لإنشاء صورة كنا بحاجة لمعرفة ما تُظهره، ولم يكن ذلك واضحًا في الطلب، فتوقفنا قبل البناء. اكتبوا ما يجب أن تُظهره الصورة (مثلًا \"صورة لكل وجهة\") ونكمل."},
     failUnknown: "لم ينجح البناء بسبب عطل لدينا.",
     failNotCharged: "لم يُخصم منكم أي مبلغ.",
     failNext: { edit: l=>`يمكنكم تغيير الطلب والمحاولة مرة أخرى: اضغطوا على "${l}".`, input: l=>`اكتبوا التفصيل الناقص في الطلب: اضغطوا على "${l}".`, retry: l=>`يمكنكم المحاولة مرة أخرى: اضغطوا على "${l}".` },
@@ -2008,6 +2010,11 @@ function friendlyError(b) {
     const m = String(b.error_message || '').match(/asked "([^"]*)"; the image shows "([^"]*)"/);
     if (m) return known + ({ en: ` Asked: "${m[1]}". The image shows: "${m[2]}".`,
                             ar: ` طلبتم: "${m[1]}". في الصورة: "${m[2]}".` }[S.lang] ?? ` ביקשתם: "${m[1]}". בתמונה: "${m[2]}".`);
+    // The owner, 2026-11-23 (ShayFly, bld_7b541f93): the image was never checked -- "without the subject they were
+    // made from" is NOT_RUN, not a mismatch. The customer must not read that the picture does not match when nobody
+    // looked at it; say honestly it was not clear what the picture should show.
+    if (/without the subject they were made from|could not be checked against the request/.test(String(b.error_message || '')))
+      return (t('errCodes') || {}).image_not_described || known;
     return known;
   }
   // 2026-11-08: 'all model routes failed: ... does not fit the remaining budget' is the build budget running out,
