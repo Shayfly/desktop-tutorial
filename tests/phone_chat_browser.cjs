@@ -29,6 +29,9 @@ const FAULTS = [
     js: ["  if (vv) document.documentElement.style.setProperty('--vvh', `${Math.round(vv.height)}px`);\n", ''] },
   { id: 'card_cut_inside_chat', check: 'sheet', css: '\n@media (max-width:900px){.ctx.open{position:static!important;max-height:42vh!important}}' },
   { id: 'conversation_far_from_the_box', check: 'near', css: '\n.thread>*:first-child{margin-block-start:0!important}' },
+  // caught by CI on 2026-11-23: a sheet at inset:0 covers #mobileTabs, so the customer cannot leave the card
+  { id: 'sheet_covers_the_bottom_tabs', check: 'sheet',
+    css: '\n@media (max-width:900px){.ctx.open{position:fixed!important;inset:0!important}}' },
 ];
 
 function served(fault) {
@@ -125,10 +128,16 @@ const CHECKS = {
     await page.evaluate(() => { document.getElementById('planPanel').hidden = false;
       document.getElementById('planPanel').textContent = 'תוכנית ועלות: 500 מהיתרה'; renderTabs(); openTab('plan'); });
     await page.waitForTimeout(150);
-    const box = await page.locator('#ctx').boundingBox();
-    const vp = page.viewportSize();
-    if (!box || box.y > 1 || box.height < vp.height - 2 || box.width < vp.width - 2)
-      return `the card is not a full sheet (${box ? `${Math.round(box.width)}x${Math.round(box.height)} at y=${Math.round(box.y)}` : 'not shown'})`;
+    // one sheet over the whole conversation -- not a box cut inside it, and never over the bottom tabs
+    const g = await page.evaluate(() => {
+      const r = e => { const b = e.getBoundingClientRect(); return { t: Math.round(b.top), b: Math.round(b.bottom), w: Math.round(b.width) }; };
+      const tabs = document.getElementById('mobileTabs');
+      return { ctx: r(document.getElementById('ctx')), chat: r(document.getElementById('chatCol')),
+               tabs: tabs && tabs.getBoundingClientRect().height ? r(tabs) : null };
+    });
+    if (Math.abs(g.ctx.t - g.chat.t) > 2 || Math.abs(g.ctx.b - g.chat.b) > 2 || Math.abs(g.ctx.w - g.chat.w) > 2)
+      return `the card does not fill the conversation (card ${g.ctx.t}-${g.ctx.b}, conversation ${g.chat.t}-${g.chat.b})`;
+    if (g.tabs && g.ctx.b > g.tabs.t + 2) return `the card covers the bottom tabs (card ends ${g.ctx.b}, tabs start ${g.tabs.t})`;
     const close = page.locator('#ctxMinimize');
     const cb = await close.boundingBox();
     if (!cb || cb.width < 44 || cb.height < 44) return 'the close button is smaller than 44px';

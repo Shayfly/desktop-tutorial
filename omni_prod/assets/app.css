@@ -848,10 +848,14 @@ body.signed-out .topbar .brand b{background:none;color:var(--v-yellow);padding:0
    it. On a phone a card opens as one full sheet over the conversation, with its title and a plain "close" button;
    the conversation is back exactly where it was when it closes. */
 @media (max-width:900px){
-  .ctx.open{position:fixed;inset:0;z-index:60;max-height:none;height:var(--vvh,100dvh);overflow:auto;overscroll-behavior:contain;
+  /* the sheet fills the conversation, not the whole screen: the top bar and the bottom tabs stay reachable
+     (2026-11-23: inset:0 covered #mobileTabs, so the customer could not leave the card). The selector matches
+     `.workspace>.chat` above, which sets position:static and would otherwise win on specificity. */
+  .workspace>.chat{position:relative}
+  .ctx.open{position:absolute;inset:0;z-index:60;max-height:none;overflow:auto;overscroll-behavior:contain;
     padding:0 16px calc(24px + env(safe-area-inset-bottom));background:var(--paper);border:0;align-content:start}
   .ctx.open .ctxToolbar{position:sticky;top:0;margin:0 -16px;border-radius:0;border:0;border-block-end:1px solid var(--rule);
-    padding:calc(10px + env(safe-area-inset-top)) 16px 10px;font-size:18px;background:var(--surface);box-shadow:0 2px 10px rgba(8,16,28,.06)}
+    padding:12px 16px;font-size:18px;background:var(--surface);box-shadow:0 2px 10px rgba(8,16,28,.06)}
   .ctx.open #ctxMinimize{min-width:44px;min-height:44px;font-size:0;border:1px solid var(--rule);border-radius:12px;background:var(--surface)}
   .ctx.open #ctxMinimize::after{content:attr(aria-label);font-size:15px;font-weight:600;padding-inline:12px}
   .ctx.open .panel{box-shadow:none}

@@ -1,6 +1,6 @@
-"""The owner's phone fixes stay tested in CI (2026-11-23): tests/phone_chat_browser.cjs plants the five faults no other
+"""The owner's phone fixes stay tested in CI (2026-11-23): tests/phone_chat_browser.cjs plants the six faults no other
 test plants (Enter sends on a phone, the page left pushed up, the height not measured, the card cut inside the chat,
-the conversation far from the message box),
+the conversation far from the message box, a sheet that covers the bottom tabs),
 and this file keeps it in the browser job with its faults."""
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ class ThePhoneCheckRuns(unittest.TestCase):
 
     def test_it_plants_its_faults_and_fails_on_a_miss(self):
         for fault in ('enter_sends_on_phone', 'page_left_pushed_up', 'height_not_measured', 'card_cut_inside_chat',
-                      'conversation_far_from_the_box'):
+                      'conversation_far_from_the_box', 'sheet_covers_the_bottom_tabs'):
             self.assertIn(f"id: '{fault}'", CHECK)
         self.assertIn('was NOT caught', CHECK)
 
