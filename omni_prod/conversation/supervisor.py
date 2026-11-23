@@ -1110,7 +1110,7 @@ class ConversationSupervisor:
             a = attachments[0]
             if re.fullmatch(r'att_[a-f0-9]{32}', a.get('id','')) and re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):
                 new_brief.assets['logo'] = {k:a[k] for k in ('id','sha256','mime','size_bytes')}
-                new_brief = d.answer(new_brief, {'logo':'later'})
+                new_brief = d.answer(new_brief, {'logo':'uploaded'})
         images = _bindable_images(attachments)
         decided = {img.get('sha256') for img in new_brief.assets.get('images') or ()}
         images = [a for a in images if a['sha256'] not in decided]    # an image whose role is decided is not re-asked

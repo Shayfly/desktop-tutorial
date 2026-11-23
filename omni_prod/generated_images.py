@@ -162,6 +162,12 @@ def _purposes(plan) -> dict[str, str]:
     return {r.id: r.purpose for r in getattr(plan, 'requirements', ()) or () if r.key == IMAGE_CAPABILITY}
 
 
+def _required_ids(plan) -> set:
+    """The image requirements the customer actually asked for. The default hero (DECISIONS 5) is required=False."""
+    return {r.id for r in getattr(plan, 'requirements', ()) or ()
+            if r.key == IMAGE_CAPABILITY and getattr(r, 'required', True)}
+
+
 def _subjects(plan) -> dict[str, str]:
     return {r.id: str((r.constraints or {}).get('subject') or '') for r in getattr(plan, 'requirements', ()) or ()
             if r.key == IMAGE_CAPABILITY}
@@ -354,9 +360,24 @@ def install(engine, *, prompt: str, plan, evidence: dict | None, store, vision=N
     if not images:
         return prompt
     if vision is not None:
-        from .image_match import verify
+        from .image_match import check_optional, verify
         core = getattr(engine, 'core', engine)
-        core.image_match = verify(vision, images, _subjects(plan))
+        # A picture the customer asked for is judged as before: a mismatch, or a check that cannot run, stops the
+        # build. The default hero nobody asked for (DECISIONS 5) is optional by the owner's decision, so it is never
+        # a reason to fail: it is kept only if it was checked and matches, and otherwise dropped from the build.
+        wanted = _required_ids(plan)
+        asked_for = [i for i in images if i.requirement_id in wanted]
+        by_default = [i for i in images if i.requirement_id not in wanted]
+        verdicts = verify(vision, asked_for, _subjects(plan))
+        kept, optional_verdicts = check_optional(vision, by_default, _subjects(plan))
+        core.image_match = verdicts + optional_verdicts
+        dropped = [v for v in optional_verdicts if v['status'] == 'DROPPED']
+        if dropped:
+            _LOG.info('IMAGE_DROPPED_NOT_SHOWN count=%s reasons=%s', len(dropped),
+                      '; '.join(str(v.get('reason'))[:80] for v in dropped))
+        images = [i for i in images if i in asked_for or i in kept]
+        if not images:
+            return prompt
     core = getattr(engine, 'core', engine)
     core.repository_transform = _Transform(getattr(core, 'repository_transform', None), images)
     core.executor = GeneratedImagesExecutor(core.executor, images)
