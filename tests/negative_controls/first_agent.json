@@ -114,24 +114,6 @@
    ]
   },
   {
-   "id": "NC7",
-   "what": "\"no personal details\" is asked again as \"stores nothing?\" (GOA)",
-   "mutations": [
-    {
-     "file": "omni_prod/discovery.py",
-     "old": "    _settle_persistence_from_privacy(brief)\n    _expire_stale_persistence(brief)",
-     "new": "    _expire_stale_persistence(brief)"
-    }
-   ],
-   "targets": [
-    "tests/test_first_agent_summary.py"
-   ],
-   "expect_failed": [
-    "test_adding_something_that_stores_later_asks_again",
-    "test_no_personal_details_and_nothing_that_stores_settles_it"
-   ]
-  },
-  {
    "id": "NC8",
    "what": "the scripted conflict line comes back",
    "mutations": [

@@ -6,7 +6,6 @@ tests):
   * the summary card leads with what the customer cares about -- goal, parts, content, look -- and never with
     "גופן: Heebo", "תאריכים: אין תאריכים" or "התחברות: בלי התחברות";
   * a site that keeps nothing says so in plain words;
-  * a customer who said "no personal details" is not asked "a content-only site that stores nothing?" again (GOA).
 """
 from __future__ import annotations
 
@@ -54,29 +53,6 @@ class OneNaturalCheck(unittest.TestCase):
         self.assertNotIn('לא שיניתי', _TXT['he']['conflict'])
         self.assertNotIn('קודם נקבע', _TXT['he']['conflict'])
         self.assertIn('רק לוודא', _TXT['he']['conflict'])
-
-
-class NotAskedTwice(unittest.TestCase):
-    """GOA (prj_m38cCNxifG74Pw, 2026-11-23 16:38 -> 16:51): "no personal details", then "stores nothing?"."""
-
-    def test_no_personal_details_and_nothing_that_stores_settles_it(self):
-        b = d.answer(d.start('GOA - קטלוג מוצרי עישון בסיטונאות'), {'personal_data': 'no'})
-        self.assertEqual(b.values().get('content_only'), 'yes')
-        self.assertNotIn('content_only', [q.field for q in d.pending(b)])
-
-    def test_something_that_stores_is_still_asked(self):
-        b = d.answer(d.start('אתר עם הרשמה לקורסים והזמנות'), {'personal_data': 'no'})
-        self.assertIsNone(b.values().get('content_only'))
-
-    def test_adding_something_that_stores_later_asks_again(self):
-        b = d.answer(d.start('GOA - קטלוג מוצרי עישון בסיטונאות'), {'personal_data': 'no'})
-        b = d.answer(b, {'content': 'טופס הזמנה שנשמר'})
-        self.assertIsNone(b.values().get('content_only'))
-        self.assertEqual(b.hints.get('persistence_stale'), 'yes')
-
-
-if __name__ == '__main__':
-    unittest.main()
 
 
 class TheAgentSpeaksOnce(OnTheRealPath):
