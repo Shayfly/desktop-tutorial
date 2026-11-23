@@ -196,7 +196,7 @@ _TXT = {
            'model_unavailable': 'הסוכן לא הספיק לענות הפעם (העומס אצל ספק המודל). מה שכתבתם נשמר — שלחו שוב בעוד רגע, או כתבו עוד פרט על המוצר.',
            'model_refused': 'הסוכן לא זמין כרגע: ספק המודל סירב לבקשה בגלל החשבון שלנו אצלו, לא בגללכם. מה שכתבתם נשמר, ולא חויב דבר. אפשר להמשיך לפרט כאן, והסוכן יענה כשהחשבון יחודש.',
            'missing_none': 'לא חסר כלום — אפשר לעבור לסיכום ולאשר.', 'missing': 'חסר לי:', 'contra': 'יש סתירה שצריך להחליט עליה:',
-           'conflict': 'קודם נקבע: {current}. עכשיו הבנתי: {proposed}. לא שיניתי — מה נכון?',
+           'conflict': 'רק לוודא לפני שאני משנה — {field}: {current}, או {proposed}?',
            'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
            'confirm_sensitive_words': 'זה נושא רגיש ({field}), אז אני צריך תשובה מפורשת שלכם, במילים.',
            'corrected': 'עדכנתי',
@@ -260,7 +260,7 @@ _TXT = {
            'model_refused': 'The assistant is not available right now: the model provider refused the request because of our account with it, not because of you. What you wrote is saved and nothing was charged. You can keep adding details here; the assistant answers again once the account is renewed.',
            'missing_none': 'Nothing is missing: you can review the summary and approve.', 'missing': 'Still missing:',
            'contra': 'There is a contradiction to decide:',
-           'conflict': 'Earlier: {current}. Now I understood: {proposed}. I did not change it — which is right?',
+           'conflict': 'Just to check before I change it — {field}: {current}, or {proposed}?',
            'confirm_sensitive': 'This is sensitive ({field}), so I need your explicit confirmation with the button.',
            'confirm_sensitive_words': 'This is sensitive ({field}), so I need your explicit answer, in words.',
            'corrected': 'Updated',
@@ -394,6 +394,14 @@ def _bindable_images(attachments) -> list[dict]:
             seen.add(a['sha256'])
             out.append(a)
     return out
+
+
+# The fields the summary card shows, in this order (the owner, 2026-11-23). The rest is in the brief and the build.
+SUMMARY_FIELDS = ('goal', 'screens', 'content', 'color', 'style', 'logo')
+# a site that keeps nothing from its visitors says so in plain words, once
+_PRIVACY_ROW = {'he': ('מידע מהמבקרים', 'האתר לא שומר שום מידע מהמבקרים', False),
+                'en': ('Visitor data', 'The site keeps nothing from its visitors', False),
+                'ar': ('بيانات الزوار', 'الموقع لا يحفظ أي معلومات من الزوار', False)}
 
 
 class ConversationSupervisor:
@@ -622,8 +630,12 @@ class ConversationSupervisor:
             return held
         from ..intake import approval_flow as AF
         t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief, self.plan_credits)
-        items = sorted(((k, v) for k, v in row.brief.fields.items() if k not in ('windows', 'windows_rejected')),
-                       key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)    # windows: their own choice below
+        # The owner, 2026-11-23 ("סוכן ... להפוך את המלל לתוצאה מעולה"): the summary leads with what the customer cares
+        # about -- what the site is for, its parts, its content (the packages, the prices, "about us"), its look -- and
+        # not with "font: Heebo", "dates: none" or "login: none", which stay in the brief and in the build.
+        items = [(k, row.brief.fields[k]) for k in SUMMARY_FIELDS if k in row.brief.fields]
+        if row.brief.values().get('content_only') == 'yes':
+            items.append(('content_only', row.brief.fields['content_only']))
         turn.gate = 'spec'
         turn.venice = {'agent': 'agent.venice', 'mode': 'understanding', 'stage': t['stage1'],
                        'cost_range_credits': [lo, hi]}
@@ -645,8 +657,9 @@ class ConversationSupervisor:
         card = spec_card(
             stage=t['stage1'], lang=lang, excluded=excluded, canon_lines=list(canon['lines']),
             price=AF.range_line(lang, lo, hi), next_step=t['gate1'],
-            rows=[(_short(k, lang), d._label(d.BY_ID[k], v['value'], lang) if k in d.BY_ID else str(v['value']),
-                   v.get('confidence') == SAFE_CONFIDENCE) for k, v in items[:8] if 'value' in v])
+            rows=[_PRIVACY_ROW[lang if lang in _PRIVACY_ROW else 'en'] if k == 'content_only' else
+                  (_short(k, lang), d._label(d.BY_ID[k], v['value'], lang) if k in d.BY_ID else str(v['value']),
+                   v.get('confidence') == SAFE_CONFIDENCE) for k, v in items if 'value' in v])
         turn.actions[-1]['card'] = card
         # the message says each detail once too: its summary is the card's rows, where a segment that repeats a
         # business detail word for word was already dropped (the detail stays in the canon line below)
@@ -1195,6 +1208,10 @@ class ConversationSupervisor:
         if interp is not None and interp.reply and not res.conflicts:
             parts.append(interp.reply)
         stated = [x for x in res.applied if x['field'] not in {c['field'] for c in res.corrected}]
+        # the owner, 2026-11-23: when the model already said what it understood in its own words, the list of field
+        # labels ("הבנתי: צבע: ...") is not said again under it
+        if interp is not None and (interp.reply or '').strip() and str(getattr(interp, 'interpreter', '')).startswith('model'):
+            stated = []
         if stated:
             parts.append(f'{T["got"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in stated[:6]) + '.')
         if res.corrected:
@@ -1205,8 +1222,11 @@ class ConversationSupervisor:
                 parts.append(T['confirm_sensitive_words' if agent.enabled() else 'confirm_sensitive'].format(
                     field=_short(c['field'], lang)))
             else:
-                parts.append(T['conflict'].format(current=_label(c['field'], c['current'], lang),
-                                                  proposed=_label(c['field'], c['proposed'], lang)))
+                # the owner, 2026-11-23: one natural check, not "קודם נקבע ... לא שיניתי — מה נכון?"
+                q_ = d.BY_ID.get(c['field'])
+                val = (lambda v: d._label(q_, v, lang)) if q_ else str
+                parts.append(T['conflict'].format(field=_short(c['field'], lang), current=val(c['current']),
+                                                  proposed=val(c['proposed'])))
         short = [x for x in res.assumed if d.BY_ID.get(x['field']) and d.BY_ID[x['field']].kind == 'choice']
         if short:
             more = len(res.assumed) - len(short[:3])

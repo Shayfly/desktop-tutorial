@@ -560,8 +560,31 @@ def _expire_stale_persistence(brief: Brief) -> None:
         brief.hints.pop('persistence_stale', None)
 
 
+def _settle_persistence_from_privacy(brief: Brief) -> None:
+    """The owner, 2026-11-23 (GOA, prj_m38cCNxifG74Pw): the customer said the site keeps no personal details, and the
+    next turn asked "is this a content-only site that stores nothing from visitors?" -- to the customer the same
+    question twice ("צודקים, כבר שאלתי את זה"). When the customer's own answer says no personal data AND nothing in
+    the request stores anything (persistence.strong_cues finds no form, order, registration or list), that answer
+    already says the site stores nothing, so it is recorded as such and not asked. The cues present now are kept, so
+    _expire_stale_persistence (R1/8.4) asks again the moment something that stores is added."""
+    if 'content_only' in brief.fields:
+        return
+    pd = brief.fields.get('personal_data') or {}
+    if pd.get('value') != 'no' or pd.get('source') not in ('answer', 'message'):
+        return
+    from .persistence import strong_cues
+    v = brief.values()
+    cues = strong_cues(' '.join([brief.prompt] + [str(v.get(k) or '') for k in ('goal', 'screens', 'content')]))
+    if cues:
+        return
+    brief.fields['content_only'] = {'value': 'yes', 'source': 'answer', 'question_id': 'personal_data',
+                                    'confidence': 'confirmed', 'cues_at_answer': []}
+    brief.hints.pop('content_only', None)
+
+
 def _drop_inapplicable(brief: Brief) -> None:
     """A changed answer can make a dependent question irrelevant: its answer goes."""
+    _settle_persistence_from_privacy(brief)
     _expire_stale_persistence(brief)
     changed = True
     while changed:
