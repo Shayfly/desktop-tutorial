@@ -5,6 +5,8 @@
  *             top when the keyboard closes (the composer and tabs were left in the middle of the screen)
  *   sheet     on a phone a card ("תוכנית ועלות") opens as one full sheet with a plain "סגירה" button, not a box cut
  *             inside the conversation; the button and Escape close it
+ *   near      a short conversation rests just above the message box, not at the top of a tall empty area (the owner
+ *             could not see what was said)
  *
  * Each check runs on the real files and must hold, then on a copy with its fault and must FAIL.
  */
@@ -26,6 +28,7 @@ const FAULTS = [
   { id: 'height_not_measured', check: 'viewport',
     js: ["  if (vv) document.documentElement.style.setProperty('--vvh', `${Math.round(vv.height)}px`);\n", ''] },
   { id: 'card_cut_inside_chat', check: 'sheet', css: '\n@media (max-width:900px){.ctx.open{position:static!important;max-height:42vh!important}}' },
+  { id: 'conversation_far_from_the_box', check: 'near', css: '\n.thread>*:first-child{margin-block-start:0!important}' },
 ];
 
 function served(fault) {
@@ -104,6 +107,19 @@ const CHECKS = {
     if (r.after !== 0) return `after the keyboard closed the page stayed pushed up by ${r.after}px`;
     return null;
   },
+  // the gap between the last thing said and the message box, with only a message or two on the screen
+  async near(page) {
+    const gap = await page.evaluate(() => {
+      const thread = document.getElementById('thread');
+      const last = thread.lastElementChild;
+      if (!last) return null;
+      return Math.round(document.querySelector('.composer').getBoundingClientRect().top - last.getBoundingClientRect().bottom);
+    });
+    if (gap === null) return 'the conversation is empty, so the test proves nothing';
+    if (gap > 160) return `the last message ends ${gap}px above the message box`;
+    if (gap < 0) return `the last message runs under the message box (${gap}px)`;
+    return null;
+  },
   async sheet(page, phone) {
     if (!phone) return null;
     await page.evaluate(() => { document.getElementById('planPanel').hidden = false;
@@ -149,5 +165,6 @@ const CHECKS = {
     }
   } finally { await browser.close(); }
   if (failures.length) { for (const f of failures) console.log(`::error title=phone chat::${f}`); process.exit(1); }
-  console.log(`::notice title=phone chat::3 checks hold on the phone and the computer; ${FAULTS.length}/${FAULTS.length} faults caught`);
+  console.log(`::notice title=phone chat::${Object.keys(CHECKS).length} checks hold on the phone and the computer; `
+    + `${FAULTS.length}/${FAULTS.length} faults caught`);
 })().catch(e => { console.error(e); process.exit(1); });

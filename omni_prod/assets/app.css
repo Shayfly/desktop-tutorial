@@ -573,6 +573,11 @@ body.signed-out .topbar :focus-visible{outline-color:var(--signal)}
 .ctx.open,.ctxToolbar,.ctx .panel{background:var(--surface);border-color:var(--rule);color:var(--ink)}
 .ctxToolbar{top:-.75rem;border:1px solid var(--rule)}
 .thread{padding:24px clamp(12px,4vw,56px);scrollbar-width:thin;background:var(--paper)}
+/* The owner, 2026-11-23 (phone screenshot 18:21): the conversation began at the top of a tall empty area, so the
+   last thing said sat far above the message box and the customer could not see it. A conversation reads from the
+   bottom up, like every messaging app: with room to spare the messages rest just above the box, and once they fill
+   the screen this has no effect and the thread scrolls as before. */
+.thread>*:first-child{margin-block-start:auto}
 .draftActions{background:var(--surface);border-color:var(--rule)}
 .step.active .name,.qgroup h3,.quick .opts button:hover,.passwordToggle[aria-pressed="true"]{color:var(--accent-text)}
 .bubble{border-radius:12px}
