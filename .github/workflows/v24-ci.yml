@@ -275,6 +275,7 @@ jobs:
           node --check tests/platform_a11y_browser.cjs
           node --check tests/workspace_review_fixes_browser.cjs
           node --check tests/platform_for_everyone_browser.cjs
+          node --check tests/shell_133_browser.cjs
           node --check tests/spec_card_browser.cjs
           node --check tests/ui_languages_browser.cjs
       # axe-core: the WCAG engine of the platform accessibility check (the owner, 2026-11-22: accessible to everyone)
@@ -326,6 +327,10 @@ jobs:
       # bar, the preview's phone view, the build steps in plain words); it also proves it catches twelve deliberate faults
       - run: node tests/platform_for_everyone_browser.cjs
         timeout-minutes: 6
+      # warehouse 133's mutation table, the four rows no other test plants: secondary in yellow, status in colour only,
+      # a failed build with an empty frame, a raw id on a version's main line
+      - run: node tests/shell_133_browser.cjs
+        timeout-minutes: 3
       # gate 1's spec as the card "זה מה שנבנה" (the owner's example): each business detail once; fails without the card
       - run: node tests/spec_card_browser.cjs
         timeout-minutes: 3
