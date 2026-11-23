@@ -2,6 +2,9 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| IMG-DEFAULT-HERO | Claude Code | Merged (#519 `c43095c`); awaiting `[release]` and the worker run | `tests/test_default_hero_never_fails_the_build.py`; controls default_hero_never_fatal 5/5; STATUS.md 2026-11-23 |
+| CHAT-PHONE | Claude Code | Merged (#518 `e93d01b`); awaiting `[release]` | `tests/phone_chat_browser.cjs` 6/6; STATUS.md 2026-11-23 |
+| CONV-ADD-NOT-ASK | Claude Code | Not started | ShayFly prj_5wRH_CceL2aSeQ lost its packages to "what is right?" |
 | UI-EVERYONE | Claude (the owner's order, 2026-11-22) | PR pending CI and the owner's SHA approval | `claude/platform-for-everyone`; `tests/platform_for_everyone_browser.cjs`, `tests/test_platform_for_everyone_in_ci.py`; STATUS.md 2026-11-22 |
 | WH-133 | Codex (design and integration, `4457710`), Claude Code (independent review, fixes, release) | Released with review fixes; PR pending CI | `claude/practical-hopper-oi3qj2-design-133`; `tests/platform_a11y_browser.cjs`, `tests/workspace_review_fixes_browser.cjs`; STATUS.md 2026-11-22 |
 | GOV-01 | Codex | In review | `VISION_LAW_HE.md`, PR pending independent verification |
