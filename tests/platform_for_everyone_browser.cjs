@@ -61,6 +61,8 @@ const MUTATIONS = [
   { id: 'size_does_nothing', check: 'size', file: 'app.css', append: '\nhtml[data-text] { font-size: 100% !important }' },
   { id: 'rail_closed', check: 'look', file: 'visual-edit.js', width: 1440,
     old: "    } catch { /* defaults */ }\n    syncSidebar();", new: "      ws().classList.add('sb-collapsed');\n    } catch { /* defaults */ }\n    syncSidebar();" },
+  { id: 'steps_hidden_on_phone', check: 'look', file: 'app.css', append: '\n@media (max-width:900px){ .welcomeCopy .howto { display: none !important } }' },
+  { id: 'steps_before_form', check: 'look', file: 'app.css', append: '\n@media (max-width:900px){ .auth { order: 9 !important } }' },
   { id: 'light_top_bar', check: 'look', file: 'app.css', append: '\n.workspace > .mobileWorkspaceHead { background: #ffffff !important }' },
   { id: 'phone_view_ignored', check: 'look', file: 'app.css', width: 1440,
     append: '\n.workspace[data-device="phone"] .stage .viewport { width: 100% !important }' },
@@ -216,6 +218,16 @@ const CHECKS = {
   },
   async look(browser, lang, width, files) {
     const fail = [];
+    // the entry (2026-11-23): on a phone the form comes first and the three steps follow it, visible
+    const entry = await open(browser, { lang, width, files, signedIn: false });
+    const where = await entry.page.evaluate(() => {
+      const top = s => { const el = document.querySelector(s); return el && el.checkVisibility() ? el.getBoundingClientRect().top : null; };
+      return { form: top('#authForm'), steps: top('.welcomeCopy .howto'), lead: top('.auth .authLead') };
+    });
+    await entry.page.close();
+    if (where.steps === null) fail.push('the entry does not show the three steps');
+    else if (width <= 900 && !(where.form < where.steps)) fail.push('on a phone the steps push the sign-in form down');
+    if (where.lead === null) fail.push('the sign-in card does not say nothing happens without approval');
     const { page } = await open(browser, { lang, width, files, projects: [{ id: 'p1', title: lang === 'he' ? 'סטודיו נועה' : 'Noa Studio' }] });
     if (width > 900) {
       const rail = await page.evaluate(() => { const r = document.getElementById('sidebar').getBoundingClientRect();
