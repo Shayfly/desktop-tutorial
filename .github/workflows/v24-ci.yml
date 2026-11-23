@@ -275,6 +275,7 @@ jobs:
           node --check tests/platform_a11y_browser.cjs
           node --check tests/workspace_review_fixes_browser.cjs
           node --check tests/platform_for_everyone_browser.cjs
+          node --check tests/ui_languages_browser.cjs
       # axe-core: the WCAG engine of the platform accessibility check (the owner, 2026-11-22: accessible to everyone)
       - run: npm install --no-save --package-lock=false playwright@1.62.1 axe-core@4.10.3
       # 2026-10-27: `playwright install --with-deps` hung for the whole 5-minute step on 2 of the last ~15 runs
@@ -324,6 +325,9 @@ jobs:
       # bar); it also proves it catches nine deliberate faults
       - run: node tests/platform_for_everyone_browser.cjs
         timeout-minutes: 6
+      # every platform language whole: no key falls back, no text in another script, the picker switches
+      - run: node tests/ui_languages_browser.cjs
+        timeout-minutes: 3
   customer-ui:
     # Preserve the required check name and fail closed if classification fails.
     needs: [changes, browser-tests]

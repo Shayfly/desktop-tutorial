@@ -121,6 +121,16 @@ class ScriptedGateway:
         return [r for r, _ in self.calls]
 
 
+def why(result) -> str:
+    """Why a build did not end READY: the stop reason, each failing check, and the end of the build log. The chain
+    tests failed once in CI on a PR that touched nothing they read (#503, browser-python, 2026-11-22) and said only
+    ('failed', 0); a recurrence now says which check failed."""
+    report = getattr(result, 'report', None)
+    failures = '; '.join(f'{f.acceptance_id}: {str(f.message)[:300]}' for f in (getattr(report, 'failures', None) or ()))
+    return f'stop_reason={getattr(result, "stop_reason", "")!r}; failures: {failures or "none"}; log tail: ' \
+           f'{(getattr(report, "build_log", "") or "")[-800:]}'
+
+
 def build_engine(gateway, *, design_critic=False):
     """The engine a customer's build gets, in the worker's install order (worker_tasks._run_live_build_job), minus the
     installs that need the database (uploaded logo, attachments) -- none applies to this brief."""
@@ -229,7 +239,7 @@ class TheRouteThroughTheRealChain(unittest.TestCase):
         with mock.patch.dict(os.environ, {'OMNI_GATE_HE': 'block'}):
             engine, prompt = build_engine(gw)
             result = engine.build(prompt)
-        self.assertEqual((result.status, result.repair_rounds), ('ready', 0))
+        self.assertEqual((result.status, result.repair_rounds), ('ready', 0), why(result))
         self.assertEqual(gw.roles().count('content'), 1)
         self.assertEqual(gw.roles().count('rewrite'), 1)                   # the pre-sandbox correction, one path
         rewrite_request = json.loads(gw.calls[gw.roles().index('rewrite')][1])
@@ -296,7 +306,7 @@ class TheRouteThroughTheRealChain(unittest.TestCase):
         gw = ScriptedGateway(review=review)
         engine, prompt = build_engine(gw, design_critic=True)
         result = engine.build(prompt)
-        self.assertEqual((result.status, result.repair_rounds), ('ready', 0))
+        self.assertEqual((result.status, result.repair_rounds), ('ready', 0), why(result))
         self.assertNotIn('rewrite', gw.roles())
         self.assertIn('design', gw.roles())
         feedback = site_content.report(engine)['library_feedback']
@@ -312,7 +322,7 @@ class TheRouteThroughTheRealChain(unittest.TestCase):
         gw = ScriptedGateway()
         engine, prompt = build_engine(gw, design_critic=True)
         result = engine.build(prompt)
-        self.assertEqual((result.status, result.repair_rounds), ('ready', 0))
+        self.assertEqual((result.status, result.repair_rounds), ('ready', 0), why(result))
         self.assertIn('design', gw.roles())
         report, blocking = self.release(engine, gw, result)
         self.assertEqual((report.decision, blocking), ('READY', []))

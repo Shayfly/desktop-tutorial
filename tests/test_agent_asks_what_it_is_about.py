@@ -41,7 +41,10 @@ class AsksWhatItIsAbout(unittest.TestCase):
     def test_no_approval_without_a_subject(self):
         sup = R._Supervisor(Scripted())
         for m in ['אתר', 'כן, רק להציג מידע ומחירים, לא שומרים כלום מהמבקרים', 'לא, רק הטלפון שלי מופיע באתר',
-                  'תחליטו אתם על השאר', 'תחליטו אתם על השאר', 'תחליטו אתם על השאר']:
+                  'תחליטו אתם על השאר', 'תחליטו אתם על השאר', 'תחליטו אתם על השאר',
+                  # 2026-11-22: a website is also asked its name (twice at most) and, for a business we do not know,
+                  # its colours (once) -- enough turns that, without the subject question, the approval WOULD appear
+                  'תחליטו אתם על השאר', 'תחליטו אתם על השאר', 'תחליטו אתם על השאר', 'תחליטו אתם על השאר']:
             t = sup.turn(project_id='q', account_id='a', message=m, lang='he')
             if agent.names_a_subject(sup.briefs.latest('q').brief.prompt):
                 break

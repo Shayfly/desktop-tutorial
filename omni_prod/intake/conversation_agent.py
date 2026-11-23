@@ -253,6 +253,51 @@ def name_line(answer: str) -> str | None:
     return f'שם העסק: {text}.'
 
 
+
+# ---- colours for a business we do not know (the owner, 2026-11-22, DECISIONS). A recognised category takes its own
+# palette (vertical_palettes). For any other business the agent asks once, in plain words: which colours they like,
+# which should take the most space and which less -- or to leave it to us. Left to us, the palette is always one we
+# have (vertical_palettes.design_colours: the nearest category, else the neutral one). The answer is recorded as the
+# brief's "color" field with source "answer", so every choice stays in the build evidence (what a later learning step
+# reads). Plural address: registration has no gender field (asked the owner).
+COLOUR_ID = 'colour_preference'
+COLOUR_QUESTION = {'he': 'יש צבעים שאתם אוהבים לאתר? כתבו איזה צבע יתפוס הכי הרבה מקום ואיזה פחות, '
+                         'או כתבו "תבחרו אתם" ואבחר בשבילכם מתוך הצבעים שמתאימים לעסקים כמו שלכם.',
+                   'en': 'Are there colours you like for the site? Write which colour should take the most space and '
+                         'which less, or write "you choose" and I will pick from the palettes that fit businesses like '
+                         'yours.'}
+ASK_COLOUR_AT_MOST = 1     # one question; with no usable answer the build takes the nearest palette, said as such
+_LEAVE_IT_TO_US = re.compile(r'תבחר|תחליט|בחר(?:ו)?\s+(?:לי|לנו|אתם|בשביל)|החליט|לא\s+משנה|לא\s+יודע|מה\s+ש(?:מתאים|תרצו|בא)|'
+                             r'אין\s+(?:לי\s+|לנו\s+)?העדפ|בלי\s+העדפ|על\s+דעתכם|you\s+(?:choose|decide|pick)|'
+                             r"whatever|no\s+preference|don'?t\s+mind|up\s+to\s+you", re.I)
+_LESS = re.compile(r'מעט|קצת|פחות|נגיעו|משני|little|less|touch|accent|hint', re.I)
+
+
+def colour_answer(answer: str) -> str | None:
+    """The "color" field value for a customer's answer to COLOUR_QUESTION: the colours they named, the one that should
+    take the most space first (a colour said with "a little / less" goes after the others), or "category" when they
+    left it to us. None when the answer is neither: the question is not asked again, and the build takes the nearest
+    palette. Never a colour the customer did not write."""
+    from ..discovery import colour_palette
+    text = ' '.join((answer or '').split())
+    named = colour_palette(text, preserve_words=True)
+    if not named:
+        return 'category' if _LEAVE_IT_TO_US.search(text) else None
+    clauses = re.split(r'[,.;\n]|\s+(?:ו?אבל|ועם|but|and)\s+', text)
+    minor = {w for c in clauses if _LESS.search(c) for w in colour_palette(c, preserve_words=True)}
+    ordered = [w for w in named if w not in minor] + [w for w in named if w in minor]
+    return ', '.join(ordered)
+
+
+def colour_unknown_business(brief) -> bool:
+    """A website whose customer stated no colour and whose business is not a catalogue category."""
+    from .. import discovery as d
+    from ..vertical_palettes import category_of
+    field = brief.fields.get('color') or {}
+    if field.get('source') in ('answer', 'message'):
+        return False
+    return category_of(brief.prompt + '\n' + d.customer_text(brief)) is None
+
 SUBJECT_QUESTION = {'he': 'ספרו לי במשפט או שניים על מה זה: שם העסק או הנושא, מה אתם עושים, ולמי זה מיועד?',
                     'en': 'Tell me in a sentence or two what this is about: the business or topic, what you do, and '
                           'who it is for?'}

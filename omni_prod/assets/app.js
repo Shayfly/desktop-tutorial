@@ -134,7 +134,7 @@ const T = {
     newChat:'שיחה חדשה · פרויקט חדש', searchProjects:'חיפוש פרויקטים', canBuildTitle:'מה אפשר לבנות היום', noMatches:'לא נמצאו פרויקטים',
     hideSidebar:'הסתרת הסרגל', showSidebar:'הצגת הסרגל', previewToggle:'תצוגה', expandPreview:'הגדלת התצוגה', shrinkPreview:'הקטנת התצוגה',
     hidePreview:'סגירת התצוגה', resizePreview:'גרירה לשינוי רוחב התצוגה', send:'שליחה',
-    chatPlaceholder:'כתבו מה תרצו לבנות או לשנות…', you:'אתם', assistant:'148AI',
+    chatPlaceholder:'כתבו מה תרצו לבנות או לשנות…', you:'אתם', assistant:'148AI', language:'שפה', docTitle:'148AI · סביבת יצירה',
     chatHelloTitle:'מה נבנה היום?', chatHello:'ספרו במילים שלכם מה אתם צריכים — אני אשאל רק מה שחשוב, אציע תוכנית ועלות, ושום דבר לא ייבנה בלי האישור שלכם.',
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
     actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאשר ולהתחיל לבנות', actApproveSpec:'כן, זה נכון',
@@ -271,7 +271,7 @@ const T = {
     newChat:'New chat · new project', searchProjects:'Search projects', canBuildTitle:'What can be built today', noMatches:'No projects found',
     hideSidebar:'Hide sidebar', showSidebar:'Show sidebar', previewToggle:'Preview', expandPreview:'Enlarge preview', shrinkPreview:'Restore preview size',
     hidePreview:'Close preview', resizePreview:'Drag to resize the preview', send:'Send',
-    chatPlaceholder:'Describe what you want to build or change…', you:'You', assistant:'148AI',
+    chatPlaceholder:'Describe what you want to build or change…', you:'You', assistant:'148AI', language:'Language', docTitle:'148AI · Creator workspace',
     aiFallback:'This reply was built from fixed rules, without an AI model.',
     chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
@@ -283,10 +283,354 @@ const T = {
     constraints:'Limitations', ifNeeded:'if needed', tasksTitle:'Technical details: who does what (from the server records)', buildRunning:'Build running', interpreterNote:'Interpreted with fixed rules (no AI model)',
     ts_SUCCEEDED:'done', ts_RUNNING:'running', ts_PENDING:'waiting', ts_READY:'ready', ts_FAILED:'failed', ts_BLOCKED:'blocked', ts_CANCELLED:'not run', ts_REPAIRING:'repairing', ts_NOT_RECORDED:'not recorded',
   },
+  // Arabic (2026-11-22): translated from the Hebrew by three agents, each batch independently reviewed and corrected;
+  // customer words, never system words (omni_prod/customer_words.py), second person plural as in Hebrew.
+  ar: {
+    skip: "الانتقال إلى المحتوى",
+    projects: "المشاريع",
+    manage: "إدارة",
+    logout: "تسجيل الخروج",
+    hero: "صِفوا تطبيق الويب الخاص بكم.",
+    lead: "148AI تخطّط له وتبنيه وتختبره وتعرضه.",
+    how1: "تكتبون ما يجب أن يفعله التطبيق ولمن.",
+    how2: "تحصلون على خطة وحدّ أقصى للتكلفة، وتوافقون عليها.",
+    how3: "تشاهدون البناء، وتجرّبونه في المعاينة، وتُجرون تغييرات، وتنزّلون الكود.",
+    scope: "حاليًا: تطبيقات الويب وSaaS. تطبيقات الجوّال والألعاب والوسائط غير متاحة بعد.",
+    signinTitle: "تسجيل الدخول إلى الحساب",
+    email: "البريد الإلكتروني",
+    password: "كلمة المرور",
+    passwordHint: "10 أحرف على الأقل.",
+    showPassword: "إظهار كلمة المرور",
+    hidePassword: "إخفاء كلمة المرور",
+    login: "تسجيل الدخول",
+    register: "إنشاء حساب مجاني",
+    firstProject: "مشروعكم الأول",
+    projectName: "اسم المشروع",
+    createProject: "إنشاء مشروع",
+    request: "ماذا تريدون أن تبنوا؟",
+    build: "متابعة",
+    planHint: "لا نبدأ البناء ولا نحصّل أي مبلغ قبل أن توافقوا على الملخّص والتكلفة.",
+    modeLegend: "كيف تريدون المتابعة؟",
+    modeGuided: "محادثة موجّهة",
+    modeGuidedHint: "سنطرح بعض الأسئلة القصيرة — عن الألوان ونوع الخط والأسلوب أيضًا. يمكنكم الإجابة \"لا تفضيل لديّ\".",
+    modeRecommend: "148AI توصي وتختار",
+    modeRecommendHint: "سنختار لكم بحسب ما كتبتم، وسترون كل شيء في الملخّص قبل الموافقة.",
+    discTitle: "لنحدّد الطلب بدقّة",
+    discProgress: (a, r) => `${a} قرارات · بقي ${r}`,
+    why: "لماذا نسأل: ",
+    delegate: "لا تفضيل لديّ — اختاروا عنّي",
+    delegateWill: v => `(سنختار: ${v})`,
+    suggestedFromRequest: "(بحسب ما كتبتم)",
+    next: "متابعة",
+    skipGroup: "تخطّوا هذه الأسئلة",
+    pauseNote: "كل شيء محفوظ. يمكنكم العودة والمتابعة حتى بعد تحديث الصفحة أو من جهاز آخر.",
+    decided: "ما قرّرناه حتى الآن",
+    change: "تغيير",
+    save: "حفظ",
+    cancel: "إلغاء",
+    needAnswer: q => `نحتاج إلى إجابة عن: ${q}`,
+    discDone: "انتهينا. هذا هو الملخّص — راجعوه قبل الموافقة.",
+    showSummary: "عرض الملخّص والتكلفة",
+    src_message: "من طلبكم",
+    src_answer: "إجابتكم",
+    src_delegated: "اخترناه لكم",
+    src_default: "الخيار الافتراضي",
+    sumGoal: "الهدف",
+    sumIncluded: "مشمول",
+    sumExcluded: "غير مشمول في هذه المرحلة",
+    semanticTitle: "هكذا فهمنا الطلب",
+    semanticIncluded: "مطلوب في المنتج",
+    semanticExcluded: "لم يُطلب",
+    semanticUncertain: "يحتاج إلى توضيح",
+    sumAssumptions: "قرارات اخترناها لكم (يمكن تغييرها)",
+    updateRequest: "تحديث الطلب",
+    approveBuild: "الموافقة وبدء البناء",
+    approvalExpired: "انتهت صلاحية الموافقة. راجعوا الملخّص ووافقوا مرة أخرى.",
+    builtTitle: "ما تم بناؤه حتى الآن",
+    newBuild: "منتج جديد في مشروع جديد",
+    newProjectPlus: "+ مشروع جديد",
+    newProjectHint: "لكل منتج مشروعه الخاص. أعطوه اسمًا، ثم صِفوا ما تريدون بناءه.",
+    nameRequired: "يجب إعطاء المشروع اسمًا.",
+    builtVersion: "النسخة الحالية",
+    files: "ملفات",
+    progress: "تقدّم البناء",
+    modifyTitle: "ماذا تريدون أن تغيّروا؟",
+    modifySend: "إرسال التغيير",
+    versions: "النسخ",
+    evidence: "تفاصيل تقنية وأدلة",
+    refresh: "تحديث",
+    openTab: "فتح في صفحة جديدة",
+    noPreview: "سيظهر التطبيق هنا بعد انتهاء البناء.",
+    download: "تنزيل الكود المصدري (ZIP)",
+    publish: "نشر",
+    publishNotConfigured: "النشر على الإنترنت غير متاح بعد. يمكنكم تنزيل الكود وتجربته في المعاينة.",
+    manageProject: "إدارة المشروع",
+    rename: "تغيير الاسم",
+    saveName: "حفظ الاسم",
+    archive: "نقل إلى الأرشيف",
+    newProject: "مشروع جديد",
+    close: "إغلاق",
+    promptPlaceholder: "مثلًا: نظام لإدارة المواعيد لصالون حلاقة، مع تقويم للحلّاقين، وحجز ذاتي للزبائن، وتذكيرات عبر البريد الإلكتروني.",
+    propTitle: "اقتراحكم",
+    propLooks: "هكذا سيبدو",
+    propGeneric: "اقتراح عام",
+    propEstimate: "تقدير",
+    propPrice: "سعر البناء",
+    propIncluded: "مشمول",
+    propExcluded: "غير مشمول",
+    propFacts: "تفاصيلكم، كما كتبتموها",
+    propApprove: "الموافقة وبدء البناء",
+    propChange: "تغيير شيء ما",
+    propEdit: "تغيير",
+    propUp: "نقل إلى الأعلى",
+    propDown: "نقل إلى الأسفل",
+    propRemove: "إزالة",
+    propSave: "حفظ",
+    propUndo: "التراجع عن التغيير الأخير",
+    propApproving: "جارٍ الموافقة وبدء البناء…",
+    propNotYet: "الاقتراح غير جاهز بعد: سنستكمل التفاصيل في المحادثة.",
+    planTitle: "الخطة",
+    understood: "ما فهمناه",
+    roles: "المستخدمون",
+    data: "البيانات",
+    integrations: "الربط",
+    capabilities: "القدرات التي يحتاجها البناء",
+    infrastructure: "ما يحتاجه التطبيق",
+    cost: "التكلفة",
+    estimated: "تقدير",
+    maximum: "الحد الأقصى الموافق عليه",
+    questions: "أسئلة قبل أن نبدأ",
+    blockersTitle: "ما العائق الآن",
+    creditsRequired: "سعر البناء (يُخصم من رصيدكم)",
+    creditsRemaining: "رصيدكم",
+    quoteStatus: "السعر",
+    confirm: "الموافقة وبدء البناء",
+    editRequest: "تعديل الطلب",
+    costUnknown: "لا يمكن حسابه",
+    byPipeline: "ضمن البناء",
+    byProvider: "خدمة خارجية",
+    required: "مطلوب",
+    optional: "اختياري",
+    st_LIVE: "فعّال",
+    st_PARTIAL: "مُعدّ، لم يُفحص",
+    st_NOT_CONFIGURED: "غير مُعدّ",
+    st_BLOCKED: "متوقف",
+    st_SELF_CONTAINED: "مدمج في التطبيق",
+    st_PRICED: "تمت الموافقة",
+    st_UNKNOWN: "لا يوجد سعر بعد",
+    st_NOT_AUTHORIZED: "لم تتم الموافقة",
+    stepPlanning: "التخطيط",
+    stepContract: "عقد البناء",
+    stepInfra: "الأساس",
+    stepAssets: "المواد (أيقونة وصور)",
+    stepGenerate: "إنشاء الكود والبناء والفحوصات والإصلاحات",
+    stepGates: "فحوصات الجودة والأمان والحقوق",
+    stepPreview: "المعاينة",
+    noteGenerate: "البناء والفحوصات والإصلاحات تجري في خطوة واحدة. يُعرض عدد جولات الإصلاح في النهاية.",
+    repairs: n=>`جولات الإصلاح: ${n}`,
+    queued: "في قائمة الانتظار",
+    queuedNext: "في قائمة الانتظار: بناؤكم هو التالي",
+    queuedAhead: n=>`في قائمة الانتظار: ${n === 1 ? 'مهمة واحدة' : n === 2 ? 'مهمتان' : n <= 10 ? n + ' مهام' : n + ' مهمة'} قبل بنائكم`,
+    started: "بدأ البناء",
+    buildReady: "اكتمل البناء بنجاح.",
+    buildFailed: "فشل البناء",
+    openDraftPreview: "افتحوا المسودة في المعاينة (لم تجتز كل الفحوصات)",
+    stopBuild: "إيقاف البناء",
+    stopChange: "إيقاف التغيير",
+    stopChangeConfirm: "هل تريدون إيقاف التغيير؟ لن يُخصم منكم إلا مقابل ما استُخدم بالفعل.",
+    modCancelled: "تم إيقاف التغيير.",
+    stopConfirm: "هل تريدون إيقاف البناء؟ لن يُخصم منكم إلا مقابل ما استُخدم بالفعل، ولن تُنشأ النسخة.",
+    stopping: "سيتم الإيقاف عند انتهاء الخطوة الحالية (بضع دقائق على الأكثر).",
+    buildCancelled: "تم إيقاف البناء. لن يُخصم منكم إلا مقابل ما استُخدم بالفعل.",
+    liveLog: "ما يحدث الآن",
+    logEmpty: "نستعد للبناء…",
+    logNoBuild: "لا يوجد بناء في هذا المشروع بعد.",
+    checkingApproval: "نتحقق من الموافقة والميزانية — لم يبدأ البناء بعد.",
+    uiEmpty: "جاء الموقع الذي بُني فارغًا",
+    uiMissing: {"form":"استمارة","input":"حقول إدخال","button":"زر","table":"جدول","content":"محتوى"},
+    uiMissingLead: "ينقصه",
+    uiEmptyTail: "لذلك لم نسلّمه.",
+    errCodes: {"preview_no_build_queue":"لا يمكن البناء في هذه النسخة التجريبية من 148AI، لذلك لم يبدأ البناء.","build_not_found":"لم يبدأ البناء بسبب عطل لدينا.","verification_failed":"لم ننجح في بناء الموقع هذه المرة.","needs_customer_input":"تنقص معلومة لا يستطيع تقديمها إلا أنتم، لذلك أوقفنا البناء. لن نختلقها.","release_policy_failed":"بنينا الموقع، لكنه لم يجتز فحوصاتنا، لذلك لم نسلّمه.","quality_gate_failed":"بُني الموقع لكنه لم يخرج بجودة كافية، لذلك لم نسلّمه.","preview_not_ready":"بنينا الموقع، لكنه لم يُفتح عندما جرّبناه، لذلك لم نسلّمه.","security_gate_failed":"وجدنا في الموقع الذي بُني مشكلة قد تعرّض معلومات زوّاره للخطر، لذلك لم نسلّمه.","rights_gate_not_clear":"بُني الموقع وحُفظ، لكننا لم نتمكن من التأكد من أنه مسموح استخدام كل ما فيه (مثلًا صورة أو اسم)، لذلك ليس جاهزًا بعد.","unsupported_dependency":"الموقع الذي طلبتموه يحتاج إلى شيء لا نعرف كيف نبنيه بعد.","worker_lost":"علِق البناء فأوقفناه.","build_timeout":"استغرق البناء وقتًا أطول من اللازم، فأوقفناه قبل أن ينتهي.","provider_liability_unknown":"توقف البناء في منتصفه. لا يُعرف بعد إن كان قد خُصم منكم مقابل ما أُنجز حتى الآن.","worker_exception":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","model_budget_exhausted":"الطلب كبير جدًا على بناء واحد، وقد توقف البناء قبل أن ينتهي.","model_unavailable":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","provider_quota_exhausted":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","model_policy_blocked":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","capability_gate_failed":"لم نتمكن من تجهيز جزء من الموقع (مثلًا الصور)، لذلك لم نسلّمه.","image_mismatch":"الصورة التي أُنشئت لا تُظهر ما طلبتموه، لذلك أوقفنا البناء."},
+    failUnknown: "لم ينجح البناء بسبب عطل لدينا.",
+    failNotCharged: "لم يُخصم منكم أي مبلغ.",
+    failNext: { edit: l=>`يمكنكم تغيير الطلب والمحاولة مرة أخرى: اضغطوا على "${l}".`, input: l=>`اكتبوا التفصيل الناقص في الطلب: اضغطوا على "${l}".`, retry: l=>`يمكنكم المحاولة مرة أخرى: اضغطوا على "${l}".` },
+    failMissing: {"phone":"رقم الهاتف","hours":"ساعات العمل"},
+    ownerTech: "تفاصيل تقنية (تظهر لحساب المالك فقط)",
+    serverSaid: {"build_contract_invalid":"هذه الخطة لم تعد سارية. أعيدوا تحميل الصفحة ووافقوا مرة أخرى.","empty_message":"الرسالة فارغة. اكتبوا شيئًا أو اختاروا إجابة أو أرفقوا صورة.","idempotency_conflict":"سبق أن أُرسل هذا الطلب بتفاصيل مختلفة. أعيدوا تحميل الصفحة وحاولوا مرة أخرى.","approval_required":"يجب أولًا تأكيد أنني فهمت الطلب بشكل صحيح: اضغطوا في المحادثة على \"نعم، هذا صحيح\"، ثم حاولوا مرة أخرى."},
+    techDetails: "تفاصيل تقنية",
+    previewStarting: "نشغّل المعاينة…",
+    previewRunning: "المعاينة تعمل.",
+    previewNotPreviewable: "لا يمكن معاينة هذه النسخة: ",
+    previewUnavailable: "المعاينة غير متاحة حاليًا: ",
+    previewFailed: "فشلت المعاينة: ",
+    previewExpired: "انتهت صلاحية المعاينة. يمكنكم تشغيلها من جديد.",
+    startPreview: "تشغيل المعاينة",
+    duplicateBuild: "هذه الخطة قيد البناء أو بُنيت بالفعل — نعرض البناء الموجود. لإعادة البناء، حدّثوا الطلب.",
+    current: "الحالية",
+    restore: "استعادة هذه النسخة",
+    restored: "تمت الاستعادة. أُنشئت نسخة جديدة.",
+    noVersions: "لا توجد نسخ بعد.",
+    modQueued: "أُرسل التغيير. نبني نسخة مرشّحة ونفحصها…",
+    modReview: "اجتازت النسخة المرشّحة الفحوصات. ماذا تريدون أن تفعلوا؟",
+    accept: "الموافقة على التغيير",
+    reject: "رفض",
+    modAccepted: "تمت الموافقة على التغيير وحُفظ كنسخة جديدة.",
+    modRejected: "تم رفض التغيير.",
+    modFailed: "فشل التغيير: ",
+    classification: "التصنيف",
+    gateNames: {"verification":"التحقق","quality":"الجودة","security":"الأمان","rights":"الحقوق"},
+    checksNotRun: "فحوصات لم تُجرَ",
+    checksNoneRan: "لم يُجرَ أي فحص: توقف البناء قبل الفحوصات.",
+    checkNames: {"preview_starts":"تشغيل تجريبي","behavioural_acceptance":"فحص السلوك","browser_flow":"فحص في المتصفح","visual_layout_desktop_mobile":"مظهر الصفحة على الحاسوب والهاتف","qa_review":"مراجعة الجودة","qa_review_blocking_findings":"ملاحظات مراجعة الجودة","reviewer_independent_of_author":"مراجِع غير الكاتب","sandbox_build_and_tests":"فحوصات الكود","cross_file_consistency":"الاتساق بين الملفات","dependency_allowlist":"مكتبات معتمدة","approved_criteria_covered":"تغطية المتطلبات التي تمت الموافقة عليها","quality_score":"درجة الجودة","static_security_scan":"فحص الأمان","rights_clear":"الحقوق","acceptance_criteria_defined":"تحديد متطلبات القبول"},
+    repairStopped: "توقف الإصلاح التلقائي",
+    repairStops: {"time_budget":"توقف الإصلاح التلقائي: وصل البناء إلى الحد الزمني المخصص له، لذلك لم تبدأ جولة إصلاح أخرى.","no_progress_repository_unchanged":"توقف الإصلاح التلقائي: جولة الإصلاح الأخيرة لم تغيّر أي ملف، لذلك لم تكن جولة أخرى لتغيّر شيئًا.","no_progress_repository_cycle":"توقف الإصلاح التلقائي: عاد الإصلاح إلى نسخة سبق فحصها وفشلت.","no_progress_empty_patch":"توقف الإصلاح التلقائي: لم تقترح جولة الإصلاح أي تغيير.","no_progress_same_failure":"توقف الإصلاح التلقائي: انتهت جولة الإصلاح بالفشل نفسه تمامًا كالجولة التي سبقتها.","max_repair_rounds":"توقف الإصلاح التلقائي: نفدت جولات الإصلاح المخصصة لهذا البناء.","needs_customer_input":"توقف الإصلاح التلقائي: تنقص معلومة لا يستطيع تقديمها إلا أنتم.","test_value_fixed_twice":"توقف الإصلاح التلقائي: صُحّحت القيمة المتوقعة نفسها في أحد الفحوصات مرتين، لذلك أُحيل البناء إلى فحص يدوي.","repair_model_unavailable":"توقف الإصلاح التلقائي: لم تُرجِع أيُّ أداة من أدوات الذكاء الاصطناعي إصلاحًا صالحًا (إجابة بصيغة غير صحيحة، أو إجابة مقطوعة، أو خدمة خارجية بلا رصيد). انتهى البناء بأفضل نسخة، مع نتائج الفحوصات أدناه. لم يُخصم منكم أي مبلغ."},
+    gates: "الفحوصات",
+    usage: "الخدمات الخارجية",
+    costActual: "التكلفة الفعلية",
+    costBasis: "أساس التكلفة",
+    warnings: "تحذيرات",
+    requestIds: "معرّفات الطلبات",
+    tokens: "التوكنات (إدخال/إخراج)",
+    none: "لا يوجد",
+    backendMissing: "<b>البناء غير متاح حاليًا.</b> المشكلة لدينا، وليست لديكم. يمكنكم إنشاء حساب وإدارة المشاريع ورؤية خطة وتكلفة.",
+    emailUnverified: "لم يتم التحقق من البريد الإلكتروني بعد.",
+    err401: "انتهت صلاحية تسجيل الدخول. سجّلوا الدخول مرة أخرى.",
+    errBadCreds: "البريد الإلكتروني أو كلمة المرور غير صحيحة. إذا لم يكن لديكم حساب — اضغطوا \"إنشاء حساب مجاني\".",
+    errAccountExists: "هذا الحساب موجود بالفعل. انتقلوا إلى \"تسجيل الدخول\" بكلمة المرور نفسها.",
+    err402: "لا يوجد رصيد كافٍ لهذا البناء: ",
+    tryAgain: "حاولوا مرة أخرى",
+    errPlanNotIncluded: "هذا البناء أكبر مما هو مشمول لديكم. يمكنكم طلب أشياء أقل، وعندها سيكون ضمن المشمول.",
+    errAllowanceExhausted: "نفد الرصيد. يمكنكم بناء موقع أصغر.",
+    err403: "لا توجد صلاحية لهذا الإجراء.",
+    err404: "غير موجود.",
+    err409: "نحتاج إلى توضيح قبل المتابعة.",
+    err503: "هذه الخدمة غير متاحة بعد: ",
+    errNet: "لا يوجد اتصال بنا. تحققوا من اتصالكم بالإنترنت وحاولوا مرة أخرى.",
+    errTimeout: "لم نتلقَّ ردًا خلال 2 دقيقة. ربما لا تزال العملية جارية — حدّثوا الصفحة بعد لحظة قبل أن تحاولوا مرة أخرى.",
+    err5xx: "حدث خلل لدينا. حاولوا مرة أخرى بعد لحظة؛ وإذا تكرر ذلك، أرسلوا لقطة شاشة.",
+    offline: "لا يوجد اتصال بالإنترنت. ما يظهر قد لا يكون محدّثًا؛ ستعود الإجراءات للعمل عند عودة الاتصال.",
+    dataPersistent: "البيانات التي تُدخلونها في التطبيق تبقى محفوظة حتى بعد إعادة التشغيل وفي النسخة التالية (لا توجد نسخة احتياطية بعد).",
+    shareLabel: "من يمكنه فتحه",
+    sharePRIVATE: "أنا فقط (خاص)",
+    shareSHARED: "كل من لديه رابط المشاركة",
+    sharePUBLIC: "الجميع (عام)",
+    shareLink: "رابط المشاركة",
+    dataTemporary: "بيانات مؤقتة: ما تُدخلونه سيُحذف عند توقف المعاينة.",
+    needPrompt: "اكتبوا بضع كلمات على الأقل عن التطبيق.",
+    needEmail: "أدخلوا بريدًا إلكترونيًا وكلمة مرور من 10 أحرف على الأقل.",
+    registered: "تم إنشاء الحساب.",
+    created: "تم إنشاء المشروع.",
+    renamed: "تم حفظ الاسم.",
+    archived: "نُقل المشروع إلى الأرشيف.",
+    downloadReady: "بدأ التنزيل.",
+    untitled: "مشروع جديد",
+    lifecycle: "دورة بناء كاملة: تخطيط، كود، تثبيت، بناء، فحوصات، إصلاحات، معاينة وتصدير",
+    operatorDetails: "تفاصيل لفريقنا",
+    b_durable_backend_not_configured: "البناء غير متاح حاليًا. المشكلة عندنا، لا عندكم.",
+    b_infrastructure: k=>`جزء من التطبيق ليس جاهزًا بعد: ${k}`,
+    b_image_provider: "لم يتم إعداد إنشاء الأيقونة والصور.",
+    b_plan_cannot_authorize_cost: "هذا البناء أكبر مما هو مشمول لديكم.",
+    mediaTitle: "الوسائط التي ستُنشأ أثناء البناء",
+    mediaKinds: {"hero/brand visual":"صورة رئيسية","product icon":"أيقونة","media.image.generate":"صورة","media.video.generate":"فيديو","media.audio.tts":"تعليق صوتي","media.audio.music":"موسيقى"},
+    mediaOptional: "اختياري",
+    planReasons: {"cost class not included in plan":"بناء بهذا الحجم غير مشمول لديكم.","monthly credits exhausted":"نفد ما هو مشمول لديكم هذا الشهر.","paid-provider budget exhausted":"نفد مبلغ البناء لهذا الشهر."},
+    b_qa_budget_denied: "ميزانية التجربة الأولية لا تسمح بهذا البناء. تحققوا من رصيد فحوصات التطوير أو جرّبوا طلبًا أصغر.",
+    qaBudgetTitle: "ميزانية فحوصات التجربة الأولية — خاص",
+    qaBudgetRemaining: "الرصيد الداخلي المقدَّر",
+    qaBudgetLimit: "الحدّ المسموح به لبناء واحد",
+    qaBudgetActual: "هذه سجلات التكلفة في 148AI؛ وليست أرصدة لدى شركات الذكاء الاصطناعي.",
+    b_cost_quote_unknown: "جزء مما طلبتموه ليس له سعر بعد، ولذلك لا يمكن بدء البناء.",
+    b_cost_quote_unavailable: "لم يصل عرض سعر مؤكَّد للبناء.",
+    b_spec_not_approved: "قبل أن نبدأ البناء، يجب أن تؤكدوا أنني فهمت الطلب بشكل صحيح: اضغطوا على \"نعم، هذا صحيح\".",
+    b_plan_not_verified: "الخطة ليست جاهزة بعد. أكّدوا أنني فهمت الطلب بشكل صحيح وسأُعدّها: اضغطوا على \"نعم، هذا صحيح\".",
+    b_approval_state_unavailable: "لا يمكننا الآن التحقق مما إذا كنتم قد أكّدتم الطلب، ولذلك لن يبدأ البناء. المشكلة عندنا، لا عندكم. حاولوا مرة أخرى بعد بضع دقائق.",
+    b_brief_stale: "تغيّر الطلب منذ أن أكّدتموه. أكّدوا الطلب كما هو الآن: اضغطوا على \"نعم، هذا صحيح\".",
+    readinessBuilt: "انتهى البناء الأخير بنجاح",
+    readinessNextBlocked: "بناء إضافي غير ممكن حاليًا",
+    readinessReady: "يمكن طلب الموافقة على البناء",
+    readinessBlocked: "لا يمكن بدء البناء حاليًا",
+    readinessUnknown: "لم يتم فحص جاهزية المشروع بعد",
+    readinessRunning: "بناء المشروع جارٍ",
+    readinessDetails: "للتفاصيل",
+    readinessBlockedHelp: l=>`لا يمكن بدء البناء بعد، وليس لدينا الآن تفسير دقيق للسبب. يمكنكم تغيير الطلب والمحاولة مرة أخرى: اضغطوا على "${l}".`,
+    quoteMissingTitle: "ما ليس له سعر بعد:",
+    quoteMissingHelp: l=>`إذا كان بإمكانكم الاستغناء عنه، احذفوه من الطلب وسنبني بدونه: اضغطوا على "${l}".`,
+    quoteUnverified: "جزء مما طلبتموه ليس لدينا سعر له بعد، ولذلك لا يمكن بدء البناء.",
+    unknownBlocker: "يلزم توضيح إضافي قبل بدء البناء.",
+    k_database: "حفظ المعلومات",
+    k_auth_session: "تسجيل الدخول والجلسات",
+    k_object_storage: "تخزين الملفات",
+    k_scheduled_http: "مهام مجدولة",
+    k_outbound: "البريد الإلكتروني و webhooks",
+    newChat: "محادثة جديدة · مشروع جديد",
+    searchProjects: "البحث في المشاريع",
+    canBuildTitle: "ما الذي يمكن بناؤه اليوم",
+    noMatches: "لم يتم العثور على مشاريع",
+    hideSidebar: "إخفاء الشريط الجانبي",
+    showSidebar: "إظهار الشريط الجانبي",
+    previewToggle: "المعاينة",
+    expandPreview: "تكبير المعاينة",
+    shrinkPreview: "تصغير المعاينة",
+    hidePreview: "إغلاق المعاينة",
+    resizePreview: "السحب لتغيير عرض المعاينة",
+    send: "إرسال",
+    chatPlaceholder: "اكتبوا ما تريدون بناءه أو تغييره…",
+    you: "أنتم",
+    assistant: "148AI",
+    language: "اللغة",
+    docTitle: "148AI · مساحة الإنشاء",
+    aiFallback: "أُعِدّ هذا الرد وفق قواعد ثابتة، بدون ذكاء اصطناعي.",
+    chatHelloTitle: "ماذا نبني اليوم؟",
+    chatHello: "أخبروني بكلماتكم ما الذي تحتاجونه — سأسأل فقط عمّا هو مهم، وأقترح خطة وتكلفة، ولن يُبنى أي شيء دون موافقتكم.",
+    tab_req: "المتطلبات",
+    tab_plan: "الخطة والتكلفة",
+    tab_build: "البناء",
+    tab_change: "تغيير",
+    tab_versions: "النسخ",
+    tab_details: "التفاصيل",
+    tab_built: "المنتج",
+    actShowPlan: "عرض الملخص والخطة والتكلفة",
+    actApprove: "الموافقة وبدء البناء",
+    actApproveSpec: "نعم، هذا صحيح",
+    windowsTitle: "النوافذ في الموقع",
+    windowsHint: "حدّدوا كل نافذة تريدونها في الموقع. النافذة غير المحدّدة لن تُبنى.",
+    canonAck: "أوافق على البناء بدون التفاصيل الناقصة أعلاه (لن يتم اختلاقها، وسيُحذف الجزء الذي يعتمد عليها)",
+    actConfirmMod: "إرسال التغيير للتنفيذ",
+    delegateShort: "اختاروا لي",
+    convNotReady: "المحادثة الذكية غير متاحة هنا بعد. الأسئلة الموجّهة تعمل كالمعتاد.",
+    fallbackNote: "المحادثة الذكية غير متاحة هنا بعد، لذلك انتقلت إلى الأسئلة الموجّهة. تظهر في شاشة \"المتطلبات\" ويتم حفظها.",
+    archTitle: "خطة العمل (أقسام ومهام)",
+    feasibility: "إمكانية التنفيذ",
+    layer: "مرحلة",
+    f_FEASIBLE: "قابل للتنفيذ تقنيًا",
+    f_FEASIBLE_WITH_CONSTRAINTS: "قابل للتنفيذ تقنيًا مع قيود",
+    f_BLOCKED: "متعذّر حاليًا",
+    f_UNSUPPORTED: "غير مدعوم بعد",
+    f_UNKNOWN: "غير معروف",
+    constraints: "قيود",
+    ifNeeded: "عند الحاجة",
+    tasksTitle: "تفاصيل تقنية: من يفعل ماذا",
+    buildRunning: "البناء جارٍ",
+    interpreterNote: "تم التفسير وفق قواعد ثابتة (بدون ذكاء اصطناعي)",
+    ts_SUCCEEDED: "اكتمل",
+    ts_RUNNING: "جارٍ",
+    ts_PENDING: "قيد الانتظار",
+    ts_READY: "جاهز",
+    ts_FAILED: "فشل",
+    ts_BLOCKED: "متوقف",
+    ts_CANCELLED: "لم يُنفَّذ",
+    ts_REPAIRING: "قيد الإصلاح",
+    ts_NOT_RECORDED: "لم يُسجَّل",
+  },
 };
 
+// the platform's languages (the owner, 2026-11-22: "תוצאות בהרבה שפות"); each is named in its own script, sets the
+// page direction, and formats dates and numbers. Arabic keeps Latin digits (ar-u-nu-latn), as the rest of the platform.
+const LANGS = { he: { name: 'עברית', dir: 'rtl', locale: 'he-IL' }, en: { name: 'English', dir: 'ltr', locale: 'en-GB' },
+                ar: { name: 'العربية', dir: 'rtl', locale: 'ar-u-nu-latn' } };
+const locale = () => (LANGS[S.lang] || LANGS.he).locale;
 const S = {
-  lang: localStorage.getItem('148ai_lang') || 'he',
+  lang: (l => (l in LANGS ? l : 'he'))(localStorage.getItem('148ai_lang') || 'he'),
   signedIn: false,
   me: null, projects: [], projectId: localStorage.getItem('148ai_project') || '',
   durable: false, plan: null, build: null, versions: [], previewId: null, preview: null,
@@ -341,6 +685,44 @@ Object.assign(T.en, {
     ['Landing page', 'I want a landing page that explains the offer and lets visitors leave their contact details.'],
     ['Catalogue', 'I want a catalogue with categories, photos and a way to ask about a product.'],
   ],
+});
+// Arabic for the workspace blocks above (2026-11-22, translated and independently reviewed)
+Object.assign(T.ar, {
+  actRetryBuild: "محاولة البناء مرة أخرى",
+  stillMissing: "للمتابعة، ما زال ينقص",
+  stillMissingNone: "للمتابعة، ما زالت تنقص إجابة واحدة في المحادثة.",
+  actDescribeInstead: "صِفوا موقعًا أو تطبيقًا بدلًا من ذلك",
+  openRequirements: "للاختيار في شاشة \"المتطلبات\"",
+  updateDraft: "تحديث الخطة",
+  editAll: "تعديل الطلب",
+  minimizeContext: "تصغير النافذة",
+  colourExample: "مثلًا: وردي هادئ مع الكريمي والذهبي",
+  fontSample: "هكذا سيبدو النص في موقعكم",
+  fontUnavailable: "لم يُحمَّل المثال بعد",
+  guidedMode: "وضع الاستبيان الموجَّه — محادثة الذكاء الاصطناعي غير مفعّلة حاليًا",
+  aiMode: "تم إعداد وضع محادثة الذكاء الاصطناعي — يعتمد التوفر على الخدمة والميزانية",
+  draftNote: "يمكنكم تغيير ما تريدون من التفاصيل. «تحديث» وحده يطبّق التغييرات.",
+  attachmentSchema: "إرفاق الصور غير متاح هنا بعد. حُفظت الصورة والنص هنا لتعيدوا المحاولة.",
+  workspaceHero: "ماذا تريدون أن تُنشئوا اليوم؟",
+  workspaceLead: "المواقع والتطبيقات تبدأ بمحادثة. توافقون على الخطة، وترون النتيجة، وتغيّرون ما يلزم.",
+  workspaceCards: "المتطلبات والخطة والبناء",
+  workspaceEdit: "التعديل ووضع العلامات",
+  workspaceVersion: "نسخة محفوظة",
+  workspaceCost: "السعر التقديري",
+  workspaceWait: "بانتظار الموافقة",
+  workspaceDraft: "مسودة",
+  workspaceExamples: [["موقع لنشاط تجاري","أريد موقعًا لنشاط تجاري مع تفصيل للخدمات وطريقة سهلة للتواصل."],["صفحة هبوط","أريد صفحة هبوط تقدّم عرضًا وتتيح ترك البيانات."],["كتالوج","أريد كتالوج منتجات مع فئات وصور وطريقة للسؤال عن منتج."]],
+  workspaceNavigation: "مساحة العمل",
+  allProjects: "كل المشاريع",
+  recentProjects: "الأحدث",
+  workspaceTemplates: "القوالب",
+  workspaceDomains: "أسماء النطاقات",
+  workspaceSettings: "الإعدادات",
+  workspaceStatusFilter: "حالة المشروع",
+  workspaceAllStates: "كل الحالات",
+  workspaceStates: {"none":"لم يُبنَ بعد","unknown":"الحالة غير متاحة","building":"قيد البناء","ready":"تم البناء","failed":"فشل","cancelled":"أُلغي"},
+  workspaceDomainsNote: "يمكنكم فتح معاينة خاصة وتنزيل عملكم. سيظهر ربط اسم نطاق عام عندما يصبح هذا الخيار متاحًا.",
+  workspaceTemplateList: [["موقع لنشاط تجاري","أريد موقعًا لنشاطي التجاري مع وصف للخدمات وطريقة مريحة للتواصل معي من الهاتف."],["صفحة هبوط","أريد صفحة هبوط تقدّم العرض وتتيح ترك البيانات."],["كتالوج","أريد كتالوجًا واضحًا مع فئات وصور وطريقة للسؤال عن منتج."]],
 });
 
 // For everyone (the owner, 2026-11-22: "מקטן שיודע לקרוא ועד למבוגר שלא מבין בכלל"; inbox 001 §6: the number of
@@ -451,7 +833,9 @@ function explain(err) {
     const count = Number.isFinite(used) && Number.isFinite(max) ? ` (${used}/${max})` : '';
     return S.lang === 'he'
       ? 'הגעתם למכסת הפרויקטים הפעילים' + count + '. ניתן לארכב פרויקט קיים או לשנות תוכנית. זו לא בעיה של יתרה.'
-      : 'Active project limit reached' + count + '. Archive an existing project or change plan. This is not a build-credit issue.';
+      : S.lang === 'ar'
+        ? 'وصلتم إلى الحد الأقصى للمشاريع النشطة' + count + '. يمكنكم أرشفة مشروع قائم أو تغيير الخطة. هذه ليست مشكلة في الرصيد.'
+        : 'Active project limit reached' + count + '. Archive an existing project or change plan. This is not a balance issue.';
   }
   if (err.detail && err.detail.error === 'attachments_not_ready') return t('attachmentSchema');
   if (err.detail && err.detail.error === 'capability_not_feasible') return capabilityBlockMessage(err.detail);
@@ -494,16 +878,19 @@ function nextTextSize() {
 /* ---------- language ---------- */
 function applyLang() {
   document.documentElement.lang = S.lang;
-  document.documentElement.dir = S.lang === 'he' ? 'rtl' : 'ltr';
+  document.documentElement.dir = (LANGS[S.lang] || LANGS.he).dir;
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-label]').forEach(el => { el.setAttribute('aria-label', t(el.dataset.i18nLabel)); el.title = t(el.dataset.i18nLabel); });
   if ($('passwordToggle')) { const label = t($('password').type === 'password' ? 'showPassword' : 'hidePassword'); $('passwordToggle').setAttribute('aria-label', label); $('passwordToggle').title = label; }
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
-  for (const b of [$('langBtn'), $('langBtn2')]) { b.textContent = S.lang === 'he' ? 'English' : 'עברית'; b.lang = S.lang === 'he' ? 'en' : 'he'; }
+  for (const pick of [$('langBtn'), $('langBtn2')]) {
+    if (!pick.options.length) pick.append(...Object.entries(LANGS).map(([code, l]) => h('option', { value: code, lang: code, dir: l.dir }, l.name)));
+    pick.value = S.lang;
+  }
   $('chatInput').placeholder = t('chatPlaceholder');
   applyTextSize();
   $('publishNote').textContent = t('publishNotConfigured');
-  document.title = S.lang === 'he' ? '148AI · סביבת יצירה' : '148AI · Creator workspace';
+  document.title = t('docTitle');
   renderBanner(); renderDiscovery(); renderPlan(); renderTrack(); renderVersions(); renderEvidence(); renderPreview(); renderMod();
   renderProjects(); renderWorkspaceBalance(); renderChat(); renderArch(); renderTabs(); syncStageButtons();
   if (window.VE) VE.render();
@@ -609,7 +996,7 @@ function renderWorkspaceBalance() {
   const credits = S.me?.subscription?.credits_remaining;
   const balance = $('sbBalance');
   balance.hidden = !Number.isFinite(credits);
-  balance.textContent = balance.hidden ? '' : `${t('creditsRemaining')} · ${new Intl.NumberFormat(S.lang).format(credits)}`;
+  balance.textContent = balance.hidden ? '' : `${t('creditsRemaining')} · ${new Intl.NumberFormat(locale()).format(credits)}`;
 }
 async function refreshWorkspaceBalance() {
   const account = S.me;
@@ -1182,15 +1569,15 @@ function renderPlan() {
   }
   if (p.blockers.length) {
     const missingCapabilityNames = {
-      'ai.agent.tools': ['סוכן AI המבצע פעולות', 'Agent tool execution'],
-      'integration.maps': ['מפות אינטראקטיביות', 'Interactive maps'],
-      'media.audio.tts': ['יצירת קול וקריינות', 'Text-to-speech'],
-      'outbound': ['שליחת מיילים או התראות', 'Outgoing emails or notifications'],
-      'target.agent': ['מוצר מסוג סוכן AI', 'AI agent product'],
+      'ai.agent.tools': ['סוכן AI המבצע פעולות', 'Agent tool execution', 'وكيل ذكاء اصطناعي ينفّذ إجراءات'],
+      'integration.maps': ['מפות אינטראקטיביות', 'Interactive maps', 'خرائط تفاعلية'],
+      'media.audio.tts': ['יצירת קול וקריינות', 'Text-to-speech', 'تحويل النص إلى صوت وتعليق صوتي'],
+      'outbound': ['שליחת מיילים או התראות', 'Outgoing emails or notifications', 'إرسال رسائل بريد إلكتروني أو إشعارات'],
+      'target.agent': ['מוצר מסוג סוכן AI', 'AI agent product', 'منتج من نوع وكيل ذكاء اصطناعي'],
     };
     const nameForMissing = g => {
       const names = missingCapabilityNames[g.key];
-      return names ? names[S.lang === 'he' ? 0 : 1] : String(g.purpose || g.key || t('unknownBlocker'));
+      return names ? names[{ he: 0, en: 1, ar: 2 }[S.lang] ?? 1] : String(g.purpose || g.key || t('unknownBlocker'));
     };
     const title = b => blockerTitle(b, p);
     const titles = [...new Set(p.blockers.map(title))];
@@ -1325,7 +1712,7 @@ function renderLog() {
     return;
   }
   box.hidden = false;
-  const fmt = iso => { try { return new Date(iso).toLocaleTimeString(S.lang === 'he' ? 'he-IL' : 'en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return ''; } };
+  const fmt = iso => { try { return new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return ''; } };
   const rows = (b.log || []).slice(-60).map(e => h('li', { class: `ev ${e.kind}` }, h('time', {}, fmt(e.at)), ' ', e.message));
   const atEnd = list.scrollHeight - list.scrollTop - list.clientHeight < 24;
   list.replaceChildren(...(rows.length ? rows : [h('li', { class: 'ev muted' }, t('logEmpty'))]));
@@ -1565,8 +1952,8 @@ function friendlyError(b) {
   if (b.error_code === 'image_mismatch') {
     // Michael 2026-11-15: judged in seconds -- what was asked, and what the vision model saw
     const m = String(b.error_message || '').match(/asked "([^"]*)"; the image shows "([^"]*)"/);
-    if (m) return known + (S.lang === 'en' ? ` Asked: "${m[1]}". The image shows: "${m[2]}".`
-                                            : ` ביקשתם: "${m[1]}". בתמונה: "${m[2]}".`);
+    if (m) return known + ({ en: ` Asked: "${m[1]}". The image shows: "${m[2]}".`,
+                            ar: ` طلبتم: "${m[1]}". في الصورة: "${m[2]}".` }[S.lang] ?? ` ביקשתם: "${m[1]}". בתמונה: "${m[2]}".`);
     return known;
   }
   // 2026-11-08: 'all model routes failed: ... does not fit the remaining budget' is the build budget running out,
@@ -1647,7 +2034,7 @@ function renderBuilt() {
   $('builtSummary').textContent = v.summary || '';
   $('builtFeatures').replaceChildren(...(v.features || []).map((f) => h('li', {}, f)));
   let when = v.created_at;
-  try { when = new Intl.DateTimeFormat(S.lang === 'he' ? 'he-IL' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(v.created_at)); } catch { /* keep raw */ }
+  try { when = new Intl.DateTimeFormat(locale(), { dateStyle: 'short', timeStyle: 'short' }).format(new Date(v.created_at)); } catch { /* keep raw */ }
   $('builtMeta').replaceChildren(when,
     v.file_count ? ` · ${v.file_count} ${t('files')}` : '');
 }
@@ -1656,7 +2043,7 @@ function renderVersions() {
   panel.hidden = !S.projectId || !S.me;
   const list = $('versionsList');
   if (!S.versions.length) { list.replaceChildren(h('li', { class: 'meta' }, t('noVersions'))); return; }
-  const fmt = new Intl.DateTimeFormat(S.lang === 'he' ? 'he-IL' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' });
+  const fmt = new Intl.DateTimeFormat(locale(), { dateStyle: 'short', timeStyle: 'short' });
   list.replaceChildren(...S.versions.map((v, i) => {
     let when = v.created_at; try { when = fmt.format(new Date(v.created_at)); } catch { /* keep raw */ }
     return h('li', {},
@@ -2155,6 +2542,10 @@ const TT = {
     unit_tests:'בדיקות בסביבה מבודדת', repair:'תיקונים', preview_smoke:'הפעלת תצוגה', behavioural_acceptance:'בדיקות התנהגות',
     browser_flow:'בדיקת דפדפן', visual_qa:'בדיקה חזותית', security_scan:'סריקת אבטחה', code_review:'סקירת קוד',
     release_gate:'שער שחרור', version_release:'שמירת גרסה', cost_settlement:'חישוב עלות' },
+  ar: { requirements:'المتطلبات', plan_and_quote:'الخطة وعرض السعر', architecture:'تصميم البنية', implementation:'كتابة الكود',
+    unit_tests:'فحوصات في بيئة معزولة', repair:'إصلاحات', preview_smoke:'تشغيل المعاينة', behavioural_acceptance:'فحوصات السلوك',
+    browser_flow:'فحص في المتصفح', visual_qa:'فحص بصري', security_scan:'فحص الأمان', code_review:'مراجعة الكود',
+    release_gate:'بوابة الإطلاق', version_release:'حفظ النسخة', cost_settlement:'حساب التكلفة' },
 };
 const ttLabel = k => (TT[S.lang] && TT[S.lang][k]) || String(k).replace(/_/g, ' ');
 async function loadTasks() {
@@ -2271,7 +2662,7 @@ function wireWorkspace() {
   });
   syncSidebar();
   $('sbScrim').addEventListener('click', closeSidebarMobile);
-  $('langBtn2').addEventListener('click', () => $('langBtn').click());
+  $('langBtn2').addEventListener('change', e => { $('langBtn').value = e.target.value; $('langBtn').dispatchEvent(new Event('change')); });
   $('logoutBtn2').addEventListener('click', logout);
   $('togglePreviewBtn').addEventListener('click', () => {
     if (matchMedia('(max-width:900px)').matches) ws.classList.toggle('stage-mobile');
@@ -2319,7 +2710,7 @@ function wire() {
   });
   $('registerBtn').addEventListener('click', () => authSubmit('register'));
   $('logoutBtn').addEventListener('click', logout);
-  $('langBtn').addEventListener('click', () => { S.lang = S.lang === 'he' ? 'en' : 'he'; localStorage.setItem('148ai_lang', S.lang); applyLang(); });
+  $('langBtn').addEventListener('change', e => { if (!(e.target.value in LANGS)) return; S.lang = e.target.value; localStorage.setItem('148ai_lang', S.lang); applyLang(); });
   $('projectSelect').addEventListener('change', e => selectProject(e.target.value));
   $('projectMenuBtn').addEventListener('click', openProjectDialog);
   for (const b of [$('textSizeBtn'), $('textSizeBtn2')]) b.addEventListener('click', nextTextSize);

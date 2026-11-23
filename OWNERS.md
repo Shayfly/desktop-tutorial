@@ -21,6 +21,21 @@ head SHA, mutations that prove its tests catch the fault (`tests/negative_contro
 separate agents, and a sentence in the report saying that the review was not a person's. Irreversible decisions stay
 the owner's (the last row above); a destructive database write still needs the owner's word naming its target.
 
+## 2026-11-22 (evening) — the platform UI shell moves to Claude Code
+
+The owner, after Codex's design (warehouse 133) was released by Claude Code: "כל מה שאמרת לקודקס לעשות, אני מעביר אלייך
+להמשיך כי אני יודע שעלייך אני יכול לסמוך !!! ואני לא רוצה שהוא ימשיך את הנושא הזה אלא אתה מכאן, אני צריך שתמשיך לפתח אותו
+אם אתה חושב ולהעלות את המעודכן לרשת כמו שצריך". From then on:
+
+- the platform UI shell (the table below) is Claude Code's, together with the customers' sites and their engine;
+- Codex does not continue the UI: a `codex/` or `design/` branch changes neither the shell nor the engine
+  (`scripts/path_ownership.py`, the `path-ownership` workflow, on every pull request);
+- the tasks proposed to Codex that evening are Claude Code's too: a blocking WCAG 2.2 AA check for the platform UI,
+  the platform UI in more languages (RTL and LTR), and the triage of Codex's open PRs;
+- a sketch from Matt, when one comes, is still followed, and a deviation is one line in the PR with its reason.
+
+The section below is the record of the earlier split.
+
 ## Platform UI shell — Matt designs (the owner, 2026-11-22)
 
 Matt designs the platform's screens and delivers a sketch and a spec for each one. Claude implements a screen only after

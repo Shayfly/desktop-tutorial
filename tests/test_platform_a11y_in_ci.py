@@ -31,6 +31,13 @@ class TheCheckRuns(unittest.TestCase):
             self.assertIn(f'  async {fix}(browser, fix)', fixes)
         self.assertIn('also passes with its fix taken out', fixes)                    # each proves itself
 
+    def test_every_platform_language_is_checked_whole(self):
+        self.assertIn('node tests/ui_languages_browser.cjs', CI)
+        self.assertIn("const LANGS = ['he', 'en', 'ar'];", CHECK)                          # accessibility in every language
+        langs = (ROOT / 'tests' / 'ui_languages_browser.cjs').read_text(encoding='utf-8')
+        self.assertIn("['he', 'en', 'ar']", langs)
+        self.assertIn('was NOT caught', langs)
+
 
 if __name__ == '__main__':
     unittest.main()

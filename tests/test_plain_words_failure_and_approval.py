@@ -102,7 +102,8 @@ def run_js(expression: str, *, lang: str = 'he', me=None):
              *(_fn(source, f) for f in ('notRunLine', 'stopReasonLine', 'friendlyError', 'ownerView', 'failureView',
                                         'ownerTech', 'requestEditLabel', 'explain')),
              f'console.log(JSON.stringify({expression}));']
-    done = subprocess.run(['node', '-e', '\n'.join(parts)], capture_output=True, text=True, timeout=50)
+    # the code goes in on stdin: with the Arabic dictionary app.js's tables passed 128 KB, the limit of one argv string
+    done = subprocess.run(['node', '-'], input='\n'.join(parts), capture_output=True, text=True, timeout=50)
     assert done.returncode == 0, done.stderr[-1500:]
     return json.loads(done.stdout)
 
