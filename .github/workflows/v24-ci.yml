@@ -323,7 +323,7 @@ jobs:
         timeout-minutes: 4
       # usable by anyone who can read (the owner, 2026-11-22): no name asked before the first message, zero technical
       # terms, reading text 16px+, every control 44px+, three text sizes, the owner's example look (open dark rail, dark top
-      # bar); it also proves it catches nine deliberate faults
+      # bar, the preview's phone view, the build steps in plain words); it also proves it catches twelve deliberate faults
       - run: node tests/platform_for_everyone_browser.cjs
         timeout-minutes: 6
       # gate 1's spec as the card "זה מה שנבנה" (the owner's example): each business detail once; fails without the card
