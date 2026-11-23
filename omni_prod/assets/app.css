@@ -792,3 +792,18 @@ button.secondary:not(.danger):hover{border-color:var(--v-yellow-line)}
 .deviceSwitch button{min-height:44px;border-radius:10px;font-weight:500;color:var(--v-muted)}
 .deviceSwitch button[aria-pressed="true"]{background:var(--v-fire);color:var(--v-ink);box-shadow:inset 0 0 0 1px var(--v-fire-line);font-weight:700}
 .workspace[data-device="phone"] .stage .viewport{width:min(390px,100%);margin-inline:auto;flex:1 0 auto}
+
+/* build steps as cards with a written state (the owner's example, screen 07) */
+.track::before{display:none}
+.step{grid-template-columns:auto 1fr;align-items:start;gap:10px;background:#fcfaf3;border:1px solid var(--v-line);
+  border-radius:13px;padding:12px;margin-block-end:8px}
+.step>div{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+.step .name{font-weight:700;color:var(--v-ink)}
+.step .note{flex:1 0 100%;color:var(--v-muted)}
+.step .stepTag{order:3;margin-inline-start:auto}
+.step.done .stepTag{background:#e4f1e9;color:#29644b;border-color:#cce2d2}
+.step.active .stepTag{background:var(--v-yellow);color:var(--v-dark);border-color:var(--v-yellow-line)}
+.step.failed .stepTag{background:#fff0e2;color:#823e18;border-color:#f0d4ba}
+.step.skipped{opacity:1}
+.step.skipped .name,.step.skipped .note{color:var(--v-muted)}
+.step .dot{margin-block-start:3px}

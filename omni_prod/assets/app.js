@@ -372,6 +372,20 @@ Object.assign(T.he, {
   specYours: 'המפרט שלך', specTitle: 'זה מה שנבנה', specFacts: 'פרטי העסק, כמו שכתבתם', specDefault: 'בחירה שלנו, אפשר לשנות',
   specPrice: 'מחיר', specNext: 'מה עכשיו',
   previewDevice: 'לראות כמו במחשב או כמו בטלפון', devDesktop: 'מחשב', devPhone: 'טלפון',
+  // the build steps and the checks in the customer's words (the owner's example, screens 07 and 08; inbox 001 §6)
+  stepPlanning: 'מתכננים מה לבנות', stepContract: 'מסכמים בדיוק מה ייבנה', stepInfra: 'מכינים את הבסיס',
+  stepAssets: 'מכינים תמונות ואייקון', stepGenerate: 'בונים את האתר', stepGates: 'בודקים שהכול תקין ובטוח',
+  stepPreview: 'מראים לכם איך זה נראה',
+  noteGenerate: 'הבנייה, הבדיקות והתיקונים קורים ביחד. בסוף נדווח כמה תיקונים היו.',
+  stepState: { done: 'הושלם', active: 'קורה עכשיו', pending: 'ממתין', failed: 'נכשל', skipped: 'לא בוצע' },
+  checkNames: { preview_starts: 'האתר נפתח', behavioural_acceptance: 'האתר עושה מה שביקשתם',
+    browser_flow: 'אפשר להשתמש בו בדפדפן', visual_layout_desktop_mobile: 'נראה טוב במחשב ובטלפון',
+    qa_review: 'עברנו עליו שוב', qa_review_blocking_findings: 'מה שמצאנו בבדיקה החוזרת',
+    reviewer_independent_of_author: 'בדק מישהו אחר, לא מי שבנה', sandbox_build_and_tests: 'הקוד עובד',
+    cross_file_consistency: 'כל החלקים מתאימים זה לזה', dependency_allowlist: 'רק רכיבים מאושרים',
+    approved_criteria_covered: 'כל מה שאישרתם נמצא', quality_score: 'ציון איכות',
+    static_security_scan: 'בטוח למבקרים באתר', rights_clear: 'מותר להשתמש בכל מה שבאתר',
+    acceptance_criteria_defined: 'הגדרנו מראש מה נבדוק' },
 });
 Object.assign(T.en, {
   hero: 'Describe what you need in your own words.',
@@ -398,6 +412,19 @@ Object.assign(T.en, {
   specYours: 'Your spec', specTitle: 'This is what we will build', specFacts: 'Your business details, as you wrote them',
   specDefault: 'our choice, you can change it', specPrice: 'Price', specNext: 'What now',
   previewDevice: 'See it as on a computer or on a phone', devDesktop: 'Computer', devPhone: 'Phone',
+  stepPlanning: 'Planning what to build', stepContract: 'Agreeing exactly what gets built', stepInfra: 'Preparing the basics',
+  stepAssets: 'Preparing images and an icon', stepGenerate: 'Building your site', stepGates: 'Checking it works and is safe',
+  stepPreview: 'Showing you how it looks',
+  noteGenerate: 'Building, testing and repairs happen together. At the end we report how many repairs there were.',
+  stepState: { done: 'Done', active: 'Happening now', pending: 'Waiting', failed: 'Failed', skipped: 'Not done' },
+  checkNames: { preview_starts: 'The site opens', behavioural_acceptance: 'The site does what you asked',
+    browser_flow: 'It can be used in a browser', visual_layout_desktop_mobile: 'It looks right on a computer and a phone',
+    qa_review: 'We went over it again', qa_review_blocking_findings: 'What the second look found',
+    reviewer_independent_of_author: 'Someone other than the builder checked it', sandbox_build_and_tests: 'The code works',
+    cross_file_consistency: 'All the parts fit together', dependency_allowlist: 'Only approved parts',
+    approved_criteria_covered: 'Everything you approved is there', quality_score: 'Quality score',
+    static_security_scan: 'Safe for visitors', rights_clear: 'Everything on the site may be used',
+    acceptance_criteria_defined: 'We decided in advance what to check' },
 });
 
 const $ = id => document.getElementById(id);
@@ -1374,9 +1401,10 @@ function renderTrack() {
   const failedIdx = failedCode in FAIL_STEP ? FAIL_STEP[failedCode] : -1;
   const preview = S.preview;
   const steps = [];
+  // the owner's example (screen 07): each step is a card whose state is written, not colour alone
   const push = (name, state, note) => steps.push(h('li', { class: `step ${state}` }, h('span', { class: 'dot', 'aria-hidden': 'true' }),
-    h('div', {}, h('span', { class: 'name' }, name), note ? h('span', { class: 'note' }, note) : null,
-      h('span', { class: 'sr' }, ` (${state})`))));
+    h('div', {}, h('span', { class: 'name' }, name), h('span', { class: 'pill stepTag' }, t('stepState')[state] || state),
+      note ? h('span', { class: 'note' }, note) : null)));
   // A build exists only for an approved plan (after a reload the plan itself is not reloaded).
   push(t('stepPlanning'), (S.plan || b) ? 'done' : 'active');
   push(t('stepContract'), S.plan ? (S.plan.status === 'READY' ? 'done' : 'failed') : b ? 'done' : 'pending',
