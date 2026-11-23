@@ -835,6 +835,21 @@ Object.assign(T.ar, {
   specYours: 'ملخّصكم', specTitle: 'هذا ما سنبنيه', specFacts: 'تفاصيل عملكم، كما كتبتموها', specDefault: 'اختيارنا، يمكن تغييره',
   specPrice: 'السعر', specNext: 'ماذا الآن',
   previewDevice: 'المشاهدة كما على الحاسوب أو كما على الهاتف', devDesktop: 'حاسوب', devPhone: 'هاتف',
+  stepPlanning: 'نخطّط لما سنبنيه', stepContract: 'نتّفق بالضبط على ما سيُبنى', stepInfra: 'نجهّز الأساس',
+  stepAssets: 'نجهّز الصور والأيقونة', stepGenerate: 'نبني موقعكم', stepGates: 'نتحقق من أن كل شيء يعمل وآمن',
+  stepPreview: 'نريكم كيف يبدو',
+  noteGenerate: 'البناء والفحص والإصلاحات تحدث معًا. في النهاية نخبركم كم إصلاحًا كان.',
+  stepState: { done: 'اكتمل', active: 'يحدث الآن', pending: 'في الانتظار', failed: 'فشل', skipped: 'لم يُنفَّذ' },
+  // the owner's technical block keeps the checks' own names (warehouse 104); the customer reads the plain ones
+  checkNamesTech: T.ar.checkNamesTech || T.ar.checkNames,
+  checkNames: { preview_starts: 'الموقع يُفتح', behavioural_acceptance: 'الموقع يفعل ما طلبتموه',
+    browser_flow: 'يمكن استخدامه في المتصفح', visual_layout_desktop_mobile: 'يبدو جيدًا على الحاسوب والهاتف',
+    qa_review: 'راجعناه مرة أخرى', qa_review_blocking_findings: 'ما وجدته المراجعة الثانية',
+    reviewer_independent_of_author: 'فحصه شخص غير الذي بناه', sandbox_build_and_tests: 'الموقع يعمل',
+    cross_file_consistency: 'كل الأجزاء متناسقة', dependency_allowlist: 'أجزاء معتمدة فقط',
+    approved_criteria_covered: 'كل ما وافقتم عليه موجود', quality_score: 'درجة الجودة',
+    static_security_scan: 'آمن لزوار الموقع', rights_clear: 'مسموح استخدام كل ما في الموقع',
+    acceptance_criteria_defined: 'حدّدنا مسبقًا ما سنفحصه' },
 });
 
 const $ = id => document.getElementById(id);
