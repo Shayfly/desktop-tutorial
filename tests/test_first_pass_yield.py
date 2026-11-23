@@ -11,6 +11,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+import unittest.mock
 import uuid
 
 import yaml
@@ -243,3 +244,50 @@ class RealPostgres(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TheOwnersNewCount(unittest.TestCase):
+    """The owner, 2026-11-23: count anew from today; earlier builds are kept and not counted."""
+
+    def test_a_build_before_the_new_count_is_not_counted_in_any_window(self):
+        import datetime as dt
+        Y = FPY
+        now = Y.COUNT_FROM + dt.timedelta(days=3)
+        old = {'id': 'old', 'status': 'failed', 'created_at': Y.COUNT_FROM - dt.timedelta(hours=1), 'error_code': 'x',
+               'recorded': True, 'first_pass': False, 'taxonomy': []}
+        new = {'id': 'new', 'status': 'ready', 'created_at': Y.COUNT_FROM + dt.timedelta(hours=1), 'error_code': None,
+               'recorded': True, 'first_pass': True, 'taxonomy': []}
+        out = Y.summarize([old, new], now, count_from=Y.COUNT_FROM)
+        self.assertEqual(out['count_from'], '2026-11-23')
+        for days in ('7', '30'):
+            self.assertEqual(out['windows'][days]['finished'], 1, days)
+            self.assertEqual(out['windows'][days]['first_pass_yield'], 1.0, days)
+        self.assertIn('Counted from 2026-11-23', Y.markdown(out))
+
+    def test_the_production_path_applies_the_new_count(self):
+        """main() on a day after the count reads from COUNT_FROM, not 30 days back, and the report says so."""
+        captured = {}
+
+        class Cur:
+            description = [(n,) for n in ('id', 'status', 'created_at', 'error_code', 'recorded', 'first_pass', 'taxonomy')]
+            def fetchall(self):
+                return []
+
+        class Conn:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def execute(self, sql, params=None):
+                if params: captured['since'] = params[0]
+                return Cur()
+            def rollback(self): pass
+
+        with tempfile.TemporaryDirectory() as d, unittest.mock.patch.dict(os.environ, {'OMNI_DATABASE_URL': 'postgres://read-only'}):
+            out, summary = pathlib.Path(d, 'o.json'), pathlib.Path(d, 's.md')
+            rc = FPY.main(['--out', str(out), '--summary', str(summary)], connect=lambda *a, **k: Conn(),
+                          now=FPY.COUNT_FROM + dt.timedelta(days=40))
+            self.assertEqual(rc, 0)
+            self.assertEqual(captured['since'], FPY.COUNT_FROM + dt.timedelta(days=10))      # 30 days back is after the count
+            rc = FPY.main(['--out', str(out), '--summary', str(summary)], connect=lambda *a, **k: Conn(),
+                          now=FPY.COUNT_FROM + dt.timedelta(days=3))
+            self.assertEqual(captured['since'], FPY.COUNT_FROM)                              # never before the count
+            self.assertIn('Counted from 2026-11-23', summary.read_text())
