@@ -74,6 +74,7 @@ class OnTheRealPath(unittest.TestCase):
         self.addCleanup(p.stop)
 
     ANSWERS = {'personal_data': 'לא', 'content_only': 'כן, אתר תוכן בלבד, לא שומרים כלום'}
+    maxDiff = None
 
     def gate1(self, request):
         """Answers each question the conversation asks (as tests/test_agent_asks_the_business_name.py does)."""
@@ -122,6 +123,23 @@ class PlainWords(unittest.TestCase):
                       rows=[('מסכים', default, False)])
         self.assertEqual(card['rows'][0]['value'], 'רק החלקים שביקשתם, בלי מסכי ניהול שלא ביקשתם')
         self.assertNotIn('CRUD', shown_text(card))
+
+
+class TheMessageToo(OnTheRealPath):
+    """The owner's screenshot was the MESSAGE: its summary now says each business detail once as well, because it is
+    built from the card's rows. The details themselves stay in the canon line of the same message. Inherits
+    OnTheRealPath's setUp and gate1 (and re-runs its own case, which is cheap and proves the card is still there)."""
+
+    def test_the_message_says_each_detail_once_and_loses_nothing(self):
+        request = ('שם העסק: סטודיו נועה. אתר תדמית למספרה. טלפון 03-5551234. כתובת: רחוב הרצל 12, חולון. '
+                   'שעות פעילות א׳–ה׳ 09:00–19:00, ו׳ 08:00–13:00. אתר תוכן בלבד, לא שומרים כלום.')
+        t, spec = self.gate1(request)
+        for detail in ('03-5551234', 'רחוב הרצל 12', '09:00–19:00'):
+            self.assertEqual(t.reply.count(detail), 1, detail)       # once, not twice
+            self.assertIn(detail, t.reply)                           # and never lost
+        self.assertNotIn('CRUD', t.reply)
+        for row in spec['card']['rows']:                             # every row of the card is in the message
+            self.assertIn(f"{row['label']}: {row['value']}", t.reply)
 
 
 class TheBrowserCheckRuns(unittest.TestCase):

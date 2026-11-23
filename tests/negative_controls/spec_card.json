@@ -15,8 +15,13 @@
      "new": "    keep = str(value).split('; ')  # NEGATIVE CONTROL"
     }
    ],
-   "targets": ["tests/test_spec_card.py"],
-   "expect_failed": ["test_the_fixture_is_what_the_server_builds", "test_the_owners_screenshot_shows_each_detail_once"]
+   "targets": [
+    "tests/test_spec_card.py"
+   ],
+   "expect_failed": [
+    "test_the_fixture_is_what_the_server_builds",
+    "test_the_owners_screenshot_shows_each_detail_once"
+   ]
   },
   {
    "id": "NC2",
@@ -28,8 +33,13 @@
      "new": "            pass  # NEGATIVE CONTROL"
     }
    ],
-   "targets": ["tests/test_spec_card.py"],
-   "expect_failed": ["test_a_warning_is_never_dropped", "test_a_line_of_another_shape_stays_text"]
+   "targets": [
+    "tests/test_spec_card.py"
+   ],
+   "expect_failed": [
+    "test_a_warning_is_never_dropped",
+    "test_a_line_of_another_shape_stays_text"
+   ]
   },
   {
    "id": "NC3",
@@ -37,12 +47,17 @@
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
-     "old": "        turn.actions[-1]['card'] = spec_card(",
-     "new": "        _unused_card = spec_card(  # NEGATIVE CONTROL"
+     "old": "        turn.actions[-1]['card'] = card",
+     "new": "        pass  # NEGATIVE CONTROL"
     }
    ],
-   "targets": ["tests/test_spec_card.py"],
-   "expect_failed": ["test_the_approval_carries_the_card"]
+   "targets": [
+    "tests/test_spec_card.py"
+   ],
+   "expect_failed": [
+    "test_the_approval_carries_the_card",
+    "test_the_message_says_each_detail_once_and_loses_nothing"
+   ]
   },
   {
    "id": "NC5",
@@ -54,8 +69,30 @@
      "new": "        rest = _without_repeats(value, details)  # NEGATIVE CONTROL"
     }
    ],
-   "targets": ["tests/test_spec_card.py"],
-   "expect_failed": ["test_the_builders_default_is_said_in_plain_words"]
+   "targets": [
+    "tests/test_spec_card.py"
+   ],
+   "expect_failed": [
+    "test_the_builders_default_is_said_in_plain_words",
+    "test_the_message_says_each_detail_once_and_loses_nothing"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the message's summary goes back to the raw fields, repeating every business detail",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        summary = '; '.join(f\"{r['label']}: {r['value']}\" + (safe if r['default'] else '') for r in card['rows'])",
+     "new": "        summary = '; '.join(_label(k, v['value'], lang) + (safe if v.get('confidence') == SAFE_CONFIDENCE else '') for k, v in items[:8] if 'value' in v)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_spec_card.py"
+   ],
+   "expect_failed": [
+    "test_the_message_says_each_detail_once_and_loses_nothing"
+   ]
   },
   {
    "id": "NC4",
@@ -67,8 +104,12 @@
      "new": "      - run: echo skipped  # NEGATIVE CONTROL\n"
     }
    ],
-   "targets": ["tests/test_spec_card.py"],
-   "expect_failed": ["test_the_browser_check_runs_in_ci"]
+   "targets": [
+    "tests/test_spec_card.py"
+   ],
+   "expect_failed": [
+    "test_the_browser_check_runs_in_ci"
+   ]
   }
  ]
 }
