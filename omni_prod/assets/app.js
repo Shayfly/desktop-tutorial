@@ -27,7 +27,7 @@ const T = {
     updateRequest:'עדכן את הבקשה', approveBuild:'לאשר ולהתחיל לבנות', approvalExpired:'האישור פג. בדקו את הסיכום ואשרו שוב.',
     builtTitle:'מה נבנה עד עכשיו', newBuild:'מוצר חדש בפרויקט חדש', newProjectPlus:'+ פרויקט חדש', newProjectHint:'לכל מוצר פרויקט משלו. תנו לו שם, ואז תתארו מה לבנות.', nameRequired:'צריך לתת לפרויקט שם.', builtVersion:'גרסה נוכחית', files:'קבצים',
     progress:'התקדמות הבנייה', modifyTitle:'מה תרצו לשנות?', modifySend:'שליחת שינוי', versions:'גרסאות',
-    evidence:'פרטים טכניים ועדויות', refresh:'רענון', openTab:'פתיחה בלשונית חדשה',
+    evidence:'פרטים טכניים ועדויות', refresh:'רענון', openTab:'פתיחה בחלון חדש',
     noPreview:'כאן תופיע האפליקציה אחרי שהבנייה תסתיים.', download:'הורדת קוד המקור (ZIP)', publish:'פרסום',
     publishNotConfigured:'העלאה לאוויר עוד לא זמינה. אפשר להוריד את הקוד ולבדוק בתצוגה המקדימה.',
     manageProject:'ניהול פרויקט', rename:'שינוי שם', saveName:'שמירת השם', archive:'העברה לארכיון',
@@ -369,7 +369,7 @@ Object.assign(T.he, {
     ['דף למבצע', 'אני רוצה דף שמציג מבצע או הצעה ומאפשר להשאיר פרטים.'],
   ],
   textSize: 'גודל טקסט', textSizes: { normal: 'רגיל', large: 'גדול', xlarge: 'גדול מאוד' },
-  specYours: 'המפרט שלך', specTitle: 'זה מה שנבנה', specFacts: 'פרטי העסק, כמו שכתבתם', specDefault: 'בחירה שלנו, אפשר לשנות',
+  specYours: 'הסיכום שלכם', specTitle: 'זה מה שנבנה', specFacts: 'פרטי העסק, כמו שכתבתם', specDefault: 'בחירה שלנו, אפשר לשנות',
   specPrice: 'מחיר', specNext: 'מה עכשיו',
   previewDevice: 'לראות כמו במחשב או כמו בטלפון', devDesktop: 'מחשב', devPhone: 'טלפון',
 });
@@ -395,7 +395,7 @@ Object.assign(T.en, {
     ['A special offer', 'I want a page that shows a special offer and lets people leave their details.'],
   ],
   textSize: 'Text size', textSizes: { normal: 'Normal', large: 'Large', xlarge: 'Extra large' },
-  specYours: 'Your spec', specTitle: 'This is what we will build', specFacts: 'Your business details, as you wrote them',
+  specYours: 'Your summary', specTitle: 'This is what we will build', specFacts: 'Your business details, as you wrote them',
   specDefault: 'our choice, you can change it', specPrice: 'Price', specNext: 'What now',
   previewDevice: 'See it as on a computer or on a phone', devDesktop: 'Computer', devPhone: 'Phone',
 });
