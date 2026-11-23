@@ -25,8 +25,10 @@ export const COMPARE_FILE_LIMIT = 300;
 export const RELEASE_MARK = '[release]';
 // 2026-11-16: #413's merge released by accident -- its body quoted a PR title that mentioned "[release]" in prose. The
 // mark counts only as a deliberate suffix of the title line; anywhere else it is text (same rule: scripts/release_gate.py).
+// 2026-11-23: with "Default commit message: Pull request title", GitHub writes "<PR title> (#521)"; 02a8dc2 ("...
+// [release] (#521)") was canceled for that suffix. The number GitHub appends is still the end of the title line.
 export function isRelease(message) {
-  return String(message || '').split('\n')[0].trimEnd().endsWith(RELEASE_MARK);
+  return String(message || '').split('\n')[0].trimEnd().replace(/\s*\(#\d+\)$/, '').trimEnd().endsWith(RELEASE_MARK);
 }
 
 export function decide({ env, ref, files, message = '', release = '' }) {
