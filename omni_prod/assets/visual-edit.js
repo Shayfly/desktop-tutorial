@@ -137,6 +137,7 @@ Object.assign(T.ar, {
 // plain words on the preview screen (the owner, 2026-11-22; app.js "For everyone")
 Object.assign(T.he, { pickElement: 'בחירת חלק לשינוי', edPickHint: 'לחצו "בחירת חלק לשינוי" ואז על החלק שתרצו לשנות. בטלפון — הקישו עליו.' });
 Object.assign(T.en, { pickElement: 'Pick a part to change', edPickHint: 'Press "Pick a part to change", then click the part you want to change. On a phone, tap it.' });
+Object.assign(T.ar, { pickElement: 'اختيار جزء لتغييره', edPickHint: 'اضغطوا "اختيار جزء لتغييره" ثم على الجزء الذي تريدون تغييره. على الهاتف — المسوه.' });
 
 const VE = (() => {
   const MAX_IMAGES = 6, MAX_BYTES = 3 * 1024 * 1024, MAX_SIDE = 2000;
