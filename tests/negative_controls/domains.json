@@ -1,0 +1,74 @@
+{
+ "pr": "domain-packs",
+ "sha256": [
+  "tests/test_domains.py",
+  "omni_prod/domains/__init__.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a domain with no mandatory facts passes the schema",
+   "mutations": [
+    {
+     "file": "omni_prod/domains/__init__.py",
+     "old": "    for heading in HEADINGS:\n        if heading not in sections:\n            d.problems.append(f'missing heading \"{heading}\"')",
+     "new": "    for heading in []:  # NEGATIVE CONTROL\n        if heading not in sections:\n            d.problems.append(f'missing heading \"{heading}\"')"
+    }
+   ],
+   "targets": ["tests/test_domains.py"],
+   "expect_failed": ["test_a_domain_without_mandatory_facts_does_not_pass", "test_a_missing_heading_names_the_heading"]
+  },
+  {
+   "id": "NC2",
+   "what": "a mandatory fact with no question to ask the customer passes",
+   "mutations": [
+    {
+     "file": "omni_prod/domains/__init__.py",
+     "old": "    if facts.strip() and '?' not in facts:",
+     "new": "    if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_domains.py"],
+   "expect_failed": ["test_mandatory_facts_without_a_question_to_ask_does_not_pass"]
+  },
+  {
+   "id": "NC3",
+   "what": "a section that is never empty is waived with \"Nothing for this domain\"",
+   "mutations": [
+    {
+     "file": "omni_prod/domains/__init__.py",
+     "old": "        if body.strip() and _NOTHING.search(body):",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_domains.py"],
+   "expect_failed": ["test_a_section_that_is_never_empty_may_not_be_waived"]
+  },
+  {
+   "id": "NC4",
+   "what": "a dead reference list passes: the count is not enforced",
+   "mutations": [
+    {
+     "file": "omni_prod/domains/__init__.py",
+     "old": "    if not MIN_REFERENCES <= len(refs) <= MAX_REFERENCES:",
+     "new": "    if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_domains.py"],
+   "expect_failed": ["test_a_dead_reference_list_does_not_pass", "test_a_rejected_site_counted_as_a_reference_does_not_pass"]
+  },
+  {
+   "id": "NC5",
+   "what": "sites in the rejected list are counted as references",
+   "mutations": [
+    {
+     "file": "omni_prod/domains/__init__.py",
+     "old": "                (rejected if in_rejected else verified).append(url.group(0))",
+     "new": "                verified.append(url.group(0))  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_domains.py"],
+   "expect_failed": ["test_there_are_thirty_and_each_passes_the_one_schema", "test_every_reference_was_checked_on_a_date_and_is_not_also_rejected", "test_a_rejected_site_counted_as_a_reference_does_not_pass"]
+  }
+ ]
+}
