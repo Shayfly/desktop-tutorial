@@ -1,3 +1,45 @@
+# 2026-11-22 — the platform for everyone: no naming step, plain words, readable text, 44px controls (Claude, a second session beside Claude Code)
+
+- **The order.** The owner, 2026-11-22 23:18, after #503 went live: upgrade the platform's look to the level of the large
+  companies, "accessible to everyone, from a child who can read to an older person who understands nothing", then merge.
+  He approved all five upgrades below, in one PR ("הכול ובנוסף לעבוד הכול בבת אחת"). OWNERS.md (2026-11-22) says Matt
+  designs the shell and Claude implements a screen after the owner approves its sketch: the list below, with its
+  screenshots, was that sketch, approved in the chat.
+- **What changed** (`omni_prod/assets/app.js`, `index.html`, `app.css`, `visual-edit.js`):
+  1. *First screen.* A new account saw "Your first project -> Project name -> Create project" before it could say what it
+     wanted, with an empty "Edit requirements" card above it. Now the conversation box and six examples are the first
+     screen; the first message creates the project, named from its first phrase without "I want" (40 characters at
+     most; renamable under "Options"). "New project" in the drawer opens an empty conversation the same way; the naming
+     dialog is gone. An attached image stays attached through that first switch (`S.keepAttachments`).
+  2. *Zero technical terms* on the entry, the first screen, the drawer and its dialogs, the preview and the history (the
+     owner's measure, inbox 001 §6). Gone: SaaS, web apps, code, domains, templates, ZIP, "element". "Manage" is now
+     "Options" (it is the project menu: rename, archive). Before: entry 2-3 terms, first screen 1, drawer 1-2, preview 4.
+  3. *Reading text is 16px or more* (it was 14-15px in 22 places on the first screen); small print that labels other
+     text (status, tag, speaker, ids) is 14px. Every size is in rem.
+  4. *Every control is 44x44px or more* (warehouse 133's own acceptance; CI measured WCAG's 24px). Below it were the
+     message box (38px), the send button (38px), the preview's enlarge and close buttons (32-33px) and the panel
+     minimise (34px).
+  5. *Text size*: "Text size: Normal / Large / Extra large" (16, 18, 20px), on the entry and in the drawer, kept on the
+     device.
+- **The look of the owner's example** (2026-11-23, `create-148ai-vision`: "המראה זה מה שחשוב לי"). Its colours, radii and
+  shadows were measured in the browser and applied as one layer at the end of `app.css`: a dark top bar (#151410) and a
+  dark project rail (#1b1a17) in light and dark mode, the selected project marked with a yellow edge, white cards with a
+  light bar, cream answer and side cards, yellow primary buttons with a darker edge, tags as rounded labels, the first
+  screen as a card with a large title. On a computer the rail is open on the first visit: the rule that closed it under
+  1600px (`visual-edit.js`) served three side-by-side areas the shell no longer has. Kept against the example: 16px
+  text (the example uses 15px), the selected tab underlined in ink (its yellow line is 1.4:1 on white, review A11Y-4),
+  the preview's own frame (`tests/preview_frame_browser.cjs`). Not built yet from the example: the proposal as the
+  "זה מה שנבנה" card inside the conversation (it is the approval screen: the owner decides), build steps and checks
+  in plain words, the computer/phone switch on the preview; client review, publishing and handover are in the queue.
+- **Evidence.** `tests/platform_for_everyone_browser.cjs` (real Chromium, the real files, the boot path mocked): 5 checks
+  x 2 languages hold on this branch; on main the same file fails first/words/text/targets in both languages (run
+  2026-11-22, before/after in the PR). 7/7 deliberate faults caught. `tests/test_platform_for_everyone_in_ci.py` with
+  `tests/negative_controls/platform_for_everyone_in_ci.json`: 4/4 controls PASS. The five CI browser tests pass locally;
+  `tests/customer_flow_browser.cjs` now expects the empty conversation instead of the naming dialog.
+- **Not verified here.** axe-core is not installed in this container and cannot be: `platform_a11y_browser.cjs` ran with
+  its own measures only (30 screens clean; its 4 non-axe faults caught); the axe part runs in CI. The plan, build and
+  details screens were not counted for technical terms (they need build fixtures): next. No real customer has used it.
+
 # 2026-11-22 — 133, the platform design released with its review fixes (Claude Code)
 
 - **What this is.** Codex's design (black, yellow and white workspace) reached the repository as ONE commit, `4457710` on

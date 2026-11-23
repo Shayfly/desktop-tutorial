@@ -633,6 +633,134 @@ body.signed-out .topbar :focus-visible{outline-color:var(--signal)}
   .workspace.stage-max>.stage{inset:12px;width:auto}
 }
 
+/* For everyone (the owner, 2026-11-22: "מקטן שיודע לקרוא ועד למבוגר שלא מבין בכלל").
+   1. Text: reading text is at least 16px; only small print that labels other text (a status, a tag, who said a
+      message, a technical id) is smaller, at 14px. Every size is in rem, so the three text sizes scale the whole page.
+   2. Every control is at least 44x44px (warehouse 133 acceptance), not only WCAG's 24px.
+   tests/platform_for_everyone_browser.cjs measures both on every screen. */
+html{font-size:100%}
+html[data-text="large"]{font-size:112.5%}
+html[data-text="xlarge"]{font-size:125%}
+body,.sidebar,.workspaceDialog{font-size:1rem}
+.hint,.msg,.banner,label>span,.composerHint,.projectCards summary,.versionLabel summary,.chatMode,.ctxTabs button,
+.quick .qq,.quick .opts button,.sidebar .sbSearch input,.sbSearch input,:is(.sidebar,.workspaceDialog) .sbList button,
+.answers .q,.checklist li,.readinessStatus p,.blockers,.step .note,.mode small,.found,.edSection h3,.live-log ol,
+.welcomeChat p,.statusline,.data-note,.sharing,.sharing input,.offline,.skip{font-size:1rem}
+.scope,.welcomeCopy .scope{font-size:1rem!important}
+.welcomeCopy #heroLead{font-size:1.125rem}
+h2,.welcomeChat h2,.workspaceDialog h2{font-size:1.375rem}
+.sidebar .sbWordmark,body.signed-out .topbar .brand{font-size:1.375rem}
+.welcomeCopy #heroTitle{font-size:clamp(2.375rem,5vw,4.875rem)}
+.sidebar h3,.sidebar .email,.sbStatus,.sidebar .sbFoot,.pill,.bubble .who,.versions .meta,.versions code,.url,.tech,
+.email,.taskboard .dept,.arch .layer>b,.arch .tk,.cost span{font-size:.875rem}
+.skip{min-height:44px;display:inline-flex;align-items:center}
+.icon,#ctxMinimize,.passwordToggle,#chatSend,#attachBtn{min-width:44px;min-height:44px}
+#chatSend{width:2.75rem;height:2.75rem}
+#chatInput{min-height:44px}
+summary,select,input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]){min-height:44px}
+.windowOpt,.canonAck{min-height:44px}
+body.signed-out .topbar #textSizeBtn{color:#f2e9d8}
+body.signed-out .topbar #textSizeBtn:hover{background:transparent;text-decoration:underline}
+.workspaceExamples button{min-height:44px}
+
+/* The look of the owner's example (create-148ai-vision, 2026-11-23: "המראה זה מה שחשוב לי ... ברמה הכי מובחרת").
+   Tokens measured from the example in the browser: a dark top bar and a dark project rail, white cards with a light
+   bar on top, cream side cards, yellow primary buttons with a darker yellow edge, tags as small rounded labels.
+   Kept from "For everyone" above: 16px reading text and 44px controls (the example uses 15px; deviation by decision). */
+:root{
+  --v-ink:#191711;--v-muted:#55554f;--v-line:#e5e4e0;--v-bg:#f7f7f5;--v-card:#fff;--v-bar:#fcfcfa;--v-cream:#fdfbf5;
+  --v-fire:#fff8e4;--v-fire-line:#edda9c;--v-yellow:#ffd43b;--v-yellow-line:#c39219;--v-btn-line:#d7ccba;
+  --v-dark:#151410;--v-rail:#1b1a17;--v-rail-fg:#faf8f0;--v-rail-meta:#d3cbbd;--v-rail-input:#2b2925;--v-rail-input-line:#666055;
+  --v-rail-active:#3a3016;--v-rail-active-fg:#fff0b1;--v-shadow:0 10px 35px rgba(33,27,16,.035);
+}
+@media(prefers-color-scheme:dark){
+  :root{--v-ink:#faf7ee;--v-muted:#c4bdaf;--v-line:#514b3f;--v-bg:#181715;--v-card:#22201c;--v-bar:#26241f;--v-cream:#2a2720;
+        --v-fire:#3a3016;--v-fire-line:#6b5a25;--v-btn-line:#6b6355;--v-shadow:none}
+}
+body{font-family:Heebo,system-ui,"Segoe UI","Noto Sans Hebrew",Arial,sans-serif}
+body.signed-in{background:var(--v-bg)}
+.chat,.stage,.editor,.thread{background:var(--v-bg)}
+
+/* buttons */
+button,.button{border-radius:11px}
+.acts>button:not(.secondary),button.primary,#approveAndBuildBtn,#confirmBtn{border:1px solid var(--v-yellow-line)}
+button.secondary:not(.danger){background:var(--v-card);color:var(--v-ink);border:1px solid var(--v-btn-line)}
+button.secondary:not(.danger):hover{border-color:var(--v-yellow-line)}
+
+/* the dark top bar of the workspace */
+.workspace>.mobileWorkspaceHead{background:var(--v-dark);border-block-end:1px solid #2c2a24;min-height:64px;padding-inline:16px;color:#fff}
+.workspace .mobileWorkspaceHead .chatTitle{color:#fff;font-weight:700;font-size:1.125rem}
+.workspace .mobileWorkspaceHead button.ghost{color:#f2e9d8}
+.workspace .mobileWorkspaceHead button.ghost:hover{background:#2b2925}
+.workspace .mobileWorkspaceHead button:disabled{color:#a39d90;opacity:1}
+.workspace .mobileWorkspaceHead :focus-visible{outline:2px solid var(--v-yellow);outline-offset:2px}
+.workspace .mobileWorkspaceHead .pill{background:#f8f2e2;color:#5f5035;border:1px solid #e5dac4}
+.workspace .mobileWorkspaceHead .pill[data-state="building"]{background:var(--v-yellow);color:var(--v-dark);border-color:var(--v-yellow-line)}
+.workspace .mobileWorkspaceHead .pill[data-state="ready"]{background:#e4f1e9;color:#29644b;border-color:#cce2d2}
+.workspace .mobileWorkspaceHead .pill[data-state="failed"]{background:#fff0e2;color:#823e18;border-color:#f0d4ba}
+
+/* the dark project rail, in light and dark mode alike */
+.sidebar,.workspaceDialog{--nav-bg:var(--v-rail);--nav-fg:var(--v-rail-fg);--nav-meta:var(--v-rail-meta);--nav-line:#3a372f;
+  --nav-hover:#2b2925;--nav-active:var(--v-rail-active);--nav-accent:var(--v-yellow);--nav-accent-ink:var(--v-dark);--nav-focus:var(--v-yellow)}
+.sidebar{background:var(--v-rail);color:var(--v-rail-fg);border-color:#2c2a24}
+.sidebar .sbWordmark{color:#fff;font-weight:800;letter-spacing:-.02em}
+.sidebar .sbWordmark b{background:none;color:var(--v-yellow);padding:0;font-weight:900}
+.sidebar .sbSearch input{background:var(--v-rail-input);border:1px solid var(--v-rail-input-line);color:#fff}
+.sidebar .sbLinks button.ghost,.sidebar summary{border-radius:12px;padding:8px 12px}
+:is(.sidebar,.workspaceDialog) .sbList button[aria-current="true"]{background:var(--v-rail-active);color:var(--v-rail-active-fg);
+  border:0;box-shadow:inset -3px 0 0 var(--v-yellow);font-weight:600}
+[dir="ltr"] :is(.sidebar,.workspaceDialog) .sbList button[aria-current="true"]{box-shadow:inset 3px 0 0 var(--v-yellow)}
+:is(.sidebar .sbNew,.workspaceDialog .workspaceNew){background:var(--v-yellow);color:var(--v-dark);border:1px solid var(--v-yellow-line);border-radius:11px;justify-content:center}
+.workspaceDialog{background:var(--v-rail);color:var(--v-rail-fg);border:1px solid #3a372f;border-radius:16px}
+
+/* cards */
+.panel,.ctx .panel,.ctx.open .panel{background:var(--v-card);border:1px solid var(--v-line);border-radius:12px;box-shadow:var(--v-shadow);padding:20px 22px}
+.panel>h2,.welcomeChat h2{font-weight:700;color:var(--v-ink)}
+.ctx.open{background:var(--v-bg);border-block-end:1px solid var(--v-line)}
+.ctxToolbar{background:var(--v-bar);color:var(--v-ink);border:1px solid var(--v-line);border-radius:12px;font-weight:700}
+.projectCards{background:var(--v-bar);border-block-end:1px solid var(--v-line)}
+
+/* the first screen of a conversation: a card like the example's "What would you like to make?" */
+.welcomeChat{margin:auto;max-width:44rem;width:100%;text-align:start;background:var(--v-card);border:1px solid var(--v-line);
+  border-radius:12px;box-shadow:var(--v-shadow);padding:clamp(20px,4vw,32px);color:var(--v-muted)}
+.welcomeChat h2{font-size:clamp(1.75rem,4vw,2.375rem);line-height:1.15;letter-spacing:-.01em;margin-block-end:10px}
+.welcomeChat .workspaceExamples{justify-content:flex-start}
+
+/* the conversation */
+.bubble{border-radius:14px;padding:12px 16px;box-shadow:none}
+.bubble.customer{background:var(--v-fire);border:1px solid var(--v-fire-line);color:var(--v-ink)}
+.bubble.assistant{background:var(--v-cream);border:1px solid var(--v-line);color:var(--v-ink)}
+.quick .opts button{background:var(--v-card);color:var(--v-ink);border:1px solid var(--v-btn-line);border-radius:11px;font-weight:500}
+.quick .opts button:hover{border-color:var(--v-yellow-line);color:var(--v-ink)}
+.acts{gap:8px;margin-top:12px}
+.statusline{background:var(--v-card);border:1px solid var(--v-line);color:var(--v-ink)}
+.composer{background:var(--v-card);border:1px solid var(--v-line);border-radius:16px;box-shadow:var(--v-shadow)}
+.composer:focus-within{border-color:var(--v-yellow-line);box-shadow:0 0 0 2px var(--v-yellow)}
+.composer #chatSend{background:var(--v-yellow);border:1px solid var(--v-yellow-line);color:var(--v-dark)}
+
+/* tags */
+.pill{border-radius:20px;padding:3px 8px;font-weight:650;background:#f8f2e2;color:#5f5035;border:1px solid #e5dac4}
+.pill[data-state="ready"],.pill.ok{background:#e4f1e9;color:#29644b;border-color:#cce2d2}
+.pill[data-state="failed"],.pill.bad{background:#fff0e2;color:#823e18;border-color:#f0d4ba}
+.pill.warn{background:#fff2c5;color:#604100;border-color:#e6cc78}
+
+/* the proposal: rows of label and value, like the example's "This is what we will build" */
+.proposal{background:var(--v-card);border:1px solid var(--v-line);border-radius:12px;box-shadow:var(--v-shadow);padding:20px 22px}
+.proposal>h2{font-size:clamp(1.5rem,3.4vw,2.125rem);font-weight:700}
+.propRowBtn{border:0;border-block-end:1px solid var(--v-line);border-radius:0;padding:9px 0;min-height:44px}
+.propRowBtn .title{color:var(--v-ink)}
+.propRowBtn .detail{color:var(--v-muted);opacity:1}
+.propPrice{background:var(--v-fire);border:1px solid var(--v-fire-line);border-radius:15px;padding:14px}
+
+/* build steps and checks as cards */
+.taskboard li{background:#fcfaf3;border:1px solid var(--v-line);border-radius:13px;padding:12px}
+.versions li{background:var(--v-cream);border:1px solid var(--v-line);border-radius:13px;padding:12px;margin-block-end:8px}
+
+/* the preview keeps its own frame (tests/preview_frame_browser.cjs: the toolbar sits outside the page's border) */
+.stage .viewport{border-color:var(--v-line);border-radius:12px;box-shadow:var(--v-shadow)}
+
+/* the bottom tabs: white, the selected one underlined (kept in ink: the example's yellow line is 1.4:1 on white) */
+.workspace #mobileTabs{background:var(--v-card);border-block-start:1px solid var(--v-line)}
 /* the language picker (2026-11-22): a native select, so every language is one keyboard or screen-reader choice away */
 .langPick{min-height:44px;width:auto;padding-inline:.6rem;border:1px solid var(--rule);border-radius:var(--radius-control);background:var(--surface);color:var(--ink);font:inherit}
 body.signed-out .topbar .langPick{background:transparent;color:#f2e9d8;border-color:#40392d}

@@ -274,6 +274,7 @@ jobs:
           node --check tests/approval_one_truth_browser.cjs
           node --check tests/platform_a11y_browser.cjs
           node --check tests/workspace_review_fixes_browser.cjs
+          node --check tests/platform_for_everyone_browser.cjs
           node --check tests/ui_languages_browser.cjs
       # axe-core: the WCAG engine of the platform accessibility check (the owner, 2026-11-22: accessible to everyone)
       - run: npm install --no-save --package-lock=false playwright@1.62.1 axe-core@4.10.3
@@ -319,6 +320,11 @@ jobs:
       # F5 a late reply in another project); each scenario also fails with its fix taken out
       - run: node tests/workspace_review_fixes_browser.cjs
         timeout-minutes: 4
+      # usable by anyone who can read (the owner, 2026-11-22): no name asked before the first message, zero technical
+      # terms, reading text 16px+, every control 44px+, three text sizes, the owner's example look (open dark rail, dark top
+      # bar); it also proves it catches nine deliberate faults
+      - run: node tests/platform_for_everyone_browser.cjs
+        timeout-minutes: 6
       # every platform language whole: no key falls back, no text in another script, the picker switches
       - run: node tests/ui_languages_browser.cjs
         timeout-minutes: 3

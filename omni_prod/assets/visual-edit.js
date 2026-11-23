@@ -134,6 +134,10 @@ Object.assign(T.ar, {
   near: x => `بالقرب من "${x}"`,
   inFile: f => `في الملف ${f}`,
 });
+// plain words on the preview screen (the owner, 2026-11-22; app.js "For everyone")
+Object.assign(T.he, { pickElement: 'בחירת חלק לשינוי', edPickHint: 'לחצו "בחירת חלק לשינוי" ואז על החלק שתרצו לשנות. בטלפון — הקישו עליו.' });
+Object.assign(T.en, { pickElement: 'Pick a part to change', edPickHint: 'Press "Pick a part to change", then click the part you want to change. On a phone, tap it.' });
+Object.assign(T.ar, { pickElement: 'اختيار جزء لتغييره', edPickHint: 'اضغطوا "اختيار جزء لتغييره" ثم على الجزء الذي تريدون تغييره. على الهاتف — المسوه.' });
 
 const VE = (() => {
   const MAX_IMAGES = 6, MAX_BYTES = 3 * 1024 * 1024, MAX_SIDE = 2000;
@@ -514,9 +518,8 @@ const VE = (() => {
     try {
       if (localStorage.getItem('148ai_editor') === 'hidden') ws().classList.add('editor-hidden');
       const w = Number(localStorage.getItem('148ai_edit_w')); if (w) setEditWidth(w);
-      // Three working areas need the room: the project list starts as a drawer
-      // on screens narrower than 1600 px unless the person opened it before.
-      if (window.innerWidth < 1600 && !localStorage.getItem('148ai_sb') && !localStorage.getItem('148ai_sb_open')) ws().classList.add('sb-collapsed');
+      // The project rail stays open on a computer, as in the owner's example (2026-11-23); it closes only when the person
+      // closes it (148ai_sb, app.js). The old 1600px rule served three side-by-side areas, which the shell no longer has.
     } catch { /* defaults */ }
     syncSidebar();
     $('sbOpen').addEventListener('click', () => { try { localStorage.setItem('148ai_sb_open', '1'); } catch { /* */ } });
