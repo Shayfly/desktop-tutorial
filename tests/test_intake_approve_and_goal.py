@@ -65,8 +65,9 @@ class TheGoal(unittest.TestCase):
         model = Interpretation('he', 'web_app', [Proposal('goal', 'משהו אחר לגמרי', 'high', 'x', 'model')], False, [],
                                'model:x')
         r = A.apply(b, model)
-        self.assertEqual(r.brief.fields['goal']['value'], 'קביעת תור בשתי לחיצות')     # asked back as a conflict
-        self.assertEqual([c['field'] for c in r.conflicts], ['goal'])
+        self.assertEqual(r.brief.fields['goal']['value'], 'קביעת תור בשתי לחיצות')     # the customer's words stand
+        self.assertEqual(r.conflicts, [])        # and a rephrasing is never asked back (the owner, 2026-11-23)
+        self.assertTrue(any(x.startswith('goal: model restatement kept out') for x in r.dropped))
 
     def test_first_sentence_skips_technical_lines(self):
         self.assertEqual(first_sentence(PASTED), GOAL)

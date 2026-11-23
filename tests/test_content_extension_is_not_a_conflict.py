@@ -31,15 +31,20 @@ class AnExtensionIsApplied(unittest.TestCase):
         self.assertEqual(res.conflicts, [])
 
 
-class ARealChangeIsStillAsked(unittest.TestCase):
-    def test_a_changed_fact_is_a_conflict(self):
-        res = agent.apply(brief_with_content(OLD), proposal(OLD.replace('250', '300')))
-        self.assertEqual([c['field'] for c in res.conflicts], ['content'])
-        self.assertEqual(res.brief.fields['content']['value'], OLD)
+class AChangeIsAppliedAndNothingIsLost(unittest.TestCase):
+    """The owner, 2026-11-23: the first agent never asks "what is right?" about the site's content. A fact said again
+    with another number is the customer's correction; a restatement that leaves a fact out never loses it."""
 
-    def test_a_dropped_fact_is_a_conflict(self):
+    def test_a_changed_fact_replaces_its_own_clause_and_is_said_back(self):
+        res = agent.apply(brief_with_content(OLD), proposal(OLD.replace('250', '300')))
+        self.assertEqual(res.conflicts, [])
+        self.assertEqual(res.brief.fields['content']['value'], OLD.replace('250', '300'))
+        self.assertEqual(res.corrected, [{'field': 'content', 'old': 'ייעוץ ראשון 250 ₪', 'new': 'ייעוץ ראשון 300 ₪'}])
+
+    def test_a_dropped_fact_is_kept(self):
         res = agent.apply(brief_with_content(OLD), proposal(OLD.split('; ייעוץ')[0]))
-        self.assertEqual([c['field'] for c in res.conflicts], ['content'])
+        self.assertEqual(res.conflicts, [])
+        self.assertEqual(res.brief.fields['content']['value'], OLD)
 
     def test_a_medium_guess_never_extends_a_confirmed_text(self):
         res = agent.apply(brief_with_content(OLD), proposal(NEW, 'medium'))
