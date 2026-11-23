@@ -519,7 +519,7 @@ class ConversationSupervisor:
         from ..intake.worker_route import ReservedWorkerInterpreter
         from ..intake import conversation_agent as agent
         caps, profile = B.caps_from_env(), None
-        if agent.enabled():                     # the agent's turn cap (owner 2026-11-18); every other account: no cap
+        if agent.enabled():                     # the agent's cost cap; no turn cap (owner 2026-11-23: the chat never ends)
             import dataclasses
             from ..providers import venice_gateway as VG
             caps = dataclasses.replace(caps, project_turns=agent.MAX_TURNS,
@@ -1387,7 +1387,8 @@ class ConversationSupervisor:
                 continue
             kind = (((m.get('interpretation') or {}).get('limit')) or {}).get('kind')
             if kind:
-                return kind if kind in ('budget', 'turns') else None
+                # the owner, 2026-11-23: there is no turn cap, so a conversation closed at the old 8 turns is open again
+                return kind if kind == 'budget' else None
         return None
 
     def _last_assistant(self, project_id) -> dict | None:

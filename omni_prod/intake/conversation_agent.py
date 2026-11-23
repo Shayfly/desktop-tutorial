@@ -22,9 +22,12 @@ import re
 FLAG = 'OMNI_INTAKE_AGENT'
 ACCOUNTS = 'OMNI_INTAKE_AGENT_ACCOUNTS'
 MAX_QUESTION_CHARS = 400
-# The owner, 2026-11-18 (Sonnet for the conversation agent): at most 8 turns per conversation. A turn is a paid model
-# call the provider received or may have received (budget.TurnCapReached); the cap holds for agent accounts only.
-MAX_TURNS = 8
+# The owner, 2026-11-23: "לבטל את עניין התורות... הצ'אט לא נגמר לעולם והלקוח תמיד מדבר עם הצ'אט מתי שהוא רוצה".
+# No turn cap: the 8-turn cap of 2026-11-18 ended the ShayFly conversation after 8 messages that cost $0.003 in all
+# (intake_reservations, prj_5wRH_CceL2aSeQ). What still bounds the spend is money, not turns: the cost cap below per
+# conversation (about 390 messages at that conversation's measured cost) and the daily budget, which pauses until the
+# next day and closes nothing. None = no cap (budget.Caps.project_turns).
+MAX_TURNS = None
 # ... and at most $0.15 per conversation: the agent's own cap, never above the global OMNI_INTAKE_MODEL_BUDGET_USD (it is
 # the smaller of the two), so raising the global cap for other accounts never raises the agent's (D10 review).
 from decimal import Decimal as _D
