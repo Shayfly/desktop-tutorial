@@ -17,6 +17,8 @@
  *   look       the owner's example (2026-11-23): on a computer the project rail is open on the first visit; the top bar
  *              and the rail are dark, on a phone too; the preview's "Phone" switch shows the page 390px wide, and
  *              nothing scrolls sideways when it is on.
+ *   build      the build screen (the example, screens 07 and 08): each step says its state in words, not colour alone,
+ *              and neither the steps nor the check names use a technical term.
  *
  * A check that never fails proves nothing: every run also serves deliberately broken copies (MUTATIONS) and requires
  * the matching check to fail on each. A mutation that is not caught fails the run.
@@ -61,6 +63,10 @@ const MUTATIONS = [
   { id: 'light_top_bar', check: 'look', file: 'app.css', append: '\n.workspace > .mobileWorkspaceHead { background: #ffffff !important }' },
   { id: 'phone_view_ignored', check: 'look', file: 'app.css', width: 1440,
     append: '\n.workspace[data-device="phone"] .stage .viewport { width: 100% !important }' },
+  { id: 'state_in_colour_only', check: 'build', file: 'app.js',
+    old: "h('span', { class: 'pill stepTag' }, t('stepState')[state] || state),", new: "" },
+  { id: 'step_term_back', check: 'build', file: 'app.js',
+    old: "stepGenerate: 'בונים את האתר'", new: "stepGenerate: 'יצירת קוד ובנייה בסביבת ווב'" },
 ];
 
 function served(mutation) {
@@ -187,6 +193,26 @@ const DARK = () => { const lum = el => { const m = getComputedStyle(el).backgrou
   return { head: lum(document.querySelector('.workspace > .mobileWorkspaceHead')), rail: lum(document.getElementById('sidebar')) }; };
 
 const CHECKS = {
+  async build(browser, lang, width, files) {
+    const fail = [];
+    const { page } = await open(browser, { lang, width, files, projects: [{ id: 'p1', title: lang === 'he' ? 'סטודיו נועה' : 'Noa Studio' }] });
+    await page.evaluate(() => {
+      S.build = { id: 'b1', status: 'running', phase: 'GENERATE', evidence: {} };
+      S.plan = { status: 'READY', can_build: true, capabilities: [], infrastructure: [], product: {} };
+      renderTrack(); openTab('build');
+    });
+    await page.waitForTimeout(250);
+    const steps = await page.evaluate(() => [...document.querySelectorAll('#track .step')].map(li => ({
+      name: (li.querySelector('.name') || {}).textContent || '', tag: (li.querySelector('.stepTag') || {}).textContent || '' })));
+    if (steps.length < 5) fail.push(`${steps.length} build steps on the screen`);
+    for (const st of steps) if (!st.tag.trim()) fail.push(`the step "${st.name.trim()}" says its state in colour alone`);
+    const text = await page.locator('#progressPanel').innerText();
+    const terms = TERMS[lang].filter(re => re.test(text)).map(re => re.source);
+    if (terms.length) fail.push(`build screen: ${terms.join(', ')}`);
+    console.log(`::notice title=technical terms::${lang} ${width}px build screen: ${terms.length}`);
+    await page.close();
+    return fail;
+  },
   async look(browser, lang, width, files) {
     const fail = [];
     const { page } = await open(browser, { lang, width, files, projects: [{ id: 'p1', title: lang === 'he' ? 'סטודיו נועה' : 'Noa Studio' }] });

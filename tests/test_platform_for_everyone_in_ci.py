@@ -20,7 +20,7 @@ class TheCheckRuns(unittest.TestCase):
         self.assertIn('node --check tests/platform_for_everyone_browser.cjs', CI)
 
     def test_it_measures_the_five_things_and_proves_itself(self):
-        for check in ('async first(', 'async words(', 'async text(', 'async targets(', 'async size(', 'async look('):
+        for check in ('async first(', 'async words(', 'async text(', 'async targets(', 'async size(', 'async look(', 'async build('):
             self.assertIn(check, CHECK)
         self.assertIn('r.width < 43.5 || r.height < 43.5', CHECK)                 # 44px, not WCAG's 24px
         self.assertIn('(isSmall ? 14 : 16)', CHECK)                                # 16px reading text
