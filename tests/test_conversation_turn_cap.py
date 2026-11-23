@@ -59,9 +59,11 @@ class TheCapIsTheAgents(unittest.TestCase):
             finally:
                 agent.release(token)
 
-    def test_the_agent_account_reserves_under_the_8_turn_cap(self):
-        self.assertEqual(self.interpreter_caps('owner').project_turns, agent.MAX_TURNS)
-        self.assertEqual(agent.MAX_TURNS, 8)
+    def test_the_agent_account_has_no_turn_cap(self):
+        # the owner, 2026-11-23: "הצ'אט לא נגמר לעולם" -- the 8-turn cap is gone; money still bounds the conversation
+        self.assertIsNone(agent.MAX_TURNS)
+        self.assertIsNone(self.interpreter_caps('owner').project_turns)
+        self.assertEqual(self.interpreter_caps('owner').project_usd, agent.MAX_COST_USD)
 
     def test_the_agent_cost_cap_never_follows_a_raised_global_cap(self):
         global AUTH
@@ -102,6 +104,16 @@ class TheSupervisorSaysIt(unittest.TestCase):
         self.assertTrue(t.reply.startswith(HE['limit_turns']), t.reply)
         self.assertEqual(t.interpretation['limit'], {'kind': 'turns', 'source': 'reserve'})
 
+    def test_a_conversation_closed_at_the_old_turn_cap_is_open_again(self):
+        # production 2026-11-23 (ShayFly, prj_5wRH_CceL2aSeQ): closed at 8 turns before the cap was removed. Its next
+        # message is answered; only money ('budget') still closes a conversation.
+        sup = R._Supervisor(LimitFrom(start=1, kind='turns'))
+        sup.turn(project_id='o', account_id='a', message=R.SCENARIOS['doors']['lines'][0], lang='he')
+        self.assertIsNone(sup._closed('o'))
+        sup.store.add_message(project_id='o', account_id='a', role='assistant', content='x',
+                              interpretation={'limit': {'kind': 'budget', 'source': 'reserve'}})
+        self.assertEqual(sup._closed('o'), 'budget')
+
     def test_busy_is_not_a_closing_and_is_not_carried(self):
         sup = R._Supervisor(LimitFrom(start=1, kind='busy'))
         t = sup.turn(project_id='b', account_id='a', message=R.SCENARIOS['doors']['lines'][0], lang='he')
@@ -122,7 +134,7 @@ class TheUsageIsRecorded(unittest.TestCase):
     def test_the_usage_is_stored_with_the_message_and_never_sent_to_the_browser(self):
         t, stored = self.turn(Svc())
         self.assertEqual(stored['interpretation']['usage']['held_usd'], '0.035')
-        self.assertEqual(stored['interpretation']['usage']['max_turns'], 8)
+        self.assertIsNone(stored['interpretation']['usage']['max_turns'])
         self.assertNotIn('usage', t.to_dict('he')['interpretation'] or {})
 
     def test_a_usage_failure_never_fails_the_turn(self):

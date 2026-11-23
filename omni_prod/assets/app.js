@@ -636,12 +636,12 @@ const S = {
   durable: false, plan: null, build: null, versions: [], previewId: null, preview: null,
   mod: null, timers: {},
 };
-Object.assign(T.he, { actRetryBuild:'לנסות לבנות שוב', stillMissing:'כדי להמשיך חסר עוד', stillMissingNone:'כדי להמשיך חסרה עוד תשובה אחת בשיחה.', actDescribeInstead:'לתאר אתר או אפליקציה במקום', openRequirements:'לבחירה במסך "דרישות"', updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'מזעור החלון',
+Object.assign(T.he, { actRetryBuild:'לנסות לבנות שוב', stillMissing:'כדי להמשיך חסר עוד', stillMissingNone:'כדי להמשיך חסרה עוד תשובה אחת בשיחה.', actDescribeInstead:'לתאר אתר או אפליקציה במקום', openRequirements:'לבחירה במסך "דרישות"', updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'סגירה',
   colourExample:'למשל: ורוד עדין עם שמנת וזהב', fontSample:'כך ייראה הטקסט באתר שלכם', fontUnavailable:'הדוגמה עדיין לא נטענה',
   guidedMode:'מצב שאלון מובנה — שיחת AI אינה פעילה כרגע', aiMode:'מצב שיחת AI מוגדר — הזמינות תלויה בספק ובתקציב', draftNote:'אפשר לשנות כמה פרטים. רק ״עדכן״ יחיל את השינויים.',
   aiFallback:'התשובה הזו נבנתה מכללים קבועים, בלי מודל בינה מלאכותית.',
   attachmentSchema:'צירוף תמונות עוד לא זמין כאן. התמונה והטקסט נשמרו כאן לניסיון חוזר.' });
-Object.assign(T.en, { actRetryBuild:'Try building again', stillMissing:'Still missing before we continue', stillMissingNone:'One more answer is needed in the chat before we continue.', actDescribeInstead:'Describe a site or app instead', openRequirements:'Choose in the "Requirements" tab', updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Minimize panel',
+Object.assign(T.en, { actRetryBuild:'Try building again', stillMissing:'Still missing before we continue', stillMissingNone:'One more answer is needed in the chat before we continue.', actDescribeInstead:'Describe a site or app instead', openRequirements:'Choose in the "Requirements" tab', updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Close',
   colourExample:'For example: soft pink with cream and gold', fontSample:'This is how your website text will look', fontUnavailable:'Preview has not loaded yet',
   guidedMode:'Guided questionnaire — AI conversation is not active right now', aiMode:'AI conversation configured — availability depends on provider and budget', draftNote:'Change as many details as you like. Only Update applies the changes.',
   attachmentSchema:'Image attachments need database migration 038 on this deployment. Your image and text remain here for retry.' });
@@ -695,7 +695,7 @@ Object.assign(T.ar, {
   openRequirements: "للاختيار في شاشة \"المتطلبات\"",
   updateDraft: "تحديث الخطة",
   editAll: "تعديل الطلب",
-  minimizeContext: "تصغير النافذة",
+  minimizeContext: "إغلاق",
   colourExample: "مثلًا: وردي هادئ مع الكريمي والذهبي",
   fontSample: "هكذا سيبدو النص في موقعكم",
   fontUnavailable: "لم يُحمَّل المثال بعد",
@@ -2706,13 +2706,35 @@ function setStageWidth(pct) {
   document.documentElement.style.setProperty('--stage-w', `${v}%`);
   try { localStorage.setItem('148ai_stage_w', String(v)); } catch { /* convenience only */ }
 }
+function touchTyping() {
+  // a phone or tablet: a coarse pointer and no fine one (a laptop with a touch screen keeps Enter = send)
+  return matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches;
+}
+/* The owner, 2026-11-23 (iPhone): after the keyboard closed, the whole workspace stayed pushed up -- the composer and
+   the tabs in the middle of the screen, an empty band below, the header gone. iOS scrolls the page to keep the field
+   above the keyboard even when the page itself cannot scroll, and does not scroll it back. The workspace takes the
+   height that is really visible (--vvh) and the page is put back at the top whenever that height changes. */
+function syncViewport() {
+  const vv = window.visualViewport;
+  if (vv) document.documentElement.style.setProperty('--vvh', `${Math.round(vv.height)}px`);
+  if (document.body.classList.contains('signed-in') && (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop)) {
+    window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0;
+  }
+}
+if (window.visualViewport) { window.visualViewport.addEventListener('resize', syncViewport); window.visualViewport.addEventListener('scroll', syncViewport); }
+window.addEventListener('orientationchange', () => setTimeout(syncViewport, 120));
+syncViewport();
 function autoGrow() { const el = $('chatInput'); el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 192)}px`; }
 function wireWorkspace() {
   const ws = $('workspaceView');
   try { const w = Number(localStorage.getItem('148ai_stage_w')); if (w) setStageWidth(w); } catch { /* default width */ }
   try { if (localStorage.getItem('148ai_sb') === 'collapsed') ws.classList.add('sb-collapsed'); } catch { /* default */ }
   $('chatForm').addEventListener('submit', submitChat);
-  $('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) submitChat(e); });
+  // The owner, 2026-11-23 (phone): Enter on a phone's keyboard is a new line, as in every messaging app; the send
+  // button sends. On a computer Enter still sends and Shift+Enter is a new line.
+  $('chatInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !touchTyping()) submitChat(e); });
+  $('chatInput').addEventListener('focusout', () => setTimeout(syncViewport, 60));
   $('chatInput').addEventListener('input', autoGrow);
   $('sbSearch').addEventListener('input', renderSidebarProjects);
   $('sbAll').addEventListener('click', () => openWorkspaceDialog('allProjects'));
@@ -2774,6 +2796,7 @@ function wireWorkspace() {
 /* ---------- wiring ---------- */
 function wire() {
   $('ctxMinimize').addEventListener('click',()=>openTab(null));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.tab && $('ctx').classList.contains('open')) openTab(null); });
   $('authForm').addEventListener('submit', e => { e.preventDefault(); authSubmit('login'); });
   $('passwordToggle').addEventListener('click', () => {
     const input = $('password'), toggle = $('passwordToggle');
