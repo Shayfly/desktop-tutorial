@@ -82,8 +82,8 @@
 | D10-LIMIT | Claude Code | In review | a conversation at its limit stops gracefully: typed limit, closing reply with the summary or one open question in words (read for free), no 'provider busy'; NC 15/15 |
 | D10-TURNS | Claude Code | In review | the agent's 8-turn cap in reserve() (contacted calls only, under the locks) and tokens and cost per conversation; NC 8/8 + pg 7/7 |
 | D10-SONNET | Claude Code | In review | Sonnet for the conversation agent only (ordered Venice profile, Haiku when Sonnet is not offered); rehearsal agent path; NC 9/9 |
-| FINDING-ATTRIBUTION | Codex | Draft; independent review pending | scripts/check_finding_attribution.py and its negative control |
-| CRITICAL-PATH-FRESHNESS | Codex | Draft; independent review pending | scripts/check_critical_path_freshness.py |
+| FINDING-ATTRIBUTION | Codex | Done | #463 b327fb0 → 0ed3d0e (recorded by Claude Code 2026-11-22; Codex's #476 said the same and is closed) |
+| CRITICAL-PATH-FRESHNESS | Codex | Done | #464 db1055a → 5ee4395 (recorded by Claude Code 2026-11-22; Codex's #476 said the same and is closed) |
 | OVERLAY-ACCEPTANCE-W | Codex | Draft; awaiting CI and independent review | GitHub run 44479691814, job 135408636414 |
 | DRILLS-2026-11 | Claude Code | Done | C16 PASS 44932418710; C19 PASS 44932702825; C11 PASS 44933990232; C18 FAIL on the alert 44935937685, alert half PASS 44942838520 after #487; recorded in #483 (`bed3fa6` -> `86dfb69`) |
 | WH-121 | Claude Code | Merged | #487 (`6f5d1ff` -> `0625996`) the dead-worker alert every 5 minutes; drill run 44942838520 opened and closed #489; live run 44942942630: 1 live worker |

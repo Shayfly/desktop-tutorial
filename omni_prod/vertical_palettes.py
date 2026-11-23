@@ -125,10 +125,15 @@ def design_colours(text: str) -> str:
     if category is None:
         # DECISIONS 7: never "choose something" -- the nearest category's palette, said as such (G-APPLE then runs)
         near, score = nearest_category(text)
-        if not score:   # nothing near at all: the colour question (DECISIONS 7, part 2) is the only honest source
-            return ('colours: the customer stated none and the business category is not recognised; choose a palette '
-                    'that fits this business, with text at least 4.5:1 against its background, and name it in the '
-                    'page CSS')
+        if not score:
+            # the owner, 2026-11-22: for a business we do not know, the customer is asked (conversation_agent
+            # COLOUR_QUESTION); when they leave it to us, the palette is always one we have -- with nothing near, the
+            # neutral one (NO_SIGNAL). "Choose a palette" left the contract without colours and the build fell to the
+            # old path (no_design_contract).
+            name, p = palette_for(NO_SIGNAL)
+            return (f'primary colour {p["primary"]}; palette {p["primary"]}, {p["accent"]}, {p["background"]}, '
+                    f'{p["ink"]} (primary, accent, background, text: the neutral "{name}" palette -- the customer '
+                    f'stated no colour and no category is near this business)')
         name, p = palette_for(near)
         return (f'primary colour {p["primary"]}; palette {p["primary"]}, {p["accent"]}, {p["background"]}, {p["ink"]} '
                 f'(primary, accent, background, text: the "{name}" palette of the nearest category, {near}, '

@@ -40,6 +40,7 @@ const TERMS = {
   he: [/SaaS/i, /ווב/, /קוד/, /דומיין/, /תבני(ת|ות)/, /\bZIP\b/i, /\bAPI\b/, /webhook/i, /טוקן/, /סשן/, /ארכיטקטורה/, /פריסה/, /רכיב/],
   en: [/SaaS/i, /\bweb app/i, /\bcode\b/i, /\bdomains?\b/i, /\btemplates?\b/i, /\bZIP\b/i, /\bAPI\b/, /webhook/i, /\btokens?\b/i,
     /\bsessions?\b/i, /\bdeploy/i, /\bsource\b/i, /\belement\b/i],
+  ar: [/SaaS/i, /\bZIP\b/i, /\bAPI\b/, /webhook/i, /الكود|كود المصدر/, /نطاق/, /قوالب|القالب/, /عنصر/, /توكن/, /جلسة/],
 };
 // small print that labels other text; everything else that is read is at least 16px
 const SMALL_PRINT = '.pill, .who, .sbStatus, .sidebar h3, .email, .sbFoot, .meta, code, pre, .url, .tech, .dept, .tk, .cost span';
@@ -345,7 +346,7 @@ const CHECKS = {
   const failures = [];
   try {
     const real = served(null);
-    for (const lang of ['he', 'en']) {
+    for (const lang of ['he', 'en', 'ar']) {
       for (const [name, check] of Object.entries(CHECKS)) {
         for (const width of name === 'size' ? [320] : [390, 1440]) {
           const fail = await check(browser, lang, width, real);
@@ -367,5 +368,5 @@ const CHECKS = {
     for (const f of failures) console.log(`::error title=for everyone::${f}`);
     process.exit(1);
   }
-  console.log(`::notice title=for everyone::${Object.keys(CHECKS).length} checks x 2 languages hold; ${MUTATIONS.length}/${MUTATIONS.length} mutations caught`);
+  console.log(`::notice title=for everyone::${Object.keys(CHECKS).length} checks x 3 languages hold; ${MUTATIONS.length}/${MUTATIONS.length} mutations caught`);
 })().catch(e => { console.error(e); process.exit(1); });
