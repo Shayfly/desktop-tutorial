@@ -1,0 +1,35 @@
+{
+ "schema": "148ai.game/1",
+ "kind": "runner",
+ "title": "רץ בלי סוף",
+ "lang": "he",
+ "texts": {
+  "start": "קפצו מעל המכשולים ואספו מטבעות. רווח או נגיעה לקפוץ.",
+  "win": "סיימתם את המסלול!",
+  "lose": "נפלתם",
+  "score": "נקודות"
+ },
+ "palette": {
+  "bg": "#f4a261",
+  "player": "#264653",
+  "enemy": "#e76f51",
+  "item": "#e9c46a",
+  "ground": "#2a9d8f",
+  "text": "#ffffff"
+ },
+ "player": {
+  "speed": 5,
+  "jump": 5,
+  "lives": 3
+ },
+ "time_limit_s": 60,
+ "levels": [
+  {
+   "length_s": 45,
+   "obstacle_rate": 4,
+   "coin_rate": 5
+  }
+ ],
+ "sound": true,
+ "seed": 3
+}

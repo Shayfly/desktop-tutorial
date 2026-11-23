@@ -46,8 +46,10 @@ jobs:
           echo "::error title=playwright install::failed 3 times; the browser tests cannot run"
           exit 1
       - name: Browser tests
-        timeout-minutes: 4
-        run: python -m pytest -q -rs --junitxml=browser.xml tests/test_section_library.py tests/test_section_library_conformance.py tests/test_site_content_engine.py tests/test_library_cookie_banner.py
+        # 2026-11-23: + tests/test_game_kit.py (warehouse 134): four games at two widths and six planted faults, about
+        # 45 s locally; the limit grows by 3 minutes for it
+        timeout-minutes: 7
+        run: python -m pytest -q -rs --junitxml=browser.xml tests/test_section_library.py tests/test_section_library_conformance.py tests/test_site_content_engine.py tests/test_library_cookie_banner.py tests/test_game_kit.py
       - name: No test may be skipped
         if: always()
         run: |
@@ -68,7 +70,8 @@ jobs:
         if: always()
         # 2026-11-21 (run 44954125388): 24 controls since the library merge; 21 ran and passed in 6 minutes and the
         # step was cut at its limit. Measured there: about 16 s a control with 2 workers, so 24 need about 6.5 minutes.
-        timeout-minutes: 13
+        # 2026-11-23: + 7 browser-only controls of the game kit (warehouse 134), about 2 minutes with 2 workers
+        timeout-minutes: 16
         env:
           NC_ENV: browser
           NC_JOBS: "2"
@@ -76,4 +79,5 @@ jobs:
         run: |
           python scripts/run_negative_controls.py section_library; a=$?
           python scripts/run_negative_controls.py library_cookie_banner; b=$?
-          exit $(( a | b ))
+          python scripts/run_negative_controls.py game_kit; c=$?
+          exit $(( a | b | c ))
