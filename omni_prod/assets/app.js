@@ -805,6 +805,9 @@ Object.assign(T.ar, {
     ['صفحة لعرض خاص', 'أريد صفحة تعرض عرضًا خاصًا وتتيح ترك التفاصيل.'],
   ],
   textSize: 'حجم النص', textSizes: { normal: 'عادي', large: 'كبير', xlarge: 'كبير جدًا' },
+  specYours: 'ملخّصكم', specTitle: 'هذا ما سنبنيه', specFacts: 'تفاصيل عملكم، كما كتبتموها', specDefault: 'اختيارنا، يمكن تغييره',
+  specPrice: 'السعر', specNext: 'ماذا الآن',
+  previewDevice: 'المشاهدة كما على الحاسوب أو كما على الهاتف', devDesktop: 'حاسوب', devPhone: 'هاتف',
 });
 
 const $ = id => document.getElementById(id);
