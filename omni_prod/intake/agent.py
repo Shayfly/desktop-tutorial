@@ -85,6 +85,70 @@ def _extends(old, new) -> bool:
     return bool(a) and len(b) > len(a) and a in b
 
 
+# The owner, 2026-11-23 ("סוכן ... שידע להבין את הלקוח ... ולהפוך את המלל לתוצאה מעולה"). On ShayFly every new fact the
+# customer gave -- the three packages with their prices, "מי אנחנו", the name and the phone -- was proposed by the model
+# for `content` or `screens`, called "differs from a confirmed requirement" and kept out; the customer read "לא שיניתי
+# -- מה נכון?" and the summary had none of it (tests/test_first_agent_keeps_every_fact.py replays those rows).
+# These two fields are LISTS of what the site holds: what the customer says next is added to them, never asked back.
+CUMULATIVE = ('content', 'screens')
+
+
+def _norm(v) -> str:
+    return re.sub(r'[\s;|,.]+', ' ', str(v or '')).strip()
+
+
+_CLAUSE_SPLIT = re.compile(r'[;|\n]|(?<=[.!?])\s+')
+_NUMBER = re.compile(r'\d[\d\-,.:/]*')
+
+
+def _clauses(text) -> list[str]:
+    return [c.strip(' .;|') for c in _CLAUSE_SPLIT.split(str(text or '')) if c and c.strip(' .;|')]
+
+
+def _key(clause: str) -> str:
+    """A clause without its numbers: "ייעוץ ראשון 250 ₪" and "ייעוץ ראשון 300 ₪" are the same fact, changed."""
+    return _NUMBER.sub('#', _norm(clause))
+
+
+def _label(clause: str) -> str:
+    """What a clause is about: the words before its colon ("חבילה 1"), or before its first number ("ייעוץ ראשון").
+    Numbers inside a label count, so "חבילה 1" and "חבילה 2" are two items, never one corrected."""
+    head = clause.split(':', 1)[0] if ':' in clause else _NUMBER.split(clause, 1)[0]
+    return _norm(head)
+
+
+def _merged(old, new) -> tuple[str, list[tuple[str, str]]]:
+    """Clause by clause (separators ; | a line break or a sentence end; commas stay inside a clause, as in an address):
+      * a clause already there is not repeated;
+      * a clause that is an existing one with another number (a price, a phone, an hour) REPLACES it -- the newest
+        word is the customer's correction -- but only when both have the same non-empty label ("ייעוץ ראשון",
+        "טלפון") and that fact appears once on each side, so "חבילה 2" is never read as a correction of "חבילה 1";
+      * every other clause is added; a clause the new text leaves out is kept. Nothing is cut and nothing is lost.
+    Returns (the merged text, [(old clause, new clause)] for each correction)."""
+    old_t, new_cl = str(old or ''), _clauses(new)
+    old_cl = _clauses(old_t)
+    have = {_norm(c) for c in old_cl}
+    old_by_key: dict[str, list[str]] = {}
+    for c in old_cl:
+        old_by_key.setdefault(_key(c), []).append(c)
+    new_keys = [_key(c) for c in new_cl]
+    added, changed, merged = [], [], old_t
+    for c, k in zip(new_cl, new_keys):
+        n = _norm(c)
+        if not n or n in have or n in _norm(merged):
+            continue
+        olds = old_by_key.get(k) or []
+        if _NUMBER.search(c) and len(olds) == 1 and new_keys.count(k) == 1 and _label(c) and _label(c) == _label(olds[0]) \
+                and _norm(olds[0]) not in {_norm(x) for x in new_cl}:
+            merged = merged.replace(olds[0], c, 1)
+            changed.append((olds[0], c))
+            continue
+        added.append(c)
+    if added:
+        merged = (merged.rstrip() + '\n' if merged.strip() else '') + '; '.join(added)
+    return merged, changed
+
+
 def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True,
           require_confirmation: bool = False) -> TurnResult:
     new = _copy(brief)
@@ -93,9 +157,10 @@ def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True
         q = d.BY_ID.get(p.field)
         if q is None:
             continue
-        if p.field == 'logo' and p.value == 'later' and new.assets.get('logo'):
+        if p.field == 'logo' and p.value not in ('none', 'uploaded') and new.assets.get('logo'):
             # the owner, 2026-11-23: a logo was uploaded (assets['logo'], field 'uploaded'). Re-saying "I have a logo"
-            # must not downgrade it to 'later' or raise a conflict -- the uploaded logo stands.
+            # must not downgrade it to 'later', and a guess of "a text logo" (ShayFly rev 7) must not replace it, nor
+            # raise a conflict -- the uploaded logo stands until the customer says "no logo".
             continue
         old = new.fields.get(p.field)
         origin = getattr(p, 'origin', 'deterministic')
@@ -133,6 +198,19 @@ def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True
             # is right?" again -- a loop. A text that keeps every word of the confirmed one and adds to it extends it.
             new.fields[p.field] = {'value': p.value, 'source': 'message', 'question_id': q.id, 'confidence': 'stated'}
             res.applied.append({'field': p.field, 'value': p.value, 'source': 'message'})
+            continue
+        if p.field in CUMULATIVE and old and old.get('source') in CONFIRMED_SOURCES and p.confidence == HIGH \
+                and not material(p.field, new.values()):
+            merged, changed = _merged(old['value'], p.value)
+            if merged != old['value']:
+                new.fields[p.field] = {'value': merged, 'source': 'message', 'question_id': q.id, 'confidence': 'stated'}
+                res.applied.append({'field': p.field, 'value': p.value, 'source': 'message'})
+                res.corrected.extend({'field': p.field, 'old': a, 'new': b} for a, b in changed)
+            continue
+        if p.field == 'goal' and origin == 'model' and old and old.get('source') in CONFIRMED_SOURCES \
+                and old['value'] != p.value:
+            # the goal restated in other words: the customer's own wording stays, and nothing is asked back
+            res.dropped.append(f'{p.field}: {origin} restatement kept out; the customer\'s wording stands')
             continue
         if old and old.get('source') in CONFIRMED_SOURCES and old['value'] != p.value and \
                 p.confidence in (HIGH, MEDIUM) and (origin == 'model' or material(p.field, new.values())):
