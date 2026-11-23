@@ -93,7 +93,7 @@ const T = {
     modFailed:'השינוי נכשל: ', classification:'סיווג',
     gateNames:{verification:'אימות', quality:'איכות', security:'אבטחה', rights:'זכויות'},
     checksNotRun:'בדיקות שלא רצו', checksNoneRan:'אף בדיקה לא רצה: הבנייה נעצרה לפני הבדיקות.',
-    checkNamesTech:{preview_starts:'הפעלת ניסיון', behavioural_acceptance:'בדיקת התנהגות', browser_flow:'בדיקת דפדפן', visual_layout_desktop_mobile:'מראה הדף במחשב ובטלפון', qa_review:'סקירת איכות', qa_review_blocking_findings:'ממצאי סקירת האיכות', reviewer_independent_of_author:'סוקר שאינו הכותב', sandbox_build_and_tests:'בדיקות הקוד', cross_file_consistency:'עקביות בין הקבצים', dependency_allowlist:'ספריות מאושרות', approved_criteria_covered:'כיסוי הדרישות שאושרו', quality_score:'ציון איכות', static_security_scan:'סריקת אבטחה', rights_clear:'זכויות', acceptance_criteria_defined:'הגדרת דרישות קבלה'},
+    checkNames:{preview_starts:'הפעלת ניסיון', behavioural_acceptance:'בדיקת התנהגות', browser_flow:'בדיקת דפדפן', visual_layout_desktop_mobile:'מראה הדף במחשב ובטלפון', qa_review:'סקירת איכות', qa_review_blocking_findings:'ממצאי סקירת האיכות', reviewer_independent_of_author:'סוקר שאינו הכותב', sandbox_build_and_tests:'בדיקות הקוד', cross_file_consistency:'עקביות בין הקבצים', dependency_allowlist:'ספריות מאושרות', approved_criteria_covered:'כיסוי הדרישות שאושרו', quality_score:'ציון איכות', static_security_scan:'סריקת אבטחה', rights_clear:'זכויות', acceptance_criteria_defined:'הגדרת דרישות קבלה'},
     repairStopped:'התיקון האוטומטי נעצר',
     repairStops:{time_budget:'התיקון האוטומטי נעצר: הבנייה הגיעה למגבלת הזמן שלה, ולכן לא התחיל סבב תיקון נוסף.', no_progress_repository_unchanged:'התיקון האוטומטי נעצר: סבב התיקון האחרון לא שינה שום קובץ, ולכן סבב נוסף לא היה משנה דבר.', no_progress_repository_cycle:'התיקון האוטומטי נעצר: התיקון חזר לגרסה שכבר נבדקה ונכשלה.', no_progress_empty_patch:'התיקון האוטומטי נעצר: סבב התיקון לא הציע שום שינוי.', no_progress_same_failure:'התיקון האוטומטי נעצר: סבב התיקון נגמר באותו כשל בדיוק כמו הסבב שלפניו.', max_repair_rounds:'התיקון האוטומטי נעצר: נגמרו סבבי התיקון שהוקצו לבנייה הזאת.', needs_customer_input:'התיקון האוטומטי נעצר: חסר פרט שרק אתם יכולים לתת.', test_value_fixed_twice:'התיקון האוטומטי נעצר: אותו ערך צפוי בבדיקה תוקן פעמיים, ולכן הבנייה הועברה לבדיקה ידנית.', repair_model_unavailable:'התיקון האוטומטי נעצר: אף מודל לא החזיר תיקון תקין (תשובה שאינה בפורמט, תשובה שנקטעה, או ספק בלי יתרה). הבנייה הסתיימה על הגרסה הטובה ביותר, עם תוצאות הבדיקות שלמטה. לא חויבתם.'},
     gates:'בדיקות', usage:'שירותים חיצוניים', costActual:'עלות בפועל', costBasis:'בסיס העלות', warnings:'אזהרות',
@@ -230,7 +230,7 @@ const T = {
     modFailed:'Change failed: ', classification:'Classification',
     gateNames:{verification:'Verification', quality:'Quality', security:'Security', rights:'Rights'},
     checksNotRun:'Checks that did not run', checksNoneRan:'No check ran: the build stopped before the checks.',
-    checkNamesTech:{preview_starts:'trial start-up', behavioural_acceptance:'behaviour check', browser_flow:'browser check', visual_layout_desktop_mobile:'how the page looks on desktop and phone', qa_review:'quality review', qa_review_blocking_findings:'quality review findings', reviewer_independent_of_author:'a reviewer who is not the author', sandbox_build_and_tests:'code tests', cross_file_consistency:'consistency between files', dependency_allowlist:'approved libraries', approved_criteria_covered:'coverage of the approved requirements', quality_score:'quality score', static_security_scan:'security scan', rights_clear:'rights', acceptance_criteria_defined:'acceptance criteria defined'},
+    checkNames:{preview_starts:'trial start-up', behavioural_acceptance:'behaviour check', browser_flow:'browser check', visual_layout_desktop_mobile:'how the page looks on desktop and phone', qa_review:'quality review', qa_review_blocking_findings:'quality review findings', reviewer_independent_of_author:'a reviewer who is not the author', sandbox_build_and_tests:'code tests', cross_file_consistency:'consistency between files', dependency_allowlist:'approved libraries', approved_criteria_covered:'coverage of the approved requirements', quality_score:'quality score', static_security_scan:'security scan', rights_clear:'rights', acceptance_criteria_defined:'acceptance criteria defined'},
     repairStopped:'Automatic repair stopped',
     repairStops:{time_budget:'Automatic repair stopped: the build reached its time limit, so no further repair round was started.', no_progress_repository_unchanged:'Automatic repair stopped: the last repair round changed no file, so another round would have changed nothing.', no_progress_repository_cycle:'Automatic repair stopped: the repair went back to a version that was already checked and failed.', no_progress_empty_patch:'Automatic repair stopped: the repair round proposed no change.', no_progress_same_failure:'Automatic repair stopped: the repair round ended in exactly the same failure as the round before.', max_repair_rounds:'Automatic repair stopped: the repair rounds allotted to this build are used up.', needs_customer_input:'Automatic repair stopped: a detail only you can give is missing.', test_value_fixed_twice:'Automatic repair stopped: the same expected value in a test was fixed twice, so the build was passed on for a human look.', repair_model_unavailable:'Automatic repair stopped: no model returned a valid repair (an answer in the wrong format, an answer cut short, or a provider with no credit). The build ended on its best version, with the check results below. You were not charged.'},
     gates:'Checks', usage:'Provider usage', costActual:'Actual cost', costBasis:'Cost basis', warnings:'Warnings',
@@ -760,14 +760,6 @@ Object.assign(T.he, {
   stepPreview: 'מראים לכם איך זה נראה',
   noteGenerate: 'הבנייה, הבדיקות והתיקונים קורים ביחד. בסוף נדווח כמה תיקונים היו.',
   stepState: { done: 'הושלם', active: 'קורה עכשיו', pending: 'ממתין', failed: 'נכשל', skipped: 'לא בוצע' },
-  checkNames: { preview_starts: 'האתר נפתח', behavioural_acceptance: 'האתר עושה מה שביקשתם',
-    browser_flow: 'אפשר להשתמש בו בדפדפן', visual_layout_desktop_mobile: 'נראה טוב במחשב ובטלפון',
-    qa_review: 'עברנו עליו שוב', qa_review_blocking_findings: 'מה שמצאנו בבדיקה החוזרת',
-    reviewer_independent_of_author: 'בדק מישהו אחר, לא מי שבנה', sandbox_build_and_tests: 'הקוד עובד',
-    cross_file_consistency: 'כל החלקים מתאימים זה לזה', dependency_allowlist: 'רק רכיבים מאושרים',
-    approved_criteria_covered: 'כל מה שאישרתם נמצא', quality_score: 'ציון איכות',
-    static_security_scan: 'בטוח למבקרים באתר', rights_clear: 'מותר להשתמש בכל מה שבאתר',
-    acceptance_criteria_defined: 'הגדרנו מראש מה נבדוק' },
 });
 Object.assign(T.en, {
   hero: 'Describe what you need in your own words.',
@@ -799,14 +791,6 @@ Object.assign(T.en, {
   stepPreview: 'Showing you how it looks',
   noteGenerate: 'Building, testing and repairs happen together. At the end we report how many repairs there were.',
   stepState: { done: 'Done', active: 'Happening now', pending: 'Waiting', failed: 'Failed', skipped: 'Not done' },
-  checkNames: { preview_starts: 'The site opens', behavioural_acceptance: 'The site does what you asked',
-    browser_flow: 'It can be used in a browser', visual_layout_desktop_mobile: 'It looks right on a computer and a phone',
-    qa_review: 'We went over it again', qa_review_blocking_findings: 'What the second look found',
-    reviewer_independent_of_author: 'Someone other than the builder checked it', sandbox_build_and_tests: 'The code works',
-    cross_file_consistency: 'All the parts fit together', dependency_allowlist: 'Only approved parts',
-    approved_criteria_covered: 'Everything you approved is there', quality_score: 'Quality score',
-    static_security_scan: 'Safe for visitors', rights_clear: 'Everything on the site may be used',
-    acceptance_criteria_defined: 'We decided in advance what to check' },
 });
 
 // Arabic, the same plain words (2026-11-23). Written by Claude, not yet independently reviewed like the 2026-11-22 block.
@@ -840,16 +824,6 @@ Object.assign(T.ar, {
   stepPreview: 'نريكم كيف يبدو',
   noteGenerate: 'البناء والفحص والإصلاحات تحدث معًا. في النهاية نخبركم كم إصلاحًا كان.',
   stepState: { done: 'اكتمل', active: 'يحدث الآن', pending: 'في الانتظار', failed: 'فشل', skipped: 'لم يُنفَّذ' },
-  // the owner's technical block keeps the checks' own names (warehouse 104); the customer reads the plain ones
-  checkNamesTech: T.ar.checkNamesTech || T.ar.checkNames,
-  checkNames: { preview_starts: 'الموقع يُفتح', behavioural_acceptance: 'الموقع يفعل ما طلبتموه',
-    browser_flow: 'يمكن استخدامه في المتصفح', visual_layout_desktop_mobile: 'يبدو جيدًا على الحاسوب والهاتف',
-    qa_review: 'راجعناه مرة أخرى', qa_review_blocking_findings: 'ما وجدته المراجعة الثانية',
-    reviewer_independent_of_author: 'فحصه شخص غير الذي بناه', sandbox_build_and_tests: 'الموقع يعمل',
-    cross_file_consistency: 'كل الأجزاء متناسقة', dependency_allowlist: 'أجزاء معتمدة فقط',
-    approved_criteria_covered: 'كل ما وافقتم عليه موجود', quality_score: 'درجة الجودة',
-    static_security_scan: 'آمن لزوار الموقع', rights_clear: 'مسموح استخدام كل ما في الموقع',
-    acceptance_criteria_defined: 'حدّدنا مسبقًا ما سنفحصه' },
 });
 
 const $ = id => document.getElementById(id);
@@ -1995,16 +1969,14 @@ function renderSharing(p) {
 // Review 2026-11-15: "no check ran" is said only for the failure codes the worker emits before any check (the engine
 // died); a failed build whose report could not be generated, or a report stored before the list existed, says nothing
 // rather than guessing.
-function notRunLine(b, technical) {
+function notRunLine(b) {
   const NO_REPORT_BEFORE_CHECKS = ['worker_exception', 'model_budget_exhausted', 'model_unavailable', 'provider_quota_exhausted', 'model_policy_blocked', 'attempt_ledger_unavailable', 'plan_violation'];
   const status = b ? String(b.status || '').toLowerCase() : '';
   if (status !== 'failed' && status !== 'ready') return '';
   const qr = b.evidence && b.evidence.quality_report;
   if (!qr) return status === 'failed' && NO_REPORT_BEFORE_CHECKS.includes(b.error_code) ? t('checksNoneRan') : '';
   if (!Array.isArray(qr.not_run)) return '';
-  // the customer reads the plain name; the owner's technical block reads the check's own name (warehouse 104: the
-  // owner still reads every technical detail), so a rename of the customer's words never hides it from him
-  const names = technical ? (t('checkNamesTech') || {}) : (t('checkNames') || {});
+  const names = t('checkNames') || {};
   const list = qr.not_run.map(c => names[c.check] || c.check);
   return list.length ? `${t('checksNotRun')}: ${list.join(', ')}.` : '';
 }
@@ -2081,7 +2053,7 @@ function failureButton(fv) {
 }
 function ownerTech(b) {
   if (!ownerView() || !b) return null;
-  const lines = [notRunLine(b, true), stopReasonLine(b)].filter(Boolean);
+  const lines = [notRunLine(b), stopReasonLine(b)].filter(Boolean);
   return { lines, raw: [b.error_code, b.error_message].filter(Boolean).join(': ') };
 }
 function requestEditLabel(p) {
