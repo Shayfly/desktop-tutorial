@@ -1,0 +1,219 @@
+{
+ "pr": "game-kit",
+ "sha256": [
+  "tests/test_game_kit.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "an unknown key in the definition is ignored instead of refused",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/schema.py",
+     "old": "    for k in sorted(set(obj) - want):\n        problems.append(f'{where} has an unknown key {k!r}')",
+     "new": "    for k in ():\n        problems.append(f'{where} has an unknown key {k!r}')"
+    }
+   ],
+   "targets": [
+    "tests/test_game_kit.py::TheSchema"
+   ],
+   "expect_failed": [
+    "test_an_unknown_key_is_refused_not_ignored"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a missing key is quietly defaulted",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/schema.py",
+     "old": "        problems.append(f'{where} is missing {k!r}')",
+     "new": "        obj.setdefault(k, 1)"
+    }
+   ],
+   "targets": [
+    "tests/test_game_kit.py::TheSchema"
+   ],
+   "expect_failed": [
+    "test_a_missing_key_is_refused_not_defaulted"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "an invalid definition is assembled without validation",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/assemble.py",
+     "old": "    validate(defn)\n    page_def",
+     "new": "    page_def"
+    }
+   ],
+   "targets": [
+    "tests/test_game_kit.py::TheAssembler"
+   ],
+   "expect_failed": [
+    "test_an_invalid_definition_never_becomes_a_page"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "text in the definition can close the script element",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/assemble.py",
+     "old": ".replace('</', '<\\\\/')",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_game_kit.py::TheAssembler"
+   ],
+   "expect_failed": [
+    "test_text_cannot_close_the_script"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "game_probe passes a blank canvas",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/probe.py",
+     "old": "    if m['colours'] < 4:",
+     "new": "    if m['colours'] < 0:"
+    }
+   ],
+   "targets": [
+    "tests/test_game_kit.py::TheGamesPlay"
+   ],
+   "expect_failed": [
+    "test_a_blank_canvas_is_caught"
+   ],
+   "envs": [
+    "browser"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "game_probe passes keys that change nothing",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/probe.py",
+     "old": "    if not _moved(before, after):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_game_kit.py::TheGamesPlay"
+   ],
+   "expect_failed": [
+    "test_keys_that_do_nothing_are_caught"
+   ],
+   "envs": [
+    "browser"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "game_probe passes a phone with no on-screen buttons",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/probe.py",
+     "old": "        if not usable or len(usable) != len(buttons):",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_game_kit.py::TheGamesPlay"
+   ],
+   "expect_failed": [
+    "test_a_phone_with_no_buttons_is_caught"
+   ],
+   "envs": [
+    "browser"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the runtime never shows the on-screen buttons on a touch screen",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/runtime.js",
+     "old": "    pad.hidden = false;\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_game_kit.py::TheGamesPlay"
+   ],
+   "expect_failed": [
+    "test_every_sample_passes_the_probe_on_the_computer_and_the_phone",
+    "test_a_phone_with_no_buttons_is_caught"
+   ],
+   "envs": [
+    "browser"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "game_probe passes a game that never ends",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/probe.py",
+     "old": "    if status not in ('won', 'lost'):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_game_kit.py::TheGamesPlay"
+   ],
+   "expect_failed": [
+    "test_a_game_that_never_ends_is_caught"
+   ],
+   "envs": [
+    "browser"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "game_probe drops page errors",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/probe.py",
+     "old": "    for e in errors:\n        find('page_error', e)",
+     "new": "    for e in ():\n        find('page_error', e)"
+    }
+   ],
+   "targets": [
+    "tests/test_game_kit.py::TheGamesPlay"
+   ],
+   "expect_failed": [
+    "test_a_page_error_is_caught"
+   ],
+   "envs": [
+    "browser"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the runtime ignores the keyboard",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/runtime.js",
+     "old": "    press(k, true);\n  });",
+     "new": "  });"
+    }
+   ],
+   "targets": [
+    "tests/test_game_kit.py::TheGamesPlay"
+   ],
+   "expect_failed": [
+    "test_every_sample_passes_the_probe_on_the_computer_and_the_phone",
+    "test_keys_that_do_nothing_are_caught",
+    "test_a_runner_played_to_the_end_shows_the_win_screen"
+   ],
+   "envs": [
+    "browser"
+   ]
+  }
+ ]
+}
