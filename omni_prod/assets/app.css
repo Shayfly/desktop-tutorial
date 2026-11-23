@@ -818,3 +818,21 @@ body.signed-out .topbar .langPick option{color:#171610;background:#fff}
   .workspace .mobileWorkspaceHead .chatTitle{flex:1 1 0}
   .workspace .mobileWorkspaceHead .pill{order:9;flex:1 0 100%;max-width:100%;text-align:center}
 }
+
+/* the entry, to the owner's example (2026-11-23): the wordmark is "148" in white and "AI" in yellow, no box; the
+   screen fills the window with its content centred; the sign-in card leads with a bold title and one line that says
+   nothing happens without approval; on a phone the three steps come back, under the card, so the form stays first */
+body.signed-out .topbar .brand{font-weight:800;letter-spacing:-.02em;gap:0}
+body.signed-out .topbar .brand b{background:none;color:var(--v-yellow);padding:0;font-weight:900}
+.welcome{min-height:calc(100vh - 64px);min-height:calc(100dvh - 64px);align-content:center}
+.auth{border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.28);padding:clamp(20px,3vw,30px)}
+.auth #authTitle{font-size:clamp(1.5rem,2.6vw,2rem);font-weight:800;line-height:1.15;color:#191711;margin:0}
+.auth .authLead{margin:6px 0 14px;color:#55554f}
+.welcomeCopy .howto li{font-size:1.0625rem}
+@media (max-width:900px){
+  .welcome{min-height:0;align-content:start}
+  .welcomeCopy{display:contents}
+  .welcomeCopy #heroTitle{order:1}.welcomeCopy #heroLead{order:2}.auth{order:3}
+  .welcomeCopy .howto{display:grid;order:4;margin:8px 0 0}
+  .welcomeCopy .scope{order:5}
+}
