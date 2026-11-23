@@ -2,6 +2,9 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| WH-127-A1 | Claude | Built; PR pending CI and SHA approval | `omni_prod/domains`, `tests/test_domains.py`, controls 5/5; STATUS.md 2026-11-23 |
+| UI-SPEC-CARD | Claude | PR #509 open; CI needs a human click | `claude/spec-card` `1e7de2d`; STATUS.md 2026-11-23 |
+| UI-PLAIN-BUILD | Claude | PR #510 open; CI needs a human click | `claude/plain-build-steps` `d86cd09`; STATUS.md 2026-11-23 |
 | UI-EVERYONE | Claude (the owner's order, 2026-11-22) | PR pending CI and the owner's SHA approval | `claude/platform-for-everyone`; `tests/platform_for_everyone_browser.cjs`, `tests/test_platform_for_everyone_in_ci.py`; STATUS.md 2026-11-22 |
 | WH-133 | Codex (design and integration, `4457710`), Claude Code (independent review, fixes, release) | Released with review fixes; PR pending CI | `claude/practical-hopper-oi3qj2-design-133`; `tests/platform_a11y_browser.cjs`, `tests/workspace_review_fixes_browser.cjs`; STATUS.md 2026-11-22 |
 | GOV-01 | Codex | In review | `VISION_LAW_HE.md`, PR pending independent verification |

@@ -1,3 +1,21 @@
+# 2026-11-23 — the customer's words everywhere, and the 30 domains become readable (Claude)
+
+- **The order.** The owner, 2026-11-23: the look must match his example `create-148ai-vision` "ברמה הכי מובחרת", then
+  "הכול לעשות ולפהמשיך" and "תמשיך לבצע את כל המשימות שיש לנו גם במחסן". Three PRs came out of it: #507 (the look and
+  "for everyone"), #509 (the spec card and the preview's phone view), #510 (the build screen in plain words).
+- **The duplication the owner photographed** (2026-11-22 23:47) is fixed at its root: the gate-1 message joins the
+  brief's field summary with the fact canon's line, and the two overlap by design. Both the card and the message now
+  take their summary from the same de-duplicated rows, so each business detail is said once. `tests/test_spec_card.py`
+  (10), controls 6/6, `tests/spec_card_browser.cjs` in CI.
+- **Two bugs of mine the checks caught, before any customer saw them:** CI's `test_customer_words` caught the platform
+  word "מפרט" in the card header (warehouse 132), and the full suite caught that renaming the check names to plain
+  words also renamed them inside the owner-only technical block (warehouse 104). Both fixed; `spec_card.py` now sits
+  in the CONVERSATION list, where the count of platform words is zero and not a ratchet.
+- **Warehouse 127, acceptance 1 (built):** `omni_prod/domains` reads the 30 domain files against one schema and fails
+  loudly with the domain and the field. 30/30 pass unedited. Acceptance 2-6 are not built.
+- **Not verified:** axe runs only in CI; no real customer has used any of this; the pull_request workflows do not fire
+  for a PR opened by an agent token, so #509 and #510 need the owner to close and reopen them once.
+
 # 2026-11-22 — the platform for everyone: no naming step, plain words, readable text, 44px controls (Claude, a second session beside Claude Code)
 
 - **The order.** The owner, 2026-11-22 23:18, after #503 went live: upgrade the platform's look to the level of the large
