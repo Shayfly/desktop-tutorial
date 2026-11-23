@@ -624,9 +624,6 @@ class ConversationSupervisor:
         t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief, self.plan_credits)
         items = sorted(((k, v) for k, v in row.brief.fields.items() if k not in ('windows', 'windows_rejected')),
                        key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)    # windows: their own choice below
-        summary = '; '.join(_label(k, v['value'], lang) + (_TXT['he' if lang == 'he' else 'en']['safe_suffix']
-                                                            if v.get('confidence') == SAFE_CONFIDENCE else '')
-                            for k, v in items[:8] if 'value' in v)
         turn.gate = 'spec'
         turn.venice = {'agent': 'agent.venice', 'mode': 'understanding', 'stage': t['stage1'],
                        'cost_range_credits': [lo, hi]}
@@ -642,6 +639,19 @@ class ConversationSupervisor:
         excluded = [(f'{R.display_name(k, lang)} עדיין לא זמין, ולכן ייבנה בלעדיו.' if lang == 'he' else
                      f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
                     for k in d.customer_exclusions(row.brief)]      # 77: said in the spec the customer approves
+        # the owner's example (2026-11-23, "זה מה שנבנה"): the same parts as a card the screen shows in place of one
+        # paragraph; the message below stays the record (spec_card.py)
+        from .spec_card import card as spec_card
+        card = spec_card(
+            stage=t['stage1'], lang=lang, excluded=excluded, canon_lines=list(canon['lines']),
+            price=AF.range_line(lang, lo, hi), next_step=t['gate1'],
+            rows=[(_short(k, lang), d._label(d.BY_ID[k], v['value'], lang) if k in d.BY_ID else str(v['value']),
+                   v.get('confidence') == SAFE_CONFIDENCE) for k, v in items[:8] if 'value' in v])
+        turn.actions[-1]['card'] = card
+        # the message says each detail once too: its summary is the card's rows, where a segment that repeats a
+        # business detail word for word was already dropped (the detail stays in the canon line below)
+        safe = _TXT['he' if lang == 'he' else 'en']['safe_suffix']
+        summary = '; '.join(f"{r['label']}: {r['value']}" + (safe if r['default'] else '') for r in card['rows'])
         return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *excluded, *canon['lines'],
                 AF.range_line(lang, lo, hi), t['gate1']]
 

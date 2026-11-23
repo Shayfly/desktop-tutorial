@@ -27,7 +27,7 @@ const T = {
     updateRequest:'עדכן את הבקשה', approveBuild:'לאשר ולהתחיל לבנות', approvalExpired:'האישור פג. בדקו את הסיכום ואשרו שוב.',
     builtTitle:'מה נבנה עד עכשיו', newBuild:'מוצר חדש בפרויקט חדש', newProjectPlus:'+ פרויקט חדש', newProjectHint:'לכל מוצר פרויקט משלו. תנו לו שם, ואז תתארו מה לבנות.', nameRequired:'צריך לתת לפרויקט שם.', builtVersion:'גרסה נוכחית', files:'קבצים',
     progress:'התקדמות הבנייה', modifyTitle:'מה תרצו לשנות?', modifySend:'שליחת שינוי', versions:'גרסאות',
-    evidence:'פרטים טכניים ועדויות', refresh:'רענון', openTab:'פתיחה בלשונית חדשה',
+    evidence:'פרטים טכניים ועדויות', refresh:'רענון', openTab:'פתיחה בחלון חדש',
     noPreview:'כאן תופיע האפליקציה אחרי שהבנייה תסתיים.', download:'הורדת קוד המקור (ZIP)', publish:'פרסום',
     publishNotConfigured:'העלאה לאוויר עוד לא זמינה. אפשר להוריד את הקוד ולבדוק בתצוגה המקדימה.',
     manageProject:'ניהול פרויקט', rename:'שינוי שם', saveName:'שמירת השם', archive:'העברה לארכיון',
@@ -751,6 +751,9 @@ Object.assign(T.he, {
     ['דף למבצע', 'אני רוצה דף שמציג מבצע או הצעה ומאפשר להשאיר פרטים.'],
   ],
   textSize: 'גודל טקסט', textSizes: { normal: 'רגיל', large: 'גדול', xlarge: 'גדול מאוד' },
+  specYours: 'הסיכום שלכם', specTitle: 'זה מה שנבנה', specFacts: 'פרטי העסק, כמו שכתבתם', specDefault: 'בחירה שלנו, אפשר לשנות',
+  specPrice: 'מחיר', specNext: 'מה עכשיו',
+  previewDevice: 'לראות כמו במחשב או כמו בטלפון', devDesktop: 'מחשב', devPhone: 'טלפון',
 });
 Object.assign(T.en, {
   hero: 'Describe what you need in your own words.',
@@ -774,6 +777,9 @@ Object.assign(T.en, {
     ['A special offer', 'I want a page that shows a special offer and lets people leave their details.'],
   ],
   textSize: 'Text size', textSizes: { normal: 'Normal', large: 'Large', xlarge: 'Extra large' },
+  specYours: 'Your summary', specTitle: 'This is what we will build', specFacts: 'Your business details, as you wrote them',
+  specDefault: 'our choice, you can change it', specPrice: 'Price', specNext: 'What now',
+  previewDevice: 'See it as on a computer or on a phone', devDesktop: 'Computer', devPhone: 'Phone',
 });
 
 // Arabic, the same plain words (2026-11-23). Written by Claude, not yet independently reviewed like the 2026-11-22 block.
@@ -799,6 +805,9 @@ Object.assign(T.ar, {
     ['صفحة لعرض خاص', 'أريد صفحة تعرض عرضًا خاصًا وتتيح ترك التفاصيل.'],
   ],
   textSize: 'حجم النص', textSizes: { normal: 'عادي', large: 'كبير', xlarge: 'كبير جدًا' },
+  specYours: 'ملخّصكم', specTitle: 'هذا ما سنبنيه', specFacts: 'تفاصيل عملكم، كما كتبتموها', specDefault: 'اختيارنا، يمكن تغييره',
+  specPrice: 'السعر', specNext: 'ماذا الآن',
+  previewDevice: 'المشاهدة كما على الحاسوب أو كما على الهاتف', devDesktop: 'حاسوب', devPhone: 'هاتف',
 });
 
 const $ = id => document.getElementById(id);
@@ -2447,6 +2456,23 @@ function actionButtons(actions) {
   }
   return out.length ? h('div', { class: 'acts' }, out) : null;
 }
+// "זה מה שנבנה": the spec rows, the business details as the customer wrote them, notes, price and the next step
+function specCard(card) {
+  const rows = list => h('dl', { class: 'specRows' }, list.map(r => h('div', {},
+    h('dt', {}, r.label), h('dd', { dir: 'auto' }, r.value, r.default ? h('span', { class: 'pill' }, t('specDefault')) : null))));
+  return h('section', { class: 'specCard', 'aria-label': t('specTitle') },
+    h('header', { class: 'specBar' }, h('strong', {}, t('specYours')), h('span', { class: 'pill warn' }, card.stage)),
+    h('div', { class: 'specBody' },
+      h('div', { class: 'specMain' },
+        h('h2', {}, t('specTitle')),
+        (card.rows || []).length ? rows(card.rows) : null,
+        (card.facts || []).length ? h('h3', {}, t('specFacts')) : null,
+        (card.facts || []).length ? rows(card.facts) : null,
+        ...(card.notes || []).map(n => h('p', { class: 'specNote', dir: 'auto' }, n))),
+      h('aside', { class: 'specSide' },
+        card.price ? h('div', { class: 'inset fire' }, h('h3', {}, t('specPrice')), h('p', {}, card.price)) : null,
+        card.next ? h('div', { class: 'inset' }, h('h3', {}, t('specNext')), h('p', {}, card.next)) : null)));
+}
 function renderChat() {
   const box = $('thread'); if (!box) return;
   const msgs = (S.projectId && S.chat && S.chat.messages) || [];   // a new conversation (no project yet) opens on the welcome
@@ -2465,6 +2491,11 @@ function renderChat() {
   msgs.forEach((m, i) => {
     // review F3 (2026-11-22): the speaker, said to screen readers; an aria-label on a plain div is not read
     const bubble = h('div', { class: `bubble ${m.role}`, dir: 'auto' }, h('span', { class: 'sr' }, `${m.role === 'customer' ? t('you') : t('assistant')}: `), m.content);
+    // the owner's example (2026-11-23): gate 1's spec is shown as the card "זה מה שנבנה" in place of the paragraph;
+    // the card carries every part of the message (omni_prod/conversation/spec_card.py), and the message stays the record
+    const specAct = i === lastAssistant ? (m.actions && m.actions.length ? m.actions : ((S.chat.turn && S.chat.turn.actions) || []))
+      .find(a => a.type === 'approve_spec' && a.card) : null;
+    if (specAct) { bubble.lastChild.replaceWith(specCard(specAct.card)); bubble.classList.add('withCard'); }
     if (m.role === 'assistant' && m.ai_status === 'fallback')
       bubble.append(h('p', { class: 'hint aiFallback' }, t('aiFallback')));
     if (m.attachments && m.attachments.length) bubble.append(h('div', { class: 'thumbs' }, m.attachments.map(a =>
@@ -2763,6 +2794,12 @@ function wire() {
   // A fresh owner link on every refresh (links expire; the cookie may be blocked in an iframe).
   $('refreshPreviewBtn').addEventListener('click', () => { S.previewAccess = null; delete $('previewFrame').dataset.access; renderPreview(); });
   $('downloadBtn').addEventListener('click', downloadZip);
+  // the owner's example (screen 09): the preview as a computer or as a phone sees it -- the same page, narrower
+  for (const [id, device] of [['devDesktop', 'desktop'], ['devPhone', 'phone']]) $(id).addEventListener('click', () => {
+    $('workspaceView').dataset.device = device;
+    $('devDesktop').setAttribute('aria-pressed', String(device === 'desktop'));
+    $('devPhone').setAttribute('aria-pressed', String(device === 'phone'));
+  });
   $('publishBtn').addEventListener('click', publishNotConfigured);
 }
 

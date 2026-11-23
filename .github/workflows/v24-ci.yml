@@ -275,6 +275,7 @@ jobs:
           node --check tests/platform_a11y_browser.cjs
           node --check tests/workspace_review_fixes_browser.cjs
           node --check tests/platform_for_everyone_browser.cjs
+          node --check tests/spec_card_browser.cjs
           node --check tests/ui_languages_browser.cjs
       # axe-core: the WCAG engine of the platform accessibility check (the owner, 2026-11-22: accessible to everyone)
       - run: npm install --no-save --package-lock=false playwright@1.62.1 axe-core@4.10.3
@@ -325,6 +326,9 @@ jobs:
       # bar); it also proves it catches nine deliberate faults
       - run: node tests/platform_for_everyone_browser.cjs
         timeout-minutes: 6
+      # gate 1's spec as the card "זה מה שנבנה" (the owner's example): each business detail once; fails without the card
+      - run: node tests/spec_card_browser.cjs
+        timeout-minutes: 3
       # every platform language whole: no key falls back, no text in another script, the picker switches
       - run: node tests/ui_languages_browser.cjs
         timeout-minutes: 3

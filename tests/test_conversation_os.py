@@ -313,9 +313,12 @@ class SupervisorTests(unittest.TestCase):
         # gate 1 (owner 2026-10-26): the spec + a cost range, no plan before the customer approves the spec
         self.assertIsNone(t4.plan_id)
         # 2026-11-10: the fact canon (Michael condition 2) travels with the approve-spec action.
-        self.assertEqual([{k: v for k, v in a.items() if k != 'canon'} for a in t4.actions],
+        # 2026-11-23: the approve-spec action also carries 'card' (the owner's example spec card), tested in
+        # tests/test_spec_card.py; excluded here as 'canon' is, so this stays a check of the action's identity.
+        self.assertEqual([{k: v for k, v in a.items() if k not in ('canon', 'card')} for a in t4.actions],
                          [{'type': 'approve_spec', 'brief_revision': t4.brief_row.revision,
                            'brief_fingerprint': t4.brief_row.fingerprint}])
+        self.assertIn('card', t4.actions[0])
         self.assertEqual(t4.actions[0]['canon']['status'], 'OK')     # an internal app needs no phone/address
         self.assertIn('שלב 1 מתוך 2', t4.reply)
         self.assertEqual(self.store.plans, {})
