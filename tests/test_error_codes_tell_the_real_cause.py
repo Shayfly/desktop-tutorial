@@ -99,8 +99,8 @@ class EveryFailureIsExplained(unittest.TestCase):
     def test_the_bad_output_message_does_not_blame_load_or_quota(self):
         he, en = ui_messages('he')['model_bad_output'], ui_messages('en')['model_bad_output']
         self.assertIn('בפורמט', he)
-        self.assertIn('לא בעיה של עומס או מכסה', he)
-        self.assertIn('not load or quota', en)
+        self.assertIn('לא בעיה של עומס או מגבלת שימוש', he)
+        self.assertIn('not caused by high demand or a usage limit', en)
 
     def test_a_bad_output_build_is_placed_on_the_generation_step_and_says_no_check_ran(self):
         source = APP.read_text(encoding='utf-8')
