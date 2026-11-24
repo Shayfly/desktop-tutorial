@@ -543,7 +543,12 @@ class PredictionImageProvider:
 # --------------------------------------------------------------------------
 
 def image_provider_readiness(env: Mapping[str, str] | None = None) -> dict[str, Any]:
-    config = ImageProviderConfig.from_env(os.environ if env is None else env)
+    values = os.environ if env is None else env
+    if _clean(values, 'OMNI_GOOGLE_IMAGE_MODEL'):
+        from .google_image import readiness
+        return {'capability_key': CAPABILITY_KEY, 'provider': 'google', **readiness(values),
+                'truth_note': 'LIVE requires a generated and verified artifact.'}
+    config = ImageProviderConfig.from_env(values)
     status, reason = config.status()
     return {
         "capability_key": CAPABILITY_KEY,
@@ -556,8 +561,13 @@ def image_provider_readiness(env: Mapping[str, str] | None = None) -> dict[str, 
     }
 
 
-def build_image_provider(env: Mapping[str, str] | None = None, *, journal, urlopen=None, fetcher=None):
+def build_image_provider(env: Mapping[str, str] | None = None, *, journal, urlopen=None, fetcher=None, artifact_store=None):
     env = os.environ if env is None else env
+    if _clean(env, 'OMNI_GOOGLE_IMAGE_MODEL'):
+        from .google_image import GoogleImageProvider, readiness
+        if readiness(env)['status'] != 'PARTIAL':
+            return None
+        return GoogleImageProvider(env, journal=journal, artifact_store=artifact_store, urlopen=urlopen)
     config = ImageProviderConfig.from_env(env)
     if config.status()[0] != "PARTIAL":
         return None
@@ -585,7 +595,7 @@ def build_image_capability_stage(*, env: Mapping[str, str] | None, repository, a
     from ..capability_worker import DurableCapabilityBuildStage
     from ..provider_registry import ProviderRegistry
 
-    provider = build_image_provider(env, journal=journal, urlopen=urlopen, fetcher=fetcher)
+    provider = build_image_provider(env, journal=journal, urlopen=urlopen, fetcher=fetcher, artifact_store=artifact_store)
     if provider is None:
         return DurableCapabilityBuildStage(repository=repository, assignments_resolver=lambda plan: {})
     registry = ProviderRegistry([provider])

@@ -76,6 +76,8 @@
 | METER-CALL-ID | Claude Code | In review | the meter prices ONE call by its id (owner 2026-11-18): ten turns give ten sums; no id, no ledger or an untagged attempt is loud, never $0; every routed rehearsal cost to date invalid; review fixes (lane, warnings, dropped id, skip event); NC 24/24 (NC1 permanent) |
 | METER-CALL-ID-DONE | Claude Code | Done | #451 `4b3b329` -> `9aee98a` |
 | QUOTA-REPAIR-STOP | Claude Code | In review | a repair call with a no-credit route keeps the verified build (ProviderQuotaUnavailable by type, #448 follow-up); NC 4/4 |
+
+| DIRECT-MODELS | Codex | PARTIAL; independent review and runtime canaries pending | Branch codex/add-provider-models-20261118; 109 passed, 1 skipped, 9 subtests; docs/DIRECT_MODEL_ENROLLMENT_HE.md |
 | RUN-COSTS | Codex | Read-only export independently verified against production on PR #454 | [SQL](scripts/observed_model_costs.sql), based on `9bc130e` |
 | QUOTA-REPAIR-STOP-DONE | Claude Code | Done | #452 `f961661` -> `9bc130e` |
 | D10-FOLLOWUP | Claude Code | In review | the review's remaining findings: in-flight holds, sticky closed state, wording by kind, busy keeps the summary, EXECUTING is busy, unknown tokens None, fallback logged; NC 10/10 + pg 10/10 |
@@ -84,6 +86,7 @@
 | D10-SONNET | Claude Code | In review | Sonnet for the conversation agent only (ordered Venice profile, Haiku when Sonnet is not offered); rehearsal agent path; NC 9/9 |
 | FINDING-ATTRIBUTION | Codex | Done | #463 b327fb0 → 0ed3d0e (recorded by Claude Code 2026-11-22; Codex's #476 said the same and is closed) |
 | CRITICAL-PATH-FRESHNESS | Codex | Done | #464 db1055a → 5ee4395 (recorded by Claude Code 2026-11-22; Codex's #476 said the same and is closed) |
+| DIRECT-ENROLL-NC | Codex | Local controls passed, pending independent review | #453, tests/negative_controls/direct_model_enrollment.json |
 | OVERLAY-ACCEPTANCE-W | Codex | Draft; awaiting CI and independent review | GitHub run 44479691814, job 135408636414 |
 | DRILLS-2026-11 | Claude Code | Done | C16 PASS 44932418710; C19 PASS 44932702825; C11 PASS 44933990232; C18 FAIL on the alert 44935937685, alert half PASS 44942838520 after #487; recorded in #483 (`bed3fa6` -> `86dfb69`) |
 | WH-121 | Claude Code | Merged | #487 (`6f5d1ff` -> `0625996`) the dead-worker alert every 5 minutes; drill run 44942838520 opened and closed #489; live run 44942942630: 1 live worker |
