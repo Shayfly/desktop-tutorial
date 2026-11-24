@@ -1,0 +1,98 @@
+{
+ "pr": "error-truth",
+ "sha256": [
+  "tests/test_error_codes_tell_the_real_cause.py",
+  "omni_prod/worker_tasks.py",
+  "omni_prod/routed_gateway.py",
+  "omni_prod/assets/app.js"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "every all-routes failure is called 'unavailable' again: a broken-format answer is told to the customer as load or quota",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        if tried and all(isinstance(k, type) and issubclass(k, ModelJSONRejected) for k in tried):\n            return 'model_bad_output'\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_error_codes_tell_the_real_cause.py"
+   ],
+   "expect_failed": [
+    "test_every_code_a_failed_build_can_carry_has_a_hebrew_and_an_english_message",
+    "test_every_model_answering_in_a_broken_format_is_bad_output_not_load_or_quota"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the gateway no longer records what kind of failure each route had",
+   "mutations": [
+    {
+     "file": "omni_prod/routed_gateway.py",
+     "old": "        error.route_failures = tuple(failure_kinds)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_error_codes_tell_the_real_cause.py"
+   ],
+   "expect_failed": [
+    "test_every_model_answering_in_a_broken_format_is_bad_output_not_load_or_quota"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the cause is guessed from the message text instead of the failure types",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        if tried and all(isinstance(k, type) and issubclass(k, ModelJSONRejected) for k in tried):\n",
+     "new": "        if 'valid JSON' in text:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_error_codes_tell_the_real_cause.py"
+   ],
+   "expect_failed": [
+    "test_a_route_that_did_not_answer_keeps_it_unavailable",
+    "test_the_cause_is_read_from_the_failure_types_never_from_the_message_text"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a failure code loses its Hebrew message: the customer reads a bare code",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "      plan_violation:'הבנייה נעצרה: אחד השלבים חרג מהתוכנית שאושרה לבנייה הזאת. הפירוט בפרטים הטכניים.',\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_error_codes_tell_the_real_cause.py"
+   ],
+   "expect_failed": [
+    "test_every_code_a_failed_build_can_carry_has_a_hebrew_and_an_english_message"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the worker gains a failure code nobody wrote a message for",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        return 'model_unavailable'\n    return 'worker_exception'\n",
+     "new": "        return 'model_unavailable'\n    return 'internal_failure'\n"
+    }
+   ],
+   "targets": [
+    "tests/test_error_codes_tell_the_real_cause.py"
+   ],
+   "expect_failed": [
+    "test_every_code_a_failed_build_can_carry_has_a_hebrew_and_an_english_message"
+   ]
+  }
+ ]
+}

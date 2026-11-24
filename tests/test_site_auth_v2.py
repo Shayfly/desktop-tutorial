@@ -475,8 +475,11 @@ class SourceIdentity(unittest.TestCase):
         # whole flag-only skill (~67 lines), so this change is flagged for review by eye, as it should be.
         self.assertEqual(t['heavy_files'], ['omni_prod/skills_runtime.py'])
         self.assertTrue(t['needs_human_review'])
+        # A7 adds two feature_flags imports. The stripper reports them explicitly even though they
+        # are not SITE_AUTH_V2 blocks; retain the exact inventory and the human-review threshold.
         self.assertEqual(set(self.BASE['stripped']), {'omni_prod/skills_runtime.py', 'omni_prod/behavior_acceptance.py',
-                                                      'omni_prod/investor_app.py', 'omni_prod/probe_manifest.py'})
+                                                      'omni_prod/investor_app.py', 'omni_prod/probe_manifest.py',
+                                                      'omni_prod/design_review.py', 'omni_prod/g_apple/reviewers.py'})
 
     def test_a_large_flag_only_rewrite_asks_for_a_human(self):
         from omni_prod import pipeline_identity as pi
