@@ -1,9 +1,20 @@
+# 2026-11-24 — A1 #524 integration after A2 merge (HOLD until new CI and review)
+
+- Owner explicitly approved declaration `#524-after-486`, deleted-line digest `524c69b525732a782139cc79d2c71674a1857833c17d911b43f38fe658d475de`; recorded as owner authorization, not independent review. Prior head `a5fe405aa390cbb7de8d5c0daf2987f53c49aef1`: 22 successful checks, one expected skip and light failed only on the pending declaration.
+- Incorporate main `4e45b3a399d8d7eb3644ebcd5b0a718ab7217d4b` (#527); preserve both STATUS entries and every A2 source/test blob. Only A1 authorization metadata and task tracking are new in this reconciliation. No provider activation or production release. Fresh exact-head CI and independent review remain required; full local regression was not run in this environment.
+
 # 2026-11-24 — A1 owner routing candidate (#523; NOT LIVE)
 
 - Venice agent profile prefers Gemini 3.5 Flash Lite, then Claude Haiku 5.5 when the primary is ineligible before contact. Existing account scope and single-call reservation preserved. Direct/non-Venice path unchanged.
 - Tested on main 674811c: 43 focused tests and 9 subtests, 14/14 negative controls, fast suite 1040 tests and 480 subtests. Provider HTTP intercepted; no paid call.
 - #524 V11 exposed a historical Sonnet-only HTTP 500 test that never reached the new allowed route. Updated fixtures assert actual POST on both Gemini and Haiku; 56 focused tests, 17 subtests, refusal mutations 4/4 and fast suite 1042/480 passed locally. No product code changed in this correction.
 - Pending: exact-head CI, independent technical review, live catalog/JSON/account/worker canaries and release. A2–A8 tools/skills and orchestration remain separate work.
+
+# 2026-11-24 — A2 approved reference comparison candidate (#523; NOT LIVE)
+
+- Google Search Grounding standard terms restrict automated link collection and indexing; no Google Grounding collector was committed or enabled. See docs/spec/a2-approved-research.md.
+- Additive A2 adapter uses the existing library; explicit revision-bound owned/licensed grants, 3–8 fresh approved sources, closed-structure model input, source evidence binding and validated three-reference recommendation. No network or model calls; no build approval.
+- Local evidence on main 851217c8: 33 focused/related tests and 5 subtests, 9/9 negative controls, fast 1042/480. Live rights-grant store, acquisition provider, metered Gemini transport and integration are pending.
 
 # 2026-11-23 — tonight's fixes: the build no longer dies on a picture nobody asked for, the chat never ends, the phone (Claude Code)
 
