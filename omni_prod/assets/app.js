@@ -650,6 +650,7 @@ Object.assign(T.en, { actRetryBuild:'Try building again', stillMissing:'Still mi
 // warehouse 128: the two answers to a draft read from the customer's file (nothing is built before one of them)
 Object.assign(T.he, { actApproveReading:'נכון, להשתמש בזה', actDiscardReading:'לא נכון, לבטל' });
 Object.assign(T.en, { actApproveReading:'Correct, use it', actDiscardReading:'Not right, discard it' });
+Object.assign(T.ar, { actApproveReading:'صحيح، استخدام هذا', actDiscardReading:'غير صحيح، إلغاء هذا' });
 
 Object.assign(T.he, {
   workspaceHero: 'מה תרצו ליצור היום?',
