@@ -57,7 +57,7 @@ class StatusIsNotReadFromA503(unittest.TestCase):
 
     def test_both_states_are_checked(self):
         self.assertIn("selectOption('none');\n      assert.deepEqual(await listed(), ['אוורסט']", SIDEBAR)
-        self.assertIn("selectOption('unknown');\n      assert.deepEqual(await listed(), ['אתר שני']", SIDEBAR)
+        self.assertIn("selectOption('unknown');\n      assert.deepEqual(await listed(), [second]", SIDEBAR)
         self.assertIn('guessed_status:', SIDEBAR)
 
 

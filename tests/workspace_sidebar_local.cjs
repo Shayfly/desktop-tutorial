@@ -36,11 +36,14 @@ const browserOptions = process.env.CHROMIUM_PATH ? {
   args: ['--no-sandbox', '--disable-gpu'],
 } : {};
 
-async function createFromForm(page, title) {
-  await page.locator('#newProjectName').fill(title);
-  await page.locator('#newProjectCreate').click();
-  await page.locator('#newProjectDialog').waitFor({ state: 'hidden' });
-  assert.equal(await page.locator('#chatTitle').textContent(), title);
+// #507 (2026-11-22, the owner): no naming step. A new project is an empty conversation; the first message sent creates
+// it and names it from its first phrase (app.js submitChat, titleFrom). The test sends through the real form.
+async function createByFirstMessage(page, text, title) {
+  assert.equal(await page.evaluate(() => S.projectId), '', 'a new conversation has no project before its first message');
+  await page.locator('#chatInput').fill(text);
+  await page.locator('#chatSend').click();
+  await page.waitForFunction(t => document.getElementById('chatTitle')?.textContent === t, title, { timeout: 15000 });
+  assert.notEqual(await page.evaluate(() => S.projectId), '', 'the first message created the project');
 }
 
 (async () => {
@@ -132,13 +135,15 @@ async function createFromForm(page, title) {
       if (Number.isFinite(credits)) assert.match(await page.locator('#sbBalance').textContent(), new RegExp(String(credits)));
 
       await page.locator('#newProjectTopBtn').click();
-      await createFromForm(page, 'אוורסט');
+      await createByFirstMessage(page, 'אוורסט', 'אוורסט');
       await page.locator('#chatInput').fill('טיוטה ששייכת לאוורסט');
       await openSidebar();
       await page.locator('#sbTemplates').click();
       await page.locator('#workspaceDialogBody button').first().click();
-      await createFromForm(page, 'אתר שני');
-      assert.match(await page.locator('#chatInput').inputValue(), /אתר לעסק/);
+      const idea = await page.locator('#chatInput').inputValue();
+      assert.match(idea, /אתר לעסק/, 'an idea is written into the box of a new, empty conversation');
+      const second = await page.evaluate(text => titleFrom(text), idea);
+      await createByFirstMessage(page, idea, second);
       await page.evaluate(() => {
         S.proposal = {price:{amount_ils:93}};
         renderWorkspaceHeader();
@@ -154,7 +159,7 @@ async function createFromForm(page, title) {
       await page.locator('#workspaceProjectState').selectOption('none');
       assert.deepEqual(await listed(), ['אוורסט'], 'a project with no build reads "no build yet", as production answers');
       await page.locator('#workspaceProjectState').selectOption('unknown');
-      assert.deepEqual(await listed(), ['אתר שני'], 'a status that cannot be read reads "unavailable", not a guess');
+      assert.deepEqual(await listed(), [second], 'a status that cannot be read reads "unavailable", not a guess');
       assert.equal(await page.locator('#workspaceProjectList .sbStatus').first().isVisible(), true, 'status is visible in text');
       await page.locator('#workspaceProjectState').selectOption('');
       assert.equal(await page.locator('#workspaceProjectList button').count(), 2);
