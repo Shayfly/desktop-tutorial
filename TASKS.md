@@ -2,11 +2,11 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| WH-133 | Codex (design and integration, `4457710`), Claude Code (independent review, fixes, release) | Merged and released | #503 `adea624` -> `e5bf2ac` [release]; Vercel `dpl_Ax13GhrAyzxY4Bv7DcbHo9LY6MCk` READY, deploy-worker 45072002228; `tests/platform_a11y_browser.cjs`, `tests/workspace_review_fixes_browser.cjs`; review T1-T3 in UI-TESTS |
 | IMG-DEFAULT-HERO | Claude Code | Merged (#519 `c43095c`); awaiting `[release]` and the worker run | `tests/test_default_hero_never_fails_the_build.py`; controls default_hero_never_fatal 5/5; STATUS.md 2026-11-23 |
 | CHAT-PHONE | Claude Code | Merged (#518 `e93d01b`); awaiting `[release]` | `tests/phone_chat_browser.cjs` 6/6; STATUS.md 2026-11-23 |
 | CONV-ADD-NOT-ASK | Claude Code | Not started | ShayFly prj_5wRH_CceL2aSeQ lost its packages to "what is right?" |
 | UI-EVERYONE | Claude (the owner's order, 2026-11-22) | PR pending CI and the owner's SHA approval | `claude/platform-for-everyone`; `tests/platform_for_everyone_browser.cjs`, `tests/test_platform_for_everyone_in_ci.py`; STATUS.md 2026-11-22 |
-| WH-133 | Codex (design and integration, `4457710`), Claude Code (independent review, fixes, release) | Released with review fixes; PR pending CI | `claude/practical-hopper-oi3qj2-design-133`; `tests/platform_a11y_browser.cjs`, `tests/workspace_review_fixes_browser.cjs`; STATUS.md 2026-11-22 |
 | GOV-01 | Codex | In review | `VISION_LAW_HE.md`, PR pending independent verification |
 | GOV-02 | Codex | In review | `AGENTS.md`, `NORTH_STAR.md`, SHA c8827818e3ffeb9ac49ba00c5d2b6efa6f8ff0d8 |
 | GOV-03 | Codex | In progress | Root `STATUS.md`, `TASKS.md`, `OWNERS.md` |
@@ -99,3 +99,8 @@
 | AGENTS-DRIFT | Claude Code (was Codex) | Not started | AGENTS.md rules 1 and 4 say NOT ENFORCED; C16 is live since 2026-10-20 and critical-path freshness runs daily |
 | YIELD-DB | Claude Code | Not started | first_pass_yield (the founder's metric, 2026-10-19) from build_jobs, daily: 11 of 48 builds ready in 35 days, 0 first-pass (Neon, read-only, 2026-11-21) |
 | SITE-CONTENT-1 | Claude Code | Local commits, not pushed; review fixes committed (0eae688..422f929); CTO's full suite pending | content-document route slice 1 behind OMNI_SITE_LIBRARY (off); real-chain engine tests 6/6 with Chromium (CI: browser-python job, not yet run); NC site_content 44/44, section_library 7/7 default + 10/10 browser |
+| ASK-NAME | Claude Code | Merged and released | #502 `90fd284` -> `473a820` [release]: the agent asks the business name; Vercel `dpl_3mpTtvrCEMSx1cDqvTrEm65FQADP` READY |
+| ASK-COLOURS | Claude Code | Merged and released | #504 `ebd34df` -> `396d571` [release]: a business we do not know is asked about its colours (the owner, 2026-11-22); a WhatsApp answer keeps its role (task 62); Vercel `dpl_8tCnYrswwopYXpScShjYFQcxHvnt` READY |
+| UI-LANGS | Claude Code | Merged and released | #505 `526928a` -> `e35f1b4` [release]: the platform in Hebrew, English and Arabic; `tests/ui_languages_browser.cjs` in CI; the server's fixed texts still reach Arabic customers in English; Vercel `dpl_86kVjp5UbA22jsJZ8TyyLTSRfVeK` READY |
+| PATH-GUARD | Claude Code | Merged | #506 `0918f2b` -> `74243bf`: `codex/` and `design/` branches may not change the platform UI shell or the site engine (OWNERS.md, the owner 2026-11-22 evening) |
+| UI-TESTS | Claude Code | In review | `claude/practical-hopper-oi3qj2-ui-tests`: #503 review T1 (the sidebar test and its 9 mutations run in CI on a development server), T2 (`tests/workspace_guards_browser.cjs`, 7 guards), T3 (status not read from a 503) |
