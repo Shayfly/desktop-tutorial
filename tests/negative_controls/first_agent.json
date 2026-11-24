@@ -1,0 +1,134 @@
+{
+ "pr": "first-agent-v1",
+ "sha256": [
+  "tests/test_first_agent_keeps_every_fact.py",
+  "tests/test_first_agent_summary.py",
+  "tests/test_content_extension_is_not_a_conflict.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the site's content and parts are not lists again: ShayFly's packages, prices and \"about us\" are kept out",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/agent.py",
+     "old": "CUMULATIVE = ('content', 'screens')",
+     "new": "CUMULATIVE = ()"
+    }
+   ],
+   "targets": [
+    "tests/test_first_agent_keeps_every_fact.py"
+   ],
+   "expect_failed": [
+    "test_a_fact_said_twice_is_kept_once",
+    "test_about_us_the_name_and_the_phone_reach_the_brief",
+    "test_nothing_is_asked_back",
+    "test_the_packages_and_prices_reach_the_brief",
+    "test_two_packages_that_differ_only_by_price_stay_two"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a corrected price is added beside the old one instead of replacing it",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/agent.py",
+     "old": "            merged = merged.replace(olds[0], c, 1)\n            changed.append((olds[0], c))\n            continue\n",
+     "new": "            pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_content_extension_is_not_a_conflict.py"
+   ],
+   "expect_failed": [
+    "test_a_changed_fact_replaces_its_own_clause_and_is_said_back"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "\"חבילה 2\" is read as a correction of \"חבילה 1\": package 1 is lost",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/agent.py",
+     "old": "len(olds) == 1 and new_keys.count(k) == 1 and _label(c) and _label(c) == _label(olds[0]) \\\n                and _norm(olds[0]) not in {_norm(x) for x in new_cl}:",
+     "new": "len(olds) == 1:"
+    }
+   ],
+   "targets": [
+    "tests/test_first_agent_keeps_every_fact.py"
+   ],
+   "expect_failed": [
+    "test_two_packages_that_differ_only_by_price_stay_two"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the goal rephrased by the model is asked back as \"what is right?\"",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/agent.py",
+     "old": "        if p.field == 'goal' and origin == 'model' and old and old.get('source') in CONFIRMED_SOURCES \\\n                and old['value'] != p.value:",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_intake_approve_and_goal.py"
+   ],
+   "expect_failed": [
+    "test_the_customers_own_goal_is_kept_over_the_model"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the summary lists every field again (font, dates, login)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        items = [(k, row.brief.fields[k]) for k in SUMMARY_FIELDS if k in row.brief.fields]",
+     "new": "        items = [(k, v) for k, v in row.brief.fields.items() if k not in ('windows', 'windows_rejected')]"
+    }
+   ],
+   "targets": [
+    "tests/test_first_agent_summary.py"
+   ],
+   "expect_failed": [
+    "test_no_technical_rows",
+    "test_the_rows_follow_the_customers_order"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the field-label list is said again under the model's own words (GOA rev 5)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            stated = []\n        if stated:",
+     "new": "            pass\n        if stated:"
+    }
+   ],
+   "targets": [
+    "tests/test_first_agent_summary.py"
+   ],
+   "expect_failed": [
+    "test_no_field_list_under_the_models_own_words"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the scripted conflict line comes back",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "'conflict': 'רק לוודא לפני שאני משנה — {field}: {current}, או {proposed}?',",
+     "new": "'conflict': 'קודם נקבע: {current}. עכשיו הבנתי: {proposed}. לא שיניתי — מה נכון?',"
+    }
+   ],
+   "targets": [
+    "tests/test_first_agent_summary.py"
+   ],
+   "expect_failed": [
+    "test_a_real_conflict_is_one_plain_question"
+   ]
+  }
+ ]
+}

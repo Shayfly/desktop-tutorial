@@ -1,0 +1,126 @@
+{
+ "source": "production, read-only (Neon 148ai-db-v2, project_briefs + intake_messages.interpretation), prj_5wRH_CceL2aSeQ (ShayFly), 2026-11-23",
+ "brief_rev2_fingerprint": "e658379990ce0b22619ed71f48ab63404e10e17d4554d3261aa015bd668ba0d5",
+ "brief_rev2_fields": {
+  "goal": {
+   "value": "להציג ולמכור שלוש חבילות חופשה משפחתיות כשרות ולאפשר בדיקת זמינות ומחיר דרך וואטסאפ",
+   "source": "message",
+   "confidence": "stated",
+   "question_id": "goal"
+  },
+  "content": {
+   "value": "להציג בכל חבילה מה כלול, מה בתוספת, סידורי כשרות ושבת, ומידע על מחיר וזמינות. כשמידע חסר, להציג ״בדקו איתנו״ בשדה המתאים. להוסיף שאלות נפוצות והמלצות שהלקוח אישר.",
+   "source": "message",
+   "confidence": "stated",
+   "question_id": "content"
+  },
+  "screens": {
+   "value": "אתר מותאם קודם לנייד, המציג שלוש חבילות חופשה, שאלות נפוצות והמלצות; לכל חבילה פרטי הכלול, התוספות, סידורי הכשרות והשבת, מחיר וזמינות, כפתור וואטסאפ, חיוג בלחיצה וקישורי ניווט לכתובות מאומתות",
+   "source": "message",
+   "confidence": "stated",
+   "question_id": "screens"
+  },
+  "logo": {
+   "value": "text",
+   "source": "default",
+   "confidence": "inferred",
+   "question_id": "logo"
+  },
+  "color": {
+   "value": "category",
+   "source": "default",
+   "confidence": "inferred",
+   "question_id": "color"
+  },
+  "style": {
+   "value": "clean",
+   "source": "default",
+   "confidence": "inferred",
+   "question_id": "style"
+  },
+  "font": {
+   "value": "heebo",
+   "source": "default",
+   "confidence": "inferred",
+   "question_id": "font"
+  },
+  "audience": {
+   "value": "public",
+   "source": "message",
+   "confidence": "stated",
+   "question_id": "audience"
+  },
+  "languages": {
+   "value": "he",
+   "source": "message",
+   "confidence": "stated",
+   "question_id": "languages"
+  },
+  "personal_data": {
+   "value": "no",
+   "source": "answer",
+   "confidence": "confirmed",
+   "question_id": "personal_data"
+  }
+ },
+ "turns": [
+  {
+   "at": "2026-11-23T14:49:24.233Z",
+   "customer": "כן לא שומר. החבילות הם פראג חודש דצמבר 3 לילות כולל מלון כשר 2300 ש״ח לאדם ..  2אומן דצמבר אצל רבי נחמן 3 לילות 2500  ש״ח …  לילות 3   פאפוס  כולל מלון 1990 ש״ח . תעשה תמונות של כולם לפי המקום . כולם כוללים מלון ופנסיון מלא",
+   "model_reply": "הבנתי: באתר ShayFly יוצגו חבילות לפראג, לאומן ולפאפוס; כולן ל־3 לילות וכוללות מלון ופנסיון מלא, עם המחירים והפרטים שציינתם, ותמונות לפי היעדים. האם סידורי הכשרות והשבת כלולים בכל שלוש החבילות, ומה תרצו להציג אם עדיין אין פרטים?",
+   "proposals": [
+    {
+     "field": "content_only",
+     "value": "yes",
+     "origin": "model",
+     "evidence": "כן לא שומר",
+     "confidence": "high"
+    },
+    {
+     "field": "content",
+     "value": "שלוש חבילות: פראג בדצמבר, 3 לילות, מלון כשר, 2300 ש״ח לאדם; אומן בדצמבר אצל רבי נחמן, 3 לילות, 2500 ש״ח; פאפוס, 3 לילות, כולל מלון, 1990 ש״ח. כולן כוללות מלון ופנסיון מלא.",
+     "origin": "model",
+     "evidence": "החבילות הם פראג חודש דצמבר 3 לילות כולל מלון כשר 2300 ש״ח לאדם",
+     "confidence": "high"
+    },
+    {
+     "field": "image_kind",
+     "value": "place",
+     "origin": "model",
+     "evidence": "תעשה תמונות של כולם לפי המקום",
+     "confidence": "high"
+    }
+   ],
+   "production_said": "קודם נקבע ... לא שיניתי — מה נכון?"
+  },
+  {
+   "at": "2026-11-23T14:54:28.766Z",
+   "customer": "מעולה תבנה ותוסיף את הלוגו שלי . השם שלי זה שי נסים אוחנה פלאפון  0503456723 . תרחיב . ותעשה מי אנחנו ?  סוכן נסיעות אישי",
+   "model_reply": "הבנתי שאתם רוצים להרחיב את אתר ShayFly, להוסיף אזור ״מי אנחנו?״ ולהציג את שי נסים אוחנה כסוכן נסיעות אישי, לצד מספר הטלפון שסיפקתם. כדי להוסיף את הלוגו, תוכלו לשלוח אותו?",
+   "proposals": [
+    {
+     "field": "logo",
+     "value": "later",
+     "origin": "model",
+     "evidence": "תוסיף את הלוגו שלי",
+     "confidence": "medium"
+    },
+    {
+     "field": "screens",
+     "value": "להוסיף לאתר עמוד או אזור ״מי אנחנו?״ עם הצגת שי נסים אוחנה כסוכן נסיעות אישי",
+     "origin": "model",
+     "evidence": "תעשה מי אנחנו ? סוכן נסיעות אישי",
+     "confidence": "high"
+    },
+    {
+     "field": "content",
+     "value": "להציג את השם שי נסים אוחנה ואת מספר הטלפון 0503456723 באתר",
+     "origin": "model",
+     "evidence": "השם שלי זה שי נסים אוחנה פלאפון  0503456723",
+     "confidence": "high"
+    }
+   ],
+   "production_said": "קודם נקבע ... לא שיניתי — מה נכון? (screens and content)"
+  }
+ ]
+}

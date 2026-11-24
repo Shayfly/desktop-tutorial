@@ -92,8 +92,8 @@
    "mutations": [
     {
      "file": "tools/first_pass_yield.py",
-     "old": "        return 2\n    summary = summarize(rows, now)",
-     "new": "        rows = []  # NEGATIVE CONTROL\n    summary = summarize(rows, now)"
+     "old": "        return 2\n    summary = summarize(rows, now, count_from=count_from)",
+     "new": "        rows = []  # NEGATIVE CONTROL\n    summary = summarize(rows, now, count_from=count_from)"
     }
    ],
    "targets": [
@@ -172,6 +172,23 @@
    ],
    "expect_failed": [
     "test_a_preflight_plan_repair_is_not_what_stopped_the_first_pass"
+   ]
+  },
+  {
+   "id": "NC_COUNT",
+   "what": "the owner's new count is ignored: the report reads 30 days back again",
+   "mutations": [
+    {
+     "file": "tools/first_pass_yield.py",
+     "old": "    count_from = COUNT_FROM if now >= COUNT_FROM else None\n",
+     "new": "    count_from = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_first_pass_yield.py"
+   ],
+   "expect_failed": [
+    "test_the_production_path_applies_the_new_count"
    ]
   }
  ]

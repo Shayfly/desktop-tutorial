@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>148AI · סביבת יצירה</title>
 <meta name="theme-color" content="#151410">
-<meta name="description" content="תארו את אפליקציית הווב שלכם. 148AI מתכננת, בונה, בודקת ומציגה אותה.">
+<meta name="description" content="תארו במילים שלכם מה אתם צריכים, ו-148AI תבנה את זה: אתר או מערכת שנפתחים מכל מחשב או טלפון.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="148AI">
 <link rel="icon" type="image/png" href="/brand/148ai-favicon-64.png">
@@ -25,6 +25,7 @@
     <select id="projectSelect"></select>
   </div>
   <div class="topright">
+    <button class="ghost" id="textSizeBtn" type="button"></button>
     <select class="langPick" id="langBtn" data-i18n-label="language"></select>
     <div class="account" id="accountBox" hidden>
       <span id="accountEmail" class="email"></span>
@@ -43,14 +44,15 @@
       <h1 id="heroTitle" data-i18n="workspaceHero"></h1>
       <p id="heroLead" data-i18n="workspaceLead"></p>
       <ol class="howto">
-        <li data-i18n="how1">כותבים מה האפליקציה צריכה לעשות ולמי.</li>
-        <li data-i18n="how2">מקבלים תוכנית ועלות מקסימלית, ומאשרים.</li>
-        <li data-i18n="how3">צופים בבנייה, בודקים בתצוגה מקדימה, משנים ומורידים את הקוד.</li>
+        <li data-i18n="how1">כותבים במילים פשוטות מה אתם צריכים.</li>
+        <li data-i18n="how2">מקבלים הצעה עם מחיר, ומאשרים רק אם מתאים.</li>
+        <li data-i18n="how3">רואים איך זה נראה, מבקשים שינויים במילים, ושומרים.</li>
       </ol>
-      <p class="scope" data-i18n="scope">כרגע: אפליקציות ווב ו-SaaS. מובייל, משחקים ומדיה עוד לא זמינים.</p>
+      <p class="scope" data-i18n="scope">כרגע אפשר לבנות אתרים ומערכות שנפתחים מכל מחשב או טלפון. אפליקציה להתקנה בטלפון, משחקים, וידאו ומוזיקה עוד לא.</p>
     </div>
     <form class="auth" id="authForm" novalidate>
       <h2 id="authTitle" data-i18n="signinTitle">כניסה לחשבון</h2>
+      <p class="authLead" data-i18n="authLead">שום דבר לא נבנה ושום חיוב לא קורה בלי האישור שלכם.</p>
       <label><span data-i18n="email">אימייל</span><input id="email" type="email" autocomplete="email" required></label>
       <label for="password"><span data-i18n="password">סיסמה</span></label>
       <div class="passwordField">
@@ -89,6 +91,7 @@
           <button id="sbAll" class="ghost" type="button" data-i18n="allProjects" aria-haspopup="dialog"></button>
           <button id="sbTemplates" class="ghost" type="button" data-i18n="workspaceTemplates" aria-haspopup="dialog"></button>
           <button id="sbDomains" class="ghost" type="button" data-i18n="workspaceDomains" aria-haspopup="dialog"></button>
+          <button id="textSizeBtn2" class="ghost" type="button"></button>
           <details id="sbSettings">
             <summary data-i18n="workspaceSettings"></summary>
             <div class="row">
@@ -118,13 +121,6 @@
       <div class="projectReadiness" id="projectReadiness" role="status" aria-live="polite" hidden></div>
       <div class="ctx" id="ctx">
         <div class="ctxToolbar"><span id="ctxTitle">עריכת הבקשה</span><button id="ctxMinimize" type="button" class="ghost" aria-controls="ctx" data-i18n-label="minimizeContext">−</button></div>
-        <div class="panel" id="emptyProjects" hidden>
-          <h2 data-i18n="firstProject">הפרויקט הראשון שלכם</h2>
-          <form class="inline" id="firstProjectForm">
-            <label class="grow"><span data-i18n="projectName">שם הפרויקט</span><input id="firstProjectName" maxlength="120" required></label>
-            <button type="submit" data-i18n="createProject">יצירת פרויקט</button>
-          </form>
-        </div>
         <div class="panel built" id="builtPanel" hidden>
           <h2 data-i18n="builtTitle">מה נבנה עד עכשיו</h2>
           <p class="builtName" id="builtName"></p>
@@ -187,6 +183,10 @@
       <div class="browser">
         <div class="chrome">
           <span class="url" id="previewUrl" dir="ltr">—</span>
+          <div class="deviceSwitch" role="group" id="deviceSwitch" data-i18n-label="previewDevice">
+            <button type="button" class="ghost" id="devDesktop" aria-pressed="true" data-i18n="devDesktop">מחשב</button>
+            <button type="button" class="ghost" id="devPhone" aria-pressed="false" data-i18n="devPhone">טלפון</button>
+          </div>
           <div class="chromeActions">
             <button class="ghost" id="refreshPreviewBtn" disabled data-i18n="refresh">רענון</button>
             <a class="ghost button" id="openPreviewLink" target="_blank" rel="noopener" aria-disabled="true" data-i18n="openTab">פתיחה בלשונית חדשה</a>
@@ -289,17 +289,5 @@
   </form>
 </dialog>
 
-<dialog id="newProjectDialog">
-  <form method="dialog" id="newProjectForm">
-    <h2 data-i18n="newProject">פרויקט חדש</h2>
-    <p data-i18n="newProjectHint">לכל מוצר פרויקט משלו. תנו לו שם, ואז תתארו מה לבנות.</p>
-    <label><span data-i18n="projectName">שם הפרויקט</span><input id="newProjectName" maxlength="120" required></label>
-    <p class="msg" id="newProjectMsg" role="alert"></p>
-    <div class="row end">
-      <button type="submit" id="newProjectCreate" value="create" data-i18n="createProject">יצירת פרויקט</button>
-      <button type="button" class="ghost" id="newProjectCancel" data-i18n="close">סגירה</button>
-    </div>
-  </form>
-</dialog>
 </body>
 </html>

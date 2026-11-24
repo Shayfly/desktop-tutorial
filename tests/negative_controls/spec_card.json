@@ -1,0 +1,115 @@
+{
+ "pr": "spec-card",
+ "sha256": [
+  "tests/test_spec_card.py",
+  "tests/spec_card_browser.cjs"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a starting-content segment that repeats a business detail is no longer dropped",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/spec_card.py",
+     "old": "    keep = [s for s in str(value).split('; ') if not any(d and d in s for d in details)]",
+     "new": "    keep = str(value).split('; ')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_spec_card.py"
+   ],
+   "expect_failed": [
+    "test_the_fixture_is_what_the_server_builds",
+    "test_the_owners_screenshot_shows_each_detail_once"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a canon warning is dropped from the card",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/spec_card.py",
+     "old": "            notes.append(line)                 # a warning (CANON_INCOMPLETE), a needed fact, an image's role",
+     "new": "            pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_spec_card.py"
+   ],
+   "expect_failed": [
+    "test_a_warning_is_never_dropped",
+    "test_a_line_of_another_shape_stays_text"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "gate 1 no longer attaches the card",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        turn.actions[-1]['card'] = card",
+     "new": "        pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_spec_card.py"
+   ],
+   "expect_failed": [
+    "test_the_approval_carries_the_card",
+    "test_the_message_says_each_detail_once_and_loses_nothing"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the builder's default is shown to the customer as stored, with CRUD",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/spec_card.py",
+     "old": "        rest = _without_repeats(_PLAIN.get(str(value).strip(), value), details)",
+     "new": "        rest = _without_repeats(value, details)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_spec_card.py"
+   ],
+   "expect_failed": [
+    "test_the_builders_default_is_said_in_plain_words",
+    "test_the_message_says_each_detail_once_and_loses_nothing"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the message's summary goes back to the raw fields, repeating every business detail",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        summary = '; '.join(f\"{r['label']}: {r['value']}\" + (safe if r['default'] else '') for r in card['rows'])",
+     "new": "        summary = '; '.join(_label(k, v['value'], lang) + (safe if v.get('confidence') == SAFE_CONFIDENCE else '') for k, v in items[:8] if 'value' in v)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_spec_card.py"
+   ],
+   "expect_failed": [
+    "test_the_message_says_each_detail_once_and_loses_nothing"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the card's browser test is dropped from CI",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - run: node tests/spec_card_browser.cjs\n",
+     "new": "      - run: echo skipped  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_spec_card.py"
+   ],
+   "expect_failed": [
+    "test_the_browser_check_runs_in_ci"
+   ]
+  }
+ ]
+}

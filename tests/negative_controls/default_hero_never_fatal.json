@@ -1,0 +1,99 @@
+{
+ "pr": "default-hero-never-fatal",
+ "sha256": [
+  "tests/test_default_hero_never_fails_the_build.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the default hero is judged as a picture the customer asked for: an unjudgeable one kills the build again (the three builds of 2026-11-23)",
+   "mutations": [
+    {
+     "file": "omni_prod/generated_images.py",
+     "old": "        verdicts = verify(vision, asked_for, _subjects(plan))\n        kept, optional_verdicts = check_optional(vision, by_default, _subjects(plan))",
+     "new": "        verdicts = verify(vision, images, _subjects(plan))\n        kept, optional_verdicts = images, []"
+    }
+   ],
+   "targets": [
+    "tests/test_default_hero_never_fails_the_build.py"
+   ],
+   "expect_failed": [
+    "test_the_three_production_builds_would_have_been_built",
+    "test_a_default_hero_that_shows_the_wrong_thing_is_dropped_not_fatal",
+    "test_a_vision_failure_on_the_default_hero_is_dropped_not_fatal"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "every image counts as asked-for, so the default hero becomes blocking",
+   "mutations": [
+    {
+     "file": "omni_prod/generated_images.py",
+     "old": "            if r.key == IMAGE_CAPABILITY and getattr(r, 'required', True)}",
+     "new": "            if r.key == IMAGE_CAPABILITY}"
+    }
+   ],
+   "targets": [
+    "tests/test_default_hero_never_fails_the_build.py"
+   ],
+   "expect_failed": [
+    "test_the_three_production_builds_would_have_been_built",
+    "test_a_default_hero_that_shows_the_wrong_thing_is_dropped_not_fatal",
+    "test_a_vision_failure_on_the_default_hero_is_dropped_not_fatal"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a dropped optional picture is shown anyway (an unverified image reaches the page)",
+   "mutations": [
+    {
+     "file": "omni_prod/image_match.py",
+     "old": "        if data['matches']:\n            row['status'] = 'MATCH'\n            keep.append(img)\n        else:\n            row['status'] = 'DROPPED'",
+     "new": "        row['status'] = 'MATCH'\n        keep.append(img)"
+    }
+   ],
+   "targets": [
+    "tests/test_default_hero_never_fails_the_build.py"
+   ],
+   "expect_failed": [
+    "test_a_default_hero_that_shows_the_wrong_thing_is_dropped_not_fatal"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "an optional picture with no subject is sent to the vision model anyway (paid for, then dropped)",
+   "mutations": [
+    {
+     "file": "omni_prod/image_match.py",
+     "old": "        if not subject:\n            row.update(status='DROPPED', reason='no subject recorded: the customer did not ask for this picture')\n            verdicts.append(row)\n            continue\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_default_hero_never_fails_the_build.py"
+   ],
+   "expect_failed": [
+    "test_the_three_production_builds_would_have_been_built"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a picture the customer asked for stops blocking (the butcher's eggs reach the page)",
+   "mutations": [
+    {
+     "file": "omni_prod/generated_images.py",
+     "old": "        verdicts = verify(vision, asked_for, _subjects(plan))",
+     "new": "        verdicts, _unused = check_optional(vision, asked_for, _subjects(plan))"
+    }
+   ],
+   "targets": [
+    "tests/test_default_hero_never_fails_the_build.py"
+   ],
+   "expect_failed": [
+    "test_a_wrong_picture_still_fails_the_build",
+    "test_a_check_that_cannot_run_still_fails_the_build",
+    "test_a_requested_picture_with_no_subject_still_fails_the_build"
+   ]
+  }
+ ]
+}
