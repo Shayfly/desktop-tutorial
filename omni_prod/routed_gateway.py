@@ -495,6 +495,8 @@ class RoutedModelGateway:
 
     def _route(self, method: str, kwargs: dict, task: str = 'general', validate: Callable | None = None,
                call_id: str | None = None):
+        if task == 'visual_review' and not kwargs.get('images'):
+            raise ModelGatewayError('visual_review requires actual screenshots')
         # A caller that prices this call names it; any other caller (a build) gets a fresh id per call.
         call_id = call_id or new_call_id()
         if self.before_call is not None:

@@ -15,3 +15,8 @@ def _on(name: str) -> bool:
 
 
 SITE_AUTH_V2: bool = _on('OMNI_SITE_AUTH_V2')
+
+
+def visual_review_task() -> str:
+    """Staged A7 routing; keep the existing review path until the live canary is approved."""
+    return 'visual_review' if _on('OMNI_VISUAL_REVIEW_GEMINI') else 'review'

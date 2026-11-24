@@ -73,6 +73,10 @@ TASK_CLASSES: dict[str, TaskClass] = {t.key: t for t in (
               prefer_models=CODE_STATION),
     TaskClass('review', 'QA review of generated code', 85, 70, require_independent_of=('codegen', 'repair', 'modification'),
               prefer_models=QA_STATION),
+    # A7 owner directive #523: the staged visual critic uses the measured Gemini vision route.
+    # No unapproved provider fallback. A6 text QA keeps its existing review task and policy.
+    TaskClass('visual_review', 'A7 review of actual product screenshots', 85, 85,
+              allow_models=('gemini-3.8-flash',), prefer_models=('gemini-3-8-flash',)),
     TaskClass('security_review', 'security review', 85, 85, require_independent_of=('codegen', 'repair', 'modification'),
               prefer_models=QA_STATION),
 )}

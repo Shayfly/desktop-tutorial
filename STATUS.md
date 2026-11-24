@@ -1,3 +1,9 @@
+# 2026-11-24 — A7 staged Gemini visual routing (#523; NOT LIVE)
+
+- A7 design critic and G-APPLE reviewers use visual_review when OMNI_VISUAL_REVIEW_GEMINI is enabled. Default off preserves the existing review path. Only gemini-3.8-flash is eligible; screenshots and vision evidence required; no silent alternate provider or untagged route. A6 review unchanged.
+- The plan recorder aggregates review and visual_review spend before charging their shared admitted review task; no cap or gate changes.
+- Local evidence on main e2f00a05: 72 focused tests (15 skipped), 42 related (5 skipped, 2 subtests), 8/8 negative controls, fast 1042/480, generated provider matrix current. No paid calls, real DB verification or live deployment. Declarations pending independent review.
+
 # 2026-11-23 — tonight's fixes: the build no longer dies on a picture nobody asked for, the chat never ends, the phone (Claude Code)
 
 - **Merged** (all CI green on the exact head; the owner's approval in the chat): #514 `d6eb690` (build count from 2026-11-23),

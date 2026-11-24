@@ -1,0 +1,148 @@
+{
+ "pr": "a7-visual-routing",
+ "sha256": [
+  "tests/test_a7_visual_routing.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "A7 uses the ordinary QA task even when enabled.",
+   "mutations": [
+    {
+     "file": "omni_prod/feature_flags.py",
+     "old": "return 'visual_review' if _on('OMNI_VISUAL_REVIEW_GEMINI') else 'review'",
+     "new": "return 'review'"
+    }
+   ],
+   "targets": [
+    "tests/test_a7_visual_routing.py"
+   ],
+   "expect_failed": [
+    "test_flag_on_separates_both_visual_review_call_sites",
+    "test_untagged_gateway_is_not_contacted_when_a7_is_enabled"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "A7 ignores the rollout flag.",
+   "mutations": [
+    {
+     "file": "omni_prod/feature_flags.py",
+     "old": "return 'visual_review' if _on('OMNI_VISUAL_REVIEW_GEMINI') else 'review'",
+     "new": "return 'visual_review'"
+    }
+   ],
+   "targets": [
+    "tests/test_a7_visual_routing.py"
+   ],
+   "expect_failed": [
+    "test_flag_off_keeps_both_existing_review_call_sites"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "A7 can send screenshots to other model providers.",
+   "mutations": [
+    {
+     "file": "omni_prod/intelligence/task_policy.py",
+     "old": "allow_models=('gemini-3.8-flash',), prefer_models=('gemini-3-8-flash',)",
+     "new": "allow_models=(), prefer_models=('gemini-3-8-flash',)"
+    }
+   ],
+   "targets": [
+    "tests/test_a7_visual_routing.py"
+   ],
+   "expect_failed": [
+    "test_failed_gemini_does_not_fall_back_to_an_unapproved_provider",
+    "test_no_screenshot_or_vision_evidence_never_contacts_provider"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "A7 can return a verdict without actual screenshots.",
+   "mutations": [
+    {
+     "file": "omni_prod/routed_gateway.py",
+     "old": "if task == 'visual_review' and not kwargs.get('images'):",
+     "new": "if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_a7_visual_routing.py"
+   ],
+   "expect_failed": [
+    "test_no_screenshot_or_vision_evidence_never_contacts_provider"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "A6 and A7 charges overwrite each other instead of adding.",
+   "mutations": [
+    {
+     "file": "omni_prod/agent_os/recorder.py",
+     "old": "totals[tid] = totals.get(tid, Decimal('0')) + spent",
+     "new": "totals[tid] = spent"
+    }
+   ],
+   "targets": [
+    "tests/test_a7_visual_routing.py"
+   ],
+   "expect_failed": [
+    "test_a6_and_a7_charge_the_sum_once_across_rounds",
+    "test_shared_cap_violation_is_sticky"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "A7 is not admitted to the approved review task.",
+   "mutations": [
+    {
+     "file": "omni_prod/agent_os/recorder.py",
+     "old": "'visual_review': 'review'}",
+     "new": "'visual_review': 'visual'}"
+    }
+   ],
+   "targets": [
+    "tests/test_a7_visual_routing.py"
+   ],
+   "expect_failed": [
+    "test_a6_and_a7_charge_the_sum_once_across_rounds",
+    "test_visual_call_cannot_bypass_verification_admission"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "An untagged design critic can bypass A7 route selection.",
+   "mutations": [
+    {
+     "file": "omni_prod/design_review.py",
+     "old": "if task == 'visual_review' and not getattr(self.gateway, 'accepts_task_tag', False):",
+     "new": "if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_a7_visual_routing.py"
+   ],
+   "expect_failed": [
+    "test_untagged_gateway_is_not_contacted_when_a7_is_enabled"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "An untagged visual reviewer can bypass A7 route selection.",
+   "mutations": [
+    {
+     "file": "omni_prod/g_apple/reviewers.py",
+     "old": "if task == 'visual_review' and not getattr(gateway, 'accepts_task_tag', False):",
+     "new": "if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_a7_visual_routing.py"
+   ],
+   "expect_failed": [
+    "test_untagged_gateway_is_not_contacted_when_a7_is_enabled"
+   ]
+  }
+ ]
+}

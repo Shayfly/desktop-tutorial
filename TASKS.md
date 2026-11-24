@@ -2,6 +2,7 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| A7-GEMINI-523 | ChatGPT integration | Candidate; flag off; independent review and CI pending | tests/test_a7_visual_routing.py; controls a7_visual_routing 8/8; STATUS.md 2026-11-24; issue #523 |
 | WH-133 | Codex (design and integration, `4457710`), Claude Code (independent review, fixes, release) | Merged and released | #503 `adea624` -> `e5bf2ac` [release]; Vercel `dpl_Ax13GhrAyzxY4Bv7DcbHo9LY6MCk` READY, deploy-worker 45072002228; `tests/platform_a11y_browser.cjs`, `tests/workspace_review_fixes_browser.cjs`; review T1-T3 in UI-TESTS |
 | IMG-DEFAULT-HERO | Claude Code | Merged (#519 `c43095c`); awaiting `[release]` and the worker run | `tests/test_default_hero_never_fails_the_build.py`; controls default_hero_never_fatal 5/5; STATUS.md 2026-11-23 |
 | CHAT-PHONE | Claude Code | Merged (#518 `e93d01b`); awaiting `[release]` | `tests/phone_chat_browser.cjs` 6/6; STATUS.md 2026-11-23 |

@@ -129,7 +129,7 @@ def _llm(provider, key, model_id, family, *, quality_tasks, key_env, cred, conn,
 INVENTORY: tuple[ModelEntry, ...] = (
     # ------------------------------------------------------------ Gemini (worker)
     _llm('gemini', 'gemini-3-8-flash', 'gemini-3.8-flash', 'Gemini Flash',
-         quality_tasks=('architecture', 'codegen', 'repair', 'modification', 'review'), key_env='GEMINI_API_KEY',
+         quality_tasks=('architecture', 'codegen', 'repair', 'modification', 'review', 'visual_review'), key_env='GEMINI_API_KEY',
          cred=S.CREDENTIAL_PRESENT, conn=S.CONNECTION_TESTED, ver=S.REAL_EXECUTION_VERIFIED,
          ev=(DEPLOY_NOTICE, PROBE, LEDGER, GOLDEN), ctx=1_000_000, max_out=65_536,
          limits='41% call success in the ledger (timeouts, truncated JSON before reasoning_effort=low); price doubles 2027-01-01',

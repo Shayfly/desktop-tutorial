@@ -22,6 +22,7 @@ MODEL_TASK_AGENT = {
     'codegen': ('coding_agent', ('file_create',)),
     'repair': ('repair_agent', ('minimal_patch_generation', 'repair_execution')),
     'review': ('code_review_agent', ('xss_check',)),
+    'visual_review': ('brand_design_director', ()),
     'modification': ('product_evolution_agent', ('file_modify',)),
     'classification': ('product_evolution_agent', ()),
 }
@@ -144,7 +145,8 @@ __all__ = ['BuildAgentRecorder', 'PlanAdmittedExecutor', 'PlanBoundRecorder', 'P
 # ---------------------------------------------------------------------------
 # Wave A: the approved execution plan drives the task graph.
 # ---------------------------------------------------------------------------
-MODEL_TASK_STAGE = {'architecture': 'architecture', 'codegen': 'codegen', 'repair': 'repair', 'review': 'review'}
+MODEL_TASK_STAGE = {'architecture': 'architecture', 'codegen': 'codegen', 'repair': 'repair', 'review': 'review',
+                    'visual_review': 'review'}  # A6/A7 share the already-approved review task budget
 # Release-policy check that decides each verification stage (platform-owned).
 STAGE_CHECK = {'preview': 'preview_starts', 'behavior': 'behavioural_acceptance', 'browser': 'browser_flow',
                'visual': 'visual_layout_desktop_mobile', 'security': 'static_security_scan',
@@ -248,17 +250,24 @@ class PlanBoundRecorder(BuildAgentRecorder):
         """Charge new spend (metered, or the authorized worst case while unknown) to its plan task."""
         if self.cost_source is None:
             return
+        totals: dict[str, Decimal] = {}
+        stages: dict[str, str] = {}
+        kinds: dict[str, list[str]] = {}
         for task_type, spent in self.cost_source().items():
             stage = self.model_task_stage.get(task_type) or MODEL_TASK_STAGE.get(task_type)
             tid = self.by_stage.get(stage)
             if tid is None:
                 self._violation(f'model spend for {task_type!r}, which the plan does not contain')
+            totals[tid] = totals.get(tid, Decimal('0')) + spent
+            stages[tid] = stage
+            kinds.setdefault(tid, []).append(task_type)
+        for tid, spent in totals.items():
             delta = spent - self.charged.get(tid, Decimal('0'))
             if delta > 0:
                 try:
-                    self.rt.charge(tid, delta, evidence={'charged_task_type': task_type})
+                    self.rt.charge(tid, delta, evidence={'charged_task_types': sorted(kinds[tid])})
                 except RuntimeViolation as exc:
-                    self._violation(f'{stage}: {exc}')
+                    self._violation(f'{stages[tid]}: {exc}')
                 self.charged[tid] = spent
 
     def _admit(self, stage: str) -> str:

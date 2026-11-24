@@ -45,7 +45,8 @@
     "codegen",
     "repair",
     "modification",
-    "review"
+    "review",
+    "visual_review"
    ],
    "execution_adapter": "routed_gateway (OpenAI-compatible chat)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
@@ -141,6 +142,7 @@
     "repair",
     "modification",
     "review",
+    "visual_review",
     "security_review"
    ],
    "current_operational_status": "routing real builds",
@@ -2355,6 +2357,21 @@
    "deterministic_first": false,
    "prefer_models": [
     "openai-gpt-6-1-sol",
+    "gemini-3-8-flash"
+   ]
+  },
+  {
+   "task": "visual_review",
+   "description": "A7 review of actual product screenshots",
+   "preferred_floor": 85,
+   "mandatory_floor": 85,
+   "allow_models": [
+    "gemini-3.8-flash"
+   ],
+   "deny_models": [],
+   "independent_of": [],
+   "deterministic_first": false,
+   "prefer_models": [
     "gemini-3-8-flash"
    ]
   },

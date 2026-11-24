@@ -65,8 +65,12 @@ def review(gateway, name: str, shots: dict, *, business: str = '') -> dict:
     if name == 'brand_category':
         user['business'] = (business or '')[:1500]
     kwargs = dict(system=SYSTEM[name], user=json.dumps(user, ensure_ascii=False), max_tokens=1800, images=images)
+    from ..feature_flags import visual_review_task
+    task = visual_review_task()
+    if task == 'visual_review' and not getattr(gateway, 'accepts_task_tag', False):
+        return {**base, 'status': 'NOT_RUN', 'reason': 'gateway cannot enforce the visual review route'}
     try:
-        data = gateway.complete_json(task='review', **kwargs) if getattr(gateway, 'accepts_task_tag', False) \
+        data = gateway.complete_json(task=task, **kwargs) if getattr(gateway, 'accepts_task_tag', False) \
             else gateway.complete_json(**kwargs)
     except Exception as exc:
         from ..verification_verdict import reraise_control

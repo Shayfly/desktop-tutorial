@@ -49,6 +49,7 @@ Summary: 26 entries · credential {'CREDENTIAL_PRESENT': 16, 'CREDENTIAL_UNKNOWN
 | repair | 85 | 70 | — |
 | modification | 85 | 70 | — |
 | review | 85 | 70 | codegen, repair, modification |
+| visual_review | 85 | 85 | — |
 | security_review | 85 | 85 | codegen, repair, modification |
 
 ## Legacy / unwired routes

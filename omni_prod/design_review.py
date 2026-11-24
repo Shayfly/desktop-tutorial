@@ -58,9 +58,13 @@ class DesignCritic:
             'screenshots': [v for v in ('desktop', 'mobile') if shots.get(v)],
         }
         kwargs = dict(system=_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=2500, images=images)
+        from .feature_flags import visual_review_task
+        task = visual_review_task()
+        if task == 'visual_review' and not getattr(self.gateway, 'accepts_task_tag', False):
+            return self._record({'status': 'NOT_RUN', 'reason': 'gateway cannot enforce the visual review route'})
         try:
             if getattr(self.gateway, 'accepts_task_tag', False):
-                data = self.gateway.complete_json(task='review', **kwargs)
+                data = self.gateway.complete_json(task=task, **kwargs)
             else:
                 data = self.gateway.complete_json(**kwargs)
         except Exception as exc:
