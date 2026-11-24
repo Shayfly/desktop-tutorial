@@ -26,6 +26,7 @@ import subprocess
 import sys
 import unittest
 from decimal import Decimal
+from importlib.util import find_spec
 
 from omni_prod.autonomous_core import AcceptanceFailure, ExecutionReport
 from omni_prod.change_policy import ChangeAssessment
@@ -666,6 +667,16 @@ class AcceptanceW(unittest.TestCase):
             self.skipTest('this invocation already runs the full unittest discovery suite')
         env = dict(os.environ, OMNI_M4_ACCEPTANCE_W_NESTED='1')
         repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if any(find_spec(module) is None for module in ('fastapi', 'psycopg', 'boto3')):
+            # Reuse the repository's measured dependency exclusions. unittest
+            # cannot apply the manifest's per-test selection.
+            offline = subprocess.run(
+                [sys.executable, '-m', 'pytest', '-q', 'tests', '-m', 'not needs_env'],
+                cwd=repo_root, env=env, capture_output=True, text=True, timeout=600,
+            )
+            self.assertEqual(offline.returncode, 0,
+                             f'offline regression suite failed:\n{offline.stdout[-4000:]}\n{offline.stderr[-3000:]}')
+            return
         proc = subprocess.run(
             [sys.executable, '-m', 'unittest', *_NON_FASTAPI_TEST_MODULES],
             # 2026-11-22: 300 s was the edge -- the same tree passed on 0d68dae and timed out on 1d33ae9 (run 44987201227),

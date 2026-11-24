@@ -134,6 +134,24 @@
    "reviewer": "shai",
    "reviewed_at": "2026-11-22",
    "signature_note": "Signed by the owner's instruction: standing autonomy grant (2026-11-16), the owner's message of 2026-11-21 ('סומך עלייך מאשר לך הכול') and his order of 2026-11-22 ('118 — ראשון, ועכשיו'). The reviewer field was typed by the author (claude) on that instruction."
+  },
+  {
+   "id": "executed-skill-evidence-525",
+   "from_digest": "d1655f300092b184cb37a267328dd1987eebff27a476dcc63285e3286a2fcd33",
+   "to_digest": "f2fd495d7d482cfec82093e5ccccf0d2965631b8ff3494c7871cced21bd40d76",
+   "added": [],
+   "removed": [],
+   "changed": [
+    "omni_prod/intake/question_skills.py",
+    "omni_prod/product_review.py",
+    "omni_prod/skills_runtime.py"
+   ],
+   "data_changed": [],
+   "reason": "Owner requested improved agent skills and evidence. Request fidelity v2 extends to repair; question skills v4 preserves confirmed decisions and source-backed business facts; QA records actual static checks. Exact source manifest compared on current main with the same interpreter. Independent review pending.",
+   "author": "chatgpt-integration",
+   "reviewer": "pending",
+   "reviewed_at": "2026-11-24",
+   "signature_note": "Prepared for independent review; not a signed approval."
   }
  ]
 }

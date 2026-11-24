@@ -546,11 +546,15 @@ class RoutedModelGateway:
                           'max_cost_usd': str(r.max_estimated_cost_usd)} for r, _, _, _ in routes]
         from .model_policy import ModelPolicyViolation
         failures = []
+        # warehouse 70 (2026-11-20): what kind of failure each route had -- 'skipped', 'budget', or the exception's class --
+        # so the customer is told the real cause (every model answered in a broken format is not "load or quota")
+        failure_kinds = []
         budget_skips = 0
         for rank, (route, call_kwargs, why, option) in enumerate(routes):
             name = route.endpoint.name
             if name in self.unavailable:
                 failures.append(f'{route.endpoint.model}: skipped ({self.unavailable[name]})')
+                failure_kinds.append('skipped')
                 # an event too (2026-11-18): a route closed by an earlier call of this gateway was skipped without one,
                 # so every later turn of a rehearsal could not say why the preferred model did not answer
                 self._record(RouteEvent(name, route.endpoint.external, False, 0,
@@ -562,6 +566,7 @@ class RoutedModelGateway:
                 if not admitted:
                     self.unavailable[name] = why_not
                     failures.append(f'{route.endpoint.model}: skipped (provider health: {why_not})')
+                    failure_kinds.append('skipped')
                     self._record(RouteEvent(name, True, False, 0, f'skipped: {why_not}'[:300], call_id=call_id,
                                             **self._decision(route, method, 'circuit open')))
                     continue
@@ -608,9 +613,11 @@ class RoutedModelGateway:
                                         if provider_quota_depleted(fitted_exc):
                                             self.depleted_routes.add(name)
                                     failures.append(f'{route.endpoint.model} (fitted output): {fitted_exc}')
+                                    failure_kinds.append(type(fitted_exc))
                                     break
                             budget_skips += 1
                             failures.append(f'{route.endpoint.model}: does not fit the remaining budget')
+                            failure_kinds.append('budget')
                             break
                         raise
                     if isinstance(exc, ModelHTTPError) and route.endpoint.external:
@@ -624,10 +631,12 @@ class RoutedModelGateway:
                         if provider_quota_depleted(exc):
                             self.depleted_routes.add(name)
                         failures.append(f'{route.endpoint.model}: {exc}')
+                        failure_kinds.append(type(exc))
                         break
                     transient = isinstance(exc, ModelHTTPError) and exc.transient
                     if not transient or retry == self.transient_retries:
                         failures.append(f'{route.endpoint.model}: {exc}')
+                        failure_kinds.append(type(exc))
                         break
                     # Every retry is its own recorded, budget-checked attempt.
                     hint = exc.retry_after_seconds
@@ -640,7 +649,9 @@ class RoutedModelGateway:
             # failure in one provider does NOT prevent a valid fallback.
             raise ProviderQuotaUnavailable(self.depleted_routes)
         detail = '; '.join(failures[-4:]) if failures else str(last_error)
-        raise ModelGatewayError(f'all model routes failed: {detail}')
+        error = ModelGatewayError(f'all model routes failed: {detail}')
+        error.route_failures = tuple(failure_kinds)
+        raise error
 
     def complete(self, *, system: str, user: str, temperature: float = 0.1, max_tokens: int = 4096,
                  task: str = 'general', call_id: str | None = None) -> str:
