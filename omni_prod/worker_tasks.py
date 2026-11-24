@@ -418,7 +418,12 @@ def failure_code(exc: BaseException) -> str:
     from .attempt_ledger import AttemptLedgerUnavailable
     from .build_control import BuildDeadline
     from .verification_verdict import queue_timeouts
+    from .site_content.agents import SiteContentInvalid, SiteRenderDefect
     text = str(exc)
+    if isinstance(exc, SiteContentInvalid):        # the model's content document, still invalid after its correction
+        return 'site_content_invalid'
+    if isinstance(exc, SiteRenderDefect):          # the platform's own render (library, fact sheet, contract)
+        return 'site_render_defect'
     if isinstance(exc, (BuildDeadline, *queue_timeouts())):   # the build's own limit, or the queue's as the last resort
         return 'build_timeout'
     if isinstance(exc, AttemptLedgerUnavailable):
@@ -434,6 +439,18 @@ def failure_code(exc: BaseException) -> str:
     if isinstance(exc, ModelGatewayError) and 'all model routes failed' in text:
         return 'model_unavailable'
     return 'worker_exception'
+
+
+def _site_route_evidence(engine):
+    """The content route's report for a build that raised (site_content_invalid: the problems are in it)."""
+    if engine is None:
+        return None
+    try:
+        from .site_content import report
+        return report(engine)
+    except Exception:  # evidence must never fail a build
+        logging.getLogger(__name__).warning('site route evidence failed', exc_info=True)
+        return None
 
 
 def _report_phase(jobs, build_id: str, phase: str, message: str = '') -> None:
@@ -566,6 +583,11 @@ def _install_agentic_repair(engine, request) -> bool:
     now (OMNI_AGENTIC_REPAIR=founder, the default); 'all' turns it on for every build, '0' turns it off."""
     import os
     mode = os.getenv('OMNI_AGENTIC_REPAIR', 'founder').strip().lower()
+    from .site_content import on_route
+    if on_route(engine):
+        # the content route repairs the content document, never the HTML; an agent editing the page would be undone
+        logging.getLogger(__name__).info('AGENTIC_REPAIR_OFF the content route (site_content) repairs content only')
+        return False
     if mode in ('0', 'off', 'false', ''):
         return False
     if mode != 'all':
@@ -866,10 +888,16 @@ def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, 
                          for f in report_failures[:4])
         out_of_time = getattr(result, 'stop_reason', '') == 'time_budget'
         no_repair_model = getattr(result, 'stop_reason', '') == 'repair_model_unavailable'
+        platform_defect = getattr(result, 'stop_reason', '') in ('platform_render_defect', 'unowned_finding')
+        content_refused = getattr(result, 'stop_reason', '') == 'site_content_invalid'
         return False, 'verification_failed', (
             f'build did not pass sandbox verification after {getattr(result, "repair_rounds", "?")} repair round(s)'
             + (' (stopped repairing: the build was out of time)' if out_of_time else '')
             + (' (stopped repairing: no model returned a valid repair)' if no_repair_model else '')
+            + (' (stopped repairing: the failure is in the platform\'s own page renderer, not in the written content; '
+               'no repair model was asked to fix it)' if platform_defect else '')
+            + (' (stopped repairing: the repair model\'s rewrite of the copy was refused by the content checks)'
+               if content_refused else '')
             + (f'; still failing: {last}' if last else ''))[:2000]
     if not quality.passed:
         blockers = '; '.join(getattr(quality, 'blockers', ()) or ()) or 'no blocker detail'
@@ -1013,12 +1041,21 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             synthetic_person_media=bool(brain.rights.required_disclosures),
         )
         engine, gateway = components_factory()
+        # The content-document route (omni_prod/site_content; OMNI_SITE_LIBRARY, off by default): decided on every
+        # build, logged and kept for the evidence; on the route it replaces the architect, generator and repairer --
+        # before any install below wraps the architect.
+        from . import site_content
+        site_content.install(engine, prompt=prompt, gateway=gateway, request=request,
+                             plan_governed=bool(agent_recorder is not None and getattr(agent_recorder, 'enforce', False)))
         from .uploaded_assets import install as install_uploaded_assets
         install_uploaded_assets(engine,prompt=prompt,pool=attempt_pool,store=getattr(workspace,'storage',None),
                                 project_id=request.get('public_project_id'),account_id=str(request['user_id']))
         # CEO 2026-11-09: Hebrew/Arabic pages are right-to-left by construction (after the logo transform).
         from .page_locale import install as install_page_locale
         install_page_locale(engine, prompt)
+        # 2026-11-19: SHARE failed on every production build with the rule in the spec -- the platform writes og tags
+        from .share_preview import install as install_share_preview
+        install_share_preview(engine)
         # Michael 2026-11-10 condition 2: the truth gate's canon comes from the APPROVED request, not the spec summary.
         from .product_review import install_review_request
         install_review_request(engine, prompt)
@@ -1110,6 +1147,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         for g in ('G1', 'BRAND', 'SHARE'):                            # empty blocks, brand name, share preview
             install_skill_gate(engine, g)
         install_skill_gate(engine, 'G5')                              # rights: every font, image, audio has a known source
+        install_skill_gate(engine, 'PRO')                             # professional minimum of a business site
         # #430 carried the gates' checks to the generator only in install_all, which the rehearsal calls and the worker
         # never did: 0 of 5 production specs carried them, and SHARE failed all five (2026-11-19). The same list.
         from .skill_units.gate import WORKER_GATES, carry_rules
@@ -1273,6 +1311,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'consistency_gate': consistency_evidence(engine),
             'preview_smoke': preview_smoke_evidence(engine),
             'visual_qa': visual_evidence(engine),
+            'site_route': site_content.report(engine),     # the content route: decided, why, and what it did
             'quality_report': quality_report.to_dict() if quality_report is not None else None,
             'round_snapshots': round_snapshots,
         }
@@ -1376,6 +1415,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
+                           'site_route': _site_route_evidence(engine),
                            'model_budget_binding': model_budget_binding},
             actual_provider_cost_usd=actual_cost,
         )

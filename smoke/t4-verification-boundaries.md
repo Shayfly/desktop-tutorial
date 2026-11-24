@@ -11,7 +11,7 @@
 | `omni_prod/browser_probe.py` | `2c1e4f14bbd1bc86c22a3b90ad08a43eaa6a491af3c7e07509a171baa10d9efa` | — |
 | `omni_prod/visual_qa.py` | `6ac4822e1755a8fe05c60bd91b70d1a55f2b208b3710f751612d6232b56bd296` | — |
 | `omni_prod/behavior_acceptance.py` | `c8e32d382d151fd24d6883250003639590b4711571797d9bad63f3c8fdcfcd87` | — |
-| `omni_prod/preview_smoke.py` | `1e73b1246b5f93fb8ea2218c8f18530e307a87aeab2a8634bb161aefa83c3ad6` | — |
+| `omni_prod/preview_smoke.py` | `abbe71206a879738bfd58122c4fded924c0f079fd15b9508fd973a9d8eaf3a82` | — |
 | `omni_prod/verification_group.py` | `a81051965ada45ef07626328b857de1dfa0f7d0c365bc77d3b72797f47417023` | — |
 | `tools/redteam_verification_boundaries.py` | `b7bf43a075963c3d626b1817f23fc3ad9a34d0f7195bc1b123e3ecfe3e45fbf1` | — |
 

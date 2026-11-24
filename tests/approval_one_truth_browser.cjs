@@ -21,8 +21,8 @@ const json=body=>({contentType:'application/json',body:JSON.stringify(body)});
     blockers:approved?[]:[{code:'spec_not_approved',message:'המפרט עוד לא אושר'}]});
   const gate1={messages:[{role:'assistant',content:'שלב 1 מתוך 2 — זה המפרט שהבנתי.'}],discovery:fixture,plan_id:null,
     turn:{actions:[{type:'approve_spec',brief_revision:fixture.brief.revision,brief_fingerprint:'f'.repeat(64),canon:{status:'OK',facts:[]}}]}};
-  const gate2={messages:[...gate1.messages,{role:'customer',content:'אישור המפרט'},
-      {role:'assistant',content:'שלב 2 מתוך 2 — המפרט אושר. כדי להתחיל לבנות, אשרו את התקציב.'}],discovery:fixture,plan_id:'plan_1',
+  const gate2={messages:[...gate1.messages,{role:'customer',content:'כן, זה נכון'},
+      {role:'assistant',content:'שלב 2 מתוך 2 — מעולה. הכנתי תוכנית. כדי להתחיל לבנות, לחצו על "לאשר ולהתחיל לבנות".'}],discovery:fixture,plan_id:'plan_1',
     turn:{actions:[{type:'show_plan',brief_revision:fixture.brief.revision},{type:'approve_build',brief_revision:fixture.brief.revision}]}};
   await page.route('**/*',async route=>{
    const u=new URL(route.request().url());const p=u.pathname;
@@ -53,17 +53,18 @@ const json=body=>({contentType:'application/json',body:JSON.stringify(body)});
   await page.waitForFunction(()=>S.plan&&S.plan.can_build===false);
   assert.equal(planCalls,1,'the plan is fetched once at gate 1');
   assert.equal(await page.evaluate(()=>S.plan.blockers[0].code),'spec_not_approved','... and it waits on the spec approval');
-  await page.locator('#thread .acts button').filter({hasText:'אישור המפרט'}).click();   // the customer approves in the chat
+  await page.locator('#thread .acts button').filter({hasText:'כן, זה נכון'}).click();   // the customer approves in the chat
   await page.waitForFunction(()=>S.chat&&S.chat.plan_id==='plan_1');
   await page.waitForFunction(()=>S.plan&&S.plan.can_build===true,null,{timeout:5000}).catch(()=>{});
   assert.equal(approvals,1,'one approval was sent');
   assert.equal(planCalls,2,'the plan is fetched again after the approval (it was fetched before it)');
-  await page.locator('#thread .acts button').filter({hasText:'לאישור והתחלת בנייה'}).click();   // what the chat now asks for
+  await page.locator('#thread .acts button').filter({hasText:'לאשר ולהתחיל לבנות'}).click();   // what the chat now asks for
   await page.waitForFunction(()=>S.tab==='plan');
-  assert.equal(await page.locator('#planPanel button').filter({hasText:'אישור המפרט'}).count(),0,
+  assert.equal(await page.locator('#planPanel button').filter({hasText:'כן, זה נכון'}).count(),0,
     'the panel no longer offers to approve a spec the chat already approved');
   assert.equal(await page.locator('#confirmBtn').isDisabled(),false,'the panel offers the build approval the chat asks for');
   assert.doesNotMatch(await page.locator('#planPanel').textContent(),/המפרט עוד לא אושר/);
+  assert.doesNotMatch(await page.locator('#planPanel').textContent(),/צריך לאשר שהבנתי נכון/);   // the panel's own words for the same blocker (plain words 2026-11-21)
   assert.equal(approvals,1,'the customer is not sent to approve the spec a second time');
   // a plan blocked by something that is NOT an approval is kept: no refetch on every turn
   await page.evaluate(()=>{S.plan={...S.plan,can_build:false,blockers:[{code:'capability_not_feasible',message:'x'}]};});

@@ -81,6 +81,19 @@ PLAYBOOKS: dict[str, tuple[str, ...]] = {
 }
 
 
+def domain_facts(text: str) -> list[str]:
+    """Warehouse 127 (the owner, 2026-11-22): the mandatory facts of the kind of business the request NAMES, from its
+    domain file -- each the one question to ask and the human reason. Only a named category counts (never the nearest
+    by similarity: a wrong domain asks the wrong questions). None named, or a category without a domain file: []."""
+    from ..domain_registry import domain_for
+    from ..vertical_palettes import category_of
+    domain = domain_for(category_of(text or ''))
+    if not domain:
+        return []
+    return [f"{f['fact']} -- ask: {f['question']} (why: {f['why']}); never invent it"
+            for f in domain['mandatory_facts'] if f['when'] is None]
+
+
 def checklist(family: str | None) -> list[str]:
     """The playbook for a family. An unknown or missing family is an error, never the web-app playbook: that silent
     default let a game be interviewed as a web app (warehouse 69, 2026-11-15). The router decides the family first."""

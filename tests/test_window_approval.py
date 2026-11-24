@@ -29,6 +29,7 @@ from tests.test_missing_needed_facts import WITH_FACTS
 from tests.test_window_catalog import AGE, COOKIES, POPUP, _Arch, _Gen, _Rep, _Sandbox, page
 
 APP = Path(__file__).resolve().parents[1] / 'omni_prod' / 'assets' / 'app.js'
+WINE_SHOP = 'חנות יין אונליין עם מבצעים, קטגוריות ומשלוחים'
 DECISIONS = {'age_gate': True, 'cookie_banner': True, 'entry_popup': False, 'promo_bar': False}
 
 
@@ -63,12 +64,15 @@ class TheOffer(unittest.TestCase):
                     self.assertEqual(text.count('.'), 1)          # one sentence
                     self.assertLessEqual(len(text), 120)
 
-    def test_gate_1_offers_every_window_with_its_benefit_and_no_decision_yet(self):
+    def test_gate_1_offers_the_windows_that_fit_with_their_benefit_and_no_decision_yet(self):
+        # the owner 2026-11-19: a cafe is not offered a cart, an age gate or filter chips -- only what fits it
         _, action = at_gate_1()
         offer = action['windows']
-        self.assertEqual([w['id'] for w in offer], list(W.CATALOG))
-        age = offer[[w['id'] for w in offer].index('age_gate')]
-        self.assertEqual((age['label'], age['benefit'], age['state']), ('שער גיל', W.BENEFITS['age_gate'][0], None))
+        # DECISIONS 14 (a): this content-only cafe gave a phone and no WhatsApp or e-mail -- no question widget
+        self.assertEqual([w['id'] for w in offer], ['cookie_banner'])
+        cookies = offer[0]
+        self.assertEqual((cookies['label'], cookies['benefit'], cookies['state']),
+                         ('הודעת עוגיות', W.BENEFITS['cookie_banner'][0], None))
 
     def test_a_product_that_is_not_a_website_is_offered_no_windows(self):
         self.assertEqual(d.window_offer(d.start('אפליקציה לניהול תורים למספרה עם התחברות')), [])
@@ -158,7 +162,7 @@ class TheScreen(unittest.TestCase):
         except ImportError:  # pragma: no cover
             self.skipTest('playwright is required to run app.js in a browser')
         translations, h, choice = _ui_page()
-        offer = d.window_offer(d.start(WITH_FACTS)) or W.offer('he')
+        offer = W.offer('he', text=WINE_SHOP)                    # a shop that sells wine: every window fits
         with sync_playwright() as p:
             b = p.chromium.launch()
             pg = b.new_page()

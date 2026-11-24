@@ -1,0 +1,75 @@
+{
+ "pr": "path-guard",
+ "sha256": [
+  "tests/test_path_ownership.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a codex/ branch may change the platform UI shell (the UI is no longer guarded)",
+   "mutations": [
+    {
+     "file": "scripts/path_ownership.py",
+     "old": "GUARDED = (('the platform UI shell (OWNERS.md: Claude Code, from the owner 2026-11-22)', UI_SHELL),",
+     "new": "GUARDED = (('the platform UI shell (OWNERS.md: Claude Code, from the owner 2026-11-22)', ()),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_path_ownership.py"],
+   "expect_failed": ["test_codex_changes_neither_the_ui_shell_nor_the_site_engine", "test_a_design_branch_is_judged_as_codex",
+                     "test_the_error_names_whose_path_it_is"]
+  },
+  {
+   "id": "NC2",
+   "what": "a codex/ branch may change the customers' sites engine",
+   "mutations": [
+    {
+     "file": "scripts/path_ownership.py",
+     "old": "           (\"the customers' sites and the engine that builds them (OWNERS.md: Claude Code)\", SITE_ENGINE))",
+     "new": "           (\"the customers' sites and the engine that builds them (OWNERS.md: Claude Code)\", ()))  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_path_ownership.py"],
+   "expect_failed": ["test_codex_changes_neither_the_ui_shell_nor_the_site_engine", "test_a_design_branch_is_judged_as_codex",
+                     "test_the_error_names_whose_path_it_is"]
+  },
+  {
+   "id": "NC3",
+   "what": "a design/ branch is not judged (Codex's own prefix for the design escapes the check)",
+   "mutations": [
+    {
+     "file": "scripts/path_ownership.py",
+     "old": "RESTRICTED = ('codex/', 'design/')",
+     "new": "RESTRICTED = ('codex/',)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_path_ownership.py"],
+   "expect_failed": ["test_a_design_branch_is_judged_as_codex"]
+  },
+  {
+   "id": "NC4",
+   "what": "a path is owned by substring: app.js.map counts as the shell, intake_extra.py as the engine",
+   "mutations": [
+    {
+     "file": "scripts/path_ownership.py",
+     "old": "    return any(path == p or (p.endswith('/') and path.startswith(p)) for p in prefixes)",
+     "new": "    return any(path.startswith(p.rstrip('/')) for p in prefixes)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_path_ownership.py"],
+   "expect_failed": ["test_a_path_is_owned_by_prefix_not_by_substring"]
+  },
+  {
+   "id": "NC5",
+   "what": "the claude/ branch is restricted again (the owner's transfer of the UI is ignored)",
+   "mutations": [
+    {
+     "file": "scripts/path_ownership.py",
+     "old": "RESTRICTED = ('codex/', 'design/')",
+     "new": "RESTRICTED = ('codex/', 'design/', 'claude/')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": ["tests/test_path_ownership.py"],
+   "expect_failed": ["test_claude_owns_both"]
+  }
+ ]
+}

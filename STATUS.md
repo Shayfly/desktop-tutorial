@@ -1,3 +1,405 @@
+# 2026-11-23 — tonight's fixes: the build no longer dies on a picture nobody asked for, the chat never ends, the phone (Claude Code)
+
+- **Merged** (all CI green on the exact head; the owner's approval in the chat): #514 `d6eb690` (build count from 2026-11-23),
+  #516 `e388915` (2D game kit, warehouse 134 stage 1), #517 `8be4aa7` (warehouse 134/135), #518 `e93d01b` (chat fixes),
+  #519 `c43095c` (image gate, logo, failure words).
+- **NOT live yet (verified):** neither #518 nor #519 was merged with a title ending in `[release]`, so Vercel canceled
+  production (deployment of `e93d01b`: CANCELED) and the worker run 45245404245 says "SKIP -- not a release". This PR's
+  merge, titled with `[release]`, releases Vercel; the worker needs "Run workflow" on Deploy build worker (main), because
+  a docs-only push does not trigger it.
+- **Root of three failed builds** (production, read-only): bld_7b541f93 (ShayFly), bld_4bb6207f and bld_6c8c2d3a (GOA),
+  all `image_mismatch: generated image(s) without the subject they were made from`. DECISIONS 5's default hero is
+  required=False ("never fails the build") but image_match blocked it for having no subject. Fixed in #519
+  (`image_match.check_optional`): kept only if checked and matching, otherwise dropped; an asked-for picture still blocks.
+  Evidence: tests/test_default_hero_never_fails_the_build.py (7), controls default_hero_never_fatal 5/5, lens11 9/9.
+  **Not verified:** a real production build after the release (needs a paid build).
+- **Chat** (#518): no turn cap (the ShayFly conversation closed after 8 turns that cost $0.003 in all); Enter is a new
+  line on a phone; the page returns to the top when the keyboard closes; a card opens as a sheet over the conversation
+  with the tabs reachable; the conversation rests above the message box. tests/phone_chat_browser.cjs: 4 checks, 6/6 faults.
+- **Open:** the bot re-asks a settled question (GOA, "האם זה אתר תוכן בלבד" twice); new details become "what is right?"
+  instead of being added (ShayFly lost its packages and prices); "מאשר" typed instead of the button (a money gate, not
+  built); one picture per destination (not built).
+
+# 2026-11-22 — the platform for everyone: no naming step, plain words, readable text, 44px controls (Claude, a second session beside Claude Code)
+
+- **The order.** The owner, 2026-11-22 23:18, after #503 went live: upgrade the platform's look to the level of the large
+  companies, "accessible to everyone, from a child who can read to an older person who understands nothing", then merge.
+  He approved all five upgrades below, in one PR ("הכול ובנוסף לעבוד הכול בבת אחת"). OWNERS.md (2026-11-22) says Matt
+  designs the shell and Claude implements a screen after the owner approves its sketch: the list below, with its
+  screenshots, was that sketch, approved in the chat.
+- **What changed** (`omni_prod/assets/app.js`, `index.html`, `app.css`, `visual-edit.js`):
+  1. *First screen.* A new account saw "Your first project -> Project name -> Create project" before it could say what it
+     wanted, with an empty "Edit requirements" card above it. Now the conversation box and six examples are the first
+     screen; the first message creates the project, named from its first phrase without "I want" (40 characters at
+     most; renamable under "Options"). "New project" in the drawer opens an empty conversation the same way; the naming
+     dialog is gone. An attached image stays attached through that first switch (`S.keepAttachments`).
+  2. *Zero technical terms* on the entry, the first screen, the drawer and its dialogs, the preview and the history (the
+     owner's measure, inbox 001 §6). Gone: SaaS, web apps, code, domains, templates, ZIP, "element". "Manage" is now
+     "Options" (it is the project menu: rename, archive). Before: entry 2-3 terms, first screen 1, drawer 1-2, preview 4.
+  3. *Reading text is 16px or more* (it was 14-15px in 22 places on the first screen); small print that labels other
+     text (status, tag, speaker, ids) is 14px. Every size is in rem.
+  4. *Every control is 44x44px or more* (warehouse 133's own acceptance; CI measured WCAG's 24px). Below it were the
+     message box (38px), the send button (38px), the preview's enlarge and close buttons (32-33px) and the panel
+     minimise (34px).
+  5. *Text size*: "Text size: Normal / Large / Extra large" (16, 18, 20px), on the entry and in the drawer, kept on the
+     device.
+- **The look of the owner's example** (2026-11-23, `create-148ai-vision`: "המראה זה מה שחשוב לי"). Its colours, radii and
+  shadows were measured in the browser and applied as one layer at the end of `app.css`: a dark top bar (#151410) and a
+  dark project rail (#1b1a17) in light and dark mode, the selected project marked with a yellow edge, white cards with a
+  light bar, cream answer and side cards, yellow primary buttons with a darker edge, tags as rounded labels, the first
+  screen as a card with a large title. On a computer the rail is open on the first visit: the rule that closed it under
+  1600px (`visual-edit.js`) served three side-by-side areas the shell no longer has. Kept against the example: 16px
+  text (the example uses 15px), the selected tab underlined in ink (its yellow line is 1.4:1 on white, review A11Y-4),
+  the preview's own frame (`tests/preview_frame_browser.cjs`). Not built yet from the example: the proposal as the
+  "זה מה שנבנה" card inside the conversation (it is the approval screen: the owner decides), build steps and checks
+  in plain words, the computer/phone switch on the preview; client review, publishing and handover are in the queue.
+- **Evidence.** `tests/platform_for_everyone_browser.cjs` (real Chromium, the real files, the boot path mocked): 5 checks
+  x 2 languages hold on this branch; on main the same file fails first/words/text/targets in both languages (run
+  2026-11-22, before/after in the PR). 7/7 deliberate faults caught. `tests/test_platform_for_everyone_in_ci.py` with
+  `tests/negative_controls/platform_for_everyone_in_ci.json`: 4/4 controls PASS. The five CI browser tests pass locally;
+  `tests/customer_flow_browser.cjs` now expects the empty conversation instead of the naming dialog.
+- **Not verified here.** axe-core is not installed in this container and cannot be: `platform_a11y_browser.cjs` ran with
+  its own measures only (30 screens clean; its 4 non-axe faults caught); the axe part runs in CI. The plan, build and
+  details screens were not counted for technical terms (they need build fixtures): next. No real customer has used it.
+
+# 2026-11-22 — 133, the platform design released with its review fixes (Claude Code)
+
+- **What this is.** Codex's design (black, yellow and white workspace) reached the repository as ONE commit, `4457710` on
+  `design/148ai-full-workspace-133`. The commits named in his two entries below (`547e118d`, `7bc876ef`, `9a30e8b6`,
+  `acc159dd`, `b6553478`, `bd765158`) and the branch `design/148ai-sidebar-integration` exist only in his local
+  workspace, not in this repository (`git cat-file -t` fails on each). The owner, 2026-11-22: "תעלה אתה את כל מה
+  שקודקס עשה". Released by Claude Code on `claude/practical-hopper-oi3qj2-design-133`, not authored by him.
+- **Independent review** (five agents, each finding put to an adversarial verifier): no security finding. Fixed before
+  release, each with a browser test that fails without the fix (`tests/workspace_review_fixes_browser.cjs`, in CI):
+  F1 a failed rebuild hid the working version's preview; F2 every project not opened in the session said "status
+  unavailable" (the project list carries no status); F3 screen readers lost who said each message; F5 a late reply
+  emptied another project's composer (the unscoped reply was already on main). Accessibility fixes: the drawer opened
+  UNDER the preview on phones (A11Y-1); state and focus marks in yellow on white were 1.3-1.4:1 (A11Y-4/7/8); two menu
+  buttons on phones (A11Y-5); the language button's hover (A11Y-6); a 34px logo link (A11Y-9).
+- **A blocking WCAG 2.2 AA check for the platform** (`tests/platform_a11y_browser.cjs`, in CI): axe-core plus our own
+  measures (horizontal scroll, visible focus, 24px targets, a control covered by another), on the entry, chat, preview,
+  versions and drawer, in Hebrew and English, at 320/390/1440 px. Every run also proves it catches 8 deliberate faults.
+  Evidence: `2 languages x 3 widths clean; 8/8 mutations caught`.
+- **Not verified or not done:** `tests/workspace_sidebar_local.cjs` (Codex's) needs a development server nothing in the
+  repository starts, so CI does not run it or its mutations; the phone header can squeeze the project name and the price
+  (review A11Y-3, not changed here); a customer has not yet used the design in production.
+
+# 2026-11-22 — 133, integrated workspace (Codex)
+
+- Code `547e118d` on the local integration branch, based on production SHA `64604f03`. The revised entry, sign-in, drawer, projects, chat, plan and build cards, preview, visual editing, ZIP export and versions use the existing 148AI routes.
+- Mobile and desktop use chat, preview and versions. The preview contains the edit entry point and the actual build recovery action. A saved version exposes its internal ID in expandable details. The workspace uses black, yellow and white.
+- Local evidence: real development FastAPI registration, projects and catalogue with Chromium at 320, 390 and 1440. Failure and version records were injected for browser assertions. All eight deliberate regressions were detected. The customer flow, approval single source, project switching with late responses and preview sizing tests passed. Focused Python suite passed 67, skipped 4 PostgreSQL tests and passed 10 subtests.
+- The first full comparison in an isolated environment stopped before execution on the same 50 collection errors in both trees (missing production Python dependencies). The populated runtime is needed for the full comparison. Exact deletion records await independent signature. Production remains at the previous release.
+- Independent UI review found stale quote state, a blank Versions pane after switching projects, a missing desktop drawer opener outside chat, invisible rollback feedback and low-contrast label overrides. Addressed in `acc159dd`, `b6553478` and `9a30e8b6`. Follow-up also caught a duplicate filter ID and a late contract response, now scoped to the initiating brief.
+- This is an agent review. The deployment and human deletion signature are pending.
+- (Claude Code, 2026-11-22: the SHAs above are Codex's local commits; the repository holds his work as `4457710`. See the entry at the top.)
+
+
+# 2026-11-22 — 133, project navigation (Codex)
+
+- Implemented on local branch `design/148ai-sidebar-integration`, based on `64604f03` (merge #500). Browser-tested code `7bc876ef`.
+- Screens: project drawer, all projects (opens as a dialog over the current project), business templates and account settings. The mobile hamburger moved from the bottom navigation into the workspace header and opens from chat, preview and visual edit. Project states have text labels, workspace controls have visible keyboard focus, and project switching retains unsent text within the same session.
+- Existing authenticated project list, subscription, project creation and latest-build endpoints serve the new UI. When the server has not returned a project's latest build, the list shows “Status unavailable”. Domain settings show the current scope of delivery. Build and publish operations stay on the established paths.
+- Evidence: developer FastAPI with in-memory accounts and real Chromium, `node tests/workspace_sidebar_local.cjs`. Registration, real account balance and project creation, catalogue filtering, template selection and draft restoration passed at 320, 390 and 1440. Six sidebar mutations in the same test failed on their expected checks. `customer_flow_browser.cjs` passed at 390 and 1440. `project_scope_browser.cjs` passed, including late responses from the former project.
+- Focused Python regression suite: 74 passed, 4 PostgreSQL tests skipped, 20 subtests passed. The customer wording check caught the term “credits” in the first revision. The balance now uses the existing customer label.
+- Pending review: exact deletion declarations are prepared with reviewer pending. Full repository comparison, independent review and production release remain open. The failure and version-row mutations belong to the corresponding screens of item 133.
+
+# 2026-11-22 — warehouse 118, review fixes: every writer carries the image, and the smoke checks the reference the page really uses (Claude Code)
+
+- **What broke (review of the 118 branch, all reproduced):** Claude's own bugs in the first pass of 118.
+  - `gate_regression.served_page` still wrote every entry with `write_text`: the new smoke saw an envelope as text, so
+    every approved build that carries an image would report `served=False` and fail the gate-regression workflow.
+  - The smoke fetched a fixed `/assets/<name>` and never the URL the page references (relative: after a redirect of
+    `GET /`, or from a stylesheet in a sub-directory, it is a 404 the smoke did not see).
+  - A logo of 2,000,001 to 3,145,728 bytes passed the upload and failed the build (`MAX_ASSET_BYTES` 2,000,000).
+  - `download_version` zips image bytes, so `X-Omni-Repository-SHA256` (stored text) did not describe the zip.
+  - The visual-edit preview host wrote envelopes as text; the round-artifacts print did not shorten an envelope.
+- **Fix:** `served_page` and `preview_host` write through `repository_assets.materialize`; the smoke resolves every
+  carried-image reference in the page and its same-origin stylesheets with `urljoin` against the URL that holds it and
+  checks 200, Content-Type and bytes (`PREVIEW-ASSET-REFS n`); `CarriedImage.place` gives a STYLESHEET in a
+  sub-directory one `../` per directory (every other file keeps `assets/<name>`: it resolves against the document);
+  `MAX_ASSET_BYTES` is `attachments.MAX_BYTES`; the download adds `X-Omni-Export-SHA256` (the zip's own sha256) and
+  keeps the repository header as the stored checksum; the workflow's elision regex also matches `148ai-binary:v1`.
+- **Evidence (commands run in the worktree, 2026-11-22, one pytest process at a time):**
+  - `python3 -m pytest -q tests/test_images_as_files.py tests/test_v24_native_remote.py` 26 + 13 passed. New tests:
+    `gate_regression.run` on a version saved by the real workspace (served=True); a stylesheet in `static/` reached;
+    a page behind `GET /` -> `/he/` fails loudly with the resolved URL; a template literal reference read whole;
+    a 2,000,001-byte and a 3,145,728-byte logo carried, one byte over raises; the real `sandbox_service` `POST /run`
+    (FastAPI is installed now; only docker is a double) writes the image bytes and refuses a tampered envelope;
+    the download of a version with an image carries the bytes and both headers.
+  - the 88 test modules that import a changed module (`grep -l -E "repository_assets|preview_smoke|gate_regression|
+    generated_images|uploaded_assets|preview_host|inspect-round-artifacts|investor_app|sandbox_service"`, without
+    test_m4_acceptance): 1211 passed, 18 skipped, 1 failed. The one failure is
+    `test_site_auth_v2::test_flag_off_is_the_baseline_byte_for_byte`, already failing at 9baf892 (before this round):
+    the branch changes `scripts/preview_smoke` in the pipeline identity by design. It needs an identity declaration
+    signed by the owner and the new baseline in that test; not written here.
+  - `python3 scripts/run_negative_controls.py images_as_files` 19/19 PASS (NC9 to NC19 are new).
+  - `OMNI_SITE_AUTH_V2=0 python3 -m omni_prod.pipeline_identity`: origin/main a77c1b8 b287af44…, 9baf892
+    f3049230…, this round d1655f30… (working tree before commit); the only component that differs is
+    `scripts/preview_smoke`.
+- **Not verified:** a real production build and a real docker daemon; a page served at a nested URL that `GET /`
+  does not reach is not checked by the smoke.
+
+# 2026-11-21 — warehouse 118 (+114): the main image is a file the page references, not base64 in the page (Claude Code)
+
+- **What broke:** the butcher (bld_83529c13, 2026-11-14): the generated hero was inlined as 1,735,408 base64 characters;
+  the page was heavy and the facts after the hero fell past the 45,000 characters of GET / the preview smoke keeps.
+  The five points of row 118 were text-only. Every image path inlined a data URI: `generated_images.GeneratedImage.uri`
+  (D5 default hero and every generated image), `uploaded_assets._MainImage.uri` (customer photos) and
+  `uploaded_assets.logo_transform` (the logo).
+- **Design (option b, text-only pipeline):** `omni_prod/repository_assets.py`. An image is one repository entry at its
+  real path `assets/148ai-<kind>-<n>.<ext>` holding a checked envelope (`148ai-binary:v1;mime;sha256;base64,`); the page
+  references the path. Every point that writes files decodes it: `sandbox_service.run` (write_bytes(file_bytes)),
+  `sandbox_executor` and `preview_runtime` (`materialize`), `UnifiedOmniEngine._zip` (all v25-v28 export routes) and
+  `investor_app.download_version`. `validate_snapshot` checks every envelope (place, type, digest). The saved version
+  (`workspace.py`) is unchanged: it carries the envelope as text. The model's view (repair summary, G5 as written,
+  failure text) has the marker and no image file; the transform rewrites the verified file after every repair.
+  `preview_smoke` fails loudly unless the server serves each `assets/` image with 200, its Content-Type and its bytes.
+- **Evidence (commands run in the worktree, 2026-11-21):**
+  - `python3 -m pytest -q tests/test_images_as_files.py` 18 passed: on the real smoke path the butcher page with the
+    real image has no data:image, each file served with image/webp / image/png / image/jpeg, every fact within 45,000
+    (control: inlined, "שבת סגור" is past it); the real workspace save/load, `DockerPreviewProvider.start` work
+    directory and `export_zip` each carry and serve the file; a page with no image writes the same bytes as before.
+  - the 44 test modules that import a changed module: 730 passed, 11 skipped, 0 failed.
+  - `python3 scripts/run_negative_controls.py images_as_files` 8/8 PASS; the existing specs whose targets include a
+    changed file: a4_asset_plan 10/10, contract_prompt_readers 10/10, lens11_image_match 9/9, photo_weight 8/8,
+    skill_gate_rights 20/20, uploaded_main_image 15/15, and the investor_app specs (conversation_limit,
+    item3_preview_route_full_reserve, item4_allowance_message, plan_price_said_once, pr154_two_gates,
+    pr176_approval_action, preview_durable_backend) all PASS.
+  - Two existing controls lost their bite and were repaired, not weakened: photo_weight NC6 (the weight unit now
+    judges the rendition's bytes explicitly) and skill_gate_rights NC5 (the tests now assert what G5 reads as written).
+- **G4 / perf_inline_image_weight: stays warn.** Mode is per gate (`gate.DEFAULT_MODE['G4']`), so block would also
+  block the five other perf units; the 2026-11-19 calibration data has G4 failing 1 of 5 builds on SCRIPT_BLOCKING
+  (perf_blocking_script), and no production build has run with this change. Rule 4 needs three builds. Proposal:
+  per-unit modes, then this unit alone to block after three builds.
+- **Not verified:** `sandbox_service.run` and `download_version` themselves (FastAPI not installed here; the runner's
+  write is checked in source, CI runs the rest); a real production build (warehouse 115); og:image (now possible).
+# 2026-11-21 — the content-document route, slice 1: independent review fixed (Claude Code)
+
+- **What broke, and the root:** 15 findings, each reproduced by a skeptic. Three roots: (1) the copy checks read digit
+  runs and fixed patterns only, so facts could ride in as words or attach to the wrong noun -- a WhatsApp the customer
+  refused, a landline sent to wa.me, '250 שנות ניסיון' from a 250 ₪ price, 'שישה עורכי דין', 'ללא עלות', a vanished
+  price, 'תל אביב' as the business name; (2) the route's executors were placed outside the quality gate and the group,
+  so an advisory finding gave an engine 'ready' that the worker's release policy FAILED, and a refused rewrite after a
+  verified round raised and threw the verified work away; (3) the tests checked the good path only -- the generated
+  site tests could not fail (double-escaped regex, order read from the header menu), and the browser-dependent tests
+  and controls never ran in CI.
+- **Fixed (commits 0eae688..422f929):** WhatsApp only when named affirmatively, on a labelled mobile, inside its sentence
+  (`whatsapp_negated`, `whatsapp_landline`); every number -- digits, Hebrew number words, vague magnitudes -- must be
+  the customer's AND count the same noun (a year stays a year; a price's digits are not a number); always-open hours,
+  star ratings, 'free' over a price, absent channels block; quotes, people, credentials, cities, days warn
+  (`UNSUPPORTED_DETAIL`, SITE_CLAIMS calibrating); every page price shown next to its own label (a build budget is
+  withheld); with no declared name, only a name the customer quoted (`name_not_declared` otherwise); every skipped
+  section said; the advisory filter inside the quality gate with the threshold's test count and the review record
+  reconciled; post-sandbox refusals are `RepairDeclined` (an unpaid decline is no round); install is atomic and the
+  rehearsal stops before spend on a route error; `AUTHFORM` owned; the generated tests can fail; a `browser-python`
+  CI job for the Chromium tests and browser-only controls.
+- **Evidence:** `pytest` of the touched files (list in the report), `site_content` controls 44/44 (default env, and
+  again with playwright blocked as in CI), `section_library` 7/7 default (playwright blocked) and 10/10 browser; the
+  real-chain engine tests with Chromium 6/6 including the worker's release report READY for the reviewer + critic and
+  the critic alone. Pipeline identity unchanged.
+- **Not checked:** the `browser-python` job on GitHub (not pushed); a live build on the route; the prose limit above.
+
+# 2026-11-21 — the content-document route, slice 1: the model writes copy, the platform renders the library (Claude Code)
+
+- **What:** `omni_prod/site_content` (behind `OMNI_SITE_LIBRARY` = off | accounts | on, default off; an unknown value
+  raises). For an approved content-only Hebrew site the model writes ONE JSON document of copy, validated before
+  rendering (21 codes; one corrective call, then `site_content_invalid`); the platform fills every structured fact
+  slot (phone, WhatsApp, e-mail, address, hours, reviews, prices, number slots) from the fact sheet (fact_canon on the
+  approved prompt, the truth gate's own canon), renders the section library with the build's
+  contract, and writes a fixed GET-only app.py, fixed tests and a manifest covering every acceptance id. Repair is
+  owned by an exhaustive OWNER table: content -> a rewrite of the named JSON paths only; platform ->
+  `RepairDeclined('platform_render_defect')` (new in autonomous_core), no paid round; customer -> needs_customer_input;
+  advisory (design critic, model reviewer) -> library feedback, never a decline. AgenticRepairAgent is off on the
+  route. Worker and rehearsal install it right after the components; evidence `site_route`.
+- **Evidence (verified here, 2026-11-21):** the owner's brief bld_b0eb47a5 (production row read read-only, prompt
+  sha256 `41d10d63...5db61`) takes the route (palette counsel, its outline mapped to library sections) and, through
+  the REAL production chain (`investor_app._verification_executor`, local sandbox transport, local Chromium) and the
+  worker's installs, is READY in round 0 with one content call (`tests/test_site_content_engine.py`, 5 passed --
+  locally, where Chromium is installed; CI's test job has no Python playwright and skips them: they run in the new
+  `browser-python` job, not yet run on GitHub). Every
+  WORKER_GATES unit, G-APPLE static and the truth gate pass on the page; with a 480,000-character hero inlined, the
+  truth gate's facts and the hero copy are inside the 45,000-character cut. Flag off: byte-identical engine build.
+  Controls: `site_content` 7/7 then (after the review below) 44/44; `section_library` was 5/10 even with Chromium
+  (NC1-NC5 stale), now 7/7 in the default env and 10/10 with `NC_ENV=browser`. Pipeline identity unchanged
+  (`41a6e134...4618`).
+- **Found and fixed:** the real visual QA failed the library page on a phone (the closed menu's links measured
+  off-screen, the fixed action bar over the hero's phone link) -- every route build would have stopped.
+- **Not checked:** a live rehearsal on the owner's account (needs `OMNI_SITE_LIBRARY` set in the worker), other
+  palettes end to end through the chain, change requests on a route-built site, gallery/products images, the
+  production sandbox's own Chromium. Headings use the body font (the display-font change is deferred). Facts written
+  as words in copy are checked by pattern only (see the review entry above); a fact stated in other prose -- a service
+  the customer never offered, an award, a guarantee in words the claim list does not know -- is not checked.
+
+# 2026-11-20 — the section library: designed sections the generator will assemble (Claude Code)
+# 2026-11-21 — the section library v3: every kind of business, international bar, variety (Claude Code)
+
+- **Why:** the owner's law-firm build (bld_b0eb47a5) was bare; the model designed every site from nothing. The owner
+  (2026-11-20): "תכין את הסקשנים אתה אבל ברמה הכי גבוהה שיש", "המטרה שלך זה רמה בין לאומית", "לא רק לעורכי דין",
+  "מגוון בהכול ברמה הכי גבוהה".
+- **What:** `omni_prod/section_library` -- 12 sections (header, hero with a facts panel, numbers, services, price list,
+  gallery, about, team, process, call band, testimonials, FAQ, contact with a WhatsApp form, footer, phone action bar);
+  four art directions by palette (formal, warm, bold, elegant); layout variants per section (hero split/banner,
+  services cards/list, process steps/timeline, FAQ aside/stacked, testimonials grid/feature), a combination of its own
+  per business; tones by position; each page ships only the style it can use. Written against the G-APPLE contract
+  (which gained a heading-font token and a 72px step, declared and signed). Nothing invented: a section, fact or
+  channel the customer did not give is left out and said; facts the page already showed are not repeated.
+- **Verified (independently, in a browser):** two critique rounds by independent designers on seven businesses
+  (cafe, salon, plumber, dental, boutique, fitness, law): round 1 5.5-6, round 2 mean 6.64; the design editor's 20
+  measured fixes applied. Conformance: 10 palettes x 4 content shapes through every skill unit, the G-APPLE check,
+  bidi, links, channels and invented numbers; every layout variant in every direction at 320/820/1440 with no
+  sideways scroll; band contrast >= 4.5 on every palette; purged and full stylesheets pixel-identical (32 screenshots);
+  the richest page 36,699 characters (the truth gate reads 45,000). `tests/test_section_library.py` and
+  `tests/test_section_library_conformance.py`: 36 passed; controls `section_library` 22/22.
+- **Not yet:** the generator does not use the library -- the content-document route (wiring slice 1) is being built,
+  behind a flag that is off by default.
+
+# 2026-11-20 — the window approval screen offers only the windows that fit the business (Claude Code)
+
+- **What broke (the owner, 2026-11-19, law-firm site):** "בחלונות באתר שום דבר לא קשור למה הוא מציע". `offer()` listed
+  all eight catalogue windows for every website -- a cart drawer, filter chips and an age gate for a law firm.
+- **Fix:** `window_catalog.relevant(text)` reads the customer's request (whole words, Hebrew prefixes): cookies and a
+  question widget for every site; cart / chips / mega menu only for a shop; age gate only for alcohol or tobacco;
+  promotion bar and entry popup only with a sale or a shop. A decided window is always shown; a new window with no
+  offer rule raises.
+- **Evidence:** `tests/test_windows_fit_the_business.py` 7 passed (law firm: 2 windows; butcher with sales: 4; wine
+  shop: all 8); window approval tests updated (a cafe is offered 2); controls `windows_fit` 4/4 (NC4 first exposed a
+  guard that never ran alone -- fixed).
+# 2026-11-20 — the conversation agent never guesses the customer's gender (Claude Code)
+
+- **What broke:** rehearsal 44650878701 (luna on the production path, 3/3 passed) -- the agent wrote "תרצי להציג
+  מחירון" to a customer who never said their gender. The reply rules said nothing about Hebrew address.
+- **Fix:** the reply rules: in Hebrew, the plural (אתם: תרצו, ספרו) or gender-neutral wording, never a guess.
+- **Evidence:** `tests/test_reply_never_guesses_gender.py` 1 passed; control `reply_neutral_address` 1/1.
+- **Not verified yet:** a model obeying it -- the next agent rehearsal reads the replies.
+
+# 2026-11-19 — a shared link shows a preview by construction (Claude Code)
+
+- **What broke:** SHARE (og:title, og:description) failed on all five production builds with gate evidence and on the
+  owner's law-firm build (bld_b0eb47a5), after #467 had put the rule in the spec. Telling the model is not enough.
+- **Fix:** `omni_prod/share_preview.py`, a repository transform after the RTL rule, in the worker and the rehearsal:
+  a served page with a <title> and no og:title gets one from that title; og:description comes from the page's meta
+  description, else its first paragraph (160 characters). Nothing invented; a page already tagged is left as is;
+  a Python template is changed only if it still compiles; tests are never touched.
+- **Evidence:** `tests/test_share_preview_by_construction.py` 8 passed, including the butcher production page with its
+  og tags removed (SHARE fails; after the transform it passes) and an engine build that is ready with 0 repair rounds
+  with SHARE set to block; controls `share_preview` 5/5.
+- **Not done:** og:image -- needs the hero image served as a file (warehouse 118).
+# 2026-11-19 — PRO: a business site meets a professional minimum (Claude Code)
+
+- **What broke (the owner, bld_b0eb47a5, the law-firm site):** "רמה נמוכה ... אני רוצה מקצועיות". The build passed every
+  blocking gate; nothing judged how the page looks -- a hero block, two sections, no visual, the consultation action once.
+- **Fix:** a new unit `skill_units/design_minimum` (gate PRO, code DESIGN_TOO_BASIC). It judges only a page with a contact
+  action (tel:, WhatsApp, mailto:, #contact): exactly one h1, at least 4 sections, a visual (img/svg/picture/video or a
+  CSS background image), the contact action at least twice. Its manifest reaches the generator through `carry_rules`;
+  LANDING_CONVERSION now also tells it the professional shape (4+ sections, hero visual, services as a card grid).
+- **Rule 4:** PRO enters CALIBRATING (warn) and WORKER_GATES; it blocks only after three calibration builds.
+- **Evidence:** `tests/test_design_minimum.py` 6 passed (ok fixture = the real butcher production page; broken fixture =
+  the law-firm shape, falls with 3 findings); controls `design_minimum` 6/6, `gates_calibrating` 9/9.
+- **Not checked:** the owner's real page itself -- the built files are in object storage, not in the database; the
+  broken fixture is its shape as seen in the owner's screenshots.
+# 2026-11-19 — the preview's enlarge button covers the whole screen on a phone (Claude Code)
+
+- **What broke (the owner, iPhone):** "מסך מלא לתצוגה מקדימה לא עובד". Reproduced in Chromium as an iPhone 13: after
+  ⤢ the stage moved to x=-12 (12px off the screen) with the same width, under the app's bars -- the phone rule makes the
+  stage width:100% and static, so `stage-max`'s inset:12px only shifted it.
+- **Fix:** on a phone, `.workspace.stage-max>.stage` is fixed at inset 0 over everything (z-index 1000), no backdrop.
+- **Evidence:** `tests/preview_frame_browser.cjs` (real app, real ⤢ click) at 390 and 1440 px: the enlarged stage is
+  the whole viewport on a phone, 12px inset on a desktop, nothing covers it, the same button restores it. Without the
+  CSS fix the new check fails with x=-12 (run here; the browser job runs it in CI).
+# 2026-11-20 — migration 045 applied to production: the frozen reference corpus (Claude Code)
+
+- **Approval:** the owner, 2026-11-19 ("מאשר הכול תמשיך לעבוד", on migration 045 + the corpus).
+- **Procedure (CLAUDE.md section 5):** backup branch `backup-before-migration-045-corpus-pages-2026-11-20`
+  (br-ancient-sunset-b9yi0wyu); dry check: corpus_pages absent, schema_migrations 40 rows, max 44; one transaction
+  that first refuses unless max = 44 and the table is absent, then creates the table, index, trigger and the
+  schema_migrations row (sha256 3b0d7fb47d0e1a31e4b84d1d1fd2e6be39c0199b7d5fd5db1094a31923b203cb = the file);
+  verification in a separate query: corpus_pages exists with 0 rows, trigger corpus_pages_frozen and both constraints
+  present, schema_migrations 41 rows, max 45. A first attempt rolled back whole (schema_migrations.sha256 is NOT NULL).
+- **Order:** the database was migrated before this code merges; a database ahead of the code is still COMPATIBLE
+  (`schema_manifest.compatibility` counts only missing versions).
+- **Code:** migration + rollback, `tests/test_corpus_pages_migration.py` (PostgreSQL, intake-budget-pg), the first
+  category collected (restaurants: 5 accepted of 26 checked, every rejection with its reason) and the insert script
+  (never overwrites; 20% hold-out by a rule on the URL). The rows are not inserted yet.
+# 2026-11-19 — the conversation agent runs on gpt-6-luna, Sonnet when Venice does not offer it (Claude Code)
+
+- **Decision (the owner, 2026-11-19, after the measurement):** "אני איתך מה שאתה ממליץ" -- luna, with Sonnet as fallback.
+- **Measurement (conversation-rehearsal, agent path, 3 Hebrew conversations each):** luna 3/3, 0 failed calls,
+  $0.0011-0.0016 a conversation (run 44613790551); Sonnet 3/3, $0.029-0.041 (44602458248); Haiku 3/3, $0.0014-0.0023
+  (44616521276); deepseek-v4-flash 3/3 with one failed call (44602428561); gpt-oss-120b 5 empty or invalid answers
+  (44605208470); qwen3-235b 5 timeouts and Arabic in the Hebrew (44607455048).
+- **Change:** `conversation_agent.VENICE_MODELS = ('openai-gpt-6-luna', 'claude-sonnet-5-5')`; the ceiling stays Sonnet's
+  list price (2,10) so the fallback is never refused; each turn settles at its actual cost. Other accounts unchanged.
+- **Evidence:** `tests/test_conversation_agent_sonnet.py` 15 passed, with a new test that the list order wins over the
+  price (luna is first and cheapest, so the old controls could no longer tell them apart); controls
+  `conversation_agent_sonnet` 12/12 (NC1-NC3 retargeted to that test).
+- **Not measured:** 3 conversations per model, all content sites; measure again after a week of real conversations.
+
+# 2026-11-19 — the owner's page structure: "עיצוב:" is not a section, "פתיח" needs no heading (Claude Code)
+
+- **What broke (production, bld_7da07ab0, 6 rounds, $1.52):** the QA review failed CUSTOMER-PAGE-STRUCTURE -- no
+  "פתיח" heading, no "עיצוב" section after "צור קשר". Reproduced: with the request's blank lines lost, `outline` read
+  "עיצוב: נקי ורציני..." as section 7; and "1. פתיח: ..." names the opening's role, not a heading to show.
+- **Fix:** a numbered list ends at its first unnumbered line; an opening role (פתיח/פתיחה/הירו/hero/intro) keeps its
+  place and content but is not a required visible heading.
+- **Evidence:** `tests/test_outline_roles_and_numbered_end.py` 3 passed on the owner's brief (2 fail without);
+  existing outline tests pass; controls `outline_roles` 2/2, `page_outline` unchanged.
+- **The same build's other blockers:** G5 on tests/test_site.py (fixed in #471, released 22:21 IL); two real QA findings
+  (phone validation, CTA repeated at the end) the repair never reached.
+
+# 2026-11-19 — G5 never judges a test file; the owner's first build failed on one (Claude Code)
+
+- **What broke (production, bld_59236dc6, the owner's law-firm site):** verification_failed after 3 repair rounds,
+  `no_progress_repository_unchanged`, $0.904569. G5 (blocking since #468 today) failed IMAGE_SOURCE_UNKNOWN on
+  `tests/test_cohen_law.py`, a test the builder wrote; no repair of the site could clear it. Claude's bug in #468: the
+  five calibration builds had no test file with an image, and `served_of` read every .py file.
+- **Fix:** `served_of` leaves out test files (the repair contracts' `_TEST_FILE` pattern: tests/, test_*.py, *.test.*).
+- **Evidence:** `tests/test_served_files_exclude_tests.py` 3 passed with the unit's own broken fixture (2 fail without;
+  the same fixture in app.py still fails G5); control `served_not_tests` 1/1.
+- **Also from this build (warn gates):** the spec carried PLATFORM-CHECKS with og:title (#467 works) and the page still
+  had no og tags -- telling the model is not enough; BRAND flagged a template fragment of app.py.
+
+# 2026-11-19 — a long request is a request, even with "כמה עולה" inside it (Claude Code)
+
+- **What broke (production, the owner, 19:14):** a 14-line law-firm brief got "לא זיהיתי פרטים חדשים". intake_messages:
+  interpretation `{"intent": "cost"}`, no reservation, a 0.7 s reply -- the model never read it.
+- **Root cause:** `classify_intent` searched the whole message for question phrases; the FAQ line "כמה עולה ייעוץ
+  ראשון (250 ₪)" matched the cost question.
+- **Fix:** a question intent is a short question (at most 2 lines and 200 characters); anything longer is a request
+  (a modification once a version exists).
+- **Evidence:** `tests/test_long_request_is_not_a_question.py` 4 passed on the production message, through the real
+  supervisor (the interpreter is called once); 3 fail without the fix; controls `intent_long` 2/2.
+# 2026-11-19 — the rehearsal measures one cheap Venice model at a time (Claude Code)
+
+- **Why (the owner, 2026-11-19):** choose the conversation agent's model by measurement, among cheap Venice models, with
+  the owner. Production is unchanged: it quotes with `conversation_agent.venice_profile()` (Sonnet, then Haiku).
+- **What:** `conversation_agent.CANDIDATES` -- deepseek-v4-flash, openai-gpt-oss-120b, qwen3-235b-a22b-instruct-2507,
+  openai-gpt-6-luna, claude-haiku-5-5 -- each at its list price (docs/venice_prices_snapshot.md, 2026-10-19) as its
+  ceiling. The workflow input `candidate` (agent path only) quotes the rehearsal with that one model; an unknown name
+  raises, another path refuses it, and a model Venice now prices above the ceiling is refused before any request.
+- **Evidence:** `tests/test_conversation_model_candidates.py` 11 passed on the real build_gateway / VeniceIntakeGateway /
+  select_model (Venice HTTP faked), 5 failed without the change; controls `model_candidates` 3/3.
+- **Not yet measured:** nothing about quality or cost -- that is the rehearsal runs, after the release.
+# 2026-11-19 — a restated text that only adds is an extension, not "what is right?" (Claude Code)
+
+- **What broke (production, the owner's law-firm site, 21:29-21:30):** after the WhatsApp number was given, every turn
+  answered "קודם נקבע: ... עכשיו הבנתי: ... לא שיניתי — מה נכון?", and answering did not end it.
+- **Root cause:** the model restates the `content` field whole; the restatement differed from the confirmed text (one
+  fact added), and `intake.agent.apply` treats any difference from a confirmed value as a conflict.
+- **Fix:** for a text field, a HIGH proposal that keeps the confirmed text whole (spacing and ; | , aside) and adds to
+  it is applied as the customer's own value. A changed or dropped fact, or a MEDIUM guess, is still asked.
+- **Evidence:** `tests/test_content_extension_is_not_a_conflict.py` 5 passed on the production values (2 fail without
+  the fix); `test_intake_requirements_preservation` unchanged; controls `content_extends` 2/2.
+# 2026-11-19 — "לא לשמור פרטים" answers the personal-data question, next to a "כן" (Claude Code)
+
+- **What broke (production, the owner's law-firm site, 21:23-21:33):** the agent asked "האם יישמרו פרטים אישיים?"
+  three times. The answers "כן, 03-5551234 נכון. לא לשמור פרטים..." and "כן, אתר תוכן בלבד ... בלי לשמור כלום" named
+  yes and no, so `typed_choice` read neither.
+- **Fix:** a negated store ("לא/בלי לשמור", "שלא יישמרו") decides personal_data = no on its own, as "לא שומרים" already
+  did; "בלי לשמור כלום" decides content_only = yes.
+- **Evidence:** `tests/test_no_store_answer_is_read.py` 3 passed on the owner's two messages (1 fails without);
+  `test_conversation_agent_no_cards` unchanged; control `no_store_words` 1/1.
+
 # 2026-11-18 — Direct-provider model enrollment (Codex; PARTIAL)
 
 - Implemented, local verification only: ten disabled text routes in the existing catalog and source-backed effective-dated prices; direct Google Nano Banana adapter through the existing image factory and capability executor; read-only account discovery.
@@ -4137,6 +4539,52 @@ Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
 - The #463 Overlay run 44479691814 ran 3911 unittest cases and failed only because the nested AcceptanceW subprocess exceeded 300 seconds. Overlay discovery now skips the wrapper only. Standalone and v24 invocations retain the 300-second check.
 - Local targeted checks: 8 tests and 19 subtests passed, and the duplicate-invocation mutation was caught. Exact-head CI and independent review pending.
+
+## 2026-11-20 — Critical path freshness manual check (#464, Codex)
+
+GitHub Actions [manual run 44658425152](https://github.com/Shayfly/desktop-tutorial/actions/runs/44658425152) on `main` at `15a36579cec27eee1f6132ce3dfed8af9423125e` finished with exit 1. The three BROKEN annotations mean no qualifying successful step in the preceding seven days. PASS below records fresh historical evidence; it does not certify the revision that triggered this check. Times are UTC.
+
+| Critical path | Result | Most recent qualifying success found |
+|---|---|---|
+| Worker deployment | PASS | [2026-11-19 22:04:43, queue execution proof](https://github.com/Shayfly/desktop-tutorial/actions/runs/44624663436/job/135915241531), workflow SHA `29e515e` |
+| Golden rehearsal | BROKEN | None in the seven-day window |
+| Post-deploy verify-replay | BROKEN | None in the seven-day window |
+| Backup restore | PASS | [2026-11-19 10:16:28, restore and verify](https://github.com/Shayfly/desktop-tutorial/actions/runs/44503989411/job/135490677325), workflow SHA `8cde544` |
+| Golden E2E | BROKEN | None in the seven-day window |
+
+- Golden rehearsal — Claude Code owns a main-branch Golden build rehearsal with an approved synthetic prompt and spend, preserving the successful build-step result.
+- Post-deploy verify-replay — Codex owns the CI evidence. Run the Post-deploy checks workflow on main with stage `verify-replay` and stored versions available, and confirm the replay completed with at least one successful verification. The replay mode does not call models.
+- Golden E2E — Claude Code owns the trusted live producer and Matt independently verifies its evidence. The producer must attach `golden-e2e-evidence` and call the reusable gate in the same run with the build ID and expected commit so all four checks pass.
+
+The newer [worker deployment at `15a3657`](https://github.com/Shayfly/desktop-tutorial/actions/runs/44650631173/job/136004430513) failed at Apply database migrations with `applied migration missing from package: 45`. The recovery step reported that the previous consumers were restored, and the queue proof was skipped. This run is not counted as evidence of freshness.
+
+Follow-up after the manual check: migration 045 was merged in #474. The [worker deployment for `df37f4f`](https://github.com/Shayfly/desktop-tutorial/actions/runs/44665058956/job/136052265327) completed successfully and proved queue execution at 03:06:03 UTC on 2026-11-20.
+
+## 2026-11-21 — drills, the dead-worker alert, two critical paths, the business metric (Claude Code)
+
+**Implemented and independently verified (by CI on the exact SHA, mutations and real-infrastructure runs; no human reviewer):**
+- **Monthly drills,** recorded in CONTROLS.json `drills_run` (#483, `bed3fa6` -> `86dfb69`):
+  - C16 PASS, run 44932418710: HTTP 405, main unchanged;
+  - C19 PASS, run 44932702825;
+  - C11 PASS, run 44933990232;
+  - C18 FAIL on the alert, run 44935937685.
+  - C19 and C11 each needed a second attempt: both first attempts failed on Claude's own drill-instrument bug, recorded under `attempts`.
+- **Warehouse 121, the dead-worker alert** (#487, `6f5d1ff` -> `0625996`):
+  - drill run 44942838520: Redis read "no worker is registered", issue #489 opened and closed;
+  - live run 44942942630: "omni-builds: 1 live ... heartbeat 81s ago".
+- **Post-deploy verify-replay:** run 44941296147, "10 versions completed; at least one PASS". The first green run since 2026-10-20.
+
+**Implemented, awaiting merge:**
+- Customer session logs in by itself (#490);
+- the CI report moves to the run summary and an artifact (closes #146);
+- the rehearsal's publish-taxonomy never pushes to main.
+
+**Blocked by a named credential:** Customer session needs the secrets `CUSTOMER_TEST_EMAIL` and `CUSTOMER_TEST_PASSWORD`, which only the owner can create.
+
+**Finding (Neon, read-only, 2026-11-21): first_pass_yield, the founder's metric of 2026-10-19, was not recorded for a month.**
+- The rehearsal's publish job pushed to main, and main's protection rejects that; `smoke/rehearsal-builds.jsonl` holds one build, from 2026-10-19.
+- Computed from `build_jobs` for the last 35 days: 48 builds, 11 `ready` (23%), 0 first-pass.
+- In the last 21 days, `verification_failed` caused 21 of 33 failures (3.3 repair rounds on average).
 
 ## 2026-11-19 — Direct model enrollment remains disabled (#453, Codex)
 

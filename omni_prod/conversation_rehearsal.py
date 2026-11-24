@@ -129,7 +129,10 @@ def project_cap(quote: dict) -> Decimal:
     return cap
 
 
-def agent_quote(prod: dict) -> dict:
+CANDIDATE_ENV = 'REHEARSAL_CANDIDATE'     # agent path only: one model of conversation_agent.CANDIDATES (owner 2026-11-19)
+
+
+def agent_quote(prod: dict, candidate: str | None = None) -> dict:
     """The conversation agent's quote (owner 2026-11-18): production's newest quote (its token bounds, the database) with
     the agent's Venice profile from the code the API quotes with (conversation_agent.venice_profile) -- one source for
     both, never a list typed into the workflow."""
@@ -138,7 +141,7 @@ def agent_quote(prod: dict) -> dict:
     if q.get('provider') != 'venice':
         raise SystemExit(f"the newest production quote is not a Venice quote ({q.get('provider')!r}): the agent "
                          'profile cannot be rehearsed on it')
-    p = agent.venice_profile()
+    p = agent.candidate_profile(candidate) if candidate else agent.venice_profile()
     q.update({'mode': 'agent', 'venice_select': p['select'], 'venice_allowed_models': list(p['models']),
               'allowed_models': ['venice:' + m for m in p['models']],
               'venice_ceiling_usd_per_m': [str(x) for x in p['ceiling']]})
@@ -324,7 +327,10 @@ def main(argv=None) -> int:
             prod = production_quote(pool)
         finally:
             pool.close()
-        q = prod['quote'] if path == 'production' else agent_quote(prod)
+        candidate = os.environ.get(CANDIDATE_ENV, '').strip() or None
+        if candidate and path != 'agent':
+            raise SystemExit(f'{CANDIDATE_ENV} is for the agent path only, not {path!r}')
+        q = prod['quote'] if path == 'production' else agent_quote(prod, candidate)
         print(f"::notice title=conversation path::{path} -- the quote of reservation {prod['reservation_id']}"
               f"{' with the agent profile from the code' if path == 'agent' else ''}: "
               f"provider {q.get('provider') or 'routed'}, allowed {q.get('allowed_models')}, "
@@ -334,7 +340,7 @@ def main(argv=None) -> int:
             from .intake import conversation_agent as agent
             gateway = ProductionPathGateway(q, cap_usd=min(project_cap(prod['quote']), agent.MAX_COST_USD),
                                             max_turns=agent.MAX_TURNS)
-            print(f"::notice title=conversation limits::per conversation: {agent.MAX_TURNS} turns, "
+            print(f"::notice title=conversation limits::per conversation: {agent.MAX_TURNS or 'no limit on'} turns, "
                   f"${gateway.cap_usd} (worst case checked before each call, as reserve() does)")
         else:
             gateway = ProductionPathGateway(q)

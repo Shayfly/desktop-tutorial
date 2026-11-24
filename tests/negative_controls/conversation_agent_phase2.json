@@ -45,8 +45,8 @@
    "mutations": [
     {
      "file": "omni_prod/intake/interpreter.py",
-     "old": "    expert = checklist(family or classify_family(brief.prompt if brief is not None and brief.prompt else message))",
-     "new": "    expert = checklist(family or classify_family(message))"
+     "old": "    request = brief.prompt if brief is not None and brief.prompt else message",
+     "new": "    request = message"
     }
    ],
    "targets": [

@@ -111,8 +111,8 @@ class MultiTurnTests(unittest.TestCase):
         self.assertEqual(brief.fields['login']['value'], 'none')                 # the model 'roles' claim did not win
         self.assertEqual([(c['field'], c['current'], c['proposed'], c['origin']) for c in t2.interpretation['conflicts']],
                          [('login', 'none', 'roles', 'model')])
-        self.assertIn('לא שיניתי', t2.reply)
-        self.assertEqual(t2.reply.count('התחברות:'), 2)                          # once per side (short name), not duplicated
+        self.assertIn('רק לוודא לפני שאני משנה', t2.reply)   # one natural check (the owner, 2026-11-23)
+        self.assertEqual(t2.reply.count('התחברות:'), 1)                          # the field named once, then both values
         # nothing the customer asked for changed: the same requirements fingerprint as revision 1. (C6: a revision may
         # still be written when the gap detector moves to another open field; that never changes the fingerprint.)
         self.assertEqual(self.briefs.latest('p').brief.fingerprint(), self.briefs.rows['p'][0].brief.fingerprint())
@@ -145,7 +145,7 @@ class MultiTurnTests(unittest.TestCase):
         self.say(s, '', answers={'languages': 'he'})                              # customer confirms via button
         t = self.say(s, 'אתר תורים למספרה עם לוח זמנים')
         self.assertEqual(self.briefs.latest('p').brief.fields['languages']['value'], 'he')
-        self.assertIn('לא שיניתי', t.reply)
+        self.assertIn('רק לוודא לפני שאני משנה', t.reply)    # one natural check (the owner, 2026-11-23)
         self.assertIn('languages', [q.id for q in t.questions])
 
     def test_short_yes_after_approval_prompt_is_risky_and_never_approves(self):

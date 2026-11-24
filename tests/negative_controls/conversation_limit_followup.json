@@ -27,8 +27,8 @@
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
-     "old": "            if kind:\n                return kind if kind in ('budget', 'turns') else None\n",
-     "new": "            return kind if kind in ('budget', 'turns') else None  # NEGATIVE CONTROL\n"
+     "old": "            if kind:\n                # the owner, 2026-11-23: there is no turn cap, so a conversation closed at the old 8 turns is open again\n                return kind if kind == 'budget' else None\n",
+     "new": "            return kind if kind == 'budget' else None  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [

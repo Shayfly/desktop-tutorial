@@ -736,14 +736,16 @@ def project_history(project_id:str)->dict:
 
 @app.get('/api/projects/{project_id}/versions/{version_id}/download')
 def download_version(project_id:str,version_id:str):
+    from .repository_assets import zip_bytes
     try: version=_workspace.get(project_id=project_id,version_id=version_id)
     except KeyError as exc: raise HTTPException(404,'version not found') from exc
-    buf=io.BytesIO()
-    with zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as z:
-        for path,content in version.files: z.writestr(path,content)
-    buf.seek(0)
-    headers={'Content-Disposition':f'attachment; filename="{project_id}-{version_id}.zip"','X-Omni-Repository-SHA256':version.checksum}
-    return StreamingResponse(buf,media_type='application/zip',headers=headers)
+    body=zip_bytes(dict(version.files),ordered=False)   # warehouse 118: images as files
+    # X-Omni-Repository-SHA256 is the STORED repository's checksum (workspace._checksum: images as envelope text), the
+    # value /history shows. The zip holds the decoded image bytes, so it is checked by X-Omni-Export-SHA256 (review
+    # 2026-11-21: for a version with an image the first header does not describe the zip's files).
+    headers={'Content-Disposition':f'attachment; filename="{project_id}-{version_id}.zip"','X-Omni-Repository-SHA256':version.checksum,
+             'X-Omni-Export-SHA256':hashlib.sha256(body).hexdigest()}
+    return StreamingResponse(io.BytesIO(body),media_type='application/zip',headers=headers)
 
 @app.get('/api/projects/{project_id}/memory')
 def project_memory(project_id:str)->dict:
@@ -1575,7 +1577,10 @@ def v28_me(request: Request) -> dict:
     try:
         token = _v28_bearer(request)
         a = _v28.account(token)
-        payload = {'id': a.id, 'email': a.email, 'created_at': a.created_at, 'subscription': _v28.subscription(token=token)}
+        # is_founder (owner 2026-11-21): the workspace shows the technical blocks of a failed build -- raw error text,
+        # check names, repair stop reasons -- to the owner's account only. The same check as everywhere (_founder).
+        payload = {'id': a.id, 'email': a.email, 'created_at': a.created_at, 'subscription': _v28.subscription(token=token),
+                   'is_founder': _founder(a.id)}
         identity = getattr(getattr(_v28, 'accounts', None), 'identity', None)
         if identity is not None:
             payload.update(identity.account_state(a.id))
@@ -1916,7 +1921,10 @@ def _brief_repo():
 
 
 def _lang(request: Request) -> str:
-    return 'en' if (request.query_params.get('lang') or '').lower().startswith('en') else 'he'
+    # 2026-11-22: the platform speaks Hebrew, English and Arabic. A text the server has only in Hebrew and English is
+    # sent to an Arabic customer in English ('he' if lang == 'he' else 'en'), never in Hebrew.
+    lang = (request.query_params.get('lang') or '').lower()
+    return 'en' if lang.startswith('en') else 'ar' if lang.startswith('ar') else 'he'
 
 
 def _discovery_view(row, lang: str) -> dict:

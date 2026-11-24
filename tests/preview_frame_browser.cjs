@@ -34,6 +34,20 @@ const PAGE='<!doctype html><html dir="rtl"><body style="margin:0"><header style=
    assert.equal(r.browserBorder,'0px',`${width}: the toolbar and the page are no longer one bordered box`);
    assert.ok(r.frameTop>=r.vpTop,`${width}: the page starts inside its frame`);
    console.log(`PASS preview toolbar outside the page frame ${width}px`);
+   // the owner, 2026-11-19: "מסך מלא לתצוגה מקדימה לא עובד" -- the real enlarge button (⤢) makes the preview cover the
+   // whole screen, on a phone too (it slid 12px off the screen under the app's bars), and the same button restores it.
+   await p.click('#expandPreviewBtn');await p.waitForTimeout(150);
+   const m=await p.evaluate(()=>{const b=document.querySelector('.workspace>.stage').getBoundingClientRect();
+     const top=document.elementFromPoint(innerWidth/2,innerHeight/2);
+     return {x:b.x,y:b.y,w:b.width,h:b.height,vw:innerWidth,vh:innerHeight,onTop:!!top&&!!top.closest('.stage'),
+       pressed:$('expandPreviewBtn').getAttribute('aria-pressed')};});
+   assert.deepEqual([Math.round(m.x),Math.round(m.y),Math.round(m.w),Math.round(m.h)],
+     width<=900?[0,0,m.vw,m.vh]:[12,12,m.vw-24,m.vh-24],`${width}: enlarged preview ${JSON.stringify(m)}`);
+   assert.ok(m.onTop,`${width}: something covers the enlarged preview`);
+   assert.equal(m.pressed,'true');
+   await p.click('#expandPreviewBtn');await p.waitForTimeout(150);
+   assert.equal(await p.evaluate(()=>document.querySelector('.workspace').classList.contains('stage-max')),false,`${width}: not restored`);
+   console.log(`PASS preview enlarges to the whole screen and back ${width}px`);
    await p.close();
   }
  } finally {await browser.close();}

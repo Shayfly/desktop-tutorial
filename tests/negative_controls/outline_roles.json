@@ -1,0 +1,43 @@
+{
+ "pr": "outline-roles",
+ "sha256": [
+  "tests/test_outline_roles_and_numbered_end.py",
+  "omni_prod/page_outline.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a numbered list keeps reading unnumbered lines ('עיצוב: ...' becomes a section)",
+   "mutations": [
+    {
+     "file": "omni_prod/page_outline.py",
+     "old": "            if out and numbered_list and not numbered:",
+     "new": "            if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_outline_roles_and_numbered_end.py"
+   ],
+   "expect_failed": [
+    "test_with_and_without_blank_lines_the_style_line_is_not_a_section"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "'פתיח' is required as a literal heading again",
+   "mutations": [
+    {
+     "file": "omni_prod/page_outline.py",
+     "old": "    named = [t for t, _ in sections if not _ROLE_ONLY.match(t.strip())]",
+     "new": "    named = [t for t, _ in sections]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_outline_roles_and_numbered_end.py"
+   ],
+   "expect_failed": [
+    "test_the_acceptance_names_every_section_but_the_opening"
+   ]
+  }
+ ]
+}

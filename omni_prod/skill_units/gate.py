@@ -70,6 +70,9 @@ CALIBRATING = (
     'G8',        # runtime and load (omni_prod/runtime_load)
     'GAME',      # a game plays (omni_prod/game_runtime)
     'APPLE',     # the design gate: contract, refusal list, render, two reviewers (omni_prod/g_apple)
+    'PRO',       # professional minimum of a business site (skill_units/design_minimum; owner 2026-11-19)
+    'SITE_CLAIMS',   # content route: a superlative no fact supports, in the model's copy (omni_prod/site_content)
+    'SITE_PARITY',   # content route: the served page is the rendered page, and the only page (omni_prod/site_content)
 )
 # Calibrated 2026-11-19 on the five builds that carry gate evidence (bld_a875456f, bld_77899122, bld_a9643012,
 # bld_d36b3b4e, bld_b0de74d5): G1, G10 and G5 passed all five, and each unit's broken fixture proves the fall on a
@@ -102,8 +105,12 @@ def served_of(repository: dict[str, str]) -> list[tuple[str, str]]:
     is not only its <html> document -- a stylesheet, a script file and a fragment in a Python constant load assets
     too (an independent review, 2026-11-16: the rights units read whole documents only and passed the rest)."""
     from ..rights_sources import SERVED_EXT
+    from ..repair_contracts import _TEST_FILE
+    # Production 2026-11-19 (bld_59236dc6, the owner's law-firm site): G5, blocking since #468, failed the build on
+    # tests/test_cohen_law.py -- a test the builder wrote, never served -- and no repair could clear it (three rounds,
+    # no_progress_repository_unchanged, $0.90). A test file is not loaded by a browser or served.
     return [(path, text) for path, text in sorted(repository.items())
-            if isinstance(text, str) and path.lower().endswith(SERVED_EXT)]
+            if isinstance(text, str) and path.lower().endswith(SERVED_EXT) and not _TEST_FILE.search(path)]
 
 
 SERVED_PAGE_LIMIT = 44_000        # the preview smoke returns at most 45,000 characters of GET /; a longer page is cut
@@ -210,7 +217,7 @@ def install(engine, gate: str) -> list[str]:
 
 # Every gate a build runs, in the order the worker installs them. One list: the rehearsal installs the same gates, so a
 # calibration build cannot check less than a customer's build.
-WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE', 'G5')
+WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE', 'G5', 'PRO')
 MAX_CALIBRATION_FINDINGS = 3      # per failure, in the evidence of a gate that is still calibrating
 MAX_FINDING_CHARS = 200
 

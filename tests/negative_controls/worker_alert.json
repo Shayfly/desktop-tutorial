@@ -1,0 +1,87 @@
+{
+  "pr": "worker-alert-121",
+  "sha256": [
+    "tools/worker_alert.py",
+    "tests/test_worker_alert.py",
+    ".github/workflows/worker-alert.yml"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "a registered worker with no heartbeat counts as alive",
+      "mutations": [
+        {
+          "file": "tools/worker_alert.py",
+          "old": "            stale.append(f\"{w['name']} (no heartbeat)\")",
+          "new": "            fresh.append(f\"{w['name']} (no heartbeat)\")  # NEGATIVE CONTROL"
+        }
+      ],
+      "targets": [
+        "tests/test_worker_alert.py"
+      ],
+      "expect_failed": [
+        "test_a_worker_without_a_heartbeat_is_not_alive"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "a registry that cannot be read (Redis down) counts as alive: the silent default the alert exists to prevent",
+      "mutations": [
+        {
+          "file": "tools/worker_alert.py",
+          "old": "        return UNVERIFIED, f'cannot read the worker registry: {type(exc).__name__}'",
+          "new": "        return ALIVE, f'cannot read the worker registry: {type(exc).__name__}'  # NEGATIVE CONTROL"
+        }
+      ],
+      "targets": [
+        "tests/test_worker_alert.py"
+      ],
+      "expect_failed": [
+        "test_a_reader_error_is_unverified_not_alive",
+        "test_a_real_refused_connection_is_unverified"
+      ]
+    },
+    {
+      "id": "NC3",
+      "what": "a stale heartbeat counts as alive (a killed worker's key lives 195 s; its heartbeat stops)",
+      "mutations": [
+        {
+          "file": "tools/worker_alert.py",
+          "old": "        (fresh if age <= max_age else stale).append(",
+          "new": "        (fresh if True else stale).append("
+        }
+      ],
+      "targets": [
+        "tests/test_worker_alert.py"
+      ],
+      "expect_failed": [
+        "test_a_stale_heartbeat_is_dead",
+        "test_one_live_worker_among_stale_ones_is_alive_and_the_stale_are_named",
+        "test_the_threshold_is_inclusive_at_180_seconds"
+      ],
+      "expect_failed_pg": [
+        "test_a_heartbeat_older_than_the_threshold_is_dead",
+        "test_a_stale_heartbeat_is_dead",
+        "test_one_live_worker_among_stale_ones_is_alive_and_the_stale_are_named",
+        "test_the_threshold_is_inclusive_at_180_seconds"
+      ]
+    },
+    {
+      "id": "NC4",
+      "what": "every run of a still-dead worker opens a new issue (alert spam instead of one issue)",
+      "mutations": [
+        {
+          "file": "tools/worker_alert.py",
+          "old": "    if open_now and not drill:",
+          "new": "    if False:  # NEGATIVE CONTROL"
+        }
+      ],
+      "targets": [
+        "tests/test_worker_alert.py"
+      ],
+      "expect_failed": [
+        "test_dead_again_comments_and_never_opens_a_second_issue"
+      ]
+    }
+  ]
+}

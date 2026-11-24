@@ -33,6 +33,7 @@ from decimal import Decimal
 
 from .. import discovery as d
 from ..intake import agent as intake_agent
+from ..intake import approval_flow as AF      # the buttons' names, said in the texts below exactly as the buttons carry them
 from ..intake import contract as C
 from ..intake.interpreter import DeterministicInterpreter, interpreter_from_env, language_of
 
@@ -91,10 +92,24 @@ _START_BARE = (r'(?:יאללה\s+)?(?:בוא(?:ו)?\s+)?(?:נתחיל|תתחיל
                r'(?:\s+לבנות)?(?:\s+(?:עכשיו|כבר|בבקשה))*|(?:ok\s+)?(?:go|start|let\'?s start)(?:\s+(?:now|please))*')
 
 
+QUESTION_MAX_CHARS = 200
+
+
+def _is_short_question(text: str) -> bool:
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    return len(lines) <= 2 and len(text) <= QUESTION_MAX_CHARS
+
+
 def classify_intent(message: str, *, has_version: bool, has_brief: bool) -> str:
     t = (message or '').strip().lower()
     if has_brief and re.fullmatch(_START_BARE, t.strip(' .!?,'), re.I):
         return 'approve'
+    # Production 2026-11-19 (the owner's law-firm brief, project prj_4tizfrqJkgO-Eg): a 14-line request whose FAQ line
+    # said "כמה עולה ייעוץ ראשון (250 ₪)" was taken for a cost question; the model was never asked and the customer
+    # read "no new details". A question intent is a short question, not a phrase inside a request: a message of
+    # several lines or longer than QUESTION_MAX_CHARS is a request (a modification once a version exists).
+    if not _is_short_question(t):
+        return 'modify' if has_version and re.search(_MODIFY_RX, t, re.I) else 'requirements'
     for intent in ('status', 'approve', 'cost', 'missing', 'recommend', 'feasibility'):
         if re.search(_RX[intent], t, re.I):
             return intent
@@ -162,7 +177,7 @@ def _plan_view(plan: dict) -> dict:
 _TXT = {
     'he': {'got': 'הבנתי', 'assumed': 'בחרתי עבורכם (אפשר לשנות בכל רגע)', 'ask': 'כדי להמשיך אני צריך תשובה אחת קטנה',
            'content_saved': 'שמרתי את התוכן שכתבתם בסיכום הפרויקט, בדיוק כפי שנכתב. האישור הקודם בוטל — צריך לאשר את הגרסה המעודכנת.',
-           'ready_again': 'התוכנית מעודכנת ומוכנה. כדי להתחיל לבנות לחצו על "אישור והתחלת בנייה" — שום חיוב לא מתחיל לפני האישור.',
+           'ready_again': 'התוכנית מעודכנת ומוכנה. כדי להתחיל לבנות לחצו על "' + AF.APPROVE_BUTTON['he'] + '" — שום חיוב לא מתחיל לפני האישור.',
            'ready': 'יש לי תמונה מלאה. הכנתי תוכנית עבודה — אפשר לעבור עליה ולאשר. שום בנייה ושום חיוב לא מתחילים לפני אישור.',
            'blocked': 'יש דרישה שאי אפשר לבנות כרגע', 'nothing': 'לא זיהיתי פרטים חדשים. ספרו לי עוד על מה שתרצו, או שאלו "מה חסר?".',
            # owner 2026-11-18: an overrun stops the conversation and does not crash it -- said as it is, with the way on
@@ -174,30 +189,30 @@ _TXT = {
            'limit_daily_alt': 'הסוכן עדיין בהפסקה היומית ויחזור לענות בהמשך. גם ההודעה הזאת נשמרה.',
            'limit_ready': 'הנה הסיכום — אפשר לאשר אותו או לתקן:',
            'limit_incomplete': 'עוד חסר: {missing}.',
-           'limit_incomplete_any': 'כדי להתקדם, השלימו את המפרט בלשונית המפרט ואשרו משם.',
+           'limit_incomplete_any': 'כדי להתקדם, השלימו את הפרטים החסרים: לחצו על "' + AF.EDIT_BUTTON['he'] + '".',
            'limit_ask': 'ענו כאן במילים שלכם, בלי עלות:',
            'limit_still': 'השיחה עם הסוכן הסתיימה. מה שכתבתם נשמר.',
            'limit_still_alt': 'הסוכן כבר לא עונה בשיחה הזאת, אבל ההודעה נשמרה.',
            'model_unavailable': 'הסוכן לא הספיק לענות הפעם (העומס אצל ספק המודל). מה שכתבתם נשמר — שלחו שוב בעוד רגע, או כתבו עוד פרט על המוצר.',
            'model_refused': 'הסוכן לא זמין כרגע: ספק המודל סירב לבקשה בגלל החשבון שלנו אצלו, לא בגללכם. מה שכתבתם נשמר, ולא חויב דבר. אפשר להמשיך לפרט כאן, והסוכן יענה כשהחשבון יחודש.',
            'missing_none': 'לא חסר כלום — אפשר לעבור לסיכום ולאשר.', 'missing': 'חסר לי:', 'contra': 'יש סתירה שצריך להחליט עליה:',
-           'conflict': 'קודם נקבע: {current}. עכשיו הבנתי: {proposed}. לא שיניתי — מה נכון?',
+           'conflict': 'רק לוודא לפני שאני משנה — {field}: {current}, או {proposed}?',
            'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
            'confirm_sensitive_words': 'זה נושא רגיש ({field}), אז אני צריך תשובה מפורשת שלכם, במילים.',
            'corrected': 'עדכנתי',
-           'cost': 'עלות הבנייה: {credits} קרדיטים. תקרת ההוצאה על מודלים לבנייה הזו: עד ${cap} (מוחזק לפני תחילת העבודה; מחויבת העלות בפועל).',
+           'cost': 'הבנייה תוריד {credits} מהיתרה שלכם. שום חיוב לא מתחיל לפני שתאשרו.',
            'canon_ack': 'לפני האישור: כתבו בהודעה את הפרטים החסרים שלמטה, או סמנו את התיבה שמאשרת בנייה בלעדיהם.',
-           'cost_unknown': 'את העלות המדויקת אחשב אחרי שהמפרט יאושר.', 'approve': 'כדי להתחיל, אשרו את הסיכום והעלות בכפתור "אישור והתחלת בנייה".',
+           'cost_unknown': 'את המחיר המדויק אחשב אחרי שתאשרו שהבנתי נכון.', 'approve': 'כדי להתחיל, לחצו על "' + AF.APPROVE_BUTTON['he'] + '".',
            'approve_not_ready': 'עדיין אי אפשר לאשר:', 'status_none': 'עדיין לא התחילה בנייה בפרויקט הזה.',
            'status': 'הבנייה האחרונה: {status}{phase}. משימות: {done} הושלמו, {running} בתהליך, {pending} ממתינות, {failed} נכשלו.',
            'modify': 'הבנתי שתרצו לשנות את המוצר הקיים. אשרו ואשלח את השינוי לצנרת השינויים (תוצג עלות לפני ביצוע).',
            'feas_yes': '{cap}: אפשר כבר עכשיו.', 'feas_no': '{cap}: לא זמין כרגע — {reason}.{alt}',
            'recommend': 'ההמלצות שלי (כבר בתוך הסיכום, ואפשר לשנות כל אחת):', 'alt': ' חלופה: {x}.',
-           'more': ' עוד {n} החלטות כאלה בלשונית "דרישות".',
+           'more': ' עוד {n} החלטות כאלה במסך "דרישות".',
            'ask_one': 'שאלה אחת לפני שממשיכים:', 'decide': 'יש החלטה אחת לפני שממשיכים:',
            'verify': 'רק לוודא — הבנתי מהבקשה: {label}. נכון?',
-           'safe_default': 'לא קיבלתי תשובה על {topic}, אז הפעלתי ברירת מחדל בטוחה: {label}. אפשר לשנות בכל רגע בלשונית "דרישות".',
-           'card_blocked': 'חסרה החלטה על {topic}, ובלעדיה לא ממשיכים. אפשר לבחור בלשונית "דרישות".',
+           'safe_default': 'לא קיבלתי תשובה על {topic}, אז הפעלתי ברירת מחדל בטוחה: {label}. אפשר לשנות בכל רגע במסך "דרישות".',
+           'card_blocked': 'חסרה החלטה על {topic}, ובלעדיה לא ממשיכים. אפשר לבחור במסך "דרישות".',
            'image_still': 'עדיין חסרה לי תשובה על {topic} כדי להמשיך. אפשר ללחוץ על אחד הכפתורים, או לכתוב במילים: {opts}.',
            'still_in_words': 'עדיין חסרה לי תשובה על {topic} כדי להמשיך. אפשר לכתוב אחת מאלה, במילים שלכם: {opts}.',
            'image_still_text': 'עדיין חסר לי משפט קצר על התמונה כדי להמשיך — למשל "הדלת של החנות" או "סבא שמעון, הבעלים".',
@@ -226,7 +241,7 @@ _TXT = {
            'safe_suffix': ' (safe default)',
            'got': 'Got it', 'assumed': 'I chose for you (change anything any time)', 'ask': 'To continue I need one short answer',
            'content_saved': 'I saved the content you wrote in the project summary, exactly as written. Any earlier approval is cancelled; please approve the updated version.',
-           'ready_again': 'The plan is up to date. To start, press "Approve and start build"; nothing is charged before you approve.',
+           'ready_again': 'The plan is up to date. To start, press "' + AF.APPROVE_BUTTON['en'] + '"; nothing is charged before you approve.',
            'ready': 'I have the full picture and prepared a work plan you can review and approve. Nothing is built or charged before you approve.',
            'blocked': 'Something you asked for cannot be built right now', 'nothing': 'I did not spot new details. Tell me more, or ask "what is missing?".',
            'limit_budget': 'This conversation reached its cost limit, so the assistant stops the open conversation here. What you wrote is saved.',
@@ -237,7 +252,7 @@ _TXT = {
            'limit_daily_alt': 'The assistant is still on its daily pause and will answer again later. This message is saved too.',
            'limit_ready': 'Here is the summary; you can approve it or correct it:',
            'limit_incomplete': 'Still missing: {missing}.',
-           'limit_incomplete_any': 'To go on, complete the specification in the specification tab and approve it there.',
+           'limit_incomplete_any': 'To go on, fill in the missing details: press "' + AF.EDIT_BUTTON['en'] + '".',
            'limit_ask': 'Answer here in your own words, at no cost:',
            'limit_still': 'The conversation with the assistant has ended. What you wrote is saved.',
            'limit_still_alt': 'The assistant no longer answers in this conversation, but your message is saved.',
@@ -245,14 +260,14 @@ _TXT = {
            'model_refused': 'The assistant is not available right now: the model provider refused the request because of our account with it, not because of you. What you wrote is saved and nothing was charged. You can keep adding details here; the assistant answers again once the account is renewed.',
            'missing_none': 'Nothing is missing: you can review the summary and approve.', 'missing': 'Still missing:',
            'contra': 'There is a contradiction to decide:',
-           'conflict': 'Earlier: {current}. Now I understood: {proposed}. I did not change it — which is right?',
+           'conflict': 'Just to check before I change it — {field}: {current}, or {proposed}?',
            'confirm_sensitive': 'This is sensitive ({field}), so I need your explicit confirmation with the button.',
            'confirm_sensitive_words': 'This is sensitive ({field}), so I need your explicit answer, in words.',
            'corrected': 'Updated',
-           'cost': 'This build costs {credits} credits. Model spending for it is capped at ${cap} (reserved before work starts; you are charged actual usage).',
+           'cost': 'This build takes {credits} from your balance. Nothing is charged before you approve.',
            'canon_ack': 'Before approving: send the missing details below in a message, or tick the box to build without them.',
-           'cost_unknown': 'I will calculate the exact cost once the spec is approved.',
-           'approve': 'To start, approve the summary and cost with "Approve and start building".',
+           'cost_unknown': 'I will calculate the exact price once you confirm that I understood you.',
+           'approve': 'To start, press "' + AF.APPROVE_BUTTON['en'] + '".',
            'approve_not_ready': 'It cannot be approved yet:', 'status_none': 'No build has started in this project yet.',
            'status': 'Latest build: {status}{phase}. Tasks: {done} done, {running} running, {pending} waiting, {failed} failed.',
            'modify': 'You want to change the existing product. Confirm and I will send it to the change pipeline (cost shown before it runs).',
@@ -381,6 +396,14 @@ def _bindable_images(attachments) -> list[dict]:
     return out
 
 
+# The fields the summary card shows, in this order (the owner, 2026-11-23). The rest is in the brief and the build.
+SUMMARY_FIELDS = ('goal', 'screens', 'content', 'color', 'style', 'logo')
+# a site that keeps nothing from its visitors says so in plain words, once
+_PRIVACY_ROW = {'he': ('מידע מהמבקרים', 'האתר לא שומר שום מידע מהמבקרים', False),
+                'en': ('Visitor data', 'The site keeps nothing from its visitors', False),
+                'ar': ('بيانات الزوار', 'الموقع لا يحفظ أي معلومات من الزوار', False)}
+
+
 class ConversationSupervisor:
     def __init__(self, *, briefs, store, gateway=None, architect: ChiefArchitect | None = None, credits: int | None = None,
                  budget_usd: Decimal = Decimal('0.50'), context=None, worker_interpreter=None,
@@ -440,8 +463,8 @@ class ConversationSupervisor:
             turn.brief_row = saved
             turn.questions = [d.BY_ID['unavailable']]
             names = ', '.join(dict.fromkeys(R.display_name(k, lang) for k in ask))
-            return [(f'{names} עדיין לא זמין אצלנו. לבנות בלעדיו? אם כן, זה ייכתב במפרט, והשאר ייבנה כרגיל.') if he else
-                    (f'{names} is not available yet. Build without it? If so, the spec says so and the rest is built as usual.')]
+            return [(f'{names} עדיין לא זמין אצלנו. לבנות בלעדיו? אם כן, זה ייכתב בסיכום שתאשרו, והשאר ייבנה כרגיל.') if he else
+                    (f'{names} is not available yet. Build without it? If so, the summary you confirm says so and the rest is built as usual.')]
         names = ', '.join(dict.fromkeys(R.display_name(k, lang) for k in keys))
         login = 'auth_session' in keys
         nxt = (('אפשר לבנות בלי התחברות — כתבו "בלי התחברות".' if login else 'ערכו את הבקשה בלעדיו.') if he else
@@ -504,7 +527,7 @@ class ConversationSupervisor:
         from ..intake.worker_route import ReservedWorkerInterpreter
         from ..intake import conversation_agent as agent
         caps, profile = B.caps_from_env(), None
-        if agent.enabled():                     # the agent's turn cap (owner 2026-11-18); every other account: no cap
+        if agent.enabled():                     # the agent's cost cap; no turn cap (owner 2026-11-23: the chat never ends)
             import dataclasses
             from ..providers import venice_gateway as VG
             caps = dataclasses.replace(caps, project_turns=agent.MAX_TURNS,
@@ -607,11 +630,12 @@ class ConversationSupervisor:
             return held
         from ..intake import approval_flow as AF
         t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief, self.plan_credits)
-        items = sorted(((k, v) for k, v in row.brief.fields.items() if k not in ('windows', 'windows_rejected')),
-                       key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)    # windows: their own choice below
-        summary = '; '.join(_label(k, v['value'], lang) + (_TXT['he' if lang == 'he' else 'en']['safe_suffix']
-                                                            if v.get('confidence') == SAFE_CONFIDENCE else '')
-                            for k, v in items[:8] if 'value' in v)
+        # The owner, 2026-11-23 ("סוכן ... להפוך את המלל לתוצאה מעולה"): the summary leads with what the customer cares
+        # about -- what the site is for, its parts, its content (the packages, the prices, "about us"), its look -- and
+        # not with "font: Heebo", "dates: none" or "login: none", which stay in the brief and in the build.
+        items = [(k, row.brief.fields[k]) for k in SUMMARY_FIELDS if k in row.brief.fields]
+        if row.brief.values().get('content_only') == 'yes':
+            items.append(('content_only', row.brief.fields['content_only']))
         turn.gate = 'spec'
         turn.venice = {'agent': 'agent.venice', 'mode': 'understanding', 'stage': t['stage1'],
                        'cost_range_credits': [lo, hi]}
@@ -627,6 +651,20 @@ class ConversationSupervisor:
         excluded = [(f'{R.display_name(k, lang)} עדיין לא זמין, ולכן ייבנה בלעדיו.' if lang == 'he' else
                      f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
                     for k in d.customer_exclusions(row.brief)]      # 77: said in the spec the customer approves
+        # the owner's example (2026-11-23, "זה מה שנבנה"): the same parts as a card the screen shows in place of one
+        # paragraph; the message below stays the record (spec_card.py)
+        from .spec_card import card as spec_card
+        card = spec_card(
+            stage=t['stage1'], lang=lang, excluded=excluded, canon_lines=list(canon['lines']),
+            price=AF.range_line(lang, lo, hi), next_step=t['gate1'],
+            rows=[_PRIVACY_ROW[lang if lang in _PRIVACY_ROW else 'en'] if k == 'content_only' else
+                  (_short(k, lang), d._label(d.BY_ID[k], v['value'], lang) if k in d.BY_ID else str(v['value']),
+                   v.get('confidence') == SAFE_CONFIDENCE) for k, v in items if 'value' in v])
+        turn.actions[-1]['card'] = card
+        # the message says each detail once too: its summary is the card's rows, where a segment that repeats a
+        # business detail word for word was already dropped (the detail stays in the canon line below)
+        safe = _TXT['he' if lang == 'he' else 'en']['safe_suffix']
+        summary = '; '.join(f"{r['label']}: {r['value']}" + (safe if r['default'] else '') for r in card['rows'])
         return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *excluded, *canon['lines'],
                 AF.range_line(lang, lo, hi), t['gate1']]
 
@@ -790,7 +828,7 @@ class ConversationSupervisor:
         lang = lang or language_of(row.brief.prompt if row else 'שלום')
         t, T = AF.text(lang), _TXT['he' if lang == 'he' else 'en']
         turn = Turn('approve_spec', lang, '', row)
-        shown = {'he': 'אישרתי את המפרט', 'ar': 'وافقت على المواصفات'}.get(lang, 'I approve the spec')
+        shown = {'he': AF.CONFIRM_BUTTON['he'], 'ar': 'وافقت على المواصفات'}.get(lang, AF.CONFIRM_BUTTON['en'])
         current = row is not None and row.complete and brief_fingerprint == row.fingerprint
         feasible = current and self._feasibility(row).get('buildable')
         if feasible and self._contract_open(row):
@@ -1048,6 +1086,21 @@ class ConversationSupervisor:
                 and agent.SUBJECT_ID in self._awaiting(project_id) and not agent.names_a_subject(new_brief.prompt)):
             # the answer to "what is this about?" is part of the request the build starts from, not a side remark
             new_brief.prompt = (new_brief.prompt.rstrip() + '\n' + message.strip()).strip()
+        if (agent.enabled() and row is not None and message and not answers
+                and agent.NAME_ID in self._awaiting(project_id) and not agent.declares_a_name(d.customer_text(new_brief))):
+            # the answer to "what is the business called?" joins the request as the customer's own "שם העסק:" line
+            line = agent.name_line(message)
+            if line:
+                new_brief.prompt = (new_brief.prompt.rstrip() + '\n' + line).strip()
+        if (agent.enabled() and row is not None and message and not answers
+                and agent.COLOUR_ID in self._awaiting(project_id) and agent.colour_unknown_business(row.brief)):
+            # row.brief, not new_brief: the interpreter already read the colours in the order they were written
+            # the answer to the colour question is the customer's "color" answer (source "answer"): their colours, most
+            # space first, or "category" when they left it to us -- recorded, never inferred
+            chosen = agent.colour_answer(message)
+            if chosen:
+                new_brief = intake_agent.answer_question(new_brief, 'color', chosen)
+                logging.getLogger(__name__).info('COLOUR_CHOICE project=%s choice=%s', project_id, chosen)
         # Persist only schema- and evidence-validated model decisions in the same
         # brief revision. They remain reviewable and bind to the normal approval
         # fingerprint; deterministic fallback cannot silently invent exclusions.
@@ -1062,12 +1115,15 @@ class ConversationSupervisor:
         if message:
             # #335 (Michael 2026-11-13): every fact the customer states (phone, e-mail, address, hours, a closed day) is
             # kept verbatim from EVERY message -- the "מה נכון?" loop lost the cafe's phone and hours from the fields.
-            d.note_customer_texts(new_brief, [message])
+            # task 62: read against the question it answers, as customer_messages does for the stored ones
+            asked = next((str(m.get('content') or '') for m in reversed(self._messages(project_id))
+                          if m.get('role') == 'assistant'), None)
+            d.note_customer_texts(new_brief, [d.answer_in_context(message, asked)])
         if len(attachments) == 1 and re.search(r'לוגו|\blogo\b', message, re.I):
             a = attachments[0]
             if re.fullmatch(r'att_[a-f0-9]{32}', a.get('id','')) and re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):
                 new_brief.assets['logo'] = {k:a[k] for k in ('id','sha256','mime','size_bytes')}
-                new_brief = d.answer(new_brief, {'logo':'later'})
+                new_brief = d.answer(new_brief, {'logo':'uploaded'})
         images = _bindable_images(attachments)
         decided = {img.get('sha256') for img in new_brief.assets.get('images') or ()}
         images = [a for a in images if a['sha256'] not in decided]    # an image whose role is decided is not re-asked
@@ -1152,6 +1208,10 @@ class ConversationSupervisor:
         if interp is not None and interp.reply and not res.conflicts:
             parts.append(interp.reply)
         stated = [x for x in res.applied if x['field'] not in {c['field'] for c in res.corrected}]
+        # the owner, 2026-11-23: when the model already said what it understood in its own words, the list of field
+        # labels ("הבנתי: צבע: ...") is not said again under it
+        if interp is not None and (interp.reply or '').strip() and str(getattr(interp, 'interpreter', '')).startswith('model'):
+            stated = []
         if stated:
             parts.append(f'{T["got"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in stated[:6]) + '.')
         if res.corrected:
@@ -1162,8 +1222,11 @@ class ConversationSupervisor:
                 parts.append(T['confirm_sensitive_words' if agent.enabled() else 'confirm_sensitive'].format(
                     field=_short(c['field'], lang)))
             else:
-                parts.append(T['conflict'].format(current=_label(c['field'], c['current'], lang),
-                                                  proposed=_label(c['field'], c['proposed'], lang)))
+                # the owner, 2026-11-23: one natural check, not "קודם נקבע ... לא שיניתי — מה נכון?"
+                q_ = d.BY_ID.get(c['field'])
+                val = (lambda v: d._label(q_, v, lang)) if q_ else str
+                parts.append(T['conflict'].format(field=_short(c['field'], lang), current=val(c['current']),
+                                                  proposed=val(c['proposed'])))
         short = [x for x in res.assumed if d.BY_ID.get(x['field']) and d.BY_ID[x['field']].kind == 'choice']
         if short:
             more = len(res.assumed) - len(short[:3])
@@ -1173,7 +1236,15 @@ class ConversationSupervisor:
         # the conversation agent asks what the product is about before anything else, and never offers the approval
         # of a request that does not say it (rehearsal 44126201300: "אתר" alone reached the approval in three turns)
         no_subject = agent.enabled() and not agent.names_a_subject(row.brief.prompt)
-        if row.complete and gap_q is None and not no_subject:
+        # 2026-11-22: a website is not offered for approval before the customer named the business (see NAME_QUESTION)
+        no_name = (agent.enabled() and not no_subject and d.is_website(row.brief)
+                   and not agent.declares_a_name(d.customer_text(row.brief))
+                   and self._times_asked(project_id, agent.NAME_ID) < agent.ASK_NAME_AT_MOST)
+        # the owner, 2026-11-22: a business we do not know is asked about colours once (see COLOUR_QUESTION)
+        no_colour = (agent.enabled() and not no_subject and not no_name and d.is_website(row.brief)
+                     and agent.colour_unknown_business(row.brief)
+                     and self._times_asked(project_id, agent.COLOUR_ID) < agent.ASK_COLOUR_AT_MOST)
+        if row.complete and gap_q is None and not no_subject and not no_name and not no_colour:
             feas = self._feasibility(row)
             if feas.get('buildable'):
                 if recorded:
@@ -1223,7 +1294,8 @@ class ConversationSupervisor:
         # conflict), the customer sees the model's own reply and question, not the detector's question, the
         # "chosen for you" list or quick-reply buttons. The detector still records the brief and decides
         # completeness; the approval gates, cost and blockers above stay authoritative and unchanged.
-        listening = not (row.complete and gap_q is None and not no_subject) and not res.conflicts and not turn.blocked
+        listening = (not (row.complete and gap_q is None and not no_subject and not no_name and not no_colour) and not res.conflicts
+                     and not turn.blocked)
         model_reply = (interp is not None and str(getattr(interp, 'interpreter', '')).startswith('model')
                        and bool((interp.reply or '').strip()))
         if listening and model_reply:
@@ -1255,6 +1327,19 @@ class ConversationSupervisor:
             base = _no_question(interp.reply.strip()) if model_reply else ''   # the model's own words, never a card list
             turn.reply = ((base or '') + ' ' + agent.SUBJECT_QUESTION['he' if lang == 'he' else 'en']).strip()
             turn.questions, turn.asked_in_words = [], [agent.SUBJECT_ID]
+            return turn
+        # never over a model failure: "the model refused / is busy" is the truth of this turn (found by
+        # tests/test_venice_refusal_is_not_spend.py on this change)
+        model_failed = turn.reply in (T['model_refused'], T['model_unavailable'])
+        if no_name and not res.conflicts and not turn.blocked and not turn.questions and not model_failed:
+            said = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
+            turn.reply = ((said or '') + ' ' + agent.NAME_QUESTION['he' if lang == 'he' else 'en']).strip()
+            turn.asked_in_words = [agent.NAME_ID]
+            return turn
+        if no_colour and not model_failed and not res.conflicts and not turn.blocked and not turn.questions:
+            words = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
+            turn.reply = ((words or '') + ' ' + agent.COLOUR_QUESTION['he' if lang == 'he' else 'en']).strip()
+            turn.asked_in_words = [agent.COLOUR_ID]
             return turn
         if agent.enabled() and turn.questions:
             # no card: the question is part of the reply, in words; it is still recorded as asked, so the next
@@ -1322,7 +1407,8 @@ class ConversationSupervisor:
                 continue
             kind = (((m.get('interpretation') or {}).get('limit')) or {}).get('kind')
             if kind:
-                return kind if kind in ('budget', 'turns') else None
+                # the owner, 2026-11-23: there is no turn cap, so a conversation closed at the old 8 turns is open again
+                return kind if kind == 'budget' else None
         return None
 
     def _last_assistant(self, project_id) -> dict | None:
@@ -1428,6 +1514,14 @@ class ConversationSupervisor:
             return turn.reply                     # the same short line over a NEW question card is progress, not a repeat
         alt = T['rephrase_q'] if turn.questions else T['rephrase']
         return alt if alt.strip() != (last.get('content') or '').strip() else alt + ' (' + T['ask_one'].rstrip(':') + ')'
+
+    def _times_asked(self, project_id, qid: str) -> int:
+        """How many assistant turns of this conversation asked `qid` (their stored `asked`), within the last 60 messages."""
+        try:
+            prev = self.store.messages_for(project_id, limit=60)
+        except Exception:
+            return 0
+        return sum(1 for m in prev if m.get('role') == 'assistant' and qid in ((m.get('interpretation') or {}).get('asked') or ()))
 
     def _awaiting(self, project_id) -> set:
         """What the last assistant turn waits for: the question ids it showed (`asked`) and the fields it said were
@@ -1535,7 +1629,7 @@ class ConversationSupervisor:
         said = '; '.join(label for _, _, label in labels)
         props = [Proposal(d.BY_ID[q].field, v, 'high', label) for q, v, label in labels if v != d.DELEGATE]
         if any(v == d.DELEGATE for _, v, _ in labels):
-            said += ' ' + ('you decide' if lang == 'en' else 'תחליט אתה')
+            said += ' ' + ('תחליט אתה' if lang == 'he' else 'you decide')
         return said, props, False
 
     @staticmethod

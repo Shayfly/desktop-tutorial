@@ -60,6 +60,18 @@ def run(prompt: str) -> dict:
     started = time.monotonic()
     engine, gateway = _live_components()
     report: dict = {'prompt': prompt}
+    # The content-document route, in the worker's order: right after the components, before any install that wraps
+    # the architect (worker_tasks._run_live_build_job). The rehearsal has no account: OMNI_SITE_LIBRARY=on exercises it.
+    # The worker fails a customer's build on any error here (an unknown OMNI_SITE_LIBRARY value, an empty account
+    # list): the rehearsal stops the same way, before any spend -- it never builds and judges the legacy path while the
+    # route was intended. install() changes nothing on the engine before everything that can raise is resolved.
+    site_error = None
+    try:
+        from . import site_content
+        report['site_route'] = site_content.install(engine, prompt=prompt, gateway=gateway, request=None).to_dict()
+    except Exception as exc:
+        site_error = f'{type(exc).__name__}: {exc}'[:1500]
+        report.update(site_route_error=site_error[:300], outcome='exception', error=site_error)
     # Same requirements-aware acceptance scope a real build gets from its contract.
     try:
         from .product_architect import ProductArchitect
@@ -75,6 +87,8 @@ def run(prompt: str) -> dict:
     try:
         from .page_locale import install as install_page_locale
         install_page_locale(engine, prompt)
+        from .share_preview import install as install_share_preview
+        install_share_preview(engine)
         from .product_review import install_review_request
         report['review_request_installed'] = install_review_request(engine, prompt)
         from .fact_canon import install_facts
@@ -109,6 +123,8 @@ def run(prompt: str) -> dict:
     except Exception as exc:
         report['g_apple_error'] = f'{type(exc).__name__}: {exc}'[:300]
     try:
+        if site_error is not None:          # the worker fails here too: no build, no spend
+            raise RuntimeError(f'the content route could not be decided, so the build did not start: {site_error}')
         result = engine.build(prompt)
     except Exception as exc:
         report.update(outcome='exception', error=f'{type(exc).__name__}: {exc}'[:1500])
@@ -141,6 +157,8 @@ def run(prompt: str) -> dict:
     report['runtime_load'] = runtime_load_report(engine)
     from .game_runtime import report as game_runtime_report
     report['game_runtime'] = game_runtime_report(engine)
+    from .site_content import report as site_route_report
+    report['site_route'] = site_route_report(engine) or report.get('site_route')
     report['failure_taxonomy'] = getattr(engine, 'failure_taxonomy', [])
     report['first_pass'] = getattr(engine, 'first_pass', None)
     spent, calls = spend_snapshot(gateway)
@@ -213,6 +231,9 @@ def annotations(report: dict) -> list[str]:
     lines.append(note('release policy', json.dumps(
         {k: policy.get(k) for k in ('decision', 'reason', 'blocking', 'rights_clear')}, ensure_ascii=False)
         + '\nnot run: ' + json.dumps([f"{n['stage']}/{n['check']}" for n in policy.get('not_run') or []])))
+    if report.get('site_route_error'):
+        lines.append('::error title=site route::the route could not be decided, so a customer\'s build would fail the '
+                     'same way; the rehearsal did not build: ' + str(report['site_route_error']).replace('\n', ' '))
     if policy.get('decision') not in (None, 'READY', 'NOT_RUN'):
         lines.append('::error title=release policy::a customer\'s build would FAIL: '
                      + '; '.join(policy.get('blocking') or [str(policy.get('reason'))]).replace('\n', ' ')[:1500])

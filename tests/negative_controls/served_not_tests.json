@@ -1,0 +1,27 @@
+{
+ "pr": "served-not-tests",
+ "sha256": [
+  "tests/test_served_files_exclude_tests.py",
+  "omni_prod/skill_units/gate.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a test file is judged as served again (bld_59236dc6 failed on tests/test_cohen_law.py)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": " and not _TEST_FILE.search(path)]",
+     "new": "]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_served_files_exclude_tests.py"
+   ],
+   "expect_failed": [
+    "test_served_of_leaves_out_test_files",
+    "test_g5_passes_a_page_whose_only_unknown_image_is_in_a_test"
+   ]
+  }
+ ]
+}

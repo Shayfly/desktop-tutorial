@@ -249,7 +249,8 @@ class ProductArchitect:
         from .semantic_capabilities import read_approved
         # #309 + 77: both read the prompt with its lines intact (`clean` collapses the newlines the marker needs)
         semantic_decisions = read_approved(prompt) + read_customer_exclusions(prompt)
-        decision = self.brain.decide(intent, semantic_decisions=semantic_decisions)
+        # D5 reads the brief's content-site line, which `intent` (the customer's words only) does not carry
+        decision = self.brain.decide(intent, semantic_decisions=semantic_decisions, full_prompt=prompt)
         capability_plan = decision.capabilities
         capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())
         # Demand-driven infrastructure, bound into the immutable contract.

@@ -1,0 +1,26 @@
+{
+ "pr": "share-preview",
+ "sha256": ["tests/test_share_preview_by_construction.py", "omni_prod/share_preview.py", "omni_prod/worker_tasks.py"],
+ "controls": [
+  {"id": "NC1", "what": "the worker builds without the share rule (a customer's link shows no preview again)",
+   "mutations": [{"file": "omni_prod/worker_tasks.py", "old": "        install_share_preview(engine)\n", "new": "        pass\n"}],
+   "targets": ["tests/test_share_preview_by_construction.py"],
+   "expect_failed": ["test_the_worker_and_the_rehearsal_install_it"]},
+  {"id": "NC2", "what": "a Python template that no longer compiles is written anyway (the build breaks)",
+   "mutations": [{"file": "omni_prod/share_preview.py", "old": "                continue                                  # the template string cannot take it: left as written\n", "new": "                pass\n"}],
+   "targets": ["tests/test_share_preview_by_construction.py"],
+   "expect_failed": ["test_a_python_template_is_changed_only_if_it_still_compiles"]},
+  {"id": "NC3", "what": "a test file the builder wrote is rewritten",
+   "mutations": [{"file": "omni_prod/share_preview.py", "old": "        if not isinstance(text, str) or _TEST_FILE.search(path):\n", "new": "        if not isinstance(text, str):\n"}],
+   "targets": ["tests/test_share_preview_by_construction.py"],
+   "expect_failed": ["test_tests_are_never_touched"]},
+  {"id": "NC4", "what": "a page that already has og:title gets a second one",
+   "mutations": [{"file": "omni_prod/share_preview.py", "old": "    if title and not metas.get('og:title'):\n", "new": "    if title:\n"}],
+   "targets": ["tests/test_share_preview_by_construction.py"],
+   "expect_failed": ["test_a_page_that_has_them_is_left_exactly_as_written"]},
+  {"id": "NC5", "what": "the description is not shortened: a whole paragraph lands in the preview",
+   "mutations": [{"file": "omni_prod/share_preview.py", "old": "    if len(text) <= DESCRIPTION_MAX:\n", "new": "    if True:\n"}],
+   "targets": ["tests/test_share_preview_by_construction.py"],
+   "expect_failed": ["test_no_meta_description_takes_the_first_paragraph_shortened"]}
+ ]
+}

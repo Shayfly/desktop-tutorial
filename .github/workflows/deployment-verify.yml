@@ -42,11 +42,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false   # no GITHUB_TOKEN left in .git/config while the verifier runs
           fetch-depth: 0               # the reset rule reads when the latest migration landed in main
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with: {python-version: "3.12"}
       # Michael 2026-11-11 (319): the preview's own database is reset if it predates the latest migration in main,
       # then the PR's OWN migrations run on it -- before verify, which never ran migrations itself.
@@ -87,7 +87,7 @@ jobs:
               f.write(f"## Deployment verification: {r['verdict']}\n\n{r['reason']}\n\n| check | status |\n|---|---|\n")
               f.writelines(f"| {c['check']} | {c['status']} |\n" for c in r['checks'])
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: deployment-verification

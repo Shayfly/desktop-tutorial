@@ -24,7 +24,9 @@ for f in $(printf '%s\n' $files | sort -u | grep '\.json$' || true); do
   python3 -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$f" \
     || { echo "::error title=invalid json::$f"; exit 4; }
 done
-git add $(printf '%s\n' $files | sort -u)
+# a path the merge deletes is already staged and is not on disk: git add would refuse it (found merging ops-bundle,
+# 2026-11-22: smoke/ci-last-run.md); add only what exists
+git add -- $(for f in $(printf '%s\n' $files | sort -u); do [ -e "$f" ] && echo "$f"; done)
 [ -z "$(git diff --name-only --diff-filter=U)" ] || { echo "refusing to commit: unmerged paths remain"; exit 5; }
 git commit -q --no-edit
 echo "committed $(git log --oneline -1)"

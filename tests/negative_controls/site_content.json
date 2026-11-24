@@ -1,0 +1,793 @@
+{
+ "pr": "site-content",
+ "sha256": [
+  "tests/test_site_content_validate.py",
+  "tests/test_site_content_route.py",
+  "tests/test_site_content_render.py",
+  "tests/test_site_content_owners.py",
+  "tests/test_site_content_engine.py",
+  "omni_prod/site_content/validate.py",
+  "omni_prod/site_content/facts.py",
+  "omni_prod/site_content/render.py",
+  "omni_prod/site_content/owners.py",
+  "omni_prod/site_content/__init__.py",
+  "omni_prod/autonomous_core.py",
+  "omni_prod/site_content/numbers.py",
+  "tests/test_site_content_agents.py",
+  "omni_prod/site_content/agents.py",
+  "omni_prod/worker_tasks.py",
+  "omni_prod/rehearsal.py",
+  "tests/test_rehearsal_installs_the_request.py",
+  "omni_prod/site_content/schema.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a phone the model wrote in copy is allowed (FACT_IN_COPY no longer reads phones)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    if (shown or odd or F._EMAIL.search(plain) or",
+     "new": "    if (F._EMAIL.search(plain) or"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_every_code_has_a_failing_document",
+    "test_a_model_written_phone_is_refused_wherever_it_is"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "INVENTED_NUMBER is dropped: a number the customer never wrote reaches the page",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    if invented:\n",
+     "new": "    if False and invented:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_a_customer_number_counts_only_what_the_customer_counted",
+    "test_a_number_the_customer_never_wrote_is_refused_even_as_a_stat",
+    "test_a_number_written_in_words_is_a_number",
+    "test_every_code_has_a_failing_document",
+    "test_facts_written_as_words_are_caught"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "wa.me is emitted without WhatsApp: the only mobile becomes WhatsApp though the customer never named it",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "    if not mentions:\n        return None, None, every\n",
+     "new": "    if False:\n        return None, None, every\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py"
+   ],
+   "expect_failed": [
+    "test_a_named_whatsapp_goes_to_the_labelled_number_or_the_only_mobile_never_a_landline"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the design contract's fingerprint is not checked: a page is rendered against another contract",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/render.py",
+     "old": "    if contract.get('fingerprint') != expect_fp:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_render.py"
+   ],
+   "expect_failed": [
+    "test_a_contract_or_a_bind_that_does_not_match_is_refused"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "content_only_approved is ignored: a brief that is not content-only takes the route",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    if not content_only_approved(prompt):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py"
+   ],
+   "expect_failed": [
+    "test_every_legacy_reason"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the RepairDeclined catch is removed: a platform defect crashes the build instead of ending it on its best version",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "            except RepairDeclined as exc:\n                # the content route (omni_prod/site_content): a platform-owned failure stops without a paid round\n                self.trace.append({'round': rounds, 'repair_declined': exc.stop_reason, 'detail': exc.detail[:400],\n                                   'paid_call': exc.paid_call})\n                if not exc.paid_call:\n                    rounds -= 1          # declined before any model call: this repair round did not run\n                stop_reason = exc.stop_reason\n                break\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_engine.py::TheLoopStopsOnADecline"
+   ],
+   "expect_failed": [
+    "test_a_declined_repair_ends_on_the_best_version_with_its_reason"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "an OWNER table entry is removed: a gate unit the chain produces has no owner",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/owners.py",
+     "old": "    'gate-G4-perf_inline_image_weight': 'platform',\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_owners.py"
+   ],
+   "expect_failed": [
+    "test_every_id_the_chain_can_produce_has_an_owner",
+    "test_the_copy_gates_are_content_and_the_layout_gates_are_the_platforms"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the negation check is removed: a customer who said 'אין לנו וואטסאפ' gets a wa.me link on their page",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "    if any(negated(text, at) for text, at in mentions):\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py"
+   ],
+   "expect_failed": [
+    "test_a_whatsapp_the_customer_says_no_to_takes_the_legacy_path"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the labelled branch accepts a landline: a landline is sent to wa.me",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "        if F.parse_phone(by_value[labelled[0]]).kind != 'mobile':\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py"
+   ],
+   "expect_failed": [
+    "test_a_landline_labelled_whatsapp_is_never_sent_to_wa_me"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the WhatsApp label crosses a sentence again: the next sentence's landline is 'labelled' WhatsApp",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "([^\\d\\n.!?;]{0,15}?)",
+     "new": "([^\\d\\n]{0,15}?)"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py"
+   ],
+   "expect_failed": [
+    "test_a_whatsapp_label_never_crosses_a_sentence_or_another_label"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a customer number is accepted for anything it is attached to (the bare-value check): the price-free 3 lawyers become '3 שנות ניסיון', '3 עשורים'",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "        elif not _bound(m, sheet, context):\n",
+     "new": "        elif False:\n"
+    },
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "        elif not _bound(N.Mention(number, 'digits', value, 0, 0, words, ()), sheet):\n",
+     "new": "        elif False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_a_customer_number_counts_only_what_the_customer_counted"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "Hebrew number words are not read: 'שישה עורכי דין' and 'עשרים שנות ניסיון' pass where the customer wrote 3",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/numbers.py",
+     "old": "            value, used = _parse_words(tokens, i)\n",
+     "new": "            value, used = None, 0\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_a_number_written_in_words_is_a_number",
+    "test_facts_written_as_words_are_caught"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "a price's digits are a number the copy may use again: 250 of '250 ₪' may be shown as anything",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "    masked = _PRICE.sub(lambda m: ' ' * len(m.group(0)), clean)\n",
+     "new": "    masked = clean\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_render.py::TheProductionRow"
+   ],
+   "expect_failed": [
+    "test_the_sheet_is_the_truth_gates_canon"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "always-open claims in words are not hours: 'בכל שעות היממה, כל ימות השבוע' reaches a page whose customer gave Sun-Thu 09-18",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "            or F._HOURS.search(plain) or _LINK.search(plain) or _ALWAYS_OPEN.search(plain)):",
+     "new": "            or F._HOURS.search(plain) or _LINK.search(plain)):"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_facts_written_as_words_are_caught"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "a star rating the customer never gave is allowed (★★★★★)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "        bad += [m.group(0) for m in _STARS.finditer(plain)]\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_facts_written_as_words_are_caught"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "copy may send visitors to a WhatsApp the customer does not have ('ונמשיך את השיחה בוואטסאפ')",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    if not sheet.whatsapp and _WHATSAPP_WORD.search(plain):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_facts_written_as_words_are_caught"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "details written as words are not recorded: an invented attorney, a former judge, branches in other cities",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    details = _details(plain, sheet)\n",
+     "new": "    details = []\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_facts_written_as_words_are_caught",
+    "test_every_code_has_a_failing_document"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "a price the customer gave may vanish from the page (PRICE_NOT_SHOWN dropped)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    if missing:\n        out.append(Problem('sections', 'PRICE_NOT_SHOWN',",
+     "new": "    if False:\n        out.append(Problem('sections', 'PRICE_NOT_SHOWN',"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_every_code_has_a_failing_document"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "a price may be attached to a service the customer never priced ('ליווי תיק מלא: 250 ₪')",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "        elif not _price_in_context(sheet.price(ref), text[:m.start()], context):",
+     "new": "        elif False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_every_code_has_a_failing_document",
+    "test_every_page_price_is_shown_next_to_its_own_label"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "copy may call free what the customer priced ('ללא עלות' over 250 ₪)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    if free and sheet.prices:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_every_code_has_a_failing_document",
+    "test_facts_written_as_words_are_caught"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "the customer's budget for the build becomes a page price the model sees and must show",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "        if _BUILD_PRICE.search(label) or _BUILD_PRICE.search(clause.split('.')[0]):",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_a_build_budget_is_never_a_page_price_and_the_customers_own_free_is_theirs"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "a price is no longer a fact the served page must show (spans without prices)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "        return [s for s in (self.phone, self.whatsapp, self.email, self.address, *self.hours,\n                            *(p['span'] for p in self.prices)) if s]",
+     "new": "        return [s for s in (self.phone, self.whatsapp, self.email, self.address, *self.hours) if s]"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_render.py::TheRepositoryRunsItsOwnTests"
+   ],
+   "expect_failed": [
+    "test_the_fixed_tests_pass_against_the_fixed_server"
+   ]
+  },
+  {
+   "id": "NC23",
+   "what": "any substring of the customer's text may be the business name again: 'תל אביב' becomes the title, logo and og:title",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "        if not name_allowed(name, sheet.name_candidates):",
+     "new": "        if ' '.join(name.split()) not in ' '.join(sheet.customer.split()):"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_validate.py"
+   ],
+   "expect_failed": [
+    "test_with_no_declared_name_the_name_is_one_the_customer_quoted"
+   ]
+  },
+  {
+   "id": "NC24",
+   "what": "a brief with no declared and no quoted name takes the route, and the model chooses the name",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    if not sheet.name and not sheet.name_candidates:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py"
+   ],
+   "expect_failed": [
+    "test_every_legacy_reason"
+   ]
+  },
+  {
+   "id": "NC25",
+   "what": "the library's bare skips are dropped from the evidence again: an offered section the model left out vanishes",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "                      skipped=skipped_report(skipped, lib_skipped, offered, doc),",
+     "new": "                      skipped=[f'{k}: {why}' for k, why in skipped] + [s for s in lib_skipped if ':' in s],"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheGenerator"
+   ],
+   "expect_failed": [
+    "test_every_section_the_page_does_not_show_is_said_with_its_reason"
+   ]
+  },
+  {
+   "id": "NC26",
+   "what": "a refused rewrite after a verified round raises again: the verified work is thrown away as site_content_invalid",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            raise RepairDeclined('site_content_invalid', str(exc), paid_call=self.agent.calls > called) from exc",
+     "new": "            raise"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheRepairer"
+   ],
+   "expect_failed": [
+    "test_a_refused_rewrite_ends_the_loop_on_its_best_version"
+   ]
+  },
+  {
+   "id": "NC27",
+   "what": "a round declined before any model call is counted as a repair round again ('after 1 repair round(s) ... no paid round')",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "                if not exc.paid_call:\n                    rounds -= 1          # declined before any model call: this repair round did not run\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_engine.py::TheLoopStopsOnADecline"
+   ],
+   "expect_failed": [
+    "test_a_declined_repair_ends_on_the_best_version_with_its_reason"
+   ]
+  },
+  {
+   "id": "NC28",
+   "what": "the advisory filter sits outside the quality gate again: a round it passes skips the quality assessment",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "        quality._inner = A.AdvisoryFilterExecutor(quality._inner, core, recorder)\n        core.executor = A.SiteParityExecutor(core.executor, core, parity_mode)\n",
+     "new": "        core.executor = A.SiteParityExecutor(A.AdvisoryFilterExecutor(core.executor, core, recorder), core,\n                                             parity_mode)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheAdvisoryFilter"
+   ],
+   "expect_failed": [
+    "test_a_reviewer_finding_never_fails_the_release"
+   ]
+  },
+  {
+   "id": "NC29",
+   "what": "a pass made of advisory findings carries no test count: the release policy reads the sandbox tests as UNKNOWN",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            tests = base.tests_executed if base is not None and base.passed else report.tests_executed\n",
+     "new": "            tests = report.tests_executed\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheAdvisoryFilter"
+   ],
+   "expect_failed": [
+    "test_a_reviewer_finding_never_fails_the_release"
+   ]
+  },
+  {
+   "id": "NC30",
+   "what": "the review record still counts the reviewer's advisory finding as blocking: the release policy fails the build",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        self._reconcile_review(record=report.passed)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheAdvisoryFilter"
+   ],
+   "expect_failed": [
+    "test_a_reviewer_finding_never_fails_the_release"
+   ]
+  },
+  {
+   "id": "NC31",
+   "what": "the rehearsal swallows an install error and builds the legacy path the route was meant to replace",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "        if site_error is not None:          # the worker fails here too: no build, no spend\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_installs_the_request.py::TheContentRouteIsInstalledAsInTheWorker"
+   ],
+   "expect_failed": [
+    "test_an_unknown_flag_value_stops_the_rehearsal_as_it_stops_the_worker"
+   ]
+  },
+  {
+   "id": "NC32",
+   "what": "install changes the engine before a setting that can raise is read: a half-installed route",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    parity_mode = G.mode('SITE_PARITY')\n",
+     "new": "    core.architect = A.ContentSpecArchitect(core, route)\n    parity_mode = G.mode('SITE_PARITY')\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_installs_the_request.py::TheContentRouteIsInstalledAsInTheWorker"
+   ],
+   "expect_failed": [
+    "test_a_route_that_cannot_be_installed_leaves_the_engine_untouched"
+   ]
+  },
+  {
+   "id": "NC33",
+   "what": "the sign-in stage's crash id as the group names it (AUTHFORM) has no owner",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/owners.py",
+     "old": "    'AUTHFORM': 'platform',                   # the same stage as the group names it (verification_group.layer_id)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_owners.py"
+   ],
+   "expect_failed": [
+    "test_every_id_the_chain_can_produce_has_an_owner",
+    "test_the_group_names_every_stage_the_chain_appends"
+   ]
+  },
+  {
+   "id": "NC34",
+   "what": "the generated tests' script/style regex is escaped twice again: a fact inside a script counts as shown",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/render.py",
+     "old": "    page = re.sub(r\"(?s)<(script|style)\\\\b.*?</\\\\1>\", \" \", page)",
+     "new": "    page = re.sub(r\"(?s)<(script|style)\\\\\\\\b.*?</\\\\\\\\1>\", \" \", page)"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_render.py::TheRepositoryRunsItsOwnTests"
+   ],
+   "expect_failed": [
+    "test_the_fixed_tests_can_fail"
+   ]
+  },
+  {
+   "id": "NC35",
+   "what": "the generated order test reads the whole page again: the header menu passes sections out of order",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/render.py",
+     "old": "        at = [self.main.find(name) for name in FACTS[\"order\"]]",
+     "new": "        at = [self.text.find(name) for name in FACTS[\"order\"]]"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_render.py::TheRepositoryRunsItsOwnTests"
+   ],
+   "expect_failed": [
+    "test_the_fixed_tests_can_fail"
+   ]
+  },
+  {
+   "id": "NC36",
+   "what": "the pre-pass truth gate reads the rendered page instead of the page as served (images inlined, cut at 45,000)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "    served = transform({R.PAGE: html})[R.PAGE] if callable(transform) else html\n",
+     "new": "    served = html\n"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::ThePrepass"
+   ],
+   "expect_failed": [
+    "test_the_truth_gate_reads_the_page_as_served_cut_at_45000",
+    "test_an_invented_fact_past_the_cut_is_caught_on_the_whole_page"
+   ]
+  },
+  {
+   "id": "NC37",
+   "what": "a gate in warn mode blocks before the sandbox",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            out['block' if mode == 'block' else 'warn'].append({**failure, 'owner': O.owner_of(failure['acceptance_id'])})",
+     "new": "            out['block'].append({**failure, 'owner': O.owner_of(failure['acceptance_id'])})"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::ThePrepass"
+   ],
+   "expect_failed": [
+    "test_a_gate_in_warn_mode_never_blocks"
+   ]
+  },
+  {
+   "id": "NC38",
+   "what": "a rewrite may set paths it was not given",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        if outside:\n            raise SiteContentInvalid(f'the rewrite set paths it was not given: {outside}')\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheRepairer"
+   ],
+   "expect_failed": [
+    "test_a_rewrite_of_a_path_it_was_not_given_is_refused",
+    "test_a_refused_rewrite_ends_the_loop_on_its_best_version"
+   ]
+  },
+  {
+   "id": "NC39",
+   "what": "a document still invalid after its one correction is rendered",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            if V.blocking(problems):\n                report['problems']",
+     "new": "            if False:\n                report['problems']"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheGenerator"
+   ],
+   "expect_failed": [
+    "test_a_document_still_invalid_after_its_one_correction_fails_loudly"
+   ]
+  },
+  {
+   "id": "NC40",
+   "what": "a finding the customer owns ends as a platform defect instead of asking the customer",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        if by_owner['customer']:",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheRepairer"
+   ],
+   "expect_failed": [
+    "test_a_finding_the_customer_owns_asks_the_customer"
+   ]
+  },
+  {
+   "id": "NC41",
+   "what": "SITE_PARITY never finds a served page that is not the rendered one",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            if pages['/'] != str(repository.get(R.PAGE, ''))[:PREVIEW_CUT]:",
+     "new": "            if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheParityCheck"
+   ],
+   "expect_failed": [
+    "test_the_served_page_is_the_rendered_page_and_the_only_page"
+   ]
+  },
+  {
+   "id": "NC42",
+   "what": "the worker reports site_content_invalid as a generic failure",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "    if isinstance(exc, SiteContentInvalid):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheWorker"
+   ],
+   "expect_failed": [
+    "test_the_failure_codes"
+   ]
+  },
+  {
+   "id": "NC43",
+   "what": "the release message no longer says the failure is the platform's renderer",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        platform_defect = getattr(result, 'stop_reason', '') in ('platform_render_defect', 'unowned_finding')",
+     "new": "        platform_defect = False"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheWorker",
+    "tests/test_site_content_engine.py::TheLoopStopsOnADecline"
+   ],
+   "expect_failed": [
+    "test_the_release_message_of_a_declined_round",
+    "test_a_declined_repair_ends_on_the_best_version_with_its_reason"
+   ]
+  },
+  {
+   "id": "NC44",
+   "what": "a build that raised loses its 'site_route' evidence",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "'site_route': _site_route_evidence(engine),",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_agents.py::TheWorker"
+   ],
+   "expect_failed": [
+    "test_the_site_route_evidence_on_both_paths"
+   ]
+  }
+ ]
+}

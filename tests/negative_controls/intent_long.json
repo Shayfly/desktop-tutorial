@@ -1,0 +1,45 @@
+{
+ "pr": "intent-long",
+ "sha256": [
+  "tests/test_long_request_is_not_a_question.py",
+  "omni_prod/conversation/supervisor.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a long request is classified by its phrases again (production 2026-11-19: a FAQ line made it a cost question)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "    if not _is_short_question(t):\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_long_request_is_not_a_question.py"
+   ],
+   "expect_failed": [
+    "test_the_production_brief_is_requirements",
+    "test_a_long_change_request_after_a_version_is_a_modification",
+    "test_through_the_real_supervisor_the_model_reads_the_brief"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a two-line short question counts as a request",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "    return len(lines) <= 2 and len(text) <= QUESTION_MAX_CHARS",
+     "new": "    return len(lines) <= 0 and len(text) <= QUESTION_MAX_CHARS  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_long_request_is_not_a_question.py"
+   ],
+   "expect_failed": [
+    "test_short_questions_are_still_questions"
+   ]
+  }
+ ]
+}

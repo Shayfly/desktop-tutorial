@@ -1,0 +1,43 @@
+{
+ "pr": "function-region",
+ "sha256": [
+  "tests/test_function_region.py",
+  "vercel.json"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the functions go back to Vercel's default region (iad1, Washington): every database query crosses the Atlantic again",
+   "mutations": [
+    {
+     "file": "vercel.json",
+     "old": "  \"regions\": [\"fra1\"],\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_function_region.py"
+   ],
+   "expect_failed": [
+    "test_the_functions_run_in_frankfurt_with_the_database_queue_storage_and_worker"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "one function is pinned to another region and its queries cross the Atlantic",
+   "mutations": [
+    {
+     "file": "vercel.json",
+     "old": "      \"maxDuration\": 120,\n",
+     "new": "      \"maxDuration\": 120,\n      \"regions\": [\"iad1\"],\n"
+    }
+   ],
+   "targets": [
+    "tests/test_function_region.py"
+   ],
+   "expect_failed": [
+    "test_no_function_overrides_the_region_back_to_another_continent"
+   ]
+  }
+ ]
+}

@@ -827,9 +827,13 @@ COPY_QUALITY = Skill(
         'invented facts); if the owner must fill it, put it in an owner-only settings field. Never invent a phone or '
         'WhatsApp number, a street address, an e-mail, or testimonials with customer names: show only those the '
         'request gives; without a number, a WhatsApp/phone button is left out (CEO 2026-11-09). Testimonials: only '
-        'those the request gives; sample ones carry a visible "(לדוגמה)" label.'),
+        'those the request gives, quoted as given. When the request asks for reviews but gives none, leave that '
+        'section out (the owner adds real ones later); if a sample is shown instead, its heading carries '
+        '"(לדוגמה)" and it names no person -- no invented first names (2026-11-21: the generator and the reviewer '
+        'read the same rule).'),
     checklist=('No placeholder, English leftover or invented business fact appears in the product.',
-               'No phone number, address or named testimonial that the request did not give.',
+               'No phone number or address that the request did not give; no testimonial that the request did not '
+               'give unless its heading says "(לדוגמה)" and it names no person.',
                'Buttons name their outcome; errors say how to fix the problem.'),
     static_checks=(_placeholder_copy, _invented_contact),
 )
@@ -846,8 +850,13 @@ LANDING_CONVERSION = Skill(
         'answers real objections, and a final call to action; the same primary action (call, WhatsApp, form) is visible '
         'on a phone without scrolling and repeated at the end. SEO basics in <head>: a unique <title> under 60 '
         'characters, meta description under 160, lang/dir, Open Graph title/description, canonical-friendly clean '
-        'URLs, one h1, and structured data (JSON-LD LocalBusiness) when an address or hours were given.'),
+        'URLs, one h1, and structured data (JSON-LD LocalBusiness) when an address or hours were given. It looks '
+        'professional, not like a bare page (the owner, 2026-11-19): at least four separate <section> blocks; a hero with '
+        'a visual (the provided image, or an inline SVG / CSS background); services or benefits as a grid of cards, each '
+        'with a short title and one line; a numbers or trust strip only from facts the customer gave; a consistent '
+        'type scale, generous spacing, and one accent colour used for the actions.'),
     checklist=('The main call to action is visible above the fold on a phone and repeated at the end.',
+               'At least four sections, a hero visual, and services shown as a grid of cards.',
                'Title, meta description and Open Graph tags are present and specific.'),
 )
 

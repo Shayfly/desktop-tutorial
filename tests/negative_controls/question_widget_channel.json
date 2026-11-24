@@ -1,0 +1,77 @@
+{
+ "pr": "windows-route",
+ "sha256": [
+  "tests/test_question_widget_needs_a_channel.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the widget is offered with no channel again",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "        out = [w for w in out if w['id'] != 'question_widget' or w['state'] is not None]\n",
+     "new": "        out = out\n"
+    }
+   ],
+   "targets": [
+    "tests/test_question_widget_needs_a_channel.py"
+   ],
+   "expect_failed": [
+    "test_the_owners_salon_with_a_phone_only_is_not_offered_it",
+    "test_a_negated_whatsapp_is_no_channel"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "an e-mail address is not a channel",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "    return bool(sheet.whatsapp or sheet.email)",
+     "new": "    return bool(sheet.whatsapp)"
+    }
+   ],
+   "targets": [
+    "tests/test_question_widget_needs_a_channel.py"
+   ],
+   "expect_failed": [
+    "test_whatsapp_or_email_brings_it_back"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a site that saves data loses the widget too",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "    if _content_only(v, 'none' if v.get('login') == 'none' else 'x') and not _question_channel(brief.prompt):",
+     "new": "    if not _question_channel(brief.prompt):"
+    }
+   ],
+   "targets": [
+    "tests/test_question_widget_needs_a_channel.py"
+   ],
+   "expect_failed": [
+    "test_a_site_that_is_not_content_only_keeps_it"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a decision already made is hidden",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "        out = [w for w in out if w['id'] != 'question_widget' or w['state'] is not None]",
+     "new": "        out = [w for w in out if w['id'] != 'question_widget']"
+    }
+   ],
+   "targets": [
+    "tests/test_question_widget_needs_a_channel.py"
+   ],
+   "expect_failed": [
+    "test_a_decision_already_made_is_never_hidden"
+   ]
+  }
+ ]
+}

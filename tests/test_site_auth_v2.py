@@ -26,7 +26,11 @@ BASELINE_SHA = '2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49'
 # instruction): the text_locale probe _time_ranges_isolated and its guidance sentence.
 # 2026-11-15 21:07 (bdi-in-the-prompt, declared in docs/identity/allowed-identity-changes.json): the hidden wrap is
 # removed from page_locale; the bdi rule and the visible-text test helper are in the prompt.
-BASELINE_DIGEST = '80008d63a02475929b7db9449691d7673bdc1c27cc950e9b98a593baff0044a7'
+# 2026-11-20 (design-minimum-pro, declared in docs/identity/allowed-identity-changes.json, signed by the owner's
+# instruction): the PRO gate's unit and LANDING_CONVERSION's professional-shape guidance.
+# 2026-11-21 (testimonials-one-rule, declared in docs/identity/allowed-identity-changes.json, signed by the owner's
+# instruction): skill.copy_quality's testimonial guidance and checklist say the same rule.
+BASELINE_DIGEST = 'd1655f300092b184cb37a267328dd1987eebff27a476dcc63285e3286a2fcd33'
 
 
 def _digest(flag: str) -> str:
