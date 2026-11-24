@@ -1,3 +1,9 @@
+# 2026-11-24 — A2 approved reference comparison candidate (#523; NOT LIVE)
+
+- Google Search Grounding standard terms restrict automated link collection and indexing; no Google Grounding collector was committed or enabled. See docs/spec/a2-approved-research.md.
+- Additive A2 adapter uses the existing library; explicit revision-bound owned/licensed grants, 3–8 fresh approved sources, closed-structure model input, source evidence binding and validated three-reference recommendation. No network or model calls; no build approval.
+- Local evidence on main 851217c8: 33 focused/related tests and 5 subtests, 9/9 negative controls, fast 1042/480. Live rights-grant store, acquisition provider, metered Gemini transport and integration are pending.
+
 # 2026-11-23 — tonight's fixes: the build no longer dies on a picture nobody asked for, the chat never ends, the phone (Claude Code)
 
 - **Merged** (all CI green on the exact head; the owner's approval in the chat): #514 `d6eb690` (build count from 2026-11-23),
