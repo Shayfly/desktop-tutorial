@@ -1,3 +1,9 @@
+# 2026-11-24 — A1 owner routing candidate (#523; NOT LIVE)
+
+- Venice agent profile prefers Gemini 3.5 Flash Lite, then Claude Haiku 5.5 when the primary is ineligible before contact. Existing account scope and single-call reservation preserved. Direct/non-Venice path unchanged.
+- Tested on main 674811c: 43 focused tests and 9 subtests, 14/14 negative controls, fast suite 1040 tests and 480 subtests. Provider HTTP intercepted; no paid call.
+- Pending: exact-head CI, independent technical review, live catalog/JSON/account/worker canaries and release. A2–A8 tools/skills and orchestration remain separate work.
+
 # 2026-11-23 — tonight's fixes: the build no longer dies on a picture nobody asked for, the chat never ends, the phone (Claude Code)
 
 - **Merged** (all CI green on the exact head; the owner's approval in the chat): #514 `d6eb690` (build count from 2026-11-23),
