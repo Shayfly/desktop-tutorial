@@ -59,6 +59,85 @@ Object.assign(T.en, {
   k_p: 'Paragraph', k_li: 'List item', k_label: 'Label', k_nav: 'Menu', k_form: 'Form', k_table: 'Table', k_any: 'Element',
   inPage: p => `on page ${p}`, selectedDesc: 'The selected element', near: x => `near "${x}"`, inFile: f => `in ${f}`,
 });
+// Arabic (2026-11-22, translated and independently reviewed)
+Object.assign(T.ar, {
+  attachImage: "إرفاق صورة أو لقطة شاشة",
+  attachedImage: "صورة مرفقة",
+  removeImage: "إزالة الصورة",
+  imgType: "يمكنكم إرفاق صور PNG أو JPEG أو WebP فقط.",
+  imgTooBig: "الصورة كبيرة جدًا حتى بعد تصغيرها (بحد أقصى 3MB).",
+  imgMax: "يمكنكم إرفاق حتى 6 صور في الرسالة الواحدة.",
+  imgUploading: "جارٍ رفع الصور…",
+  editTitle: "تعديل",
+  hideEditor: "إغلاق التعديل",
+  showEditor: "تعديل",
+  resizeEditor: "اسحبوا لتغيير عرض لوحة التعديل",
+  pickElement: "اختيار عنصر لتعديله",
+  picking: "وضع الاختيار: انقروا على الجزء الذي تريدون تغييره (أو المسوه). Esc للإلغاء.",
+  stopPicking: "إنهاء الاختيار",
+  inspectorMissing: "الاختيار المباشر في المعاينة غير متاح هنا بعد. أرفقوا لقطة شاشة وضعوا علامة عليها، أو صِفوا ما تريدون بالكلمات.",
+  edPick: "1. ماذا تريدون أن تغيّروا؟",
+  edPickHint: "اضغطوا على \"اختيار عنصر\"، ثم انقروا على الجزء الذي تريدون تغييره في المعاينة. على الهاتف — المسوه.",
+  edShot: "أو: لقطة شاشة مع علامة",
+  edShotAdd: "إرفاق لقطة شاشة",
+  annotTools: "أدوات وضع العلامات",
+  annotCanvas: "لقطة الشاشة — اسحبوا لوضع علامة",
+  toolRect: "إطار",
+  toolDraw: "رسم",
+  toolClear: "مسح",
+  remove: "إزالة",
+  edWhat: "2. ماذا تريدون أن نفعل؟",
+  edWhatPh: "مثلًا: أن يصبح أخضر وأكبر",
+  edSend: "تنفيذ التغيير",
+  selected: "تم الاختيار",
+  clearSel: "إلغاء",
+  foundAt: "موجود في الكود",
+  notFound: "لم أجد هذا العنصر في الكود بشكل مؤكد. يمكنكم أن تَصِفوا بالكلمات ما تريدون تغييره — لن أغيّر عنصرًا بالتخمين.",
+  ambiguous: "هذا العنصر يظهر في عدة أماكن. أيّها تقصدون؟",
+  noneOfThese: "لا شيء منها — سأَصِف بالكلمات",
+  chooseOne: "اختاروا أولًا أيّ مكان تقصدون (أو \"لا شيء منها\").",
+  needWhat: "اكتبوا باختصار ما تريدون تغييره.",
+  needVersion: "لا توجد نسخة لتغييرها بعد. ابنوا المنتج أولًا.",
+  changeRunning: "هناك تغيير قيد التنفيذ بالفعل. انتظروا حتى ينتهي.",
+  edQueued: "تم إرسال التغيير. نبني نسخة مقترحة ونُجري الفحوصات…",
+  edReview: "اجتازت النسخة المقترحة الفحوصات. هل توافقون عليها؟",
+  edAccepted: "تمت الموافقة على التغيير وحُفظ كنسخة جديدة.",
+  edFailed: "لم ينجح التغيير: ",
+  compare: "مقارنة قبل / بعد",
+  compareOff: "إغلاق المقارنة",
+  undo: "التراجع عن التغيير",
+  undoConfirm: "هل تريدون العودة إلى النسخة التي سبقت التغيير؟ ستُنشأ نسخة جديدة مطابقة لها.",
+  undone: "عدنا إلى النسخة التي سبقت التغيير.",
+  before: "قبل",
+  after: "بعد",
+  cmpStarting: "جارٍ تشغيل معاينة النسخة السابقة…",
+  paneChat: "المحادثة",
+  panePreview: "المعاينة",
+  paneEdit: "تعديل",
+  shotNote: "تُحفظ لقطة الشاشة في المشروع وتُرسَل مع التغيير كسياق (من دون تحليل تلقائي للصورة).",
+  k_button: "زر",
+  k_a: "رابط",
+  k_input: "حقل",
+  k_textarea: "حقل نصّي",
+  k_select: "قائمة",
+  k_img: "صورة",
+  k_h: "عنوان",
+  k_p: "فقرة",
+  k_li: "بند في قائمة",
+  k_label: "تسمية",
+  k_nav: "قائمة التنقّل",
+  k_form: "استمارة",
+  k_table: "جدول",
+  k_any: "عنصر",
+  inPage: p => `في الصفحة ${p}`,
+  selectedDesc: "العنصر المختار",
+  near: x => `بالقرب من "${x}"`,
+  inFile: f => `في الملف ${f}`,
+});
+// plain words on the preview screen (the owner, 2026-11-22; app.js "For everyone")
+Object.assign(T.he, { pickElement: 'בחירת חלק לשינוי', edPickHint: 'לחצו "בחירת חלק לשינוי" ואז על החלק שתרצו לשנות. בטלפון — הקישו עליו.' });
+Object.assign(T.en, { pickElement: 'Pick a part to change', edPickHint: 'Press "Pick a part to change", then click the part you want to change. On a phone, tap it.' });
+Object.assign(T.ar, { pickElement: 'اختيار جزء لتغييره', edPickHint: 'اضغطوا "اختيار جزء لتغييره" ثم على الجزء الذي تريدون تغييره. على الهاتف — المسوه.' });
 
 const VE = (() => {
   const MAX_IMAGES = 6, MAX_BYTES = 3 * 1024 * 1024, MAX_SIDE = 2000;
@@ -160,10 +239,11 @@ const VE = (() => {
     const bar = $('inspectBar');
     if (on && !st.ready) {
       bar.hidden = false; bar.className = 'inspectBar warn'; bar.replaceChildren(h('span', {}, t('inspectorMissing')));
+      setPane('preview');   // review F4 (2026-11-22): the warning lives in the preview; from the edit pane it was never seen
     } else if (st.inspecting) {
       bar.hidden = false; bar.className = 'inspectBar';
       bar.replaceChildren(h('span', {}, t('picking')), h('button', { type: 'button', class: 'ghost', onclick: () => setInspect(false) }, t('stopPicking')));
-      if (mobile()) setPane('preview');
+      setPane('preview');
     } else bar.hidden = true;
     render();
   }
@@ -175,7 +255,7 @@ const VE = (() => {
   };
   async function onSelection(sel) {
     st.selection = sel; st.located = null; st.chosen = null; st.describe = false; $('edMsg').textContent = '';
-    if (mobile()) setPane('edit');
+    setPane('edit');
     render();
     const vid = currentVersionId(); if (!vid) return;
     try {
@@ -291,7 +371,7 @@ const VE = (() => {
     st.compare = !st.compare;
     const stage = $('stage'); stage.classList.toggle('comparing', st.compare);
     $('cmpPane').hidden = !st.compare; $('cmpAfterLabel').hidden = !st.compare;
-    if (mobile() && st.compare) setPane('preview');
+    if (st.compare) setPane('preview');
     renderResult();
     if (!st.compare || !S.lastChange) return;
     const wait = $('cmpWait'); wait.hidden = false; wait.textContent = t('cmpStarting'); $('compareFrame').hidden = true;
@@ -314,7 +394,18 @@ const VE = (() => {
   /* ---------- layout: panes, editor width, mobile tabs ---------- */
   function setPane(p) {
     st.pane = p; ws().dataset.pane = p;
-    document.querySelectorAll('#mobileTabs button[data-pane]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pane === p ? 'true' : 'false'));
+    const selected = p === 'edit' ? 'preview' : p;
+    const versions = p === 'versions';
+    $('chatCol').setAttribute('aria-labelledby', versions ? 'workspaceTabVersions' : 'workspaceTabChat');
+    $('workspaceTabVersions').setAttribute('aria-controls', 'chatCol');
+    $('workspaceTabPreview').setAttribute('aria-controls', p === 'edit' ? 'editor' : 'stage');
+    if (versions) { S.tab = 'versions'; renderTabs(); }
+    else if (S.tab === 'versions') { S.tab = null; renderTabs(); }
+    for (const button of document.querySelectorAll('#mobileTabs button[data-pane]')) {
+      const active = button.dataset.pane === selected;
+      button.setAttribute('aria-selected', String(active));
+      button.tabIndex = active ? 0 : -1;
+    }
   }
   function setEditWidth(px) {
     const v = Math.max(240, Math.min(480, px));
@@ -427,16 +518,28 @@ const VE = (() => {
     try {
       if (localStorage.getItem('148ai_editor') === 'hidden') ws().classList.add('editor-hidden');
       const w = Number(localStorage.getItem('148ai_edit_w')); if (w) setEditWidth(w);
-      // Three working areas need the room: the project list starts as a drawer
-      // on screens narrower than 1600 px unless the person opened it before.
-      if (window.innerWidth < 1600 && !localStorage.getItem('148ai_sb') && !localStorage.getItem('148ai_sb_open')) ws().classList.add('sb-collapsed');
+      // The project rail stays open on a computer, as in the owner's example (2026-11-23); it closes only when the person
+      // closes it (148ai_sb, app.js). The old 1600px rule served three side-by-side areas, which the shell no longer has.
     } catch { /* defaults */ }
     syncSidebar();
     $('sbOpen').addEventListener('click', () => { try { localStorage.setItem('148ai_sb_open', '1'); } catch { /* */ } });
-    // Mobile: Chat / Preview / Edit.
-    document.querySelectorAll('#mobileTabs button[data-pane]').forEach(b => b.addEventListener('click', () => setPane(b.dataset.pane)));
-    $('togglePreviewBtn').addEventListener('click', () => { if (mobile()) setPane(st.pane === 'preview' ? 'chat' : 'preview'); });
-    $('closePreviewBtn').addEventListener('click', () => { if (mobile()) setPane('chat'); });
+    $('previewEditBtn').addEventListener('click', () => setPane('edit'));
+    // Project navigation is shared between desktop and mobile.
+    const tabs = [...document.querySelectorAll('#mobileTabs button[data-pane]')];
+    tabs.forEach(b => b.addEventListener('click', () => setPane(b.dataset.pane)));
+    $('mobileTabs').addEventListener('keydown', event => {
+      const index = tabs.indexOf(event.target);
+      if (index < 0 || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+      event.preventDefault();
+      const rtl = document.documentElement.dir === 'rtl';
+      const step = (event.key === 'ArrowLeft') === rtl ? 1 : -1;
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + step + tabs.length) % tabs.length;
+      tabs[next].click();
+      tabs[next].focus();
+    });
+    $('togglePreviewBtn').addEventListener('click', () => setPane(st.pane === 'preview' ? 'chat' : 'preview'));
+    $('closePreviewBtn').addEventListener('click', () => setPane('chat'));
+    $('editorClose').addEventListener('click', () => setPane('preview'));
     setPane('chat');
     // The editor separator: drag (pointer) or arrow keys.
     const sp = $('editSplitter'); const rtl = () => document.documentElement.dir === 'rtl';

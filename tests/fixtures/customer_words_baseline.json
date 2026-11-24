@@ -1,0 +1,8 @@
+{
+ "_about": "Platform words still in customer text, per file (omni_prod.customer_words.scan). A ratchet: a count may only go down; the conversation route is not listed because it is zero.",
+ "counts": {
+  "omni_prod/assets/app.js": {
+   "לשונית": 1
+  }
+ }
+}

@@ -1,0 +1,22 @@
+{
+ "pr": "windows-fit",
+ "sha256": ["tests/test_windows_fit_the_business.py", "omni_prod/window_catalog.py", "omni_prod/discovery.py"],
+ "controls": [
+  {"id": "NC1", "what": "the approval screen offers every window to every site again (a cart to a law firm)",
+   "mutations": [{"file": "omni_prod/discovery.py", "old": "rejected_windows(brief), text=brief.prompt)", "new": "rejected_windows(brief))"}],
+   "targets": ["tests/test_window_approval.py"],
+   "expect_failed": ["test_gate_1_offers_the_windows_that_fit_with_their_benefit_and_no_decision_yet"]},
+  {"id": "NC2", "what": "a window the customer decided on disappears from the screen when the request gives no reason for it",
+   "mutations": [{"file": "omni_prod/window_catalog.py", "old": "set(relevant(text)) | approved | rejected", "new": "set(relevant(text))"}],
+   "targets": ["tests/test_windows_fit_the_business.py"],
+   "expect_failed": ["test_a_decided_window_is_never_hidden"]},
+  {"id": "NC3", "what": "a word inside another word counts (סל in סלט offers a cart to a restaurant)",
+   "mutations": [{"file": "omni_prod/window_catalog.py", "old": "r'(?:' + words + r')(?=$|[\\s\"\\'),.:;!?\\-–—])'", "new": "r'(?:' + words + r')'"}],
+   "targets": ["tests/test_windows_fit_the_business.py"],
+   "expect_failed": ["test_a_word_inside_another_word_is_not_a_reason"]},
+  {"id": "NC4", "what": "a new window with no offer rule is offered to nobody, in silence",
+   "mutations": [{"file": "omni_prod/window_catalog.py", "old": "    if missing:\n        raise KeyError(f'windows with no offer rule: {sorted(missing)}')\n", "new": "    pass\n"}],
+   "targets": ["tests/test_windows_fit_the_business.py"],
+   "expect_failed": ["test_a_window_without_an_offer_rule_raises"]}
+ ]
+}

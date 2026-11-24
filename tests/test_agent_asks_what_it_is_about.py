@@ -24,6 +24,13 @@ class AsksWhatItIsAbout(unittest.TestCase):
         self.assertEqual(r['transcript'][0]['asked'], [agent.SUBJECT_ID])
         self.assertIn(agent.SUBJECT_QUESTION['he'], r['transcript'][0]['agent'])
         self.assertNotIn('לשונית', r['transcript'][0]['agent'])
+        # 2026-11-22 (#500, CI): customer-words renamed 'לשונית' to 'מסך' in the card texts, so the word alone no longer
+        # found the card's leftovers and agent_subject NC5 went unseen. The card's own texts, from the supervisor's
+        # table, are what must not stand in front of the subject question.
+        from omni_prod.conversation.supervisor import _TXT
+        said, T = r['transcript'][0]['agent'], _TXT['he']
+        for leftover in (T['assumed'], T['ask_one'], T['more'].split('{n}')[1].strip()):
+            self.assertNotIn(leftover, said)
 
     def test_the_answer_joins_the_request(self):
         sup = R._Supervisor(Scripted())
@@ -34,7 +41,10 @@ class AsksWhatItIsAbout(unittest.TestCase):
     def test_no_approval_without_a_subject(self):
         sup = R._Supervisor(Scripted())
         for m in ['אתר', 'כן, רק להציג מידע ומחירים, לא שומרים כלום מהמבקרים', 'לא, רק הטלפון שלי מופיע באתר',
-                  'תחליטו אתם על השאר', 'תחליטו אתם על השאר', 'תחליטו אתם על השאר']:
+                  'תחליטו אתם על השאר', 'תחליטו אתם על השאר', 'תחליטו אתם על השאר',
+                  # 2026-11-22: a website is also asked its name (twice at most) and, for a business we do not know,
+                  # its colours (once) -- enough turns that, without the subject question, the approval WOULD appear
+                  'תחליטו אתם על השאר', 'תחליטו אתם על השאר', 'תחליטו אתם על השאר', 'תחליטו אתם על השאר']:
             t = sup.turn(project_id='q', account_id='a', message=m, lang='he')
             if agent.names_a_subject(sup.briefs.latest('q').brief.prompt):
                 break

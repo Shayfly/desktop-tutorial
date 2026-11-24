@@ -313,9 +313,12 @@ class SupervisorTests(unittest.TestCase):
         # gate 1 (owner 2026-10-26): the spec + a cost range, no plan before the customer approves the spec
         self.assertIsNone(t4.plan_id)
         # 2026-11-10: the fact canon (Michael condition 2) travels with the approve-spec action.
-        self.assertEqual([{k: v for k, v in a.items() if k != 'canon'} for a in t4.actions],
+        # 2026-11-23: the approve-spec action also carries 'card' (the owner's example spec card), tested in
+        # tests/test_spec_card.py; excluded here as 'canon' is, so this stays a check of the action's identity.
+        self.assertEqual([{k: v for k, v in a.items() if k not in ('canon', 'card')} for a in t4.actions],
                          [{'type': 'approve_spec', 'brief_revision': t4.brief_row.revision,
                            'brief_fingerprint': t4.brief_row.fingerprint}])
+        self.assertIn('card', t4.actions[0])
         self.assertEqual(t4.actions[0]['canon']['status'], 'OK')     # an internal app needs no phone/address
         self.assertIn('שלב 1 מתוך 2', t4.reply)
         self.assertEqual(self.store.plans, {})
@@ -335,15 +338,15 @@ class SupervisorTests(unittest.TestCase):
         self.assertIn('Nothing is missing', self.say('what is missing?').reply)
         before = self.say('how much will it cost?')                 # before gate 1: the range, never hidden
         self.assertEqual(before.intent, 'cost')
-        self.assertIn('Cost estimate: 45–200 credits', before.reply)
+        self.assertIn('Estimate: this build takes between 45 and 200 from your balance.', before.reply)
         early = self.say('go ahead and build it')                    # no build approval before the spec is approved
         self.assertEqual(early.intent, 'approve')
         self.assertEqual([a['type'] for a in early.actions], ['approve_spec'])
         self.sup.approve_spec(project_id='p1', account_id='a1', brief_fingerprint=early.brief_row.fingerprint, lang='en')
         cost = self.say('how much will it cost?')
         self.assertEqual(cost.intent, 'cost')
-        self.assertIn('10 credits', cost.reply)
-        self.assertIn('$0.50', cost.reply)
+        self.assertIn('This build takes 10 from your balance.', cost.reply)
+        self.assertNotIn('$', cost.reply)          # plain words 2026-11-21: the model spending cap is not the customer's to read
         self.assertIn('No build has started', self.say("what's the status?").reply)
         ok = self.say('go ahead and build it')
         self.assertEqual(ok.intent, 'approve')

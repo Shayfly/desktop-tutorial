@@ -679,7 +679,10 @@ class AcceptanceW(unittest.TestCase):
             return
         proc = subprocess.run(
             [sys.executable, '-m', 'unittest', *_NON_FASTAPI_TEST_MODULES],
-            cwd=repo_root, env=env, capture_output=True, text=True, timeout=300,
+            # 2026-11-22: 300 s was the edge -- the same tree passed on 0d68dae and timed out on 1d33ae9 (run 44987201227),
+            # whose only change was a workflow file. The ceiling the owner named for AcceptanceW is 600 s; the CI job's
+            # own limit (20 min) still holds with it.
+            cwd=repo_root, env=env, capture_output=True, text=True, timeout=600,
         )
         self.assertEqual(proc.returncode, 0,
                          f'regression suite failed:\nSTDOUT:\n{proc.stdout[-3000:]}\nSTDERR:\n{proc.stderr[-3000:]}')

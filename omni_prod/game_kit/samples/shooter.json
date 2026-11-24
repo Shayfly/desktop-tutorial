@@ -1,0 +1,46 @@
+{
+ "schema": "148ai.game/1",
+ "kind": "shooter",
+ "title": "משמר הכוכבים",
+ "lang": "he",
+ "texts": {
+  "start": "הגנו על הבסיס. חצים לזוז, רווח לירות.",
+  "win": "כל הגלים הובסו!",
+  "lose": "הבסיס נפל",
+  "score": "נקודות"
+ },
+ "palette": {
+  "bg": "#14213d",
+  "player": "#4cc9f0",
+  "enemy": "#f72585",
+  "item": "#fee440",
+  "ground": "#3a0ca3",
+  "text": "#ffffff"
+ },
+ "player": {
+  "speed": 6,
+  "jump": 1,
+  "lives": 3
+ },
+ "time_limit_s": 120,
+ "levels": [
+  {
+   "waves": [
+    {
+     "count": 6,
+     "speed": 2
+    },
+    {
+     "count": 10,
+     "speed": 4
+    },
+    {
+     "count": 14,
+     "speed": 6
+    }
+   ]
+  }
+ ],
+ "sound": true,
+ "seed": 11
+}

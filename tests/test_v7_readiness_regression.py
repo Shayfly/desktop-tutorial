@@ -85,13 +85,14 @@ class V7ReadinessTests(unittest.TestCase):
     def test_missing_quote_is_explained_without_bypassing_admission(self):
         js = (ASSETS / "app.js").read_text(encoding="utf-8")
         self.assertIn("p.blockers.some(b => b.code === 'cost_quote_unknown' || b.code === 'cost_quote_unavailable')", js)
-        self.assertIn("היתרה המוצגת אינה אישור לבנייה", js)
+        self.assertIn("titles.push(t('quoteUnverified'));", js)
+        self.assertIn("quoteUnverified:'לחלק ממה שביקשתם עוד אין לנו מחיר, ולכן אי אפשר להתחיל לבנות.'", js)
         self.assertIn("disabled: !p.can_build", js)
 
     def test_project_quota_has_distinct_client_remedy(self):
         js = (ASSETS / "app.js").read_text(encoding="utf-8")
         self.assertIn("err.detail.code === 'project_limit_reached'", js)
-        self.assertIn("זו אינה בעיית קרדיטים", js)
+        self.assertIn("זו לא בעיה של יתרה", js)
         self.assertIn("err.detail.active_projects", js)
         self.assertIn("err.detail.max_projects", js)
 

@@ -21,7 +21,7 @@ import json
 import re
 
 VERSION = 1
-TYPE_PX = (12, 14, 16, 20, 24, 32, 40, 56)
+TYPE_PX = (12, 14, 16, 20, 24, 32, 40, 56, 72)   # 72: a bold direction's headline (the owner 2026-11-20)
 SPACE_PX = (0, 4, 8, 16, 24, 32, 48, 64, 96)
 WEIGHTS = (400, 700)
 RADIUS_PX = 8
@@ -33,6 +33,9 @@ _HEX = re.compile(r'#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b')
 # (primary, accent, background, text: ...); font 'Heebo', system-ui, sans-serif (load it from Google Fonts ...)"
 _DESIGN = re.compile(r'Design: style (?P<style>[\w-]+); (?P<colours>.*?); font (?P<font>[^;()]{1,200}?) \(')
 _PALETTE = re.compile(r'palette ((?:#[0-9a-fA-F]{3,6}(?:, )?){4})')
+# the owner 2026-11-20 (international level): a heading font of its own, e.g. a Hebrew serif for a law firm. Optional:
+# "display font 'Frank Ruhl Libre', serif" on the Design line; without it, headings use the body font.
+_DISPLAY = re.compile(r"display font (?P<display>[^;()\n]{1,200}?)(?=;|\s\(|$)", re.M)
 
 
 class ContractError(ValueError):
@@ -100,10 +103,13 @@ def build(prompt: str) -> dict:
     muted = _readable(_mix(text, bg, 0.35), bg, MIN_TEXT_CONTRAST)
     border = _mix(bg, text, 0.18)
     family = ' '.join(line.group('font').split())
+    design_line = block[1][line.start():].split('\n', 1)[0]
+    display_m = _DISPLAY.search(design_line)
+    display = ' '.join(display_m.group('display').split()) if display_m else family
     tokens = {
         '--color-bg': bg, '--color-surface': surface, '--color-text': text, '--color-muted': muted,
         '--color-border': border, '--color-primary': primary, '--color-on-primary': on_primary,
-        '--font-family': family,
+        '--font-family': family, '--font-display': display,
         **{f'--text-{px}': f'{px}px' for px in TYPE_PX},
         **{f'--space-{px}': f'{px}px' for px in SPACE_PX if px},
         '--weight-regular': str(WEIGHTS[0]), '--weight-bold': str(WEIGHTS[1]),
@@ -135,6 +141,8 @@ def rules(contract: dict) -> str:
         '--color-primary. Text on the primary colour is --color-on-primary.',
         f"- Sizes: font-size only var(--text-...); margin, padding and gap only var(--space-...) or 0. No other px "
         f"value except {HAIRLINE_PX[0]}px/{HAIRLINE_PX[1]}px borders. Layout widths use %, rem, ch, fr or max-width.",
+        '- Fonts: body text var(--font-family); headings may use var(--font-display). Load both from Google Fonts '
+        'with display=swap when they differ.',
         '- Weights: only var(--weight-regular) and var(--weight-bold). No third weight.',
         '- Corners: only var(--radius) (or 50% for a circle). Motion: only var(--motion-fast|base) with var(--motion-ease).',
         '- Every button, link and field has five states: default, :hover, :focus-visible (a visible outline), :active, '

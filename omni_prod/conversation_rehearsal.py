@@ -340,7 +340,7 @@ def main(argv=None) -> int:
             from .intake import conversation_agent as agent
             gateway = ProductionPathGateway(q, cap_usd=min(project_cap(prod['quote']), agent.MAX_COST_USD),
                                             max_turns=agent.MAX_TURNS)
-            print(f"::notice title=conversation limits::per conversation: {agent.MAX_TURNS} turns, "
+            print(f"::notice title=conversation limits::per conversation: {agent.MAX_TURNS or 'no limit on'} turns, "
                   f"${gateway.cap_usd} (worst case checked before each call, as reserve() does)")
         else:
             gateway = ProductionPathGateway(q)

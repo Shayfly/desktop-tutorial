@@ -46,7 +46,7 @@ jobs:
             admin|maintain|write|triage) echo "::notice title=inbox gate::labeller $SENDER has $perm";;
             *) echo "::error title=inbox gate::labeller $SENDER has '$perm' -- not copied"; exit 1;;
           esac
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: inbox
       - name: Write the issue body to inbox/<NNN>.md

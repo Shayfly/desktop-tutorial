@@ -70,6 +70,9 @@ CALIBRATING = (
     'G8',        # runtime and load (omni_prod/runtime_load)
     'GAME',      # a game plays (omni_prod/game_runtime)
     'APPLE',     # the design gate: contract, refusal list, render, two reviewers (omni_prod/g_apple)
+    'PRO',       # professional minimum of a business site (skill_units/design_minimum; owner 2026-11-19)
+    'SITE_CLAIMS',   # content route: a superlative no fact supports, in the model's copy (omni_prod/site_content)
+    'SITE_PARITY',   # content route: the served page is the rendered page, and the only page (omni_prod/site_content)
 )
 # Calibrated 2026-11-19 on the five builds that carry gate evidence (bld_a875456f, bld_77899122, bld_a9643012,
 # bld_d36b3b4e, bld_b0de74d5): G1, G10 and G5 passed all five, and each unit's broken fixture proves the fall on a
@@ -214,7 +217,7 @@ def install(engine, gate: str) -> list[str]:
 
 # Every gate a build runs, in the order the worker installs them. One list: the rehearsal installs the same gates, so a
 # calibration build cannot check less than a customer's build.
-WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE', 'G5')
+WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE', 'G5', 'PRO')
 MAX_CALIBRATION_FINDINGS = 3      # per failure, in the evidence of a gate that is still calibrating
 MAX_FINDING_CHARS = 200
 

@@ -19,8 +19,7 @@
     "tests/test_content_extension_is_not_a_conflict.py"
    ],
    "expect_failed": [
-    "test_the_whatsapp_line_extends_the_content",
-    "test_the_same_text_with_other_separators_and_one_more_fact_extends_it"
+    "test_the_whatsapp_line_extends_the_content"
    ]
   },
   {
@@ -37,7 +36,7 @@
     "tests/test_content_extension_is_not_a_conflict.py"
    ],
    "expect_failed": [
-    "test_a_changed_fact_is_a_conflict"
+    "test_a_changed_fact_replaces_its_own_clause_and_is_said_back"
    ]
   }
  ]

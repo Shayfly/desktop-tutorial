@@ -1,0 +1,103 @@
+name: Drill C16 (merge on red, non-admin)
+
+# Monthly drill C16 (CONTROLS.json): main's protection refuses a merge on red when a NON-ADMIN identity asks (the bot's
+# GITHUB_TOKEN; enforce_admins is off, so an admin attempt proves nothing). First run by hand on 2026-11-21 (run
+# 44932418710, the red drill PR #484). Since 2026-11-21 (the owner: Codex's tasks, monthly drills automation, are
+# Claude's) it runs on main by itself, on the 1st and the 16th: twice a month, so one failed run never lets the monthly
+# record lapse; registry_lint R3 reads these runs from GitHub (drill_workflow, tools/drill_runs_from_github.py).
+#
+# The drill makes its own red PR and removes it: a branch with one no-op file, a PR, and the two required checks (test,
+# validate) completed as failure on its head by this workflow (the protection reads checks by name on the head commit;
+# what is drilled is the protection, not CI). Events made with GITHUB_TOKEN start no workflow, so no real check runs on
+# the drill head. Expected, stated before every run: the merge with sha pinned to that head -> HTTP 405 naming the
+# required status checks, and main does not move. HTTP 200 = C16 is broken for non-admins: the stop sign fires, the
+# no-op file is on main, and an issue says so. A setup error is NOT RUN, never PASS.
+on:
+  schedule:
+    - cron: '17 3 1,16 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: drill-c16
+  cancel-in-progress: false
+
+jobs:
+  c16-merge-on-red:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write        # the drill branch and its no-op file; removed at the end
+      pull-requests: write   # the drill PR, the merge attempt, the close
+      checks: write          # the two red required checks on the drill head
+      issues: write          # a failed drill opens an issue
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BR: drill/c16-${{ github.run_id }}
+    steps:
+      - name: C16 -- a red drill PR, and the bot tries to merge it
+        id: drill
+        run: |
+          set -uo pipefail
+          repo="$GITHUB_REPOSITORY"; today=$(date -u +%F)
+          notrun() { echo "::error title=C16 NOT RUN (drill setup)::$1"; exit 1; }
+          main_before=$(gh api "repos/$repo/git/ref/heads/main" --jq .object.sha) || notrun "cannot read main"
+          gh api -X POST "repos/$repo/git/refs" -f ref="refs/heads/$BR" -f sha="$main_before" >/dev/null \
+            || notrun "cannot create the drill branch $BR"
+          echo "branch=$BR" >> "$GITHUB_OUTPUT"
+          note="C16 drill $today (run $GITHUB_RUN_ID). This file must never reach main: if it is on main, main's protection let a non-admin merge on red."
+          head=$(gh api -X PUT "repos/$repo/contents/smoke/drills/c16-red-on-purpose.md" -f branch="$BR" \
+                   -f message="C16 drill: red on purpose, never merge" -f content="$(printf '%s\n' "$note" | base64 -w0)" \
+                   --jq .commit.sha) || notrun "cannot commit the no-op file"
+          pr=$(gh api -X POST "repos/$repo/pulls" -f head="$BR" -f base=main \
+                 -f title="C16 drill $today: red on purpose, never merge" \
+                 -f body="Monthly drill C16 (.github/workflows/drill-c16.yml, run $GITHUB_RUN_ID): the bot must be refused. This PR is closed by the drill itself." \
+                 --jq .number) || notrun "cannot open the drill PR"
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          for name in test validate; do
+            gh api -X POST "repos/$repo/check-runs" -f name="$name" -f head_sha="$head" -f status=completed \
+              -f conclusion=failure -f "output[title]=C16 drill: red on purpose" \
+              -f "output[summary]=A required check completed as failure by the C16 drill; the merge must be refused." >/dev/null \
+              || notrun "cannot complete the required check $name as failure"
+          done
+          red=$(gh api "repos/$repo/commits/$head/check-runs" --jq '[.check_runs[] | select(.name=="test" or .name=="validate") | .name + "=" + (.conclusion // "pending")] | sort | join(",")')
+          echo "::notice title=C16 drill PR::#$pr head=$head main=$main_before required checks: $red"
+          [ "$red" = "test=failure,validate=failure" ] || notrun "the drill head does not read red on both required checks ($red)"
+          m=null
+          for i in $(seq 1 10); do                       # bounded: GitHub computes mergeability after the PR opens
+            m=$(gh api "repos/$repo/pulls/$pr" --jq '.mergeable'); [ "$m" != "null" ] && break; sleep 3
+          done
+          echo "::notice title=C16 mergeable (no conflict) as computed by GitHub::$m"
+          [ "$m" = "true" ] || notrun "the drill PR is not mergeable for another reason ($m): a refusal would prove nothing"
+          code=$(curl -s -o "$RUNNER_TEMP/merge.json" -w '%{http_code}' -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$repo/pulls/$pr/merge" -d "{\"sha\":\"$head\",\"merge_method\":\"merge\"}")
+          msg=$(jq -r .message "$RUNNER_TEMP/merge.json" 2>/dev/null | tr '\n' ' ' | cut -c1-300)
+          main_after=$(gh api "repos/$repo/git/ref/heads/main" --jq .object.sha)
+          echo "::notice title=C16 merge attempt as the bot::HTTP $code: $msg"
+          echo "::notice title=C16 main before / after::$main_before / $main_after"
+          if [ "$code" = "405" ] && [ "$main_before" = "$main_after" ] && printf '%s' "$msg" | grep -qi 'status check'; then
+            echo "::notice title=C16 PASS::a non-admin merge on red was refused (HTTP 405, required status checks) and main did not move"
+          else
+            echo "::error title=C16 FAIL::expected HTTP 405 naming the required status checks with main unchanged; got HTTP $code ($msg), main $main_before -> $main_after"
+            exit 1
+          fi
+      - name: Close the drill PR and delete its branch
+        if: always()
+        run: |
+          set -uo pipefail
+          repo="$GITHUB_REPOSITORY"; pr="${{ steps.drill.outputs.pr }}"; br="${{ steps.drill.outputs.branch }}"
+          if [ -n "$pr" ]; then
+            gh api -X PATCH "repos/$repo/pulls/$pr" -f state=closed --jq '"closed #" + (.number|tostring) + " state=" + .state'
+          fi
+          if [ -n "$br" ]; then
+            gh api -X DELETE "repos/$repo/git/refs/heads/$br" && echo "deleted $br"
+          fi
+      - name: A failed drill opens an issue
+        if: failure()
+        run: |
+          gh api -X POST "repos/$GITHUB_REPOSITORY/issues" -f title="DRILL FAILED: C16 merge on red ($(date -u +%F))" \
+            -f "labels[]=drill-failed" \
+            -f body="The scheduled drill C16 failed or could not run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. FAIL means main's protection let a non-admin merge on red (check main for smoke/drills/c16-red-on-purpose.md and revert it); NOT RUN means the drill itself could not be set up."

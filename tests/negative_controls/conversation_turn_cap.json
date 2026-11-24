@@ -6,7 +6,7 @@
  "controls": [
   {
    "id": "NC1",
-   "what": "the agent's turns are reserved with no turn cap",
+   "what": "the agent's cost cap is not applied",
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
@@ -18,17 +18,16 @@
     "tests/test_conversation_turn_cap.py"
    ],
    "expect_failed": [
-    "test_the_agent_account_reserves_under_the_8_turn_cap",
     "test_the_agent_cost_cap_never_follows_a_raised_global_cap"
    ]
   },
   {
    "id": "NC2",
-   "what": "every account gets the 8-turn cap, not only the agent",
+   "what": "every account gets the agent's caps, not only the agent",
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
-     "old": "        if agent.enabled():                     # the agent's turn cap (owner 2026-11-18); every other account: no cap\n",
+     "old": "        if agent.enabled():                     # the agent's cost cap; no turn cap (owner 2026-11-23: the chat never ends)\n",
      "new": "        if True:  # NEGATIVE CONTROL\n"
     }
    ],
@@ -36,7 +35,6 @@
     "tests/test_conversation_turn_cap.py"
    ],
    "expect_failed": [
-    "test_every_other_account_has_no_turn_cap",
     "test_the_agent_cost_cap_never_follows_a_raised_global_cap"
    ]
   },
@@ -160,6 +158,41 @@
    ],
    "expect_failed": [
     "test_the_agent_cost_cap_never_follows_a_raised_global_cap"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the 8-turn cap comes back (the owner, 2026-11-23: the chat never ends)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "MAX_TURNS = None",
+     "new": "MAX_TURNS = 8  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap.py"
+   ],
+   "expect_failed": [
+    "test_the_agent_account_has_no_turn_cap",
+    "test_the_usage_is_stored_with_the_message_and_never_sent_to_the_browser"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a conversation closed at the old turn cap stays closed",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                return kind if kind == 'budget' else None",
+     "new": "                return kind if kind in ('budget', 'turns') else None  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_turn_cap.py"
+   ],
+   "expect_failed": [
+    "test_a_conversation_closed_at_the_old_turn_cap_is_open_again"
    ]
   }
  ]

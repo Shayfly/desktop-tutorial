@@ -24,12 +24,12 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
@@ -42,7 +42,7 @@ jobs:
           git diff --check
       - name: Display generated differences (PR is always read-only)
         run: git status --short
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: agent-os-registry-pr-review
           path: |
@@ -66,12 +66,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: fix/docker-oom-rehearsal-20261013
           fetch-depth: 0
           persist-credentials: true
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
@@ -105,7 +105,7 @@ jobs:
           PY
           git diff --check
       - name: Store audited evidence before the optional commit
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: agent-os-registry-sync-evidence
           path: |

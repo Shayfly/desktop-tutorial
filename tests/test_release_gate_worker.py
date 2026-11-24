@@ -39,7 +39,8 @@ class TheGate(unittest.TestCase):
         self.assertIn('NOT deployed', out)
 
     def test_a_push_with_the_marker_is_deployed(self):
-        for message in ('Merge pull request #406 from x/y [release]', 'title [release]\n\nbody'):
+        for message in ('Merge pull request #406 from x/y [release]', 'title [release]\n\nbody',
+                        'הסוכן הראשון: וסיכום שמדבר על העסק [release] (#521)'):     # 02a8dc2, a PR-title merge
             with self.subTest(message):
                 code, out, written = gate('push', message)
                 self.assertEqual((code, written), (0, 'release=true\n'))

@@ -1,0 +1,368 @@
+{
+ "pr": "domain-registry-127",
+ "sha256": [
+  "tests/test_domain_registry.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a domain without mandatory facts passes",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    if not facts:\n        raise DomainError(f'{slug}: no mandatory facts')\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_no_mandatory_facts"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a fact without its question passes",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "            if len(cells) < 4 or not all(cells[1:4]):\n",
+     "new": "            if len(cells) < 4:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_fact_without_its_question"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "headings are compared as a set (order and names relaxed)",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    if tuple(sections) != HEADINGS:\n",
+     "new": "    if not set(HEADINGS) <= set(sections) and False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_heading",
+    "test_headings_out_of_order"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "an empty legal section passes",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "        if not sections[h].strip():\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_an_empty_legal_section"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the reference count is not bounded",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    if not MIN_REFERENCES <= len(refs) <= MAX_REFERENCES:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_too_few_references"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "an unknown category falls through to None",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "        raise DomainError(f'unknown category {category!r}')\n",
+     "new": "        return None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_category_is_an_error"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the check does not compare the committed file",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    if not DATA.exists() or DATA.read_text(encoding='utf-8') != text:\n",
+     "new": "    if not DATA.exists():  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_drift_fails_the_check"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a category may point at a domain with no file",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "        if slug is not None and slug not in domains:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_category_pointing_at_a_missing_file"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the route does not record its domain in the evidence",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "'category_found': self.category_found, 'domain': self.domain,",
+     "new": "'category_found': self.category_found, 'domain': None,"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_the_law_firm_reads_the_lawyer_domain"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a named category is reported as found by similarity",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "category_found='named' if named else 'nearest',",
+     "new": "category_found='nearest',"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_the_law_firm_reads_the_lawyer_domain"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a category without a domain borrows a neighbour",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    domain = domain_for(category)\n",
+     "new": "    domain = domain_for(category) or domain_for('accountants')  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_category_without_a_domain_is_recorded_as_none"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "an unverified Hebrew word is handed to the writer as the trade's word",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    return [t['he'] for t in domain['terms'] if t['he_verified']][:MAX_TRADE_WORDS]\n",
+     "new": "    return [t['he'] for t in domain['terms'] if t['he']][:MAX_TRADE_WORDS]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_only_verified_words_are_given_to_a_model"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the writer never receives the trade's words",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "                'trade_words': list(getattr(route, 'domain_words', None) or []),\n",
+     "new": "                'trade_words': [],  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_the_writer_receives_only_verified_words_and_the_rule"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the writer is not told never to add a service from a trade word",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "says it; never use one to add a service, a product or a claim the customer did not write.",
+     "new": "says it."
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_the_writer_receives_only_verified_words_and_the_rule"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "a term table with its columns in another order is read silently",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "            if header[:4] != ['english', 'meaning', 'hebrew', 'arabic']:\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_term_table_with_other_columns_fails_loudly"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "the agent never receives the domain's facts",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "        expert = domain_facts(request) + expert\n",
+     "new": "        expert = expert  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_named_salon_gets_the_salon_questions_first"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "a conditional fact is asked up front",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/question_skills.py",
+     "old": "            for f in domain['mandatory_facts'] if f['when'] is None]\n",
+     "new": "            for f in domain['mandatory_facts']]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_conditional_fact_is_not_asked_up_front",
+    "test_a_named_salon_gets_the_salon_questions_first"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "the nearest category is used when none is named",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/question_skills.py",
+     "old": "    domain = domain_for(category_of(text or ''))\n",
+     "new": "    from ..vertical_palettes import nearest_category\n    domain = domain_for(category_of(text or '') or nearest_category(text or '')[0])  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_no_named_business_no_domain_questions"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "an app gets the site domain questions",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "    if (family or classify_family(request)) == 'website':\n",
+     "new": "    if True:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_an_app_gets_no_site_domain_questions"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "the context is cut mid-string again",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "    return json.dumps(ctx, ensure_ascii=False)\n",
+     "new": "    return json.dumps(context, ensure_ascii=False)[:limit]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_context_that_cannot_fit_is_still_valid_and_keeps_its_facts",
+    "test_a_long_context_is_trimmed_from_its_least_important_parts_and_stays_json"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "the first checklist items (the domain's facts) are dropped first",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "        ctx['expert_checklist'].pop()\n",
+     "new": "        ctx['expert_checklist'].pop(0)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_registry.py"
+   ],
+   "expect_failed": [
+    "test_a_long_context_is_trimmed_from_its_least_important_parts_and_stays_json"
+   ]
+  }
+ ]
+}

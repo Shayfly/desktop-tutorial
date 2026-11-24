@@ -1,0 +1,195 @@
+{
+ "pr": "first-pass-daily",
+ "sha256": [
+  "tools/first_pass_yield.py",
+  "tests/test_first_pass_yield.py",
+  ".github/workflows/first-pass-yield.yml"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "cancelled builds join the denominator",
+   "mutations": [
+    {
+     "file": "tools/first_pass_yield.py",
+     "old": "        fin = [r for r in rs if r['status'] in FINISHED]",
+     "new": "        fin = list(rs)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_first_pass_yield.py"
+   ],
+   "expect_failed": [
+    "test_no_finished_build_is_no_yield_not_zero",
+    "test_the_yield_is_first_pass_over_finished_builds_and_cancelled_ones_are_apart"
+   ],
+   "expect_failed_pg": [
+    "test_no_finished_build_is_no_yield_not_zero",
+    "test_the_real_rows_are_counted_as_the_worker_meant_them",
+    "test_the_yield_is_first_pass_over_finished_builds_and_cancelled_ones_are_apart"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a failed build flagged first_pass counts as a first pass",
+   "mutations": [
+    {
+     "file": "tools/first_pass_yield.py",
+     "old": "r['status'] == 'ready' and r['recorded'] and r['first_pass'] is True",
+     "new": "r['recorded'] and r['first_pass'] is True"
+    }
+   ],
+   "targets": [
+    "tests/test_first_pass_yield.py"
+   ],
+   "expect_failed": [
+    "test_a_failed_build_is_never_a_first_pass_whatever_its_flag_says"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a finished build without a worker record is dropped instead of counted as not first pass",
+   "mutations": [
+    {
+     "file": "tools/first_pass_yield.py",
+     "old": "        fin = [r for r in rs if r['status'] in FINISHED]",
+     "new": "        fin = [r for r in rs if r['status'] in FINISHED and r['recorded']]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_first_pass_yield.py"
+   ],
+   "expect_failed": [
+    "test_a_finished_build_without_a_worker_record_counts_as_not_first_pass_and_is_named",
+    "test_finished_builds_with_no_record_at_all_is_a_broken_wiring"
+   ],
+   "expect_failed_pg": [
+    "test_a_finished_build_without_a_worker_record_counts_as_not_first_pass_and_is_named",
+    "test_finished_builds_with_no_record_at_all_is_a_broken_wiring",
+    "test_the_real_rows_are_counted_as_the_worker_meant_them"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the read is not a read-only transaction",
+   "mutations": [
+    {
+     "file": "tools/first_pass_yield.py",
+     "old": "        conn.execute('SET TRANSACTION READ ONLY')",
+     "new": "        pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_first_pass_yield.py"
+   ],
+   "expect_failed": [
+    "test_the_read_is_a_read_only_transaction_and_ends_in_a_rollback"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "an unreachable database reports instead of failing loud",
+   "mutations": [
+    {
+     "file": "tools/first_pass_yield.py",
+     "old": "        return 2\n    summary = summarize(rows, now, count_from=count_from)",
+     "new": "        rows = []  # NEGATIVE CONTROL\n    summary = summarize(rows, now, count_from=count_from)"
+    }
+   ],
+   "targets": [
+    "tests/test_first_pass_yield.py"
+   ],
+   "expect_failed": [
+    "test_an_unreachable_database_is_exit_2_and_no_file"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a broken evidence wiring stays green",
+   "mutations": [
+    {
+     "file": "tools/first_pass_yield.py",
+     "old": "    if week and week['finished'] and not week['recorded']:",
+     "new": "    if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_first_pass_yield.py"
+   ],
+   "expect_failed": [
+    "test_finished_builds_with_no_record_at_all_is_a_broken_wiring"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "every taxonomy item counts, not once per build at round zero",
+   "mutations": [
+    {
+     "file": "tools/first_pass_yield.py",
+     "old": "        if isinstance(t, dict) and t.get('round_index', 0) == 0 and t.get('layer') != 'preflight':",
+     "new": "        if isinstance(t, dict) and t.get('layer') != 'preflight':  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_first_pass_yield.py"
+   ],
+   "expect_failed": [
+    "test_what_stopped_the_first_pass_counts_round_zero_once_per_build"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "non-boolean first_pass values are cast in SQL: a stored \"maybe\" breaks the whole read on real PostgreSQL",
+   "mutations": [
+    {
+     "file": "tools/first_pass_yield.py",
+     "old": "CASE WHEN jsonb_typeof(evidence_json->'first_pass') = 'boolean'\n            THEN (evidence_json->>'first_pass')::boolean ELSE false END AS first_pass",
+     "new": "(evidence_json->>'first_pass')::boolean AS first_pass"
+    }
+   ],
+   "targets": [
+    "tests/test_first_pass_yield.py"
+   ],
+   "expect_failed": [
+    "test_the_real_rows_are_counted_as_the_worker_meant_them"
+   ],
+   "envs": [
+    "pg"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a preflight plan repair is ranked as what stopped the first pass",
+   "mutations": [
+    {
+     "file": "tools/first_pass_yield.py",
+     "old": " and t.get('layer') != 'preflight':",
+     "new": ":  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_first_pass_yield.py"
+   ],
+   "expect_failed": [
+    "test_a_preflight_plan_repair_is_not_what_stopped_the_first_pass"
+   ]
+  },
+  {
+   "id": "NC_COUNT",
+   "what": "the owner's new count is ignored: the report reads 30 days back again",
+   "mutations": [
+    {
+     "file": "tools/first_pass_yield.py",
+     "old": "    count_from = COUNT_FROM if now >= COUNT_FROM else None\n",
+     "new": "    count_from = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_first_pass_yield.py"
+   ],
+   "expect_failed": [
+    "test_the_production_path_applies_the_new_count"
+   ]
+  }
+ ]
+}

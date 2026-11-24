@@ -59,7 +59,9 @@ GOLDEN = {
     'Build a team task tracker web app: users sign up and log in, create projects, add tasks with due dates':
         # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was 13cf3807...)
         # 2026-11-16: the contract keeps the approved text's line breaks instead of one long line (was 051707d1...)
-        'sha256:39ae8a91350e10671b66fd074937a51fe7b24d975c58edcb256e1aa63cc1bf5d',
+        # 2026-11-22 (the owner): nothing is near a task tracker, so its colours are the neutral palette we have
+        # instead of "choose a palette" (was 39ae8a91...)
+        'sha256:7e1cd81d9fc5672ae9a7300ab885ca18d66cf4a7ab5ca6876fd51a62e39b353a',
     'דף לבית קפה עם תפריט ותשלום אונליין בכרטיס אשראי':
         # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was 3eb15832...)
         # 2026-11-16: the contract keeps the approved text's line breaks instead of one long line (was 6ab2a7a3...)
@@ -76,7 +78,8 @@ ONE_LINE = {
     'אני רוצה מערכת לניהול תורים למספרה שלי, בלי התחברות, הלקוחות ישאירו טלפון':
         'sha256:99a3ccd75d2a90bf4c3f66c34520ab1db558f457ade93e925769060d618f5e06',
     'Build a team task tracker web app: users sign up and log in, create projects, add tasks with due dates':
-        'sha256:051707d17377223b8d574b2c167335795288a95ceb4acff620ca435eef383dc7',
+        # 2026-11-22: the same one-line contract with the neutral palette (was 051707d1...)
+        'sha256:06de12dd7559a3ee9842f01d51249e07e5e26eb04b9c0e023be4a71c8c280982',
     'דף לבית קפה עם תפריט ותשלום אונליין בכרטיס אשראי':
         'sha256:6ab2a7a305f33642ecce95003b154f522896db595f5deb95a561479cc8e84831',
 }

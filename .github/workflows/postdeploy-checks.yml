@@ -31,9 +31,22 @@ on:
         description: Hard model-spend ceiling for the paid build
         required: false
         default: "0.15"
+      paid_prompt:
+        description: "paid: the build's request instead of the default booking app (e.g. a content site with a main image, to prove warehouse 118); empty = the default"
+        required: false
+        default: ""
+      qa_build_max_usd:
+        description: "The QA cap on ONE build's authorized cost (default 2.00, the owner 2026-11-22: a content site reserves about 2.00 at approval, so the old default blocked every one). Never above 2.00, the platform's per-build cap"
+        required: false
+        default: "2.00"
   push:
     branches: [milestone/pre-staging-2026-10-05]
     paths: [.github/workflows/postdeploy-checks.yml]
+  # 2026-11-21 (critical path freshness): verify-replay -- no model calls, no stopped worker, a one-off container --
+  # runs by itself every day; every other stage stays manual (on a schedule inputs.stage is empty, so only the
+  # verify-replay steps, which default to it, run). Last green before this: 2026-10-20; run 44941296147 green 2026-11-21.
+  schedule:
+    - cron: '43 2 * * *'
 
 concurrency:
   group: postdeploy-checks
@@ -41,7 +54,7 @@ concurrency:
 
 jobs:
   checks:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: [self-hosted, omni-worker]
     timeout-minutes: 45
     defaults:
@@ -49,6 +62,8 @@ jobs:
         working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
     steps:
       - name: Prepare
+        env:
+          QA_BUILD_MAX: ${{ inputs.qa_build_max_usd }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/pd" && chmod 777 "$RUNNER_TEMP/pd"
@@ -58,7 +73,11 @@ jobs:
           # The API's QA-funding settings as configured on the Vercel preview
           # environment (plain values, no secrets), so the local API decides
           # like the deployed one.
-          echo "QA_ENV=-e OMNI_ENV=staging -e OMNI_QA_BUILD_MAX_USD=0.50 -e OMNI_QA_BUDGET_TOTAL_USD=10 -e OMNI_QA_BUDGET_SINCE=2026-10-08T17:12:00Z" >> "$GITHUB_ENV"
+          # one build's QA cap: an input, never above the platform's 2.00 per-build cap; anything else stops the run
+          if ! python3 -c 'import sys,decimal as d; v=d.Decimal(sys.argv[1]); sys.exit(0 if d.Decimal("0") < v <= d.Decimal("2.00") else 1)' "${QA_BUILD_MAX:-2.00}" 2>/dev/null; then
+            echo "::error title=postdeploy::qa_build_max_usd must be a number above 0 and at most 2.00 (got '${QA_BUILD_MAX}')"; exit 1
+          fi
+          echo "QA_ENV=-e OMNI_ENV=staging -e OMNI_QA_BUILD_MAX_USD=${QA_BUILD_MAX:-2.00} -e OMNI_QA_BUDGET_TOTAL_USD=10 -e OMNI_QA_BUDGET_SINCE=2026-10-08T17:12:00Z" >> "$GITHUB_ENV"
 
       - name: Free checks
         if: inputs.stage == 'free'
@@ -79,10 +98,11 @@ jobs:
         if: inputs.stage == 'paid'
         env:
           MAX_USD: ${{ inputs.max_usd }}
+          POSTDEPLOY_PAID_PROMPT: ${{ inputs.paid_prompt }}
         run: |
           set -uo pipefail
           run() { docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres $QA_ENV \
-                    -v "$RUNNER_TEMP/pd:/out" "$IMG" python -m omni_prod.postdeploy_checks "$1" 2>&1 \
+                    -e POSTDEPLOY_PAID_PROMPT -v "$RUNNER_TEMP/pd:/out" "$IMG" python -m omni_prod.postdeploy_checks "$1" 2>&1 \
                     | grep -E '^(::|POSTDEPLOY|Traceback|[A-Za-z]+Error)' ; }
           docker compose stop -t 1500 worker
           rc=0
@@ -186,10 +206,10 @@ jobs:
           PY
 
       - name: Re-verify stored versions through the production chain (no model calls)
-        if: inputs.stage == 'verify-replay'
+        if: (inputs.stage || 'verify-replay') == 'verify-replay'
         timeout-minutes: 50
         env:
-          N: ${{ inputs.versions }}
+          N: ${{ inputs.versions || '10' }}
         run: |
           set -euo pipefail
           case "$N" in ''|*[!0-9]*) echo "versions must be a number"; exit 1;; esac
@@ -210,7 +230,7 @@ jobs:
           PY
 
       - name: Confirm replay completed with successful version evidence
-        if: inputs.stage == 'verify-replay'
+        if: (inputs.stage || 'verify-replay') == 'verify-replay'
         run: |
           set -euo pipefail
           python3 - "$RUNNER_TEMP/verify.txt" <<'PY'
@@ -230,8 +250,8 @@ jobs:
           PY
 
       - name: Upload replay screenshots (desktop/mobile)
-        if: inputs.stage == 'verify-replay'
-        uses: actions/upload-artifact@v4
+        if: (inputs.stage || 'verify-replay') == 'verify-replay'
+        uses: actions/upload-artifact@v6
         with:
           name: visual-replay-screenshots
           path: ${{ runner.temp }}/visual
@@ -239,7 +259,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Remove replay screenshots from the runner (container-owned files)
-        if: always() && inputs.stage == 'verify-replay'
+        if: always() && (inputs.stage || 'verify-replay') == 'verify-replay'
         run: docker run --rm -v "$RUNNER_TEMP:/t" alpine:3.20 rm -rf /t/visual || true
 
       - name: Unit economics from the ledgers (read-only, internal)

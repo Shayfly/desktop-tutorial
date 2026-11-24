@@ -18,12 +18,12 @@ jobs:
     outputs:
       heavy: ${{ steps.scope.outputs.heavy }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Classify changed files (unknown diffs run heavy checks)
@@ -41,11 +41,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with: {python-version: "3.12"}
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
       - name: Fast suite (tests/fast_suite.txt)
@@ -78,11 +78,11 @@ jobs:
       # Audited registry snapshots refer to the PR HEAD, not GitHub's
       # synthetic merge SHA, which can include unrelated base-branch changes.
       # Merge compatibility still requires a separately verified merge gate.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with: {python-version: "3.12"}
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
       - run: python -m compileall -q omni_prod tests
@@ -94,7 +94,7 @@ jobs:
         run: cat evidence-notices.txt 2>/dev/null || echo "no evidence notices were written"
       - name: Keep the test report for the published summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pytest-report
           path: pytest-report.xml
@@ -130,11 +130,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with: {python-version: "3.12"}
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
       - name: Negative controls (one SPEC ::notice per spec; per-control NC-EVIDENCE log lines; ::error on FAIL)
@@ -143,36 +143,30 @@ jobs:
           NC_JOBS: "4"    # 2026-11-17: the 4 cores of the runner; output is the same as a serial run, in the same order
         run: python scripts/run_negative_controls.py
   publish-report:
-    # smoke/ci-last-run.md: the latest main CI result, readable without job logs.
-    # main pushes only. The bot never pushes to main: the report goes to the
-    # ci/v24-report branch and a PR, which main's protection reviews/merges like
-    # any other, and auto-merges (squash) when its requirements are met. The
-    # condition stays refs/heads/main on purpose: that is the run whose result is being reported; the branch push is a different ref, so it
-    # never re-enters this job. The merged report commit lands on main again, so
-    # the message guard below stops that push from opening another report PR.
+    # smoke/ci-last-run.md (the latest main CI result, readable without job logs) is published where it cannot rot
+    # (2026-11-21, #146): in the run's summary and as the artifact `ci-last-run`. It used to be force-pushed to the
+    # ci/v24-report branch with a PR set to auto-merge. That PR (#146) stayed open from 2026-10-26: every report
+    # rewrites the file, so the additive-only check (`light`) failed it on every push, and auto-merge stands against
+    # CLAUDE.md section 2.5 (no auto-merge in place of approval). Now nothing is pushed and nothing waits to merge: the job
+    # only reads (contents: read), and the file is no longer kept in the repository.
     needs: test
     if: >-
       always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && !startsWith(github.event.head_commit.message, 'chore: v24-ci results')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write        # push the ci/v24-report branch (never main)
-      pull-requests: write   # open the report PR
-      actions: write         # dispatch the required checks on the report branch (see "on:")
+      contents: read
     steps:
-      # This job pushes the report, so its checkout keeps credentials
-      # (the test jobs keep persist-credentials: false and a read-only token).
-      - uses: actions/checkout@v4
+      # The report job only reads, like the test jobs: no credentials are kept.
+      - uses: actions/checkout@v5
         with:
-          ref: main
-          persist-credentials: true
-      - uses: actions/download-artifact@v4
+          persist-credentials: false
+      - uses: actions/download-artifact@v7
         with:
           name: pytest-report
           path: report
         continue-on-error: true
-      - name: Write smoke/ci-last-run.md
+      - name: Write the report (run summary and artifact)
         env:
           TEST_RESULT: ${{ needs.test.result }}
           RUN_ID: ${{ github.run_id }}
@@ -180,7 +174,7 @@ jobs:
           COMMIT: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          mkdir -p smoke
+          mkdir -p report
           python - <<'PY'
           import os, collections, datetime, xml.etree.ElementTree as ET
           path = 'report/pytest-report.xml'
@@ -232,36 +226,16 @@ jobs:
                   v = per[m]
                   lines.append(f"| `{m}` | {'FAIL' if v['fail'] else 'PASS'} | {v['pass']} | {v['fail']} | {v['skip']} |")
           lines += ['', '_Test names and counts only; failure messages are not published._']
-          open('smoke/ci-last-run.md', 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
+          text = '\n'.join(lines) + '\n'
+          open('report/ci-last-run.md', 'w', encoding='utf-8').write(text)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write(text)
           PY
-      - name: Commit the report to a branch and open a PR
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPORT_BRANCH: ci/v24-report
-        run: |
-          git config user.name "ci-bot"
-          git config user.email "ci-bot@148ai.dev"
-          git add smoke/ci-last-run.md
-          if git diff --cached --quiet; then echo "no change"; exit 0; fi
-          git checkout -b "$REPORT_BRANCH"
-          git commit -m "chore: v24-ci results"
-          # Bot-owned branch; each report supersedes the previous one. main is never touched.
-          git push --force origin "HEAD:refs/heads/$REPORT_BRANCH"
-          PR="$(gh pr list --head "$REPORT_BRANCH" --base main --state open --json number --jq '.[0].number')"
-          if [ -z "$PR" ]; then
-            gh pr create --base main --head "$REPORT_BRANCH" \
-              --title "chore: v24-ci results" \
-              --body "Automated CI result report (smoke/ci-last-run.md). Auto-merges (squash) once main's protection is satisfied."
-            PR="$(gh pr list --head "$REPORT_BRANCH" --base main --state open --json number --jq '.[0].number')"
-          fi
-          # The required checks must RUN on the report commit (GITHUB_TOKEN events start no workflow): dispatch both.
-          gh workflow run v24-ci.yml --ref "$REPORT_BRANCH"
-          gh workflow run v11-overlay-ci.yml --ref "$REPORT_BRANCH"
-          echo "::notice title=publish-report::report PR #$PR on $REPORT_BRANCH @ $(git rev-parse --short HEAD); test and validate dispatched on it"
-          # Auto-merge waits for main's required checks/reviews; it never bypasses them.
-          # The squash subject keeps the 'chore: v24-ci results' prefix the job guard relies on.
-          gh pr merge "$PR" --auto --squash --subject "chore: v24-ci results" \
-            || echo "::warning title=publish-report::auto-merge not enabled on PR #$PR (repo setting 'Allow auto-merge' or main protection missing); it needs a manual merge"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: ci-last-run
+          path: report/ci-last-run.md
+          retention-days: 30
   compose-config:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -269,7 +243,7 @@ jobs:
       # Audited registry snapshots refer to the PR HEAD, not GitHub's
       # synthetic merge SHA, which can include unrelated base-branch changes.
       # Merge compatibility still requires a separately verified merge gate.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
@@ -284,11 +258,11 @@ jobs:
       # Audited registry snapshots refer to the PR HEAD, not GitHub's
       # synthetic merge SHA, which can include unrelated base-branch changes.
       # Merge compatibility still requires a separately verified merge gate.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with: {node-version: "22"}
       - name: Parse-check browser scripts before downloading Chromium
         run: |
@@ -298,13 +272,22 @@ jobs:
           node --check tests/preview_frame_browser.cjs
           node --check tests/project_scope_browser.cjs
           node --check tests/approval_one_truth_browser.cjs
-      - run: npm install --no-save --package-lock=false playwright@1.62.1
+          node --check tests/platform_a11y_browser.cjs
+          node --check tests/workspace_review_fixes_browser.cjs
+          node --check tests/platform_for_everyone_browser.cjs
+          node --check tests/shell_133_browser.cjs
+          node --check tests/spec_card_browser.cjs
+          node --check tests/ui_languages_browser.cjs
+          node --check tests/phone_chat_browser.cjs
+          node --check tests/image_failure_words_browser.cjs
+      # axe-core: the WCAG engine of the platform accessibility check (the owner, 2026-11-22: accessible to everyone)
+      - run: npm install --no-save --package-lock=false playwright@1.62.1 axe-core@4.10.3
       # 2026-10-27: `playwright install --with-deps` hung for the whole 5-minute step on 2 of the last ~15 runs
       # (normally ~22s), which skipped the browser tests and failed customer-ui without testing anything. The
       # browser download is cached per Playwright version; every attempt (download + apt deps) is bounded and
       # retried, and three failures still fail the job loudly -- never a skipped test reported as fine.
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: ms-playwright-${{ runner.os }}-1.62.1-chromium
@@ -333,6 +316,37 @@ jobs:
         timeout-minutes: 3
       - run: node tests/approval_one_truth_browser.cjs
         timeout-minutes: 3
+      # WCAG 2.2 AA on every platform screen, in every UI language, at 320/390/1440 px; it also proves it catches
+      # seven deliberate faults on every run (tests/platform_a11y_browser.cjs)
+      - run: node tests/platform_a11y_browser.cjs
+        timeout-minutes: 8
+      # the platform design's review fixes (F1 preview after a failed rebuild, F2 project status, F3 who said what,
+      # F5 a late reply in another project); each scenario also fails with its fix taken out
+      - run: node tests/workspace_review_fixes_browser.cjs
+        timeout-minutes: 4
+      # usable by anyone who can read (the owner, 2026-11-22): no name asked before the first message, zero technical
+      # terms, reading text 16px+, every control 44px+, three text sizes, the owner's example look (open dark rail, dark top
+      # bar, the preview's phone view, the build steps in plain words); it also proves it catches twelve deliberate faults
+      - run: node tests/platform_for_everyone_browser.cjs
+        timeout-minutes: 6
+      # warehouse 133's mutation table, the four rows no other test plants: secondary in yellow, status in colour only,
+      # a failed build with an empty frame, a raw id on a version's main line
+      - run: node tests/shell_133_browser.cjs
+        timeout-minutes: 3
+      # gate 1's spec as the card "זה מה שנבנה" (the owner's example): each business detail once; fails without the card
+      - run: node tests/spec_card_browser.cjs
+        timeout-minutes: 3
+      # every platform language whole: no key falls back, no text in another script, the picker switches
+      - run: node tests/ui_languages_browser.cjs
+        timeout-minutes: 3
+      # the owner's phone report (2026-11-23): Enter is a new line on a phone and sends on a computer; the workspace
+      # takes the visible height and returns to the top when the keyboard closes; a card opens as a full sheet with a
+      # close button -- each also fails with its fix removed
+      - run: node tests/phone_chat_browser.cjs
+        timeout-minutes: 3
+      # an image the build never checked must not be reported as one that does not show what was asked (bld_7b541f93)
+      - run: node tests/image_failure_words_browser.cjs
+        timeout-minutes: 3
   customer-ui:
     # Preserve the required check name and fail closed if classification fails.
     needs: [changes, browser-tests]
@@ -340,7 +354,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false

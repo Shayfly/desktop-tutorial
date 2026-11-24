@@ -182,6 +182,35 @@ def addr_matches(a: str, b: str, locale: str = 'he') -> bool:
     return sorted(na.split()) == sorted(nb.split())      # "יפו 5 רחוב" == "רחוב יפו 5"
 
 
+_HOUSE_NUMBER = re.compile(r'\d')
+
+
+def same_place(a: str, b: str, locale: str = 'he') -> bool:
+    """Two spellings of ONE address: equal keys, or equal except that the word right after the house number is the
+    other's word with the Hebrew "in" before it ("רחוב הרצל 12, חולון" / "רחוב הרצל 12 בחולון"), or one spelling has
+    no city at all ("רחוב הרצל 12"). Found 2026-11-22, the
+    owner's brief (bld_1d477f37): the conversation's summary wrote the city with ב, the canon held two addresses, the
+    content route said address_not_one and the page said "גם בכתובת". Nothing else is merged: another street, another
+    number, another city or another order stay two places. Known limit, not checked against a list of localities: a
+    city whose name is another city's name with ב before it would read as one place."""
+    ta, tb = addr_key(a, locale).split(), addr_key(b, locale).split()
+    if ta == tb:
+        return bool(ta)
+    # the same street and house number, one spelling without the city ("רחוב יגאל אלון 94" / "..., תל אביב": the street
+    # pattern stops before a city written "בתל אביב"); the city stays optional, as addr_contains already reads a page
+    na = next((i for i, t in enumerate(ta) if _HOUSE_NUMBER.search(t)), None)
+    nb = next((i for i, t in enumerate(tb) if _HOUSE_NUMBER.search(t)), None)
+    if na is not None and nb is not None and ta[:na + 1] == tb[:nb + 1] and min(len(ta) - na, len(tb) - nb) == 1:
+        return True
+    if len(ta) != len(tb):
+        return False
+    diff = [i for i, (x, y) in enumerate(zip(ta, tb)) if x != y]
+    if len(diff) != 1 or diff[0] == 0 or not _HOUSE_NUMBER.search(ta[diff[0] - 1]):
+        return False
+    x, y = ta[diff[0]], tb[diff[0]]
+    return x == 'ב' + y or y == 'ב' + x
+
+
 def addr_contains(page_text: str, canon_addr: str) -> bool:
     """A page mentions the canon address when its normalised tokens appear together (city may be absent on page)."""
     page = addr_key(page_text)
@@ -274,6 +303,8 @@ def build_canon(request_text: str, *, source: str = 'brief') -> Canon:
     for m in _EMAIL.finditer(text):
         add('email', m.group(0).lower(), m.group(0))
     for m in _STREET.finditer(text):
+        if any(f.key == 'address' and same_place(f.source_ref, m.group(0)) for f in canon.facts):
+            continue                     # the same place spelled again (see same_place): the first spelling stands
         add('address', norm_address(m.group(0)), m.group(0))
     for m in _HOURS.finditer(text):
         add('hours', re.sub(r'\s+', ' ', m.group(0)).strip(), m.group(0))

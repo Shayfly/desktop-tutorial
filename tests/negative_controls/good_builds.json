@@ -1,0 +1,127 @@
+{
+ "pr": "good-builds",
+ "sha256": [
+  "tests/test_good_builds.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "three repair rounds count as good",
+   "mutations": [
+    {
+     "file": "tools/good_builds.py",
+     "old": "MAX_REPAIR_ROUNDS = 2\n",
+     "new": "MAX_REPAIR_ROUNDS = 3  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_good_builds.py"
+   ],
+   "expect_failed": [
+    "test_each_condition_fails_by_name"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a legacy build counts as an engine build",
+   "mutations": [
+    {
+     "file": "tools/good_builds.py",
+     "old": "    if route.get('route') != ENGINE:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_good_builds.py"
+   ],
+   "expect_failed": [
+    "test_each_condition_fails_by_name"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a failed blocking gate is ignored",
+   "mutations": [
+    {
+     "file": "tools/good_builds.py",
+     "old": "if isinstance(g, dict) and g.get('mode') == 'block' and g.get('status') == 'fail')",
+     "new": "if False)"
+    }
+   ],
+   "targets": [
+    "tests/test_good_builds.py"
+   ],
+   "expect_failed": [
+    "test_each_condition_fails_by_name"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a good build without the owner's word",
+   "mutations": [
+    {
+     "file": "tools/good_builds.py",
+     "old": "        j['good'] = j['db_conditions_hold'] and j['owner_said_at_level']\n",
+     "new": "        j['good'] = j['db_conditions_hold']  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_good_builds.py"
+   ],
+   "expect_failed": [
+    "test_without_the_owners_word_a_build_is_not_good"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "three builds in two domains are enough",
+   "mutations": [
+    {
+     "file": "tools/good_builds.py",
+     "old": "    domains = sorted({j['domain'] for j in good if j['domain']})\n",
+     "new": "    domains = [j['domain'] for j in good if j['domain']]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_good_builds.py"
+   ],
+   "expect_failed": [
+    "test_three_good_builds_in_three_domains_are_needed"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a build id anywhere in DECISIONS counts as the owner's word",
+   "mutations": [
+    {
+     "file": "tools/good_builds.py",
+     "old": "    block = decisions_text[at:].split('\\n- **', 1)[0]\n",
+     "new": "    block = decisions_text[at:]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_good_builds.py"
+   ],
+   "expect_failed": [
+    "test_only_lines_under_the_heading_count"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the read is not read-only",
+   "mutations": [
+    {
+     "file": "tools/good_builds.py",
+     "old": "        conn.execute('SET TRANSACTION READ ONLY')\n",
+     "new": "        pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_good_builds.py"
+   ],
+   "expect_failed": [
+    "test_reads_in_a_read_only_transaction"
+   ]
+  }
+ ]
+}

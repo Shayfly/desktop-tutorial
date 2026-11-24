@@ -1,0 +1,37 @@
+{
+ "schema": "148ai.game/1",
+ "kind": "match",
+ "title": "שלוש בשורה",
+ "lang": "he",
+ "texts": {
+  "start": "החליפו שתי צורות סמוכות כדי לסדר שלוש באותו צבע.",
+  "win": "הגעתם ליעד!",
+  "lose": "נגמרו המהלכים",
+  "score": "נקודות"
+ },
+ "palette": {
+  "bg": "#2b2d42",
+  "player": "#ef476f",
+  "enemy": "#06d6a0",
+  "item": "#ffd166",
+  "ground": "#118ab2",
+  "text": "#ffffff"
+ },
+ "player": {
+  "speed": 1,
+  "jump": 1,
+  "lives": 1
+ },
+ "time_limit_s": 180,
+ "levels": [
+  {
+   "cols": 7,
+   "rows": 7,
+   "colors": 5,
+   "target": 600,
+   "moves": 25
+  }
+ ],
+ "sound": true,
+ "seed": 5
+}

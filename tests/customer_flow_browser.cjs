@@ -55,6 +55,7 @@ const path=require('path');
    assert.equal(calls.length,0,'draft edits must not update the server');
    await page.locator('#ctxMinimize').click();
    assert.equal(await page.locator('#ctx').evaluate(el=>el.classList.contains('open')),false);
+   await page.locator('#projectCards summary').click();
    await page.locator('#ctxTabs button').filter({hasText:'דרישות'}).click();
    assert.equal(await page.locator('textarea[name=q_color]').inputValue(),'ורוד עדין ושמנת','minimize preserves draft');
    await page.locator('#updateBriefBtn').click();
@@ -94,8 +95,9 @@ const path=require('path');
    }
    if(width===390){
     await page.evaluate(()=>{S.projects=[{id:'p',title:'פרויקט בדיקה'},{id:'other',title:'פרויקט נוסף'}];renderProjects();});
-    for(const pane of ['chat','preview','edit']){
-     await page.locator(`#mobileTabs button[data-pane="${pane}"]`).click();
+    for(const pane of ['chat','preview','versions','edit']){
+     await page.locator(`#mobileTabs button[data-pane="${pane==='edit'?'preview':pane}"]`).click();
+     if(pane==='edit')await page.locator('#previewEditBtn').click();
      await page.locator('#mobileMenuBtn').click();
      assert.equal(await page.locator('#workspaceView').getAttribute('data-pane'),pane,'menu preserves active pane');
      assert.equal(await page.locator('#sidebar').getAttribute('aria-modal'),'true');
@@ -111,10 +113,12 @@ const path=require('path');
     }
     await page.locator('#mobileMenuBtn').click();
     await page.locator('#newProjectTopBtn').click();
-    assert.equal(await page.locator('#newProjectDialog').evaluate(el=>el.open),true,'new project accessible from drawer');
-    await page.locator('#newProjectCancel').click();
+    // the owner 2026-11-22: a new project is an empty conversation, no name asked (tests/platform_for_everyone_browser.cjs)
+    await page.locator('.welcomeChat').waitFor();
+    assert.equal(await page.locator('#chatInput').evaluate(el=>document.activeElement===el),true,'new project accessible from drawer: an empty conversation, ready to type');
    }else{
-    await page.locator('#sbOpen').click();await page.locator('#sbCollapse').click();await page.locator('#sbOpen').click();
+    // the owner 2026-11-23: the project rail starts open on a computer; closing and opening it still works
+    await page.locator('#sbCollapse').click();await page.locator('#sbOpen').click();
     assert.equal(await page.locator('#sidebar').evaluate(el=>el.inert),false);
    }
    await page.close();console.log(`PASS customer edit flow ${width}px`);
