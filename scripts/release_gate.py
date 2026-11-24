@@ -12,6 +12,7 @@ scripts/vercel_ignore_build.mjs). Anything else is not a release: the deploy job
 from __future__ import annotations
 
 import json
+import re
 import os
 import sys
 
@@ -19,8 +20,15 @@ RELEASE_MARK = '[release]'
 EVENTS = ('push', 'workflow_dispatch')
 
 
+# 2026-11-23: with "Default commit message: Pull request title" (the owner set it so a normal Merge click can release),
+# GitHub writes the title as "<PR title> (#521)". 02a8dc2 ("... [release] (#521)") was canceled for that suffix. The
+# number GitHub appends is still the title's end: the mark is still a deliberate suffix of the title line.
+_PR_NUMBER = re.compile(r'\s*\(#\d+\)$')
+
+
 def is_release(message: str) -> bool:
-    return (message or '').split('\n', 1)[0].rstrip().endswith(RELEASE_MARK)
+    title = _PR_NUMBER.sub('', (message or '').split('\n', 1)[0].rstrip())
+    return title.rstrip().endswith(RELEASE_MARK)
 
 
 def decide(event_name: str, message: str) -> tuple[bool, str]:

@@ -55,6 +55,7 @@
     "tests/test_vercel_ignore_build.py"
    ],
    "expect_failed": [
+    "test_a_pr_title_merge_with_its_number_is_a_release",
     "test_production_builds_only_a_release",
     "test_the_mark_counts_only_at_the_end_of_the_title_line"
    ]
@@ -99,7 +100,7 @@
    "mutations": [
     {
      "file": "scripts/vercel_ignore_build.mjs",
-     "old": "  return String(message || '').split('\\n')[0].trimEnd().endsWith(RELEASE_MARK);",
+     "old": "  return String(message || '').split('\\n')[0].trimEnd().replace(/\\s*\\(#\\d+\\)$/, '').trimEnd().endsWith(RELEASE_MARK);",
      "new": "  return String(message || '').includes(RELEASE_MARK);  // NEGATIVE CONTROL"
     }
    ],
@@ -107,7 +108,42 @@
     "tests/test_vercel_ignore_build.py"
    ],
    "expect_failed": [
+    "test_a_pr_title_merge_with_its_number_is_a_release",
     "test_the_mark_counts_only_at_the_end_of_the_title_line"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a PR-title merge (\"... [release] (#521)\") is not a release again: 02a8dc2 canceled",
+   "mutations": [
+    {
+     "file": "scripts/vercel_ignore_build.mjs",
+     "old": "  return String(message || '').split('\\n')[0].trimEnd().replace(/\\s*\\(#\\d+\\)$/, '').trimEnd().endsWith(RELEASE_MARK);",
+     "new": "  return String(message || '').split('\\n')[0].trimEnd().endsWith(RELEASE_MARK);  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_vercel_ignore_build.py"
+   ],
+   "expect_failed": [
+    "test_a_pr_title_merge_with_its_number_is_a_release"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the worker gate ignores the PR number again: the worker is not deployed on a PR-title release",
+   "mutations": [
+    {
+     "file": "scripts/release_gate.py",
+     "old": "    title = _PR_NUMBER.sub('', (message or '').split('\\n', 1)[0].rstrip())",
+     "new": "    title = (message or '').split('\\n', 1)[0].rstrip()  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_release_gate_worker.py"
+   ],
+   "expect_failed": [
+    "test_a_push_with_the_marker_is_deployed"
    ]
   }
  ]
