@@ -61,9 +61,9 @@ RAWS = (RAW,
         'missing from the customer: phone, fax_number ' + RAW,
         'generated interface is empty; missing: form,button ' + RAW,
         'all model routes failed: route does not fit the remaining budget ' + RAW)
-# The codes the audit found with no customer text at all (row 4.21), one code no table knows, and no code.
-UNKNOWN_CODES = ('infrastructure_not_configured', 'capability_not_configured', 'attempt_ledger_unavailable',
-                 'plan_violation', 'gate_escalation', 'a_code_nobody_wrote_words_for', None)
+# #486 gives the four former unknown failure codes their own messages; setUpClass covers all table keys.
+# Keep genuinely unknown codes and the missing-code case on the default-line and raw-text checks.
+UNKNOWN_CODES = ('gate_escalation', 'a_code_nobody_wrote_words_for', None)
 
 
 def offences(text: str, lang: str) -> list[str]:
