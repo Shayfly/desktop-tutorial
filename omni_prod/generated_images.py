@@ -16,8 +16,10 @@ Several images are handled, not only one hero: every artifact of every requested
 marker, 148ai-asset://image/1, /2, ...
 
 Same mechanism as the approved uploaded logo (uploaded_assets.py): the model writes a marker, the worker replaces it
-with the verified bytes (a data URI) before tests, and replaces the bytes back with the marker in anything the model
-reads again (repair summaries, failure text).
+before tests and puts the marker back in anything the model reads again (repair summaries, failure text).
+Warehouse 118 (the owner, 2026-11-20): the marker becomes a FILE path, `assets/148ai-image-<n>.<ext>`, and the image
+is that file in the repository (repository_assets: a text envelope every point that writes files decodes) -- no longer
+a data URI inside the page. The model never sees the image bytes: the file is left out of what it reads.
 """
 from __future__ import annotations
 
@@ -28,6 +30,7 @@ import logging
 import re
 import tokenize
 from dataclasses import dataclass
+from functools import cached_property
 
 from .autonomous_core import AcceptanceFailure, ExecutionReport
 
@@ -61,9 +64,16 @@ class GeneratedImage:
     def marker(self) -> str:
         return f'{MARKER_PREFIX}{self.index}'
 
+    @cached_property
+    def carried(self):
+        """The image as a file the page references (warehouse 118). Raises AssetCarryError if it cannot be carried."""
+        from .repository_assets import CarriedImage, asset_path
+        return CarriedImage(self.marker, asset_path('image', self.index, self.mime), self.data, self.mime)
+
     @property
     def uri(self) -> str:
-        return f'data:{self.mime};base64,' + base64.b64encode(self.data).decode('ascii')
+        """What the page's <img src> holds after the transform: the image's file path, never its bytes."""
+        return self.carried.path
 
 
 # ------------------------------------------------------------------ condition 3: alt from the brief
@@ -152,6 +162,12 @@ def _purposes(plan) -> dict[str, str]:
     return {r.id: r.purpose for r in getattr(plan, 'requirements', ()) or () if r.key == IMAGE_CAPABILITY}
 
 
+def _required_ids(plan) -> set:
+    """The image requirements the customer actually asked for. The default hero (DECISIONS 5) is required=False."""
+    return {r.id for r in getattr(plan, 'requirements', ()) or ()
+            if r.key == IMAGE_CAPABILITY and getattr(r, 'required', True)}
+
+
 def _subjects(plan) -> dict[str, str]:
     return {r.id: str((r.constraints or {}).get('subject') or '') for r in getattr(plan, 'requirements', ()) or ()
             if r.key == IMAGE_CAPABILITY}
@@ -209,58 +225,55 @@ def collect(*, plan, evidence: dict | None, store, prompt: str) -> list[Generate
 
 # ------------------------------------------------------------------ condition 2: what the model is told
 
+# Warehouse 118: the generated server serves the image files. The preview smoke checks it (preview_smoke._SMOKE).
+ASSET_SERVING = ('The images are files under assets/ in the repository. The server must answer GET /assets/<name> '
+                 'with the file\'s bytes (open it in binary mode) and its Content-Type (image/webp, image/jpeg or '
+                 'image/png), e.g. mimetypes.guess_type; never inline an image as base64 in the page.')
+
 def prompt_block(images: list[GeneratedImage]) -> str:
     if not images:
         return ''
     lines = ['Generated images (verified by 148AI; already paid for). Use EVERY one of them, each in a visible <img> '
              'element with its exact src marker and its exact alt text. The worker replaces each marker with the '
-             'image bytes before tests. Do NOT draw a replacement for these images (no SVG, canvas or CSS drawing of '
-             'the subject) and do not use another image in their place. Size the element to the image proportions '
-             'given; it must stay responsive (max-width: 100%; height: auto).']
+             'path of the image file (shown below) and puts that file in the repository before tests. Do NOT draw a '
+             'replacement for these images (no SVG, canvas or CSS drawing of the subject) and do not use another '
+             'image in their place. Size the element to the image proportions given; it must stay responsive '
+             '(max-width: 100%; height: auto).', ASSET_SERVING]
     for img in images:
         size = f'{img.width}x{img.height} px' if img.width and img.height else 'size unknown'
         lines.append(f'- image {img.index}: src="{img.marker}"; purpose: {img.purpose}; {size}; {img.mime}; '
-                     f'alt="{img.alt}"')
+                     f'alt="{img.alt}"; file: {img.uri}')
     return '\n'.join(lines)
 
 
 # ------------------------------------------------------------------ marker <-> bytes
 
 class _Transform:
-    """Markers -> data URIs after generation and after every repair; the reverse for anything the model reads.
-    Wraps the transform already installed (uploaded logo, right-to-left) and keeps its redaction too."""
+    """Markers -> image files after generation and after every repair; the reverse for anything the model reads.
+    Wraps the transform already installed (uploaded logo, right-to-left) and keeps its redaction too.
+    Warehouse 118: each marker becomes `assets/148ai-image-<n>.<ext>` and that file is (re)written into the repository;
+    the page carries no image bytes. An image that cannot be carried raises AssetCarryError here, at install."""
 
     def __init__(self, inner, images: list[GeneratedImage]):
         self._inner, self._images = inner, images
-        self._pairs = [(img.marker, img.uri) for img in images]
+        self._carried = [img.carried for img in images]       # built now: a failure is loud before any build round
 
     def __call__(self, repo):
         repo = self._inner(repo) if self._inner is not None else repo
-        out = {}
-        for path, text in repo.items():
-            if isinstance(text, str):
-                for marker, uri in self._pairs:
-                    text = text.replace(marker, uri)
-            out[path] = text
-        return out
+        for carried in self._carried:
+            repo = carried.place(repo)
+        return repo
 
     def redact(self, repo):
-        out = {}
-        for path, text in repo.items():
-            if isinstance(text, str):
-                for marker, uri in self._pairs:
-                    text = text.replace(uri, marker)
-            out[path] = text
+        out = dict(repo)
+        for carried in self._carried:
+            out = carried.unplace(out)
         inner = getattr(self._inner, 'redact', None)
         return inner(out) if inner else out
 
     def redact_text(self, text):
-        for marker, uri in self._pairs:
-            text = text.replace(uri, marker)
-            encoded = uri.split(',', 1)[1]
-            # sandbox evidence can be cut in the middle of the URI: drop long fragments of these bytes
-            text = re.sub(r'[A-Za-z0-9+/]{32,}={0,2}', lambda m, e=encoded, k=marker: k if m.group(0) in e
-                          else m.group(0), text)
+        for carried in self._carried:
+            text = carried.redact_text(text)
         inner = getattr(self._inner, 'redact_text', None)
         return inner(text) if inner else text
 
@@ -287,6 +300,13 @@ def _strip_comments(path: str, source: str) -> str:
     return re.sub(r'<!--.*?-->|/\*.*?\*/|^\s*//[^\n]*', '', source, flags=re.S | re.M)
 
 
+def _names_the_image(src: str, img: GeneratedImage) -> bool:
+    """True when an <img src> names this image: its marker, or its file path in any form repository_assets.names_file
+    accepts ('assets/x', './assets/x', '/assets/x', with or without a query or fragment)."""
+    from .repository_assets import names_file
+    return src == img.marker or names_file(src, img.uri)
+
+
 def placement(repo: dict, img: GeneratedImage) -> str:
     """'ok', 'missing' (no visible <img> with this image) or 'no_alt' (used, but every use has an empty alt)."""
     used = False
@@ -295,7 +315,7 @@ def placement(repo: dict, img: GeneratedImage) -> str:
             continue
         for tag in _IMG_TAG.findall(_strip_comments(path, source)):
             src = re.search(r'\bsrc\s*=\s*(?:\{\s*)?(["\'`])(.*?)\1', tag, re.I | re.S)
-            if not src or src.group(2) not in (img.uri, img.marker):
+            if not src or not _names_the_image(src.group(2), img):
                 continue
             used = True
             alt = _ALT.search(tag)
@@ -340,9 +360,24 @@ def install(engine, *, prompt: str, plan, evidence: dict | None, store, vision=N
     if not images:
         return prompt
     if vision is not None:
-        from .image_match import verify
+        from .image_match import check_optional, verify
         core = getattr(engine, 'core', engine)
-        core.image_match = verify(vision, images, _subjects(plan))
+        # A picture the customer asked for is judged as before: a mismatch, or a check that cannot run, stops the
+        # build. The default hero nobody asked for (DECISIONS 5) is optional by the owner's decision, so it is never
+        # a reason to fail: it is kept only if it was checked and matches, and otherwise dropped from the build.
+        wanted = _required_ids(plan)
+        asked_for = [i for i in images if i.requirement_id in wanted]
+        by_default = [i for i in images if i.requirement_id not in wanted]
+        verdicts = verify(vision, asked_for, _subjects(plan))
+        kept, optional_verdicts = check_optional(vision, by_default, _subjects(plan))
+        core.image_match = verdicts + optional_verdicts
+        dropped = [v for v in optional_verdicts if v['status'] == 'DROPPED']
+        if dropped:
+            _LOG.info('IMAGE_DROPPED_NOT_SHOWN count=%s reasons=%s', len(dropped),
+                      '; '.join(str(v.get('reason'))[:80] for v in dropped))
+        images = [i for i in images if i in asked_for or i in kept]
+        if not images:
+            return prompt
     core = getattr(engine, 'core', engine)
     core.repository_transform = _Transform(getattr(core, 'repository_transform', None), images)
     core.executor = GeneratedImagesExecutor(core.executor, images)

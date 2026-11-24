@@ -40,7 +40,7 @@ class AFailedBuildIsSaid(unittest.TestCase):
         self.assertTrue(written)
         [m] = msgs
         self.assertEqual(m['role'], 'assistant')
-        self.assertIn('הבנייה נכשלה.', m['content'])
+        self.assertEqual(m['content'], 'לא הצלחנו לבנות את האתר הפעם. לא חויבתם. אפשר לנסות שוב: לחצו על "לנסות לבנות שוב".')
         meta = m['interpretation']
         self.assertEqual((meta['intent'], meta['build_failed']), ('build_failed', 'bld_1'))
         self.assertEqual([a['type'] for a in meta['actions']], ['retry_build'])     # one action, not two

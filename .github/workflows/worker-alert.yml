@@ -1,0 +1,49 @@
+name: Build worker alert
+
+# Warehouse 121 (the C18 finding, 2026-11-21, run 44935937685): nothing noticed a dead build worker. Every 5 minutes, on
+# a GitHub-hosted runner (it survives the worker host itself dying), tools/worker_alert.py reads the RQ worker registry
+# of omni-builds from Redis. No live worker, or a registry that cannot be read, opens ONE issue labelled
+# alert-worker-down (a notification to the owner) and turns this run red; a live worker closes the issue.
+# Manual run with a queue nobody consumes (C18's alert half, DECISIONS question 8): the whole real path -- Redis read,
+# verdict, issue, notification -- under its own drill label, closed by the drill itself; production is not touched.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      drill_queue:
+        description: "Drill: a queue with no consumer (e.g. omni-drill-no-consumer). Empty = the real build queue."
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: build-worker-alert
+  cancel-in-progress: false
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install the worker's own Redis client and rq
+        run: python -m pip install -q "redis==8.1.0" "rq==2.12.0"
+      - name: Is a build worker alive?
+        env:
+          OMNI_REDIS_URL: ${{ secrets.OMNI_REDIS_URL }}
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DRILL_QUEUE: ${{ inputs.drill_queue }}
+        run: |
+          if [ -n "${DRILL_QUEUE:-}" ]; then
+            python tools/worker_alert.py --repo "$GITHUB_REPOSITORY" --queue "$DRILL_QUEUE" --drill
+          else
+            python tools/worker_alert.py --repo "$GITHUB_REPOSITORY"
+          fi

@@ -32,6 +32,20 @@ class ExecutionReport:
     # commands, read from the runner's own summary. None = no recognised runner reported a count.
     tests_executed: int | None = None
 
+class RepairDeclined(Exception):
+    """A repairer that will not repair this round, with the reason the loop records as its stop_reason (the content
+    route, omni_prod/site_content: a failure the platform owns -- 'platform_render_defect' -- is a library or fact-sheet
+    bug, not something a paid model round can fix). The loop ends on its best version, exactly as a stop-loss does.
+    `paid_call` says whether the repairer called a model before it declined: a round declined before any call is not
+    counted as a repair round."""
+
+    def __init__(self, stop_reason: str, detail: str = '', *, paid_call: bool = False):
+        super().__init__(f'{stop_reason}: {detail}' if detail else stop_reason)
+        self.stop_reason = stop_reason
+        self.detail = detail
+        self.paid_call = paid_call
+
+
 @dataclass(frozen=True)
 class AutonomousResult:
     status: str
@@ -135,29 +149,36 @@ class AutonomousProductEngine:
             found = detect(repo)
             if not found:
                 continue
-            fixed = False
+            fixed, said, outcome = False, '', 'not_attempted'
             for _ in range(pf.MAX_FIXES_PER_ISSUE):
                 failure = describe(found)
                 transform = getattr(self, 'repository_transform', None)
                 if transform is not None and hasattr(transform, 'redact_text'):
                     failure = {k: transform.redact_text(v) if isinstance(v, str) else v for k, v in failure.items()}
+                said = str(failure.get('message') or '')[:300]      # after redaction: what was wrong, for the record
                 try:
                     patch = self.repairer.repair(spec=spec, repo_summary=self._repair_summary(repo, [failure]),
                                                  failures=[failure])
                 except Exception:   # the cheap fix is optional; the real round still runs
+                    outcome = 'repairer_error'
                     break
                 keep = allowed(found)
                 narrow = tuple(p for p in patch or () if getattr(p, 'path', None) in keep)
                 if not narrow:
+                    outcome = 'patch_outside_the_allowed_files'
                     break
                 candidate = apply_patch(repo, narrow)
                 if transform is not None:
                     candidate = transform(candidate)
                 if not detect(candidate):
-                    repo, fixed = candidate, True
+                    repo, fixed, outcome = candidate, True, 'repaired'
                     break
+                outcome = 'still_failing_after_the_patch'
+            # 2026-11-21: the message and the outcome are recorded. Without them nobody could say afterwards WHAT the
+            # plan lacked in 18 production builds, or why 5 of them were not repaired (the investigation of that day).
             self._preflight_events.append({'layer': 'preflight', 'failure_type': kind, 'round_index': round_index,
-                                           'chain_depth': 0, 'was_repaired': fixed})
+                                           'chain_depth': 0, 'was_repaired': fixed, 'message': said,
+                                           'outcome': outcome})
         return repo
 
     def _observed_failures(self, report):
@@ -335,6 +356,14 @@ class AutonomousProductEngine:
                     repo_summary=self._repair_summary(repo, failures),
                     failures=failures,
                 )
+            except RepairDeclined as exc:
+                # the content route (omni_prod/site_content): a platform-owned failure stops without a paid round
+                self.trace.append({'round': rounds, 'repair_declined': exc.stop_reason, 'detail': exc.detail[:400],
+                                   'paid_call': exc.paid_call})
+                if not exc.paid_call:
+                    rounds -= 1          # declined before any model call: this repair round did not run
+                stop_reason = exc.stop_reason
+                break
             except Exception as exc:
                 # The owner's butcher builds, 2026-11-17 (bld_6323468a, bld_c0b2b43b): three rounds were verified, then
                 # no model route answered the repair with valid JSON (prose before it, an answer cut at its length, an

@@ -34,6 +34,7 @@ from omni_prod import discovery as d
 from omni_prod import fact_canon as F
 from omni_prod import uploaded_assets as U
 from omni_prod import window_catalog as W
+from omni_prod.repository_assets import file_bytes
 from omni_prod.autonomous_core import AutonomousProductEngine, ExecutionReport
 from omni_prod.build_contract import BuildContract
 from omni_prod.product_architect import ProductArchitect
@@ -46,6 +47,7 @@ ATTACHMENT = 'att_6d5b3e6de6274a44829dd038da5c4539'
 PHOTO = b'\xff\xd8\xff' + b'doors' * 400
 PHOTO_SHA = hashlib.sha256(PHOTO).hexdigest()
 PHOTO_URI = 'data:image/jpeg;base64,' + base64.b64encode(PHOTO).decode('ascii')
+PHOTO_FILE = 'assets/148ai-upload-1.jpg'          # warehouse 118: the page references the photo as this file
 MARKER = '148ai-asset://upload/1'
 ALT = 'דלתות'
 
@@ -110,11 +112,14 @@ class TheProductionContract(unittest.TestCase):
             sandbox = vars(sandbox)['_inner']
         seen = sandbox.seen[0]['index.html']                        # what the browser gets, first
         self.assertNotIn('148ai-asset://', seen)
-        self.assertIn(f'src="{PHOTO_URI}"', seen)
+        self.assertIn(f'src="{PHOTO_FILE}"', seen)                  # warehouse 118: a file, not a data URI
+        self.assertNotIn('data:image', seen)
+        self.assertEqual(file_bytes(PHOTO_FILE, sandbox.seen[0][PHOTO_FILE]), PHOTO)   # the file holds the bytes
         self.assertEqual((result.status, result.repair_rounds), ('ready', 0))
         Repo.return_value.get.assert_called_once_with(project_id='prj_-K3B8ZLIJawPEA', account_id='a',
                                                       attachment_id=ATTACHMENT)
-        self.assertIn(f'- image 1: src="{MARKER}"; place: hero; 1080x720 px; image/jpeg; alt="{ALT}"', build_prompt)
+        self.assertIn(f'- image 1: src="{MARKER}"; place: hero; 1080x720 px; image/jpeg; alt="{ALT}"; file: {PHOTO_FILE}',
+                      build_prompt)
 
 
 class TheOwnersMutation(unittest.TestCase):

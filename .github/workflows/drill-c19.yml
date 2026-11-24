@@ -1,0 +1,85 @@
+name: Drill C19 (kill switch)
+
+# Monthly drill C19 (CONTROLS.json): OMNI_ZERO_COST_MODE turned on blocks every external model call. First run by hand
+# on 2026-11-21 (run 44932702825, attempt 2). Since 2026-11-21 (the owner: Codex's tasks, monthly drills automation,
+# are Claude's) it runs on main by itself, on the 1st and the 16th -- twice a month, so one failed run never lets the
+# monthly record lapse; registry_lint R3 reads these runs from GitHub (drill_workflow, tools/drill_runs_from_github.py).
+# A separate process runs inside the live worker container (its image, its code, its environment) twice: as deployed,
+# and with OMNI_ZERO_COST_MODE=1. The worker's own process is not touched; no checkout on the worker host.
+# Expected, stated before every run: as deployed (production has spend on) the call is ALLOWED -- the control half that
+# shows the switch is what changes the answer; with the switch ON external_spend_enabled() is false and the call is
+# BLOCKED (or ModelRuntimeConfig refuses to build). Either half different = FAIL, and an issue says so.
+# 2026-11-21 attempt 1 (Claude's bug, run 44932541854): the probe endpoint had no api_key, so ModelEndpoint raised
+# ValueError and a broad `except ValueError` reported it as a from_env refusal. Only from_env's own refusal counts.
+on:
+  schedule:
+    - cron: '27 3 1,16 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: worker-host-drills
+  cancel-in-progress: false
+
+jobs:
+  c19-kill-switch:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: C19 -- the kill switch, on the production image and environment
+        run: |
+          set -uo pipefail
+          W=omni-worker-worker-1
+          docker inspect "$W" >/dev/null 2>&1 || { echo "::error title=C19 not run::no container $W ($(docker ps --format '{{.Names}}' | tr '\n' ' '))"; exit 1; }
+          cat > "$RUNNER_TEMP/c19.py" <<'PY'
+          import json, os
+          from decimal import Decimal
+          import omni_prod.model_policy as mp
+          out = {'OMNI_ZERO_COST_MODE': os.environ.get('OMNI_ZERO_COST_MODE'),
+                 'OMNI_ALLOW_EXTERNAL_FALLBACK': os.environ.get('OMNI_ALLOW_EXTERNAL_FALLBACK'),
+                 'spend_enabled': mp.external_spend_enabled()}
+          from omni_prod.model_runtime_config import ModelRuntimeConfig
+          try:                                       # attempt 2: only from_env's own refusal counts as REFUSED
+              cfg = ModelRuntimeConfig.from_env()
+          except ValueError as e:
+              out['config'] = 'REFUSED: ' + str(e)
+          else:
+              p = cfg.policy
+              out['config'] = 'built'
+              out['policy'] = {'zero_cost_mode': p.zero_cost_mode, 'allow_external_fallback': p.allow_external_fallback,
+                               'external_budget_usd': str(p.external_budget_usd), 'calls': p.max_external_calls_per_build}
+              # a probe endpoint, never contacted (authorize_model_call makes no request); the placeholder is not a key
+              probe = 'drill-placeholder-not-a-key'    # never sent anywhere; ModelEndpoint only requires a value
+              ep = mp.ModelEndpoint(name='drill', base_url='https://drill.invalid/v1', model='drill',
+                                    api_key=probe, external=True)
+              try:
+                  mp.authorize_model_call(endpoint=ep, policy=p, state=mp.ModelUseState(),
+                                          estimated_cost_usd=Decimal('0.001'))
+                  out['call'] = 'ALLOWED'
+              except mp.ModelPolicyViolation as e:
+                  out['call'] = 'BLOCKED: ' + str(e)
+          print(json.dumps(out))
+          PY
+          echo "::notice title=C19 worker before::$(docker inspect -f 'status={{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}}' "$W")"
+          asis=$(docker exec -i "$W" python - < "$RUNNER_TEMP/c19.py" 2>&1 | tail -n 1)
+          echo "::notice title=C19 as deployed::$asis"
+          on=$(docker exec -i -e OMNI_ZERO_COST_MODE=1 "$W" python - < "$RUNNER_TEMP/c19.py" 2>&1 | tail -n 1)
+          echo "::notice title=C19 switch ON::$on"
+          echo "::notice title=C19 worker after (untouched)::$(docker inspect -f 'status={{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}}' "$W")"
+          case "$asis" in *'"call": "ALLOWED"'*) echo "::notice title=C19 control half PASS::as deployed the same call is ALLOWED";;
+            *) echo "::error title=C19 FAIL (control half)::as deployed the call is not ALLOWED ($asis): the switch is not shown to be what decides"; exit 1;; esac
+          case "$on" in *'"spend_enabled": false'*) ;; *) echo "::error title=C19 FAIL::external spend still enabled with OMNI_ZERO_COST_MODE=1"; exit 1;; esac
+          case "$on" in *BLOCKED*|*REFUSED*) echo "::notice title=C19 PASS::with OMNI_ZERO_COST_MODE=1 the production code and environment block the external call";;
+            *) echo "::error title=C19 FAIL::the external call was not blocked: $on"; exit 1;; esac
+      - name: A failed drill opens an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/issues" \
+            -d "{\"title\":\"DRILL FAILED: C19 kill switch ($(date -u +%F))\",\"labels\":[\"drill-failed\"],\"body\":\"The scheduled drill C19 failed or could not run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. FAIL is the finding; NOT RUN means the drill itself could not be set up.\"}" \
+            >/dev/null && echo "issue opened"

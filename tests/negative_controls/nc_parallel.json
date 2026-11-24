@@ -75,7 +75,7 @@
    "mutations": [
     {
      "file": "scripts/run_negative_controls.py",
-     "old": "RUNNER_SETTINGS = ('NC_JOBS', 'NC_DB_URL', 'NC_REDIS_URL')",
+     "old": "RUNNER_SETTINGS = ('NC_JOBS', 'NC_DB_URL', 'NC_REDIS_URL', 'NC_SCOPE')",
      "new": "RUNNER_SETTINGS = ()"
     }
    ],

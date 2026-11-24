@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Verify live production API
@@ -143,7 +143,7 @@ jobs:
       - name: Upload smoke evidence
         id: smoke_artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: production-smoke-${{ github.run_id }}-${{ github.run_attempt }}
           path: smoke/last-run.md

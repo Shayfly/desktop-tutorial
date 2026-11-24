@@ -1,0 +1,129 @@
+{
+ "pr": "repair-json-schema",
+ "sha256": [
+  "tests/test_repair_json_schema.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the Anthropic request does not carry the schema",
+   "mutations": [
+    {
+     "file": "omni_prod/model_gateway.py",
+     "old": "                body['output_config'] = {'format': {'type': 'json_schema', 'schema': output_schema}}\n",
+     "new": "                pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_json_schema.py"
+   ],
+   "expect_failed": [
+    "test_anthropic_request_carries_the_schema_as_structured_output"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the routed gateway drops the schema",
+   "mutations": [
+    {
+     "file": "omni_prod/routed_gateway.py",
+     "old": "            **({'schema': schema} if schema is not None else {}),\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_repair_json_schema.py"
+   ],
+   "expect_failed": [
+    "test_routed_gateway_passes_the_schema_through"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the repair loop does not send the action schema",
+   "mutations": [
+    {
+     "file": "omni_prod/agentic_repair.py",
+     "old": "                              schema=ACTION_SCHEMA)\n",
+     "new": "                              )  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_json_schema.py"
+   ],
+   "expect_failed": [
+    "test_the_repair_loop_sends_the_action_schema"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a refused answer ends the round again (the old behaviour)",
+   "mutations": [
+    {
+     "file": "omni_prod/agentic_repair.py",
+     "old": "                continue\n            except Exception as exc:\n",
+     "new": "                break  # NEGATIVE CONTROL\n            except Exception as exc:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_json_schema.py"
+   ],
+   "expect_failed": [
+    "test_a_good_answer_resets_the_count",
+    "test_one_refused_answer_is_told_back_and_the_round_goes_on",
+    "test_two_refused_in_a_row_end_the_round_loudly"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "refused answers are retried without a bound",
+   "mutations": [
+    {
+     "file": "omni_prod/agentic_repair.py",
+     "old": "                if rejected_in_a_row >= MAX_CONSECUTIVE_REJECTED:\n",
+     "new": "                if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_json_schema.py"
+   ],
+   "expect_failed": [
+    "test_two_refused_in_a_row_end_the_round_loudly"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a good answer does not reset the count",
+   "mutations": [
+    {
+     "file": "omni_prod/agentic_repair.py",
+     "old": "            rejected_in_a_row = 0\n            action =",
+     "new": "            action ="
+    }
+   ],
+   "targets": [
+    "tests/test_repair_json_schema.py"
+   ],
+   "expect_failed": [
+    "test_a_good_answer_resets_the_count"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the schema sent to Anthropic leaves objects open",
+   "mutations": [
+    {
+     "file": "omni_prod/agentic_repair.py",
+     "old": "    return {'type': 'object', 'additionalProperties': False, 'required': ['action', *required],\n",
+     "new": "    return {'type': 'object', 'additionalProperties': True, 'required': ['action', *required],\n"
+    }
+   ],
+   "targets": [
+    "tests/test_repair_json_schema.py"
+   ],
+   "expect_failed": [
+    "test_every_object_is_closed_and_requires_only_known_properties"
+   ]
+  }
+ ]
+}

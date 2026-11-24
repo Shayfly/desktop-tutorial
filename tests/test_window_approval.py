@@ -68,7 +68,8 @@ class TheOffer(unittest.TestCase):
         # the owner 2026-11-19: a cafe is not offered a cart, an age gate or filter chips -- only what fits it
         _, action = at_gate_1()
         offer = action['windows']
-        self.assertEqual([w['id'] for w in offer], ['cookie_banner', 'question_widget'])
+        # DECISIONS 14 (a): this content-only cafe gave a phone and no WhatsApp or e-mail -- no question widget
+        self.assertEqual([w['id'] for w in offer], ['cookie_banner'])
         cookies = offer[0]
         self.assertEqual((cookies['label'], cookies['benefit'], cookies['state']),
                          ('הודעת עוגיות', W.BENEFITS['cookie_banner'][0], None))

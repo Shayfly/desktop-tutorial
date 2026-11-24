@@ -1,5 +1,5 @@
 """78 (Michael 2026-11-11): "the app did not start" is wrong when the app is up. An app that started and served an
-empty page is reported as "הממשק שנוצר ריק", with what is missing (form, inputs, button, table)."""
+empty page is reported as "האתר שנבנה יצא ריק", with what is missing (form, inputs, button, table)."""
 from __future__ import annotations
 
 import pathlib
@@ -77,15 +77,15 @@ class CustomerText(unittest.TestCase):
     def test_hebrew_names_what_is_missing(self):
         out = self.say('he', 'the product passed its checks; the app started but the generated interface is empty: '
                              'PREVIEW-SMOKE GET / returned a placeholder page (missing: form,button,table; 40 chars)')
-        self.assertEqual(out, 'הממשק שנוצר ריק: חסרים בו טופס, כפתור, טבלה, ולכן הגרסה לא אושרה.')
+        self.assertEqual(out, 'האתר שנבנה יצא ריק: חסרים בו טופס, כפתור, טבלה, אז לא מסרנו אותו.')
 
     def test_not_started_text_is_unchanged(self):
         out = self.say('he', 'the product passed its checks but did not start for preview after repair: server exited')
-        self.assertIn('האתר לא עלה', out)
+        self.assertEqual(out, 'בנינו את האתר, אבל הוא לא נפתח כשניסינו אותו, אז לא מסרנו אותו.')
 
     def test_english(self):
         out = self.say('en', 'the generated interface is empty (missing: table)')
-        self.assertEqual(out, 'The generated interface is empty: missing a table, so the version was not accepted.')
+        self.assertEqual(out, 'The site that was built came out empty: missing a table, so we did not hand it over.')
 
 
 if __name__ == '__main__':

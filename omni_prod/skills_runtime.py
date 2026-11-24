@@ -827,9 +827,13 @@ COPY_QUALITY = Skill(
         'invented facts); if the owner must fill it, put it in an owner-only settings field. Never invent a phone or '
         'WhatsApp number, a street address, an e-mail, or testimonials with customer names: show only those the '
         'request gives; without a number, a WhatsApp/phone button is left out (CEO 2026-11-09). Testimonials: only '
-        'those the request gives; sample ones carry a visible "(לדוגמה)" label.'),
+        'those the request gives, quoted as given. When the request asks for reviews but gives none, leave that '
+        'section out (the owner adds real ones later); if a sample is shown instead, its heading carries '
+        '"(לדוגמה)" and it names no person -- no invented first names (2026-11-21: the generator and the reviewer '
+        'read the same rule).'),
     checklist=('No placeholder, English leftover or invented business fact appears in the product.',
-               'No phone number, address or named testimonial that the request did not give.',
+               'No phone number or address that the request did not give; no testimonial that the request did not '
+               'give unless its heading says "(לדוגמה)" and it names no person.',
                'Buttons name their outcome; errors say how to fix the problem.'),
     static_checks=(_placeholder_copy, _invented_contact),
 )

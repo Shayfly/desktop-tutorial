@@ -231,6 +231,7 @@ QUESTIONS: tuple[Question, ...] = (
     Question('logo', 'logo', 'design', 'לוגו?', 'Logo?', 'אפשר להתחיל בלוגו טקסטואלי ולהחליף אחר כך.',
              'A text logo now can be replaced later.',
              options=(_o('text', 'לוגו טקסטואלי עם שם המוצר', 'Text logo with the product name'), _o('none', 'בלי לוגו', 'No logo'),
+                      _o('uploaded', 'הלוגו שהעליתם', 'The logo you uploaded'),
                       _o('later', 'יש לי לוגו — אעלה אחר כך', 'I have one — will upload later')), recommended='text'),
     # 77 (Michael 2026-11-11): a capability with no price never blocks silently. When the platform finds one before
     # gate 1 it records the keys in hints['unpriced'] and asks this ONE question. "Build without" binds a customer
@@ -238,8 +239,8 @@ QUESTIONS: tuple[Question, ...] = (
     Question('unavailable', 'unavailable', 'purpose',
              'חלק ממה שביקשת עדיין לא זמין אצלנו. לבנות בלעדיו?',
              'Part of what you asked for is not available yet. Build without it?',
-             'אם תבחרו לבנות בלעדיו, זה ייכתב במפרט שתאשרו. אפשר להוסיף אותו אחר כך כשיהיה זמין.',
-             'If you build without it, the spec you approve says so. It can be added later once available.',
+             'אם תבחרו לבנות בלעדיו, זה ייכתב בסיכום שתאשרו. אפשר להוסיף אותו אחר כך כשיהיה זמין.',
+             'If you build without it, the summary you approve says so. It can be added later once available.',
              options=(_o('build_without', 'כן, לבנות בלעדיו', 'Yes, build without it'),
                       _o('wait', 'לא, אחכה שזה יהיה זמין', 'No, I will wait for it')),
              delegable=False, ask_if=lambda v: bool(v.get('_unpriced'))),
@@ -626,7 +627,7 @@ def answer(brief: Brief, answers: Mapping[str, str]) -> Brief:
         if qid in new.skipped:
             new.skipped.remove(qid)
     _drop_inapplicable(new)
-    if 'logo' in answers and new.values().get('logo') != 'later':
+    if 'logo' in answers and new.values().get('logo') not in ('later', 'uploaded'):
         new.assets.pop('logo', None)
     return _settle_image(brief, new, answers)
 
@@ -652,7 +653,7 @@ def _settle_image(before: 'Brief', new: 'Brief', answers: Mapping[str, str]) -> 
         for f in IMAGE_FIELDS:
             new.fields.pop(f, None)
         new.assets['logo'] = {k: img[k] for k in ('id', 'sha256', 'mime', 'size_bytes') if k in img}
-        new.fields['logo'] = {'value': 'later', 'source': 'answer', 'question_id': 'image_kind', 'confidence': 'confirmed'}
+        new.fields['logo'] = {'value': 'uploaded', 'source': 'answer', 'question_id': 'image_kind', 'confidence': 'confirmed'}
     if new.values().get('image_use') == 'change':
         new.fields.pop('image_use', None)
         new.hints['image_change'] = 'asked'
@@ -861,6 +862,43 @@ def _store_facts(brief: Brief, facts: dict) -> None:
         brief.assets.pop('facts', None)
 
 
+# task 62 (the owner's build prj_9c357UySW645bg, 2026-11-22): the agent asked "מה מספר הוואטסאפ שתרצו שיופיע באתר?" in
+# its own words, the customer answered "0503456723", and the bare span left the content route two main phones
+# (phone_not_one -> the old path). A WhatsApp number keeps its role: a mobile number the customer labelled WhatsApp keeps
+# the label in its span, and a bare number answering a question about WhatsApp is that label's answer.
+WHATSAPP_LABEL = 'וואטסאפ: '
+_WA_WORD = re.compile(r'וואטסאפ|ווטסאפ|וואצאפ|ווצאפ|whats\s*app', re.I)
+_WA_BEFORE = re.compile(r'(?:וואטסאפ|ווטסאפ|וואצאפ|ווצאפ|whats\s*app)[^\d\n.!?;]{0,15}$', re.I)
+_OTHER_PHONE_WORD = re.compile(r'טלפון|נייד|קווי|להתקשר|חיוג|phone|mobile|landline|call', re.I)
+
+
+def answer_in_context(message: str, asked_before: str | None) -> str:
+    """The customer's message as the facts read it: a message that is only a phone number, answering a question whose
+    last sentence asks about WhatsApp and no other phone, is "וואטסאפ: <number>". Anything else is unchanged."""
+    from .fact_canon import _PHONE, parse_phone
+    text = (message or '').strip().rstrip('.!')
+    questions = re.findall(r'[^.!?\n]*\?', asked_before or '')
+    last = questions[-1] if questions else ''
+    if not (_WA_WORD.search(last) and not _OTHER_PHONE_WORD.search(_WA_WORD.sub(' ', last))):
+        return message
+    m = _PHONE.fullmatch(text)
+    return WHATSAPP_LABEL + m.group(0) if m and parse_phone(m.group(0)).ok else message
+
+
+def _labelled_spans(text: str, spans: list[str]) -> list[str]:
+    """fact_spans(text), with a mobile number the customer labelled WhatsApp ("וואטסאפ: 050-...") kept with its label."""
+    from .fact_canon import _PHONE, parse_phone
+    out = []
+    for span in spans:
+        at = text.find(span)
+        p = parse_phone(span) if _PHONE.fullmatch(span) else None
+        labelled = (at > 0 and p is not None and p.ok and p.kind == 'mobile'
+                    and _WA_BEFORE.search(text[max(0, at - 25):at])
+                    and not _OTHER_PHONE_WORD.search(_WA_BEFORE.search(text[max(0, at - 25):at]).group(0)))
+        out.append(WHATSAPP_LABEL + span if labelled else span)
+    return out
+
+
 def note_customer_texts(brief: Brief, texts) -> bool:
     """Merge what the customer's own messages state into the brief (Michael 2026-11-13): the fact spans (phone,
     e-mail, address, hours) and what the page needs (a call button -> phone, an hours section -> hours), from EVERY
@@ -870,7 +908,8 @@ def note_customer_texts(brief: Brief, texts) -> bool:
     before = json.dumps(facts, sort_keys=True, ensure_ascii=False)
     own = needs_in(brief.prompt)                           # read from the request itself: not stored again
     for text in texts:
-        facts['spans'] += [x for x in fact_spans(text or '') if x not in facts['spans']]
+        clean = ' '.join((text or '').split())
+        facts['spans'] += [x for x in _labelled_spans(clean, fact_spans(text or '')) if x not in facts['spans']]
         facts['needs'] += [k for k in needs_in(text or '') if k not in facts['needs'] and k not in own]
     if json.dumps(facts, sort_keys=True, ensure_ascii=False) == before:
         return False
@@ -879,8 +918,15 @@ def note_customer_texts(brief: Brief, texts) -> bool:
 
 
 def customer_messages(messages) -> list[str]:
-    """The stored customer messages' text, in the order the store returns them."""
-    return [str(m.get('content') or '') for m in messages or () if m.get('role') == 'customer']
+    """The stored customer messages' text, in the order the store returns them; a bare number answering a question
+    about WhatsApp is read with that label (answer_in_context)."""
+    out, asked = [], None
+    for m in messages or ():
+        if m.get('role') == 'assistant':
+            asked = str(m.get('content') or '')
+        elif m.get('role') == 'customer':
+            out.append(answer_in_context(str(m.get('content') or ''), asked))
+    return out
 
 
 def missing_facts(brief: Brief) -> tuple[list[str], list[str]]:
@@ -962,7 +1008,22 @@ def window_offer(brief: 'Brief', lang: str = 'he') -> list[dict]:
     if not is_website(brief):
         return []
     from .window_catalog import offer
-    return offer(lang, approved_windows(brief), rejected_windows(brief), text=brief.prompt)   # only what fits
+    out = offer(lang, approved_windows(brief), rejected_windows(brief), text=brief.prompt)   # only what fits
+    v = brief.values()
+    if _content_only(v, 'none' if v.get('login') == 'none' else 'x') and not _question_channel(brief.prompt):
+        # DECISIONS 14 (a), 2026-11-22: the question widget opens a form, and a content-only site saves nothing, so with
+        # no WhatsApp and no e-mail the question has nowhere to go -- the owner's build bld_ab78f528 failed the browser
+        # check on exactly that form (dead_form 'q-form'). It is not offered; a decision already made stays shown.
+        out = [w for w in out if w['id'] != 'question_widget' or w['state'] is not None]
+    return out
+
+
+def _question_channel(prompt: str) -> bool:
+    """A channel the question widget can hand a question to: the customer's WhatsApp number or e-mail address, read by
+    the content route's own fact sheet (a negated WhatsApp, 'אין לנו וואטסאפ', is no channel)."""
+    from .site_content.facts import fact_sheet
+    sheet = fact_sheet(prompt or '')
+    return bool(sheet.whatsapp or sheet.email)
 
 
 def requirements_text(brief: Brief) -> str:

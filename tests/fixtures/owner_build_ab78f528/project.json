@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "runtime": "python:3.11-slim",
+  "start": ["python", "app.py"],
+  "port": 8000,
+  "health_path": "/health",
+  "build": [["python", "-m", "compileall", "-q", "."]],
+  "verify": [
+    {
+      "name": "unit tests",
+      "argv": ["python", "-m", "pytest", "-q"],
+      "acceptance_ids": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "CUSTOMER-FACTS", "DESIGN-CONTRACT"]
+    }
+  ],
+  "web_saas_acceptance": {
+    "product_family": "managed_web_saas_v1",
+    "required_kinds": ["data_read", "responsive", "api_smoke"],
+    "personas": [
+      {
+        "id": "visitor",
+        "role": "visitor",
+        "steps": [
+          {
+            "id": "s1",
+            "kind": "data_read",
+            "acceptance_ids": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "CUSTOMER-FACTS", "DESIGN-CONTRACT"],
+            "method": "GET",
+            "path": "/",
+            "expect_status": 200,
+            "expect_text_contains": "סטודיו נועה"
+          },
+          {
+            "id": "s2",
+            "kind": "responsive",
+            "acceptance_ids": ["A1"],
+            "method": "GET",
+            "path": "/",
+            "expect_status": 200,
+            "expect_text_contains": "name=\"viewport\""
+          },
+          {
+            "id": "s3",
+            "kind": "api_smoke",
+            "acceptance_ids": ["A9"],
+            "method": "GET",
+            "path": "/health",
+            "expect_status": 200,
+            "expect_text_contains": "ok"
+          },
+          {
+            "id": "s4",
+            "kind": "data_read",
+            "acceptance_ids": ["A4"],
+            "method": "GET",
+            "path": "/assets/148ai-image-1.webp",
+            "expect_status": 200
+          }
+        ]
+      }
+    ]
+  }
+}

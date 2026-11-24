@@ -186,6 +186,117 @@
     "restore from a Neon branch (the drill restores the R2 dump into a throwaway Postgres instead)",
     "a known row by value (the drill compares per-table row counts and migrations, not a named row)"
    ]
+  },
+  {
+   "control": "C16",
+   "date": "2026-11-21",
+   "result": "PASS",
+   "sha": "9060165622e991e9fec3cc1a6503da47499d14c4",
+   "drill_sha": "ad390bfcf6ce2fea7500483496f76499fd52f940",
+   "runs": [
+    "44932418710"
+   ],
+   "workflow": ".github/workflows/drill-c16-2026-11-21.yml on drill/monthly-2026-11-21 (push; one file per drill, the owner's order of 2026-11-21: C16, C19, C11, C18); runner ubuntu-latest; identity: the bot's GITHUB_TOKEN (non-admin, contents+pull-requests write)",
+   "times_utc": {
+    "started": "2026-11-21T17:52:39Z",
+    "finished": "2026-11-21T17:52:42Z"
+   },
+   "expected": "stated before the run: HTTP 405 (required checks not passing) and main unchanged; HTTP 200 = C16 broken for non-admins",
+   "observed": "HTTP 405 '2 of 2 required status checks are failing.' for PUT /pulls/484/merge pinned to the red head 0900d67 (required check test = failure); main 9060165 before and after; #484 closed unmerged",
+   "recorded_by": "Claude, 2026-11-21, from the run's annotations (job 136931720641)"
+  },
+  {
+   "control": "C19",
+   "date": "2026-11-21",
+   "result": "PASS (attempt 2)",
+   "sha": "9060165622e991e9fec3cc1a6503da47499d14c4",
+   "drill_sha": "d2badebf1da3d63cde2e99577984a0860ddf9046",
+   "runs": [
+    "44932702825"
+   ],
+   "workflow": ".github/workflows/drill-c19-2026-11-21.yml on drill/monthly-2026-11-21 (push; one file per drill, the owner's order of 2026-11-21: C16, C19, C11, C18); runner 148ai-worker-01; a separate process inside the live worker container (its image, code and environment), twice",
+   "times_utc": {
+    "started": "2026-11-21T17:55:54Z",
+    "finished": "2026-11-21T17:55:55Z"
+   },
+   "expected": "stated before the run: as deployed the external call is ALLOWED (the control half); with OMNI_ZERO_COST_MODE=1 external_spend_enabled() is false and the call is BLOCKED or ModelRuntimeConfig refuses",
+   "observed": "as deployed: ZERO=0 ALLOW=1 spend_enabled=true, config built (budget 0.50, calls 150), call ALLOWED; switch on: spend_enabled=false, from_env REFUSED 'zero_cost_mode forbids external model spend'; the worker untouched (restarts=0, started 16:11:24 before and after)",
+   "attempts": [
+    {
+     "run": "44932541854",
+     "outcome": "INSTRUMENT BUG (Claude): the drill's probe endpoint had no api_key, ModelEndpoint raised ValueError and the broad except reported it as a from_env refusal, so the control half never checked the call; the switch half was genuine. Fixed in d2badeb and checked locally (spend on -> ALLOWED, switch on -> REFUSED, budget 0 -> BLOCKED)"
+    }
+   ],
+   "not_proven": [
+    "turning the switch on for the live worker process itself (needs a restart with the new environment)",
+    "the Vercel copy of the switch"
+   ],
+   "recorded_by": "Claude, 2026-11-21, from the run's annotations (job 136932587724)"
+  },
+  {
+   "control": "C11",
+   "date": "2026-11-21",
+   "result": "PASS (attempt 2)",
+   "sha": "9060165622e991e9fec3cc1a6503da47499d14c4",
+   "drill_sha": "f2a2481078cd56b47fe7b41f14cb6c2ad9f4d07b",
+   "runs": [
+    "44933990232"
+   ],
+   "workflow": ".github/workflows/drill-c11-2026-11-21.yml on drill/monthly-2026-11-21 (push; one file per drill, the owner's order of 2026-11-21: C16, C19, C11, C18); runner 148ai-worker-01; the real drain.sh at 9060165 against the live containers, behind a wrapper that fails docker tag, hides omni-rollback images and refuses every stop",
+   "times_utc": {
+    "started": "2026-11-21T18:09:55Z",
+    "finished": "2026-11-21T18:09:57Z"
+   },
+   "expected": "stated before the run: exit 1, 'NOT draining, nothing was stopped' for the reason 'cannot save a rollback image', drain-failed written, no stop attempt, the same containers before and after",
+   "observed": "preflight listed the live worker 2bc963f0f018 (project omni-worker); 'NOT draining, nothing was stopped: cannot save a rollback image for worker / intake-worker / intake-maintain / preview-worker'; exit 1; drain-failed written; no stop attempt; the same 8 containers before and after",
+   "attempts": [
+    {
+     "run": "44932757080",
+     "outcome": "INSTRUMENT BUG (Claude): the drill gave a placeholder only to OMNI_SANDBOX_SHARED_SECRET; docker-compose.yml:144 also requires OMNI_PREVIEW_RUNTIME_HOST, so docker compose ps failed interpolation and drain.sh refused at 'cannot list container' (drain.sh:53) before the rollback check. Fail-closed held (nothing stopped) but C11 was not exercised. Reproduced locally with compose config (rc 1 -> rc 0); fixed in f2a2481 with a placeholder for every ${VAR:?} and a preflight"
+    }
+   ],
+   "not_proven": [
+    "a real deploy whose rollback image truly cannot be saved: here the wrapper produced that condition"
+   ],
+   "recorded_by": "Claude, 2026-11-21, from the run's annotations (job 136936533879)"
+  },
+  {
+   "control": "C18",
+   "date": "2026-11-21",
+   "result": "FAIL (alert) -- the finding; the alert is warehouse 121",
+   "sha": "9060165622e991e9fec3cc1a6503da47499d14c4",
+   "drill_sha": "62143f2112c302c58ab181388132e8f421165a63",
+   "runs": [
+    "44935937685"
+   ],
+   "workflow": ".github/workflows/drill-c18-2026-11-21.yml on drill/monthly-2026-11-21 (push; one file per drill, the owner's order of 2026-11-21: C16, C19, C11, C18); runner 148ai-worker-01",
+   "times_utc": {
+    "started": "2026-11-21T18:30:55Z",
+    "killed": "2026-11-21T18:31:00Z",
+    "running_again": "2026-11-21T18:31:30Z",
+    "listening": "2026-11-21T18:31:34Z",
+    "finished": "2026-11-21T18:31:40Z"
+   },
+   "preconditions": "the owner's conditions of 2026-11-21: no active build by query (build_requests JOIN build_jobs queued/running = 0 at 18:29:14Z and 18:30:37Z, Neon), and the deploy's fail-closed gate inside the worker exit 0 seconds before the kill; the recovery commands written and printed before the kill; a 30 s ceiling, recovery 2 at 60 s, manual at 120 s",
+   "expected": "stated before the run: the worker back within the ceiling; FAIL on the alert, because no monitor, scheduled job or notification exists for a dead build worker",
+   "observed": "gate exit 0 (started 0 and queued 0 on every queue, no running build); killed 18:31:00Z; restart policy unless-stopped did not restart it within 30 s (Docker treats docker kill as a manual stop; a crash or OOM would restart); recovery 1 'docker start omni-worker-worker-1' at the ceiling; running 30 s after the kill; '*** Listening on omni-builds' 18:31:34Z; no alert from anything",
+   "follow_up": "warehouse 121 (the dead-worker alert), built immediately; the alert path is drilled before C18 is called green",
+   "recorded_by": "Claude, 2026-11-21, from the run's annotations (job 136942434446)"
+  },
+  {
+   "control": "C18",
+   "date": "2026-11-21",
+   "result": "PASS (the alert half)",
+   "sha": "062599671854bf82b936949bc69c2d2fc30abee1",
+   "runs": [
+    "44942838520",
+    "44942942630"
+   ],
+   "workflow": ".github/workflows/worker-alert.yml (warehouse 121, #487), workflow_dispatch on main",
+   "expected": "stated before (DECISIONS question 8, recommendation a): on a queue with no consumer the real Redis read finds no worker, an issue is opened (the owner's notification) and closed by the drill, and the run is red; on the real build queue the live worker is found and nothing is opened",
+   "observed": "run 44942838520 (drill_queue omni-drill-no-consumer): 'no worker is registered on the queue', 'opened and closed drill issue #489', exit 1; run 44942942630 (real queue): 'omni-builds: 1 live: 2d145487c24c4c60a4f5941a26303c4f (idle, heartbeat 81s ago)', 'nothing open', exit 0",
+   "closes": "the C18 finding of run 44935937685 (no alert existed); the recovery half is that run's 30-second restore",
+   "recorded_by": "Claude, 2026-11-21, from the runs' annotations"
   }
  ],
  "s01": {
@@ -640,6 +751,7 @@
   },
   {
    "id": "C11",
+   "drill_workflow": "drill-c11.yml",
    "control": "drain refuses without a verified rollback",
    "file_v3": ".github/workflows/deploy-worker.yml",
    "type": "drill",
@@ -729,6 +841,7 @@
   },
   {
    "id": "C16",
+   "drill_workflow": "drill-c16.yml",
    "control": "main protection blocks a merge on red",
    "file_v3": "GitHub settings (branch protection of main)",
    "type": "assertion",
@@ -767,6 +880,7 @@
   },
   {
    "id": "C18",
+   "drill_workflow": "drill-c18-alert.yml",
    "control": "the alert fires",
    "file_v3": "",
    "type": "drill",
@@ -781,6 +895,7 @@
   },
   {
    "id": "C19",
+   "drill_workflow": "drill-c19.yml",
    "control": "kill switch",
    "file_v3": "OMNI_ZERO_COST_MODE",
    "type": "drill",
@@ -872,7 +987,14 @@
    "canary_pending": "not written yet"
   }
  ],
- "adopted": "2026-10-20",
+ "adopted": "2026-10-21",
+ "adopted_correction": {
+  "old": "2026-10-20",
+  "new": "2026-10-21",
+  "date": "2026-11-21",
+  "basis": "the drills were designed with the C16 run #99, opened 2026-10-21T12:54:27Z; owner 2026-11-21: 'התאריך בעיצוב הוא 21.10 (ריצת #99)'",
+  "effect": "R3 counts a never-run drill from here; the four monthly drills now count from their 2026-11-21 runs"
+ },
  "c31_boundary": {
   "he": "הלינט מוכיח ששורת קנרית קיימת ומצביעה על טסט קיים — לא שהקנרית נכשלת כשהבקרה נשברת. זה התרגיל.",
   "en": "registry_lint proves a canary row exists and names an existing test; it does NOT prove the canary fails when the control breaks. That is the drill (and the meta-canary, tools/canary_meta.py)."

@@ -10,8 +10,8 @@
    "mutations": [
     {
      "file": "omni_prod/generated_images.py",
-     "old": "    if vision is not None:\n        from .image_match import verify",
-     "new": "    if False:  # NEGATIVE CONTROL\n        from .image_match import verify"
+     "old": "    if vision is not None:\n        from .image_match import check_optional, verify",
+     "new": "    if False:  # NEGATIVE CONTROL\n        from .image_match import check_optional, verify"
     }
    ],
    "targets": [
@@ -156,8 +156,8 @@
    "mutations": [
     {
      "file": "omni_prod/assets/app.js",
-     "old": "    if (m) return known + (S.lang === 'en'",
-     "new": "    if (false) return known + (S.lang === 'en'"
+     "old": "    if (m) return known + ({ en: ` Asked:",
+     "new": "    if (false) return known + ({ en: ` Asked:"
     }
    ],
    "targets": [

@@ -88,6 +88,52 @@
    "reviewer": "shai",
    "reviewed_at": "2026-11-20",
    "signature_note": "Signed by the owner's instruction, 2026-11-19 (\"מאשר הכול תמשיך לעבוד\" on the professional-minimum gate and the generator guidance). The reviewer field was typed by the author (claude) on that instruction."
+  },
+  {
+   "id": "testimonials-one-rule",
+   "from_digest": "41a6e1345bc04d30d70ad98a05afccd0b75bf6002ed04fea1c1b19e0d4c34618",
+   "to_digest": "b287af442b65fe2ad5ed58fe10d2497794b1757ffa267e5cdb63afe7d3ab05a0",
+   "added": [],
+   "removed": [],
+   "changed": [
+    "omni_prod/skills_runtime.py"
+   ],
+   "data_changed": [],
+   "reason": "2026-11-21: skill.copy_quality told the generator that sample testimonials may carry a '(לדוגמה)' label while its reviewer checklist forbade any named testimonial the request did not give, so the repair loop could not converge (rehearsal run 44943528189: 3 review rounds, the reviewer rejected the labelled invented names, decision FAILED). Both texts now say the same: leave a requested-but-unsupplied reviews section out; a sample carries '(לדוגמה)' on its heading and names no person. Only the guidance and the checklist strings change; the static gate (Michael 2026-11-10, the frozen run) is unchanged.",
+   "author": "claude",
+   "reviewer": "shai",
+   "reviewed_at": "2026-11-21",
+   "signature_note": "Signed by the owner's instruction: standing autonomy grant (2026-11-16) and the owner's message of 2026-11-21 ('סומך עלייך מאשר לך הכול'). The reviewer field was typed by the author (claude) on that instruction."
+  },
+  {
+   "id": "images-as-files",
+   "from_digest": "b287af442b65fe2ad5ed58fe10d2497794b1757ffa267e5cdb63afe7d3ab05a0",
+   "to_digest": "d1655f300092b184cb37a267328dd1987eebff27a476dcc63285e3286a2fcd33",
+   "added": [
+    "omni_prod/repository_assets.py"
+   ],
+   "removed": [],
+   "changed": [
+    "omni_prod/autonomous_core.py",
+    "omni_prod/gate_regression.py",
+    "omni_prod/generated_images.py",
+    "omni_prod/investor_app.py",
+    "omni_prod/preview_runtime.py",
+    "omni_prod/preview_smoke.py",
+    "omni_prod/sandbox_executor.py",
+    "omni_prod/sandbox_request_policy.py",
+    "omni_prod/unified_engine.py",
+    "omni_prod/uploaded_assets.py"
+   ],
+   "data_changed": [
+    "AGENT_OS_REGISTRY.json",
+    "DEPARTMENT_MATRIX.json"
+   ],
+   "reason": "2026-11-22, warehouse 118 (+114): the main image is a file the page references (assets/148ai-<kind>-<n>.<ext>), not a base64 data: URI inside the HTML. The repository stays text-only: each image is a checked envelope (mime, sha256, base64) decoded to bytes by one function at every writer (sandbox request, sandbox service, preview, export, download, gate replay, visual-edit host); the preview smoke now checks each image the page references is served with its type and bytes. Checked by Claude in a real browser on 2026-11-22: the hero is GET assets/148ai-image-1.webp (200, image/webp, 114,074 bytes), the HTML is 10,561 bytes with no data:. Also on this branch: the preflight event records its message and outcome (autonomous_core.py, the investigation of 18 builds). The registry and department matrix are the generators' output for the changed preview runtime.",
+   "author": "claude",
+   "reviewer": "shai",
+   "reviewed_at": "2026-11-22",
+   "signature_note": "Signed by the owner's instruction: standing autonomy grant (2026-11-16), the owner's message of 2026-11-21 ('סומך עלייך מאשר לך הכול') and his order of 2026-11-22 ('118 — ראשון, ועכשיו'). The reviewer field was typed by the author (claude) on that instruction."
   }
  ]
 }

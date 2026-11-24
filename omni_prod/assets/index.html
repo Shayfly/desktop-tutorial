@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>148AI · סביבת יצירה</title>
-<meta name="theme-color" content="#0E1A2B">
-<meta name="description" content="תארו את אפליקציית הווב שלכם. 148AI מתכננת, בונה, בודקת ומציגה אותה.">
+<meta name="theme-color" content="#151410">
+<meta name="description" content="תארו במילים שלכם מה אתם צריכים, ו-148AI תבנה את זה: אתר או מערכת שנפתחים מכל מחשב או טלפון.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="148AI">
 <link rel="icon" type="image/png" href="/brand/148ai-favicon-64.png">
@@ -19,13 +19,14 @@
 <body class="signed-out">
 <a class="skip" href="#main" data-i18n="skip">דילוג לתוכן</a>
 <header class="topbar">
-  <a class="brand" href="/" aria-label="148AI"><img src="/brand/148ai-logo-64.png" alt="" width="28" height="28"><b>148AI</b></a>
+  <a class="brand sbWordmark" href="/" dir="ltr" aria-label="148AI">148<b>AI</b></a>
   <div class="projectbar" id="projectbar" hidden>
     <label class="sr" for="projectSelect" data-i18n="projects">פרויקטים</label>
     <select id="projectSelect"></select>
   </div>
   <div class="topright">
-    <button class="ghost" id="langBtn" lang="en">English</button>
+    <button class="ghost" id="textSizeBtn" type="button"></button>
+    <select class="langPick" id="langBtn" data-i18n-label="language"></select>
     <div class="account" id="accountBox" hidden>
       <span id="accountEmail" class="email"></span>
       <button class="ghost" id="logoutBtn" data-i18n="logout">התנתקות</button>
@@ -40,17 +41,18 @@
   <!-- signed out -->
   <section class="welcome" id="welcomeView" hidden>
     <div class="welcomeCopy">
-      <h1 id="heroTitle" data-i18n="hero">תארו את אפליקציית הווב שלכם.</h1>
-      <p id="heroLead" data-i18n="lead">148AI מתכננת, בונה, בודקת ומציגה אותה.</p>
+      <h1 id="heroTitle" data-i18n="workspaceHero"></h1>
+      <p id="heroLead" data-i18n="workspaceLead"></p>
       <ol class="howto">
-        <li data-i18n="how1">כותבים מה האפליקציה צריכה לעשות ולמי.</li>
-        <li data-i18n="how2">מקבלים תוכנית ועלות מקסימלית, ומאשרים.</li>
-        <li data-i18n="how3">צופים בבנייה, בודקים בתצוגה מקדימה, משנים ומורידים את הקוד.</li>
+        <li data-i18n="how1">כותבים במילים פשוטות מה אתם צריכים.</li>
+        <li data-i18n="how2">מקבלים הצעה עם מחיר, ומאשרים רק אם מתאים.</li>
+        <li data-i18n="how3">רואים איך זה נראה, מבקשים שינויים במילים, ושומרים.</li>
       </ol>
-      <p class="scope" data-i18n="scope">כרגע: אפליקציות ווב ו-SaaS. מובייל, משחקים ומדיה עוד לא זמינים.</p>
+      <p class="scope" data-i18n="scope">כרגע אפשר לבנות אתרים ומערכות שנפתחים מכל מחשב או טלפון. אפליקציה להתקנה בטלפון, משחקים, וידאו ומוזיקה עוד לא.</p>
     </div>
     <form class="auth" id="authForm" novalidate>
       <h2 id="authTitle" data-i18n="signinTitle">כניסה לחשבון</h2>
+      <p class="authLead" data-i18n="authLead">שום דבר לא נבנה ושום חיוב לא קורה בלי האישור שלכם.</p>
       <label><span data-i18n="email">אימייל</span><input id="email" type="email" autocomplete="email" required></label>
       <label for="password"><span data-i18n="password">סיסמה</span></label>
       <div class="passwordField">
@@ -68,49 +70,57 @@
 
   <!-- signed in: sidebar | conversation | preview -->
   <div class="workspace" id="workspaceView" hidden>
+    <header class="mobileWorkspaceHead">
+      <button type="button" id="mobileMenuBtn" class="ghost icon" aria-controls="sidebar" aria-expanded="false" data-i18n-label="showSidebar">☰</button>
+      <button class="icon ghost" id="sbOpen" type="button" aria-controls="sidebar" data-i18n-label="showSidebar">☰</button>
+      <h1 class="chatTitle" id="chatTitle"></h1><span class="pill" id="workspaceProjectChip" role="status" hidden></span>
+      <div class="chatHeadActions">
+        <button class="ghost" id="projectMenuBtn" type="button" aria-haspopup="dialog" data-i18n="manage">ניהול</button>
+        <button class="ghost" id="togglePreviewBtn" type="button" aria-controls="stage" aria-expanded="true" data-i18n="previewToggle">תצוגה</button>
+      </div>
+    </header>
     <aside class="sidebar" id="sidebar" aria-label="148AI">
       <div class="sbHead">
-        <a class="brand" href="/" aria-label="148AI"><img src="/brand/148ai-logo-64.png" alt="" width="26" height="26"><b>148AI</b></a>
+        <a class="brand sbWordmark" href="/" dir="ltr" aria-label="148AI">148<b>AI</b></a>
         <button class="icon ghost" id="sbCollapse" type="button" aria-controls="sidebar" aria-expanded="true" data-i18n-label="hideSidebar">×</button>
       </div>
-      <button class="sbNew" id="newProjectTopBtn" type="button"><span aria-hidden="true">＋</span> <span data-i18n="newChat">שיחה חדשה · פרויקט חדש</span></button>
-      <label class="sbSearch"><span class="sr" data-i18n="searchProjects">חיפוש פרויקטים</span>
-        <input id="sbSearch" type="search" autocomplete="off" data-i18n-placeholder="searchProjects"></label>
-      <nav class="sbSection" aria-labelledby="sbProjectsTitle">
-        <h3 id="sbProjectsTitle" data-i18n="projects">פרויקטים</h3>
-        <ul class="sbList" id="sbProjects"></ul>
-      </nav>
-      <div class="sbScope"><h3 data-i18n="canBuildTitle">מה אפשר לבנות היום</h3><p data-i18n="scope">כרגע: אפליקציות ווב ו-SaaS. מובייל, משחקים ומדיה עוד לא זמינים.</p></div>
+      <div class="sbScroll">
+        <label class="sbSearch"><span class="sr" data-i18n="searchProjects"></span>
+          <input id="sbSearch" type="search" autocomplete="off" data-i18n-placeholder="searchProjects"></label>
+        <nav class="sbLinks" data-i18n-label="workspaceNavigation">
+          <button id="sbAll" class="ghost" type="button" data-i18n="allProjects" aria-haspopup="dialog"></button>
+          <button id="sbTemplates" class="ghost" type="button" data-i18n="workspaceTemplates" aria-haspopup="dialog"></button>
+          <button id="sbDomains" class="ghost" type="button" data-i18n="workspaceDomains" aria-haspopup="dialog"></button>
+          <button id="textSizeBtn2" class="ghost" type="button"></button>
+          <details id="sbSettings">
+            <summary data-i18n="workspaceSettings"></summary>
+            <div class="row">
+              <select class="langPick" id="langBtn2" data-i18n-label="language"></select>
+              <button class="ghost" id="logoutBtn2" type="button" data-i18n="logout">התנתקות</button>
+            </div>
+          </details>
+        </nav>
+        <nav class="sbSection" aria-labelledby="sbProjectsTitle">
+          <h3 id="sbProjectsTitle" data-i18n="recentProjects"></h3>
+          <ul class="sbList" id="sbProjects"></ul>
+        </nav>
+      </div>
+      <button class="sbNew" id="newProjectTopBtn" type="button"><span aria-hidden="true">＋</span> <span data-i18n="newProject"></span></button>
       <div class="sbFoot">
-        <span class="email" id="sbEmail"></span>
-        <div class="row">
-          <button class="ghost" id="langBtn2" type="button">English</button>
-          <button class="ghost" id="logoutBtn2" type="button" data-i18n="logout">התנתקות</button>
-        </div>
+        <span class="email" id="sbEmail" dir="auto"></span>
+        <span id="sbBalance" hidden></span>
       </div>
     </aside>
     <div class="sbScrim" id="sbScrim" hidden></div>
 
-    <section class="chat" id="chatCol" aria-label="Conversation">
-      <header class="chatHead">
-        <button class="icon ghost" id="sbOpen" type="button" aria-controls="sidebar" data-i18n-label="showSidebar">☰</button>
-        <h1 class="chatTitle" id="chatTitle"></h1>
-        <div class="chatHeadActions">
-          <button class="ghost" id="projectMenuBtn" type="button" aria-haspopup="dialog" data-i18n="manage">ניהול</button>
-          <button class="ghost" id="togglePreviewBtn" type="button" aria-controls="stage" aria-expanded="true" data-i18n="previewToggle">תצוגה</button>
-        </div>
-      </header>
-      <nav class="ctxTabs" id="ctxTabs" aria-label="Project"></nav>
+    <section class="chat" id="chatCol" role="tabpanel" aria-labelledby="workspaceTabChat">
+      <details class="projectCards" id="projectCards" hidden>
+        <summary data-i18n="workspaceCards"></summary>
+        <nav class="ctxTabs" id="ctxTabs" data-i18n-label="workspaceCards"></nav>
+      </details>
       <div class="projectReadiness" id="projectReadiness" role="status" aria-live="polite" hidden></div>
       <div class="ctx" id="ctx">
         <div class="ctxToolbar"><span id="ctxTitle">עריכת הבקשה</span><button id="ctxMinimize" type="button" class="ghost" aria-controls="ctx" data-i18n-label="minimizeContext">−</button></div>
-        <div class="panel" id="emptyProjects" hidden>
-          <h2 data-i18n="firstProject">הפרויקט הראשון שלכם</h2>
-          <form class="inline" id="firstProjectForm">
-            <label class="grow"><span data-i18n="projectName">שם הפרויקט</span><input id="firstProjectName" maxlength="120" required></label>
-            <button type="submit" data-i18n="createProject">יצירת פרויקט</button>
-          </form>
-        </div>
         <div class="panel built" id="builtPanel" hidden>
           <h2 data-i18n="builtTitle">מה נבנה עד עכשיו</h2>
           <p class="builtName" id="builtName"></p>
@@ -129,7 +139,7 @@
             <button class="secondary danger" id="cancelBuildBtn" type="button" data-i18n="stopBuild">עצירת הבנייה</button>
             <span class="hint" id="cancelHint"></span>
           </div>
-          <details class="live-log" id="liveLog" hidden open>
+          <details class="live-log" id="liveLog" hidden>
             <summary data-i18n="liveLog">מה קורה עכשיו</summary>
             <ol id="liveLogList" aria-live="polite"></ol>
           </details>
@@ -144,6 +154,7 @@
         <div class="panel" id="versionsPanel" hidden>
           <h2 data-i18n="versions">גרסאות</h2>
           <ul class="versions" id="versionsList"></ul>
+          <p class="msg" id="versionNotice" role="status"></p>
         </div>
         <details class="panel evidence" id="evidencePanel" hidden>
           <summary data-i18n="evidence">פרטים טכניים ועדויות</summary>
@@ -168,10 +179,14 @@
 
     <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-controls="stage" data-i18n-label="resizePreview"></div>
 
-    <section class="stage" id="stage" aria-label="Preview">
+    <section class="stage" id="stage" role="tabpanel" aria-labelledby="workspaceTabPreview">
       <div class="browser">
         <div class="chrome">
           <span class="url" id="previewUrl" dir="ltr">—</span>
+          <div class="deviceSwitch" role="group" id="deviceSwitch" data-i18n-label="previewDevice">
+            <button type="button" class="ghost" id="devDesktop" aria-pressed="true" data-i18n="devDesktop">מחשב</button>
+            <button type="button" class="ghost" id="devPhone" aria-pressed="false" data-i18n="devPhone">טלפון</button>
+          </div>
           <div class="chromeActions">
             <button class="ghost" id="refreshPreviewBtn" disabled data-i18n="refresh">רענון</button>
             <a class="ghost button" id="openPreviewLink" target="_blank" rel="noopener" aria-disabled="true" data-i18n="openTab">פתיחה בלשונית חדשה</a>
@@ -194,6 +209,7 @@
         </div>
       </div>
       <div class="stageActions">
+        <button class="secondary" type="button" id="previewEditBtn" aria-controls="editor" data-i18n="workspaceEdit"></button>
         <button class="secondary" id="inspectToggle" type="button" aria-pressed="false" disabled data-i18n="pickElement">בחירת רכיב לעריכה</button>
         <button class="secondary" id="downloadBtn" disabled data-i18n="download">הורדת קוד המקור (ZIP)</button>
         <button class="secondary" id="publishBtn" aria-describedby="publishNote" data-i18n="publish">פרסום</button>
@@ -203,7 +219,7 @@
 
     <div class="splitter" id="editSplitter" role="separator" aria-orientation="vertical" tabindex="0" aria-controls="editor" data-i18n-label="resizeEditor"></div>
 
-    <aside class="editor" id="editor" aria-labelledby="editorTitle">
+    <aside class="editor" id="editor" role="tabpanel" aria-labelledby="workspaceTabPreview">
       <header class="editorHead">
         <h2 id="editorTitle" data-i18n="editTitle">עריכה</h2>
         <button class="ghost icon" id="editorClose" type="button" data-i18n-label="hideEditor">✕</button>
@@ -241,14 +257,21 @@
       </div>
     </aside>
 
-    <nav class="mobileTabs" id="mobileTabs" aria-label="Workspace">
-      <button type="button" id="mobileMenuBtn" aria-controls="sidebar" aria-expanded="false" data-i18n-label="showSidebar">☰</button>
-      <button type="button" data-pane="chat" aria-pressed="true" data-i18n="paneChat">שיחה</button>
-      <button type="button" data-pane="preview" aria-pressed="false" data-i18n="panePreview">תצוגה</button>
-      <button type="button" data-pane="edit" aria-pressed="false" data-i18n="paneEdit">עריכה</button>
+    <nav class="mobileTabs" id="mobileTabs" role="tablist" data-i18n-label="workspaceNavigation">
+      <button type="button" id="workspaceTabChat" role="tab" data-pane="chat" aria-controls="chatCol" aria-selected="true" data-i18n="paneChat">שיחה</button>
+      <button type="button" id="workspaceTabPreview" role="tab" data-pane="preview" aria-controls="stage" aria-selected="false" data-i18n="panePreview">תצוגה</button>
+      <button type="button" id="workspaceTabVersions" role="tab" data-pane="versions" aria-controls="versionsPanel" aria-selected="false" data-i18n="versions">גרסאות</button>
     </nav>
   </div>
 </main>
+
+<dialog id="workspaceDialog" class="workspaceDialog" aria-labelledby="workspaceDialogTitle">
+  <header class="row">
+    <h2 id="workspaceDialogTitle"></h2>
+    <form method="dialog"><button type="submit" class="ghost" data-i18n="close"></button></form>
+  </header>
+  <div id="workspaceDialogBody"></div>
+</dialog>
 
 <dialog id="projectDialog">
   <form method="dialog" id="projectDialogForm">
@@ -266,17 +289,5 @@
   </form>
 </dialog>
 
-<dialog id="newProjectDialog">
-  <form method="dialog" id="newProjectForm">
-    <h2 data-i18n="newProject">פרויקט חדש</h2>
-    <p data-i18n="newProjectHint">לכל מוצר פרויקט משלו. תנו לו שם, ואז תתארו מה לבנות.</p>
-    <label><span data-i18n="projectName">שם הפרויקט</span><input id="newProjectName" maxlength="120" required></label>
-    <p class="msg" id="newProjectMsg" role="alert"></p>
-    <div class="row end">
-      <button type="submit" id="newProjectCreate" value="create" data-i18n="createProject">יצירת פרויקט</button>
-      <button type="button" class="ghost" id="newProjectCancel" data-i18n="close">סגירה</button>
-    </div>
-  </form>
-</dialog>
 </body>
 </html>

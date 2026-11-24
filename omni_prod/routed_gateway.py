@@ -663,10 +663,12 @@ class RoutedModelGateway:
         }, task, call_id=call_id)
 
     def complete_json(self, *, system: str, user: str, max_tokens: int = 4096, task: str = 'general',
-                      validate: Callable | None = None, images: tuple = (), call_id: str | None = None) -> dict:
+                      validate: Callable | None = None, images: tuple = (), call_id: str | None = None,
+                      schema: dict | None = None) -> dict:
         return self._route('complete_json', {
             'system': system,
             'user': user,
             'max_tokens': max_tokens,
             **({'images': tuple(images)} if images else {}),
+            **({'schema': schema} if schema is not None else {}),
         }, task, validate=validate, call_id=call_id)

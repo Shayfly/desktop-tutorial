@@ -68,7 +68,10 @@ class AHeavyPhotoBecomesLight(unittest.TestCase):
         img = _MainImage(self.data, 'image/jpeg', digest, 'דלתות פנים', 2400, 1800)
         heavy = 'data:image/jpeg;base64,' + base64.b64encode(self.data).decode('ascii')
         self.assertEqual(run_unit('perf_inline_image_weight', f'<img src="{heavy}" alt="x">')['status'], 'fail')
-        self.assertEqual(run_unit('perf_inline_image_weight', f'<img src="{img.uri}" alt="x">')['status'], 'pass')
+        # warehouse 118: the page references the file (img.uri); the weight unit still judges the rendition's bytes
+        light = f'data:{img.mime};base64,' + base64.b64encode(img.data).decode('ascii')
+        self.assertEqual(img.uri, 'assets/148ai-upload-1.webp')
+        self.assertEqual(run_unit('perf_inline_image_weight', f'<img src="{light}" alt="x">')['status'], 'pass')
         self.assertEqual(img.sha256, digest)                                 # the brief's binding is the original's
         self.assertEqual((img.width, img.height, img.mime), (self.r['width'], self.r['height'], 'image/webp'))
         self.assertEqual(img.rendition['original_sha256'], digest)
@@ -94,7 +97,8 @@ class AGeneratedImageBecomesLightToo(unittest.TestCase):
         self.assertEqual(img.mime, 'image/webp')
         self.assertLessEqual(len(img.data), W.BUDGET_BYTES)
         self.assertAlmostEqual(img.width / img.height, 1920 / 1080, places=2)
-        self.assertEqual(run_unit('perf_inline_image_weight', f'<img src="{img.uri}" alt="x">')['status'], 'pass')
+        light = f'data:{img.mime};base64,' + base64.b64encode(img.data).decode('ascii')     # 118: judged as bytes
+        self.assertEqual(run_unit('perf_inline_image_weight', f'<img src="{light}" alt="x">')['status'], 'pass')
         self.assertIn('GENERATED_IMAGE index=1 changed=True', logs.output[0])
         self.assertEqual(G.placement({'index.html': f'<img src="{img.marker}" alt="בשר">'}, img), 'ok')
 

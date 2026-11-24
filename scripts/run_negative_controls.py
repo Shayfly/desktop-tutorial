@@ -24,6 +24,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -47,9 +48,53 @@ def _git(repo, *args, check=False):
 
 ENV = (os.getenv('NC_ENV') or '').strip()      # '' (v24-ci, no Postgres) | 'pg' (intake-budget-pg, real Postgres)
 JOBS = int(os.getenv('NC_JOBS') or '1')        # not a number -> ValueError at start, never a silent default
-RUNNER_SETTINGS = ('NC_JOBS', 'NC_DB_URL', 'NC_REDIS_URL')
+RUNNER_SETTINGS = ('NC_JOBS', 'NC_DB_URL', 'NC_REDIS_URL', 'NC_SCOPE')
 if JOBS < 1:
     raise ValueError(f'NC_JOBS must be at least 1, not {JOBS}')
+# NC_SCOPE (2026-11-22): 'all' runs every control that may run in this environment (v24-ci, and the default);
+# 'declared' runs only the controls that say this environment matters to them -- `envs` names it, the control has
+# its own `expect_failed_<env>`, or a target is a test of that environment (pg: a *_pg.py / *postgres* file). The pg
+# job ran every spec a second time after v24-ci had run them all, grew past its 14-minute step limit on #499 (every
+# control PASS, killed two specs before the end), and the job may not exceed 20 minutes. Any other value raises.
+SCOPE = (os.getenv('NC_SCOPE') or 'all').strip()
+if SCOPE not in ('all', 'declared'):
+    raise ValueError(f"NC_SCOPE must be 'all' or 'declared', not {SCOPE!r}")
+_ENV_TARGETS = {'pg': ('_pg', 'postgres')}
+_marked: dict = {}
+
+
+def _target_marked(target: str, env: str) -> bool:
+    """A target test that reaches a real database or Redis when one is configured behaves differently in the pg job even
+    when its name does not say so (48 controls on 2026-11-22, e.g. tests/test_venice_in_conversation.py). The rule is the
+    repository's own (scripts/ci_test_coverage.needs_pg: a *_pg.py name or M4D2_DATABASE_URL), plus the Redis the pg job
+    also provides (OMNI_TEST_REDIS_URL)."""
+    key = (str(target), env)
+    if key not in _marked:
+        path = ROOT / str(target)
+        hit = False
+        if env == 'pg' and path.is_file():
+            import importlib.util
+            spec = importlib.util.spec_from_file_location('ci_test_coverage', pathlib.Path(__file__).with_name('ci_test_coverage.py'))
+            cov = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(cov)
+            hit = cov.needs_pg(path) or 'OMNI_TEST_REDIS_URL' in path.read_text(encoding='utf-8', errors='replace')
+        _marked[key] = hit
+    return _marked[key]
+
+
+def declares_env(control: dict, env: str = None) -> bool:
+    env = ENV if env is None else env
+    if env in (control.get('envs') or ()) or f'expect_failed_{env}' in control:
+        return True
+    targets = [str(t) for t in control.get('targets', ())]
+    return (any(word in t for t in targets for word in _ENV_TARGETS.get(env, ()))
+            or any(_target_marked(t, env) for t in targets))
+
+
+def runs_here(control: dict) -> bool:
+    if control.get('envs') and ENV not in control['envs']:
+        return False
+    return SCOPE == 'all' or declares_env(control)
 
 
 def _with_path(url: str, path: str) -> str:
@@ -226,7 +271,7 @@ def main(argv: list[str]) -> int:
         pool = ThreadPoolExecutor(max_workers=JOBS)
         for si, (_, spec) in enumerate(loaded):
             for ci, c in enumerate(spec['controls']):
-                if not c.get('envs') or ENV in c['envs']:
+                if runs_here(c):
                     results[(si, ci)] = pool.submit(job, c)
     for si, (path, spec) in enumerate(loaded):
         digests = []
@@ -235,10 +280,11 @@ def main(argv: list[str]) -> int:
             digests.append(f'{f} {digest[:16]}')
             print(f"NC-EVIDENCE {spec['pr']} sha256 {f} {digest}", flush=True)
         passed, failed, infos, elsewhere = [], [], [], []
-        here = [c for c in spec['controls'] if not c.get('envs') or ENV in c['envs']]
+        here = [c for c in spec['controls'] if runs_here(c)]
         for c in spec['controls']:
             if c not in here:                 # e.g. a real-Postgres race: said in the SPEC line, never silently dropped
-                elsewhere.append(f"{c['id']} ({'/'.join(c['envs'])} only)")
+                where = f"{'/'.join(c['envs'])} only" if c.get('envs') and ENV not in c['envs'] else 'runs in v24-ci'
+                elsewhere.append(f"{c['id']} ({where})")
         for control in here:
             if pool is None:
                 ok, detail = run_control(control, control['id'])
