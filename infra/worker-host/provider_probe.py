@@ -99,6 +99,9 @@ def main() -> int:
     results = []
     catalog = json.loads((HERE / 'model-catalog.json').read_text(encoding='utf-8'))
     for m in catalog:
+        if not m.get('enabled', True):
+            print('::notice title=provider-probe::SKIPPED disabled route ' + str(m.get('name', 'unknown')), flush=True)
+            continue
         provider, model, base = m.get('provider'), m.get('model'), str(m.get('base_url', '')).rstrip('/')
         key = (env.get(m.get('api_key_env') or '') or '').strip()
         name = f'{provider}/{model}'

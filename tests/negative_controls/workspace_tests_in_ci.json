@@ -1,0 +1,129 @@
+{
+ "pr": "workspace-tests-in-ci",
+ "sha256": [
+  "tests/test_workspace_tests_in_ci.py",
+  "tests/workspace_guards_browser.cjs",
+  "tests/workspace_sidebar_local.cjs"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the sidebar test is no longer run against the development server",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "          node tests/workspace_sidebar_local.cjs\n          missed=0\n",
+     "new": "          missed=0  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_workspace_tests_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_test_and_every_mutation_run"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the development server starts without in-memory accounts",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "OMNI_ENV=development OMNI_CREATOR_PERSISTENCE=memory python -m uvicorn",
+     "new": "OMNI_ENV=development python -m uvicorn"
+    }
+   ],
+   "targets": [
+    "tests/test_workspace_tests_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_browser_job_starts_the_server_with_memory_accounts"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a mutation whose anchor is gone from app.js counts as caught",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "            elif grep -q -e 'mutation anchor missing' -e 'unknown mutation' mutation.log; then\n              echo \"::error title=sidebar mutation::$m has no anchor in the code\"; cat mutation.log; missed=1\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_workspace_tests_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_test_and_every_mutation_run"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "an uncaught mutation no longer fails the job",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "          exit $missed\n",
+     "new": "          exit 0  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_workspace_tests_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_test_and_every_mutation_run"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the guards test is dropped from the browser job",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - run: node tests/workspace_guards_browser.cjs\n",
+     "new": "      - run: echo skipped  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_workspace_tests_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_browser_job_runs_the_guards"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the sidebar test reads the project status from the server's 503 again (T3 reverted)",
+   "mutations": [
+    {
+     "file": "tests/workspace_sidebar_local.cjs",
+     "old": "      await page.route('**/api/v28/projects/*/builds/latest', async route => {",
+     "new": "      await page.route('**/api/v28/projects/*/builds/latest-NEGATIVE-CONTROL', async route => {"
+    }
+   ],
+   "targets": [
+    "tests/test_workspace_tests_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_latest_build_is_answered_by_the_test"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "one guard is no longer taken out (R4, the second click)",
+   "mutations": [
+    {
+     "file": "tests/workspace_guards_browser.cjs",
+     "old": "  R4: ['  if (activeVersionRestores.has(project)) return;\\n', ''],\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_workspace_tests_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_every_guard_is_taken_out_once"
+   ]
+  }
+ ]
+}

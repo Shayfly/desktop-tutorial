@@ -21,7 +21,10 @@ from unittest import mock
 from omni_prod import vision_models
 from omni_prod.vision_models import VISION_MODELS
 
-RAW = (Path(__file__).resolve().parents[1] / 'infra' / 'worker-host' / 'model-catalog.json').read_text()
+CATALOG = json.loads((Path(__file__).resolve().parents[1] / 'infra' / 'worker-host' / 'model-catalog.json').read_text())
+# Pending enrollment has no vision evidence and cannot route. This fixture
+# exercises the six enabled production routes and their original live probe.
+RAW = json.dumps([row for row in CATALOG if row.get('enabled', True)])
 # Since the live probe (run 43657047045) every real catalog model reads images. A model without evidence -- a new one
 # before its probe -- is simulated by taking the cheapest real model OFF the list for these tests (mock.patch.dict).
 BLIND = min(json.loads(RAW), key=lambda m: (float(m['output_per_million']), m['model']))['model']
