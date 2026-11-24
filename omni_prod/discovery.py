@@ -231,6 +231,7 @@ QUESTIONS: tuple[Question, ...] = (
     Question('logo', 'logo', 'design', 'לוגו?', 'Logo?', 'אפשר להתחיל בלוגו טקסטואלי ולהחליף אחר כך.',
              'A text logo now can be replaced later.',
              options=(_o('text', 'לוגו טקסטואלי עם שם המוצר', 'Text logo with the product name'), _o('none', 'בלי לוגו', 'No logo'),
+                      _o('uploaded', 'הלוגו שהעליתם', 'The logo you uploaded'),
                       _o('later', 'יש לי לוגו — אעלה אחר כך', 'I have one — will upload later')), recommended='text'),
     # 77 (Michael 2026-11-11): a capability with no price never blocks silently. When the platform finds one before
     # gate 1 it records the keys in hints['unpriced'] and asks this ONE question. "Build without" binds a customer
@@ -626,7 +627,7 @@ def answer(brief: Brief, answers: Mapping[str, str]) -> Brief:
         if qid in new.skipped:
             new.skipped.remove(qid)
     _drop_inapplicable(new)
-    if 'logo' in answers and new.values().get('logo') != 'later':
+    if 'logo' in answers and new.values().get('logo') not in ('later', 'uploaded'):
         new.assets.pop('logo', None)
     return _settle_image(brief, new, answers)
 
@@ -652,7 +653,7 @@ def _settle_image(before: 'Brief', new: 'Brief', answers: Mapping[str, str]) -> 
         for f in IMAGE_FIELDS:
             new.fields.pop(f, None)
         new.assets['logo'] = {k: img[k] for k in ('id', 'sha256', 'mime', 'size_bytes') if k in img}
-        new.fields['logo'] = {'value': 'later', 'source': 'answer', 'question_id': 'image_kind', 'confidence': 'confirmed'}
+        new.fields['logo'] = {'value': 'uploaded', 'source': 'answer', 'question_id': 'image_kind', 'confidence': 'confirmed'}
     if new.values().get('image_use') == 'change':
         new.fields.pop('image_use', None)
         new.hints['image_change'] = 'asked'

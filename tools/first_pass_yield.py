@@ -26,6 +26,10 @@ import sys
 from pathlib import Path
 
 WINDOWS = (1, 7, 30)
+# The owner, 2026-11-23 16:06: the earlier build numbers are no longer current; keep them aside and count anew from
+# today. main() starts every window no earlier than this moment; builds before it stay in the database, untouched, and
+# are simply not counted. A new count is a new value here, said in its commit.
+COUNT_FROM = dt.datetime(2026, 11, 23, tzinfo=dt.timezone.utc)
 FINISHED = ('ready', 'failed')
 QUERY = """
 SELECT id, status, created_at, error_code,
@@ -52,11 +56,16 @@ def first_round_blockers(taxonomy) -> set[str]:
     return out
 
 
-def summarize(rows: list[dict], now: dt.datetime, windows=WINDOWS) -> dict:
-    """rows: {id, status, created_at (aware), error_code, recorded, first_pass, taxonomy}. Pure; no I/O."""
+def summarize(rows: list[dict], now: dt.datetime, windows=WINDOWS, count_from: dt.datetime | None = None) -> dict:
+    """rows: {id, status, created_at (aware), error_code, recorded, first_pass, taxonomy}. Pure; no I/O.
+    count_from: no window starts before it (the owner's new count); None counts every row in the window."""
     out = {'generated_at': now.isoformat(timespec='seconds'), 'windows': {}}
+    if count_from is not None:
+        out['count_from'] = count_from.date().isoformat()
     for days in windows:
         since = now - dt.timedelta(days=days)
+        if count_from is not None:
+            since = max(since, count_from)
         rs = [r for r in rows if r['created_at'] >= since]
         fin = [r for r in rs if r['status'] in FINISHED]
         fp = [r for r in fin if r['status'] == 'ready' and r['recorded'] and r['first_pass'] is True]   # #95
@@ -97,7 +106,9 @@ def lines(summary: dict) -> list[str]:
 def markdown(summary: dict) -> str:
     rows = ['## first_pass_yield (production, read-only)', '',
             f"Generated {summary['generated_at']} from build_jobs.evidence_json. Denominator: finished builds "
-            '(ready or failed).', '',
+            '(ready or failed).'
+            + (f" Counted from {summary['count_from']} (the owner's new count); earlier builds are kept in the "
+               'database and not counted.' if summary.get('count_from') else ''), '',
             '| window | first pass / finished | yield | ready | cancelled | no worker record | what stopped the first pass (builds) |',
             '|---|---|---|---|---|---|---|']
     for days, w in summary['windows'].items():
@@ -134,12 +145,16 @@ def main(argv: list[str] | None = None, connect=None, now: dt.datetime | None = 
         print('::error title=first_pass_yield::OMNI_DATABASE_URL is not set: the metric cannot be read')
         return 2
     now = now or dt.datetime.now(dt.timezone.utc)
+    # the owner's count applies from its own moment on; a run whose "now" is before it (a replay of an older day)
+    # counts as that day did
+    count_from = COUNT_FROM if now >= COUNT_FROM else None
     try:
-        rows = read_rows(url, now - dt.timedelta(days=max(WINDOWS)), connect=connect)
+        start = now - dt.timedelta(days=max(WINDOWS))
+        rows = read_rows(url, max(start, count_from) if count_from else start, connect=connect)
     except Exception as exc:                       # unreadable: loud, no file, never a made-up number
         print(f'::error title=first_pass_yield::cannot read build_jobs: {type(exc).__name__}')
         return 2
-    summary = summarize(rows, now)
+    summary = summarize(rows, now, count_from=count_from)
     for line in lines(summary):
         print(line)
     Path(a.out).write_text(json.dumps(summary, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')

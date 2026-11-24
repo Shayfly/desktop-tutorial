@@ -103,3 +103,36 @@ class UploadedLogoTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class TheUploadedLogoShowsInTheSummary(unittest.TestCase):
+    """The owner, 2026-11-23 (prj_5wRH_CceL2aSeQ): "רשמת שאין לוגו והעליתי בתמונה לוגו". A logo that was uploaded
+    must read in the summary as the uploaded logo, not "I have one -- will upload later"."""
+
+    def brief_with_logo(self):
+        b = d.start('אתר לסוכן נסיעות')
+        b.assets['image'] = {'id': 'att_' + 'a' * 32, 'sha256': 'b' * 64, 'mime': 'image/png', 'size_bytes': 100}
+        return d.answer(b, {'image_kind': 'logo'})
+
+    def test_an_uploaded_logo_sets_the_field_to_uploaded_and_keeps_the_asset(self):
+        b = self.brief_with_logo()
+        self.assertEqual(b.values().get('logo'), 'uploaded')
+        self.assertEqual(b.assets.get('logo', {}).get('sha256'), 'b' * 64)
+        self.assertNotIn('image', b.assets)                 # the image became the logo
+
+    def test_the_summary_names_the_uploaded_logo_in_every_language(self):
+        from omni_prod.conversation.supervisor import _label
+        self.assertEqual(_label('logo', 'uploaded', 'he'), 'לוגו: הלוגו שהעליתם')
+        self.assertEqual(_label('logo', 'uploaded', 'en'), 'logo: The logo you uploaded')
+
+    def test_the_build_still_gets_the_uploaded_logo(self):
+        self.assertIn('Uploaded logo attachment:', d.requirements_text(self.brief_with_logo()))
+
+    def test_resaying_i_have_a_logo_never_downgrades_the_uploaded_one(self):
+        from omni_prod.intake import agent as A
+        from omni_prod.intake.interpreter import DeterministicInterpreter
+        b = self.brief_with_logo()
+        interp = DeterministicInterpreter().interpret('יש לי לוגו', b)       # proposes logo='later'
+        res = A.apply(b, interp, infer_defaults=False)
+        self.assertEqual(res.brief.values().get('logo'), 'uploaded')        # unchanged
+        self.assertFalse([c for c in res.conflicts if c['field'] == 'logo'])  # and no "what is right?"

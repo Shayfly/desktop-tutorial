@@ -27,7 +27,7 @@ const T = {
     updateRequest:'עדכן את הבקשה', approveBuild:'לאשר ולהתחיל לבנות', approvalExpired:'האישור פג. בדקו את הסיכום ואשרו שוב.',
     builtTitle:'מה נבנה עד עכשיו', newBuild:'מוצר חדש בפרויקט חדש', newProjectPlus:'+ פרויקט חדש', newProjectHint:'לכל מוצר פרויקט משלו. תנו לו שם, ואז תתארו מה לבנות.', nameRequired:'צריך לתת לפרויקט שם.', builtVersion:'גרסה נוכחית', files:'קבצים',
     progress:'התקדמות הבנייה', modifyTitle:'מה תרצו לשנות?', modifySend:'שליחת שינוי', versions:'גרסאות',
-    evidence:'פרטים טכניים ועדויות', refresh:'רענון', openTab:'פתיחה בלשונית חדשה',
+    evidence:'פרטים טכניים ועדויות', refresh:'רענון', openTab:'פתיחה בחלון חדש',
     noPreview:'כאן תופיע האפליקציה אחרי שהבנייה תסתיים.', download:'הורדת קוד המקור (ZIP)', publish:'פרסום',
     publishNotConfigured:'העלאה לאוויר עוד לא זמינה. אפשר להוריד את הקוד ולבדוק בתצוגה המקדימה.',
     manageProject:'ניהול פרויקט', rename:'שינוי שם', saveName:'שמירת השם', archive:'העברה לארכיון',
@@ -70,7 +70,8 @@ const T = {
       provider_quota_exhausted:'יש עומס אצלנו כרגע, והבנייה לא הושלמה. כדאי לחכות כמה דקות.',
       model_policy_blocked:'משהו השתבש אצלנו בזמן הבנייה. זה לא בגללכם.',
       capability_gate_failed:'חלק מהאתר (למשל התמונות) לא הצלחנו להכין, אז לא מסרנו אותו.',
-      image_mismatch:'התמונה שנוצרה לא מראה את מה שביקשתם, ולכן עצרנו את הבנייה.'},
+      image_mismatch:'התמונה שנוצרה לא מראה את מה שביקשתם, ולכן עצרנו את הבנייה.',
+      image_not_described:'כדי להכין תמונה היינו צריכים לדעת מה היא מראה, וזה לא היה ברור בבקשה, אז עצרנו לפני שבנינו. כתבו מה התמונה צריכה להראות (למשל ״תמונה של כל יעד״) ונמשיך.'},
     // Plain words (owner 2026-11-21): a failed build is said in the customer's terms -- what happened, what happened to their
     // money (only when the record says so), and ONE action that exists. An unknown failure code gets failUnknown, never the
     // raw text. serverSaid: the server's own English sentences (409/422), answered by their code.
@@ -210,7 +211,8 @@ const T = {
       provider_quota_exhausted:'We are very busy right now, and the build was not finished. It is worth waiting a few minutes.',
       model_policy_blocked:'Something went wrong on our side during the build. It was not caused by you.',
       capability_gate_failed:'We could not prepare part of the site (the pictures, for example), so we did not hand it over.',
-      image_mismatch:'The generated image does not show what you asked for, so we stopped the build.'},
+      image_mismatch:'The generated image does not show what you asked for, so we stopped the build.',
+      image_not_described:'To make a picture we needed to know what it should show, and the request did not make it clear, so we stopped before building. Tell us what the picture should show (for example "a photo of each destination") and we continue.'},
     failUnknown:'The build did not succeed because of a problem on our side.', failNotCharged:'You were not charged.',
     failNext:{ retry:l=>`You can try again: press "${l}".`, edit:l=>`You can change the request and try again: press "${l}".`, input:l=>`Add the missing detail to the request: press "${l}".` },
     failMissing:{ phone:'the phone number', hours:'the opening hours' },
@@ -450,7 +452,7 @@ const T = {
     uiMissing: {"form":"استمارة","input":"حقول إدخال","button":"زر","table":"جدول","content":"محتوى"},
     uiMissingLead: "ينقصه",
     uiEmptyTail: "لذلك لم نسلّمه.",
-    errCodes: {"preview_no_build_queue":"لا يمكن البناء في هذه النسخة التجريبية من 148AI، لذلك لم يبدأ البناء.","build_not_found":"لم يبدأ البناء بسبب عطل لدينا.","verification_failed":"لم ننجح في بناء الموقع هذه المرة.","needs_customer_input":"تنقص معلومة لا يستطيع تقديمها إلا أنتم، لذلك أوقفنا البناء. لن نختلقها.","release_policy_failed":"بنينا الموقع، لكنه لم يجتز فحوصاتنا، لذلك لم نسلّمه.","quality_gate_failed":"بُني الموقع لكنه لم يخرج بجودة كافية، لذلك لم نسلّمه.","preview_not_ready":"بنينا الموقع، لكنه لم يُفتح عندما جرّبناه، لذلك لم نسلّمه.","security_gate_failed":"وجدنا في الموقع الذي بُني مشكلة قد تعرّض معلومات زوّاره للخطر، لذلك لم نسلّمه.","rights_gate_not_clear":"بُني الموقع وحُفظ، لكننا لم نتمكن من التأكد من أنه مسموح استخدام كل ما فيه (مثلًا صورة أو اسم)، لذلك ليس جاهزًا بعد.","unsupported_dependency":"الموقع الذي طلبتموه يحتاج إلى شيء لا نعرف كيف نبنيه بعد.","worker_lost":"علِق البناء فأوقفناه.","build_timeout":"استغرق البناء وقتًا أطول من اللازم، فأوقفناه قبل أن ينتهي.","provider_liability_unknown":"توقف البناء في منتصفه. لا يُعرف بعد إن كان قد خُصم منكم مقابل ما أُنجز حتى الآن.","worker_exception":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","model_budget_exhausted":"الطلب كبير جدًا على بناء واحد، وقد توقف البناء قبل أن ينتهي.","model_unavailable":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","provider_quota_exhausted":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","model_policy_blocked":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","capability_gate_failed":"لم نتمكن من تجهيز جزء من الموقع (مثلًا الصور)، لذلك لم نسلّمه.","image_mismatch":"الصورة التي أُنشئت لا تُظهر ما طلبتموه، لذلك أوقفنا البناء."},
+    errCodes: {"preview_no_build_queue":"لا يمكن البناء في هذه النسخة التجريبية من 148AI، لذلك لم يبدأ البناء.","build_not_found":"لم يبدأ البناء بسبب عطل لدينا.","verification_failed":"لم ننجح في بناء الموقع هذه المرة.","needs_customer_input":"تنقص معلومة لا يستطيع تقديمها إلا أنتم، لذلك أوقفنا البناء. لن نختلقها.","release_policy_failed":"بنينا الموقع، لكنه لم يجتز فحوصاتنا، لذلك لم نسلّمه.","quality_gate_failed":"بُني الموقع لكنه لم يخرج بجودة كافية، لذلك لم نسلّمه.","preview_not_ready":"بنينا الموقع، لكنه لم يُفتح عندما جرّبناه، لذلك لم نسلّمه.","security_gate_failed":"وجدنا في الموقع الذي بُني مشكلة قد تعرّض معلومات زوّاره للخطر، لذلك لم نسلّمه.","rights_gate_not_clear":"بُني الموقع وحُفظ، لكننا لم نتمكن من التأكد من أنه مسموح استخدام كل ما فيه (مثلًا صورة أو اسم)، لذلك ليس جاهزًا بعد.","unsupported_dependency":"الموقع الذي طلبتموه يحتاج إلى شيء لا نعرف كيف نبنيه بعد.","worker_lost":"علِق البناء فأوقفناه.","build_timeout":"استغرق البناء وقتًا أطول من اللازم، فأوقفناه قبل أن ينتهي.","provider_liability_unknown":"توقف البناء في منتصفه. لا يُعرف بعد إن كان قد خُصم منكم مقابل ما أُنجز حتى الآن.","worker_exception":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","model_budget_exhausted":"الطلب كبير جدًا على بناء واحد، وقد توقف البناء قبل أن ينتهي.","model_unavailable":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","provider_quota_exhausted":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","model_policy_blocked":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","capability_gate_failed":"لم نتمكن من تجهيز جزء من الموقع (مثلًا الصور)، لذلك لم نسلّمه.","image_mismatch":"الصورة التي أُنشئت لا تُظهر ما طلبتموه، لذلك أوقفنا البناء.","image_not_described":"لإنشاء صورة كنا بحاجة لمعرفة ما تُظهره، ولم يكن ذلك واضحًا في الطلب، فتوقفنا قبل البناء. اكتبوا ما يجب أن تُظهره الصورة (مثلًا \"صورة لكل وجهة\") ونكمل."},
     failUnknown: "لم ينجح البناء بسبب عطل لدينا.",
     failNotCharged: "لم يُخصم منكم أي مبلغ.",
     failNext: { edit: l=>`يمكنكم تغيير الطلب والمحاولة مرة أخرى: اضغطوا على "${l}".`, input: l=>`اكتبوا التفصيل الناقص في الطلب: اضغطوا على "${l}".`, retry: l=>`يمكنكم المحاولة مرة أخرى: اضغطوا على "${l}".` },
@@ -636,12 +638,12 @@ const S = {
   durable: false, plan: null, build: null, versions: [], previewId: null, preview: null,
   mod: null, timers: {},
 };
-Object.assign(T.he, { actRetryBuild:'לנסות לבנות שוב', stillMissing:'כדי להמשיך חסר עוד', stillMissingNone:'כדי להמשיך חסרה עוד תשובה אחת בשיחה.', actDescribeInstead:'לתאר אתר או אפליקציה במקום', openRequirements:'לבחירה במסך "דרישות"', updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'מזעור החלון',
+Object.assign(T.he, { actRetryBuild:'לנסות לבנות שוב', stillMissing:'כדי להמשיך חסר עוד', stillMissingNone:'כדי להמשיך חסרה עוד תשובה אחת בשיחה.', actDescribeInstead:'לתאר אתר או אפליקציה במקום', openRequirements:'לבחירה במסך "דרישות"', updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'סגירה',
   colourExample:'למשל: ורוד עדין עם שמנת וזהב', fontSample:'כך ייראה הטקסט באתר שלכם', fontUnavailable:'הדוגמה עדיין לא נטענה',
   guidedMode:'מצב שאלון מובנה — שיחת AI אינה פעילה כרגע', aiMode:'מצב שיחת AI מוגדר — הזמינות תלויה בספק ובתקציב', draftNote:'אפשר לשנות כמה פרטים. רק ״עדכן״ יחיל את השינויים.',
   aiFallback:'התשובה הזו נבנתה מכללים קבועים, בלי מודל בינה מלאכותית.',
   attachmentSchema:'צירוף תמונות עוד לא זמין כאן. התמונה והטקסט נשמרו כאן לניסיון חוזר.' });
-Object.assign(T.en, { actRetryBuild:'Try building again', stillMissing:'Still missing before we continue', stillMissingNone:'One more answer is needed in the chat before we continue.', actDescribeInstead:'Describe a site or app instead', openRequirements:'Choose in the "Requirements" tab', updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Minimize panel',
+Object.assign(T.en, { actRetryBuild:'Try building again', stillMissing:'Still missing before we continue', stillMissingNone:'One more answer is needed in the chat before we continue.', actDescribeInstead:'Describe a site or app instead', openRequirements:'Choose in the "Requirements" tab', updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Close',
   colourExample:'For example: soft pink with cream and gold', fontSample:'This is how your website text will look', fontUnavailable:'Preview has not loaded yet',
   guidedMode:'Guided questionnaire — AI conversation is not active right now', aiMode:'AI conversation configured — availability depends on provider and budget', draftNote:'Change as many details as you like. Only Update applies the changes.',
   attachmentSchema:'Image attachments need database migration 038 on this deployment. Your image and text remain here for retry.' });
@@ -695,7 +697,7 @@ Object.assign(T.ar, {
   openRequirements: "للاختيار في شاشة \"المتطلبات\"",
   updateDraft: "تحديث الخطة",
   editAll: "تعديل الطلب",
-  minimizeContext: "تصغير النافذة",
+  minimizeContext: "إغلاق",
   colourExample: "مثلًا: وردي هادئ مع الكريمي والذهبي",
   fontSample: "هكذا سيبدو النص في موقعكم",
   fontUnavailable: "لم يُحمَّل المثال بعد",
@@ -723,6 +725,110 @@ Object.assign(T.ar, {
   workspaceStates: {"none":"لم يُبنَ بعد","unknown":"الحالة غير متاحة","building":"قيد البناء","ready":"تم البناء","failed":"فشل","cancelled":"أُلغي"},
   workspaceDomainsNote: "يمكنكم فتح معاينة خاصة وتنزيل عملكم. سيظهر ربط اسم نطاق عام عندما يصبح هذا الخيار متاحًا.",
   workspaceTemplateList: [["موقع لنشاط تجاري","أريد موقعًا لنشاطي التجاري مع وصف للخدمات وطريقة مريحة للتواصل معي من الهاتف."],["صفحة هبوط","أريد صفحة هبوط تقدّم العرض وتتيح ترك البيانات."],["كتالوج","أريد كتالوجًا واضحًا مع فئات وصور وطريقة للسؤال عن منتج."]],
+});
+
+// For everyone (the owner, 2026-11-22: "מקטן שיודע לקרוא ועד למבוגר שלא מבין בכלל"; inbox 001 §6: the number of
+// technical terms a person must know to start and finish is zero). These words replace the earlier ones on the entry,
+// the first screen, the drawer, the preview and the history; tests/platform_for_everyone_browser.cjs counts the
+// technical terms on those screens and fails when one comes back.
+Object.assign(T.he, {
+  hero: 'תארו במילים שלכם מה אתם צריכים.',
+  workspaceLead: 'מספרים במילים פשוטות מה צריך. אנחנו מציעים, אתם מאשרים, ורואים את התוצאה.',
+  how1: 'כותבים במילים פשוטות מה אתם צריכים.', how2: 'מקבלים הצעה עם מחיר, ומאשרים רק אם מתאים.',
+  how3: 'רואים איך זה נראה, מבקשים שינויים במילים, ושומרים.',
+  scope: 'כרגע אפשר לבנות אתרים ומערכות שנפתחים מכל מחשב או טלפון. אפליקציה להתקנה בטלפון, משחקים, וידאו ומוזיקה עוד לא.',
+  manage: 'אפשרויות', manageProject: 'אפשרויות הפרויקט', versions: 'היסטוריה', tab_versions: 'היסטוריה', noVersions: 'עוד אין שמירות קודמות.',
+  download: 'הורדת הקבצים',
+  publishNotConfigured: 'העלאה לאוויר עוד לא זמינה. בינתיים אפשר לראות איך זה נראה ולהוריד את הקבצים.',
+  workspaceTemplates: 'רעיונות להתחלה', workspaceDomains: 'כתובת לאתר',
+  workspaceDomainsNote: 'בינתיים אפשר לראות את האתר ולהוריד אותו. כתובת משלכם, כמו www.העסק-שלי.co.il, תופיע כאן כשהאפשרות תהיה זמינה.',
+  chatHelloTitle: 'מה תרצו ליצור?',
+  chatHello: 'כתבו במילים שלכם, כמו שהייתם מספרים לחבר, או לחצו על אחת הדוגמאות. שום דבר לא נבנה ושום חיוב לא קורה בלי האישור שלכם.',
+  workspaceExamples: [
+    ['אתר לעסק שלי', 'אני רוצה אתר לעסק שלי, עם מה שאני מציע, איפה אני נמצא ואיך יוצרים איתי קשר.'],
+    ['קביעת תורים', 'אני רוצה מערכת שבה לקוחות קובעים תור לפי שעות פנויות ומשאירים שם וטלפון.'],
+    ['הזמנה לאירוע', 'אני רוצה דף לאירוע, עם תאריך, מקום ואפשרות לאשר הגעה.'],
+    ['תיק עבודות', 'אני רוצה עמוד שמציג את העבודות שלי עם תמונות ודרך ליצור איתי קשר.'],
+    ['קטלוג מוצרים', 'אני רוצה קטלוג מוצרים עם קטגוריות, תמונות ודרך לשאול על מוצר.'],
+    ['דף למבצע', 'אני רוצה דף שמציג מבצע או הצעה ומאפשר להשאיר פרטים.'],
+  ],
+  textSize: 'גודל טקסט', textSizes: { normal: 'רגיל', large: 'גדול', xlarge: 'גדול מאוד' },
+  authLead: 'שום דבר לא נבנה ושום חיוב לא קורה בלי האישור שלכם.',
+  specYours: 'הסיכום שלכם', specTitle: 'זה מה שנבנה', specFacts: 'פרטי העסק, כמו שכתבתם', specDefault: 'בחירה שלנו, אפשר לשנות',
+  specPrice: 'מחיר', specNext: 'מה עכשיו',
+  previewDevice: 'לראות כמו במחשב או כמו בטלפון', devDesktop: 'מחשב', devPhone: 'טלפון',
+  // the build steps and the checks in the customer's words (the owner's example, screens 07 and 08; inbox 001 §6)
+  stepPlanning: 'מתכננים מה לבנות', stepContract: 'מסכמים בדיוק מה ייבנה', stepInfra: 'מכינים את הבסיס',
+  stepAssets: 'מכינים תמונות ואייקון', stepGenerate: 'בונים את האתר', stepGates: 'בודקים שהכול תקין ובטוח',
+  stepPreview: 'מראים לכם איך זה נראה',
+  noteGenerate: 'הבנייה, הבדיקות והתיקונים קורים ביחד. בסוף נדווח כמה תיקונים היו.',
+  stepState: { done: 'הושלם', active: 'קורה עכשיו', pending: 'ממתין', failed: 'נכשל', skipped: 'לא בוצע' },
+});
+Object.assign(T.en, {
+  hero: 'Describe what you need in your own words.',
+  workspaceLead: 'Say in plain words what you need. We suggest, you approve, and you see the result.',
+  how1: 'Write in plain words what you need.', how2: 'Get a proposal with a price, and approve it only if it suits you.',
+  how3: 'See how it looks, ask for changes in words, and keep it.',
+  scope: 'Today you can make websites and tools that open on any computer or phone. Phone apps to install, games, video and music are not available yet.',
+  manage: 'Options', manageProject: 'Project options', versions: 'History', tab_versions: 'History', noVersions: 'Nothing saved earlier yet.',
+  download: 'Download the files',
+  publishNotConfigured: 'Putting it online is not available yet. Meanwhile you can see how it looks and download the files.',
+  workspaceTemplates: 'Ideas to start', workspaceDomains: 'Web address',
+  workspaceDomainsNote: 'Meanwhile you can see your site and download it. An address of your own, like www.my-business.com, will appear here when it becomes available.',
+  chatHelloTitle: 'What would you like to make?',
+  chatHello: 'Write it in your own words, as you would tell a friend, or tap one of the examples. Nothing is built and nothing is charged without your approval.',
+  workspaceExamples: [
+    ['My business website', 'I want a website for my business with what I offer, where I am and how to reach me.'],
+    ['Booking appointments', 'I want a system where customers book an appointment in free time slots and leave their name and phone.'],
+    ['Event invitation', 'I want a page for an event with the date, the place and a way to reply that you are coming.'],
+    ['My portfolio', 'I want a page that shows my work with photos and a way to contact me.'],
+    ['Product catalogue', 'I want a product catalogue with categories, photos and a way to ask about a product.'],
+    ['A special offer', 'I want a page that shows a special offer and lets people leave their details.'],
+  ],
+  textSize: 'Text size', textSizes: { normal: 'Normal', large: 'Large', xlarge: 'Extra large' },
+  authLead: 'Nothing is built and nothing is charged without your approval.',
+  specYours: 'Your summary', specTitle: 'This is what we will build', specFacts: 'Your business details, as you wrote them',
+  specDefault: 'our choice, you can change it', specPrice: 'Price', specNext: 'What now',
+  previewDevice: 'See it as on a computer or on a phone', devDesktop: 'Computer', devPhone: 'Phone',
+  stepPlanning: 'Planning what to build', stepContract: 'Agreeing exactly what gets built', stepInfra: 'Preparing the basics',
+  stepAssets: 'Preparing images and an icon', stepGenerate: 'Building your site', stepGates: 'Checking it works and is safe',
+  stepPreview: 'Showing you how it looks',
+  noteGenerate: 'Building, testing and repairs happen together. At the end we report how many repairs there were.',
+  stepState: { done: 'Done', active: 'Happening now', pending: 'Waiting', failed: 'Failed', skipped: 'Not done' },
+});
+
+// Arabic, the same plain words (2026-11-23). Written by Claude, not yet independently reviewed like the 2026-11-22 block.
+Object.assign(T.ar, {
+  hero: 'صِفوا بكلماتكم ما تحتاجونه.',
+  workspaceLead: 'قولوا بكلمات بسيطة ما تحتاجونه. نحن نقترح، وأنتم توافقون، وترون النتيجة.',
+  how1: 'تكتبون بكلمات بسيطة ما تحتاجونه.', how2: 'تحصلون على اقتراح مع السعر، وتوافقون فقط إذا ناسبكم.',
+  how3: 'ترون كيف يبدو، وتطلبون التغييرات بالكلمات، وتحفظون.',
+  scope: 'يمكن الآن بناء مواقع وأنظمة تُفتح من أي حاسوب أو هاتف. تطبيقات للتثبيت على الهاتف والألعاب والفيديو والموسيقى ليست متاحة بعد.',
+  manage: 'خيارات', manageProject: 'خيارات المشروع', versions: 'السجلّ', tab_versions: 'السجلّ', noVersions: 'لا توجد حفظات سابقة بعد.',
+  download: 'تنزيل الملفات',
+  publishNotConfigured: 'النشر على الإنترنت غير متاح بعد. في هذه الأثناء يمكنكم رؤية كيف يبدو وتنزيل الملفات.',
+  workspaceTemplates: 'أفكار للبدء', workspaceDomains: 'عنوان للموقع',
+  workspaceDomainsNote: 'في هذه الأثناء يمكنكم رؤية موقعكم وتنزيله. عنوان خاص بكم، مثل www.my-business.com، سيظهر هنا عندما يصبح متاحًا.',
+  chatHelloTitle: 'ماذا تريدون أن تصنعوا؟',
+  chatHello: 'اكتبوا بكلماتكم، كما لو كنتم تحكون لصديق، أو اضغطوا على أحد الأمثلة. لا يُبنى شيء ولا يُخصم شيء من دون موافقتكم.',
+  workspaceExamples: [
+    ['موقع لعملي', 'أريد موقعًا لعملي، فيه ما أقدّمه، وأين أنا، وكيف يتواصلون معي.'],
+    ['حجز المواعيد', 'أريد نظامًا يحجز فيه الزبائن موعدًا في الأوقات المتاحة ويتركون الاسم والهاتف.'],
+    ['دعوة إلى مناسبة', 'أريد صفحة لمناسبة فيها التاريخ والمكان وإمكانية تأكيد الحضور.'],
+    ['معرض أعمالي', 'أريد صفحة تعرض أعمالي بالصور وطريقة للتواصل معي.'],
+    ['كتالوج منتجات', 'أريد كتالوج منتجات بفئات وصور وطريقة للسؤال عن منتج.'],
+    ['صفحة لعرض خاص', 'أريد صفحة تعرض عرضًا خاصًا وتتيح ترك التفاصيل.'],
+  ],
+  textSize: 'حجم النص', textSizes: { normal: 'عادي', large: 'كبير', xlarge: 'كبير جدًا' },
+  authLead: 'لا يُبنى شيء ولا يُخصم شيء من دون موافقتكم.',
+  specYours: 'ملخّصكم', specTitle: 'هذا ما سنبنيه', specFacts: 'تفاصيل عملكم، كما كتبتموها', specDefault: 'اختيارنا، يمكن تغييره',
+  specPrice: 'السعر', specNext: 'ماذا الآن',
+  previewDevice: 'المشاهدة كما على الحاسوب أو كما على الهاتف', devDesktop: 'حاسوب', devPhone: 'هاتف',
+  stepPlanning: 'نخطّط لما سنبنيه', stepContract: 'نتّفق بالضبط على ما سيُبنى', stepInfra: 'نجهّز الأساس',
+  stepAssets: 'نجهّز الصور والأيقونة', stepGenerate: 'نبني موقعكم', stepGates: 'نتحقق من أن كل شيء يعمل وآمن',
+  stepPreview: 'نريكم كيف يبدو',
+  noteGenerate: 'البناء والفحص والإصلاحات تحدث معًا. في النهاية نخبركم كم إصلاحًا كان.',
+  stepState: { done: 'اكتمل', active: 'يحدث الآن', pending: 'في الانتظار', failed: 'فشل', skipped: 'لم يُنفَّذ' },
 });
 
 const $ = id => document.getElementById(id);
@@ -807,6 +913,23 @@ function explain(err) {
 }
 const pid = () => encodeURIComponent(S.projectId);
 
+/* ---------- text size (the owner, 2026-11-22: readable for an older person too) ---------- */
+// Three sizes, kept on this device. The whole page is sized in rem, so the root size scales every text.
+const TEXT_SIZES = ['normal', 'large', 'xlarge'];
+let currentTextSize = (() => {
+  try { const s = localStorage.getItem('148ai_text'); return TEXT_SIZES.includes(s) ? s : 'normal'; }
+  catch { return 'normal'; }          // private mode: the size still changes, it is just not kept after a reload
+})();
+function applyTextSize() {
+  document.documentElement.dataset.text = currentTextSize;
+  for (const b of [$('textSizeBtn'), $('textSizeBtn2')]) if (b) b.textContent = `${t('textSize')}: ${t('textSizes')[currentTextSize]}`;
+}
+function nextTextSize() {
+  currentTextSize = TEXT_SIZES[(TEXT_SIZES.indexOf(currentTextSize) + 1) % TEXT_SIZES.length];
+  try { localStorage.setItem('148ai_text', currentTextSize); } catch { /* see above */ }
+  applyTextSize();
+}
+
 /* ---------- language ---------- */
 function applyLang() {
   document.documentElement.lang = S.lang;
@@ -820,6 +943,7 @@ function applyLang() {
     pick.value = S.lang;
   }
   $('chatInput').placeholder = t('chatPlaceholder');
+  applyTextSize();
   $('publishNote').textContent = t('publishNotConfigured');
   document.title = t('docTitle');
   renderBanner(); renderDiscovery(); renderPlan(); renderTrack(); renderVersions(); renderEvidence(); renderPreview(); renderMod();
@@ -831,11 +955,9 @@ function applyLang() {
 function signOutLocal() {
   S.signedIn = false; S.me = null;
   S.projects = []; projectBuildStates.clear(); projectDrafts.clear(); projectStateRequests.clear();
-  S.lastShownProject = null; S.pendingTemplate = '';
+  S.lastShownProject = null;
   $('chatInput').value = ''; $('followup').value = ''; $('sbSearch').value = '';
-  for (const id of ['workspaceDialog', 'newProjectDialog']) {
-    if ($(id).open) $(id).close();
-  }
+  if ($('workspaceDialog').open) $('workspaceDialog').close();
   $('sbSettings').open = false;
   closeSidebarMobile();
   renderProjects();
@@ -914,13 +1036,12 @@ async function loadProjects() {
 function renderProjects() {
   const sel = $('projectSelect');
   sel.replaceChildren(...S.projects.map(p => h('option', { value: p.id, selected: p.id === S.projectId }, p.title || t('untitled'))));
-  $('emptyProjects').hidden = S.projects.length > 0;
-  $('chatForm').hidden = S.projects.length === 0;
-  $('chatCol').classList.toggle('no-project', S.projects.length === 0);
+  // the owner, 2026-11-22: nobody is asked to name a project before saying what they want. The conversation box is
+  // always there; the first message creates the project and names it (submitChat, titleFrom).
   $('projectMenuBtn').disabled = !S.projectId;
   renderSidebarProjects();
   const cur = S.projects.find(p => p.id === S.projectId);
-  const title = cur ? (cur.title || t('untitled')) : '148AI';
+  const title = cur ? (cur.title || t('untitled')) : S.projects.length ? t('newProject') : '148AI';
   $('chatTitle').textContent = title;
   renderWorkspaceHeader();
 }
@@ -1031,7 +1152,7 @@ function openWorkspaceDialog(view) {
     body.replaceChildren(...t('workspaceTemplateList').map(([name, prompt]) =>
       h('button', { type: 'button', class: 'ghost', onclick: () => {
         $('workspaceDialog').close();
-        openNewProject(name, prompt);
+        openNewProject(null, prompt);
       } }, name)));
   } else {
     body.replaceChildren(h('p', {}, t('workspaceDomainsNote')));
@@ -1047,29 +1168,27 @@ async function createProject(title) {
   // box before loading); never clear again here -- the user may already be typing.
   $('chatInput').focus();
 }
-function openNewProject(name = '', prompt = '') {
+// A new project is an empty conversation, as in every product of its kind (the owner, 2026-11-22): no name is asked.
+// The first message creates the project and names it; the name can be changed later under "Options". An idea from
+// "Ideas to start" is written into the box for the customer to read, change and send.
+async function openNewProject(_event, prompt = '') {
   closeSidebarMobile();
-  S.pendingTemplate = prompt;
-  $('newProjectName').value = typeof name === 'string' ? name : ''; $('newProjectMsg').textContent = '';
-  $('newProjectDialog').showModal(); $('newProjectName').focus();
+  if ($('workspaceDialog').open) $('workspaceDialog').close();
+  await selectProject('');
+  if (typeof prompt === 'string' && prompt) { $('chatInput').value = prompt; autoGrow(); }
+  $('chatInput').focus();
 }
-async function submitNewProject(e) {
-  e.preventDefault();
-  const name = $('newProjectName').value.trim();
-  if (!name) { $('newProjectMsg').textContent = t('nameRequired'); return; }
-  $('newProjectCreate').disabled = true;
-  try {
-    const prompt = S.pendingTemplate;
-    await createProject(name);
-    $('newProjectDialog').close();
-    if (prompt && !$('chatInput').value) {
-      $('chatInput').value = prompt;
-      autoGrow();
-    }
-    $('chatInput').focus();
-  }
-  catch (err) { $('newProjectMsg').textContent = explain(err); }
-  finally { $('newProjectCreate').disabled = false; }
+// The project's name, from the customer's first message: its first phrase without "I want", at most 40 characters.
+const TITLE_LEADS = [/^(אני\s+)?(רוצה|צריך|צריכה|מחפש|מחפשת)\s+/, /^(תבנו|בנו|תעשו|עשו)\s+לי\s+/,
+  /^i\s+(want|need|would like)\s+(to\s+have\s+)?/i, /^(please\s+)?(build|make|create)\s+(me\s+)?/i];
+function titleFrom(text) {
+  let one = String(text || '').replace(/\s+/g, ' ').trim();
+  for (const lead of TITLE_LEADS) one = one.replace(lead, '');
+  one = (one.split(/[,.;:!?\n]/)[0] || '').trim();
+  if (!one) return t('untitled');
+  if (one.length <= 40) return one;
+  const cut = one.slice(0, 40), space = cut.lastIndexOf(' ');
+  return `${space > 20 ? cut.slice(0, space) : cut}…`;
 }
 async function selectProject(id) {
   Object.values(S.timers).forEach(clearTimeout); S.timers = {};
@@ -1691,9 +1810,10 @@ function renderTrack() {
   const failedIdx = failedCode in FAIL_STEP ? FAIL_STEP[failedCode] : -1;
   const preview = S.preview;
   const steps = [];
+  // the owner's example (screen 07): each step is a card whose state is written, not colour alone
   const push = (name, state, note) => steps.push(h('li', { class: `step ${state}` }, h('span', { class: 'dot', 'aria-hidden': 'true' }),
-    h('div', {}, h('span', { class: 'name' }, name), note ? h('span', { class: 'note' }, note) : null,
-      h('span', { class: 'sr' }, ` (${state})`))));
+    h('div', {}, h('span', { class: 'name' }, name), h('span', { class: 'pill stepTag' }, t('stepState')[state] || state),
+      note ? h('span', { class: 'note' }, note) : null)));
   // A build exists only for an approved plan (after a reload the plan itself is not reloaded).
   push(t('stepPlanning'), (S.plan || b) ? 'done' : 'active');
   push(t('stepContract'), S.plan ? (S.plan.status === 'READY' ? 'done' : 'failed') : b ? 'done' : 'pending',
@@ -1890,6 +2010,11 @@ function friendlyError(b) {
     const m = String(b.error_message || '').match(/asked "([^"]*)"; the image shows "([^"]*)"/);
     if (m) return known + ({ en: ` Asked: "${m[1]}". The image shows: "${m[2]}".`,
                             ar: ` طلبتم: "${m[1]}". في الصورة: "${m[2]}".` }[S.lang] ?? ` ביקשתם: "${m[1]}". בתמונה: "${m[2]}".`);
+    // The owner, 2026-11-23 (ShayFly, bld_7b541f93): the image was never checked -- "without the subject they were
+    // made from" is NOT_RUN, not a mismatch. The customer must not read that the picture does not match when nobody
+    // looked at it; say honestly it was not clear what the picture should show.
+    if (/without the subject they were made from|could not be checked against the request/.test(String(b.error_message || '')))
+      return (t('errCodes') || {}).image_not_described || known;
     return known;
   }
   // 2026-11-08: 'all model routes failed: ... does not fit the remaining budget' is the build budget running out,
@@ -2271,7 +2396,15 @@ async function submitChat(e) {
   const text = $('chatInput').value.trim();
   const images = window.VE ? VE.pendingCount() : 0;
   if (!text && !images) return;
-  if (!S.projectId) { openNewProject(); return; }
+  if (!S.projectId) {
+    // the first message of a new conversation creates its project, named from the message (the owner, 2026-11-22);
+    // the attached images stay attached through the switch to the new project (VE.reset)
+    if (S.creatingProject) return;
+    S.creatingProject = true; S.keepAttachments = true;
+    try { await createProject(titleFrom(text)); }
+    catch (err) { $('chatInput').value = text; autoGrow(); $('composerMsg').textContent = explain(err); return; }
+    finally { S.creatingProject = false; S.keepAttachments = false; }
+  }
   if (S.chat && S.chat.fallback && !images) { startGuidedFallback(text); return; }
   let ids = [];
   if (images) {
@@ -2280,6 +2413,8 @@ async function submitChat(e) {
   }
   const sent=await sendChat({ message: text, ...(ids.length ? { attachment_ids: ids } : {}) }, text || `📎 ${ids.length}`);
   if (sent && ids.length && window.VE) VE.clearPending();
+  // a send that failed gives the words back to the box (the project switch above had emptied it)
+  if (!sent && text && !$('chatInput').value) { $('chatInput').value = text; autoGrow(); }
 }
 async function startGuidedFallback(text) {
   // Only when the conversation API is not installed here: the existing guided
@@ -2348,10 +2483,26 @@ function actionButtons(actions) {
   }
   return out.length ? h('div', { class: 'acts' }, out) : null;
 }
+// "זה מה שנבנה": the spec rows, the business details as the customer wrote them, notes, price and the next step
+function specCard(card) {
+  const rows = list => h('dl', { class: 'specRows' }, list.map(r => h('div', {},
+    h('dt', {}, r.label), h('dd', { dir: 'auto' }, r.value, r.default ? h('span', { class: 'pill' }, t('specDefault')) : null))));
+  return h('section', { class: 'specCard', 'aria-label': t('specTitle') },
+    h('header', { class: 'specBar' }, h('strong', {}, t('specYours')), h('span', { class: 'pill warn' }, card.stage)),
+    h('div', { class: 'specBody' },
+      h('div', { class: 'specMain' },
+        h('h2', {}, t('specTitle')),
+        (card.rows || []).length ? rows(card.rows) : null,
+        (card.facts || []).length ? h('h3', {}, t('specFacts')) : null,
+        (card.facts || []).length ? rows(card.facts) : null,
+        ...(card.notes || []).map(n => h('p', { class: 'specNote', dir: 'auto' }, n))),
+      h('aside', { class: 'specSide' },
+        card.price ? h('div', { class: 'inset fire' }, h('h3', {}, t('specPrice')), h('p', {}, card.price)) : null,
+        card.next ? h('div', { class: 'inset' }, h('h3', {}, t('specNext')), h('p', {}, card.next)) : null)));
+}
 function renderChat() {
   const box = $('thread'); if (!box) return;
-  if (!S.projectId) { box.replaceChildren(); return; }
-  const msgs = (S.chat && S.chat.messages) || [];
+  const msgs = (S.projectId && S.chat && S.chat.messages) || [];   // a new conversation (no project yet) opens on the welcome
   const kids = [];
   if(S.chat && S.chat.interpreter) kids.push(h('p',{class:'chatMode hint'},
     S.chat.interpreter==='model-via-worker'?t('aiMode'):t('guidedMode')));
@@ -2367,6 +2518,11 @@ function renderChat() {
   msgs.forEach((m, i) => {
     // review F3 (2026-11-22): the speaker, said to screen readers; an aria-label on a plain div is not read
     const bubble = h('div', { class: `bubble ${m.role}`, dir: 'auto' }, h('span', { class: 'sr' }, `${m.role === 'customer' ? t('you') : t('assistant')}: `), m.content);
+    // the owner's example (2026-11-23): gate 1's spec is shown as the card "זה מה שנבנה" in place of the paragraph;
+    // the card carries every part of the message (omni_prod/conversation/spec_card.py), and the message stays the record
+    const specAct = i === lastAssistant ? (m.actions && m.actions.length ? m.actions : ((S.chat.turn && S.chat.turn.actions) || []))
+      .find(a => a.type === 'approve_spec' && a.card) : null;
+    if (specAct) { bubble.lastChild.replaceWith(specCard(specAct.card)); bubble.classList.add('withCard'); }
     if (m.role === 'assistant' && m.ai_status === 'fallback')
       bubble.append(h('p', { class: 'hint aiFallback' }, t('aiFallback')));
     if (m.attachments && m.attachments.length) bubble.append(h('div', { class: 'thumbs' }, m.attachments.map(a =>
@@ -2557,13 +2713,35 @@ function setStageWidth(pct) {
   document.documentElement.style.setProperty('--stage-w', `${v}%`);
   try { localStorage.setItem('148ai_stage_w', String(v)); } catch { /* convenience only */ }
 }
+function touchTyping() {
+  // a phone or tablet: a coarse pointer and no fine one (a laptop with a touch screen keeps Enter = send)
+  return matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches;
+}
+/* The owner, 2026-11-23 (iPhone): after the keyboard closed, the whole workspace stayed pushed up -- the composer and
+   the tabs in the middle of the screen, an empty band below, the header gone. iOS scrolls the page to keep the field
+   above the keyboard even when the page itself cannot scroll, and does not scroll it back. The workspace takes the
+   height that is really visible (--vvh) and the page is put back at the top whenever that height changes. */
+function syncViewport() {
+  const vv = window.visualViewport;
+  if (vv) document.documentElement.style.setProperty('--vvh', `${Math.round(vv.height)}px`);
+  if (document.body.classList.contains('signed-in') && (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop)) {
+    window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0;
+  }
+}
+if (window.visualViewport) { window.visualViewport.addEventListener('resize', syncViewport); window.visualViewport.addEventListener('scroll', syncViewport); }
+window.addEventListener('orientationchange', () => setTimeout(syncViewport, 120));
+syncViewport();
 function autoGrow() { const el = $('chatInput'); el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 192)}px`; }
 function wireWorkspace() {
   const ws = $('workspaceView');
   try { const w = Number(localStorage.getItem('148ai_stage_w')); if (w) setStageWidth(w); } catch { /* default width */ }
   try { if (localStorage.getItem('148ai_sb') === 'collapsed') ws.classList.add('sb-collapsed'); } catch { /* default */ }
   $('chatForm').addEventListener('submit', submitChat);
-  $('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) submitChat(e); });
+  // The owner, 2026-11-23 (phone): Enter on a phone's keyboard is a new line, as in every messaging app; the send
+  // button sends. On a computer Enter still sends and Shift+Enter is a new line.
+  $('chatInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !touchTyping()) submitChat(e); });
+  $('chatInput').addEventListener('focusout', () => setTimeout(syncViewport, 60));
   $('chatInput').addEventListener('input', autoGrow);
   $('sbSearch').addEventListener('input', renderSidebarProjects);
   $('sbAll').addEventListener('click', () => openWorkspaceDialog('allProjects'));
@@ -2625,6 +2803,7 @@ function wireWorkspace() {
 /* ---------- wiring ---------- */
 function wire() {
   $('ctxMinimize').addEventListener('click',()=>openTab(null));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.tab && $('ctx').classList.contains('open')) openTab(null); });
   $('authForm').addEventListener('submit', e => { e.preventDefault(); authSubmit('login'); });
   $('passwordToggle').addEventListener('click', () => {
     const input = $('password'), toggle = $('passwordToggle');
@@ -2640,10 +2819,7 @@ function wire() {
   $('langBtn').addEventListener('change', e => { if (!(e.target.value in LANGS)) return; S.lang = e.target.value; localStorage.setItem('148ai_lang', S.lang); applyLang(); });
   $('projectSelect').addEventListener('change', e => selectProject(e.target.value));
   $('projectMenuBtn').addEventListener('click', openProjectDialog);
-  $('firstProjectForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    try { await createProject($('firstProjectName').value.trim()); } catch (err) { $('composerMsg').textContent = explain(err); }
-  });
+  for (const b of [$('textSizeBtn'), $('textSizeBtn2')]) b.addEventListener('click', nextTextSize);
   wireWorkspace();
   $('renameBtn').addEventListener('click', () => dialogAction(async () => {
     await api(`/api/v28/projects/${pid()}`, { method: 'PATCH', body: { title: $('renameInput').value.trim() } });
@@ -2664,12 +2840,16 @@ function wire() {
   // Directive 2026-10-09 §11: an offline state, not a frozen page.
   const syncOnline = () => { $('offlineBanner').hidden = navigator.onLine !== false; };
   window.addEventListener('online', syncOnline); window.addEventListener('offline', syncOnline); syncOnline();
-  $('newProjectForm').addEventListener('submit', submitNewProject);
-  $('newProjectCancel').addEventListener('click', () => $('newProjectDialog').close());
   $('modifyBtn').addEventListener('click', sendModification);
   // A fresh owner link on every refresh (links expire; the cookie may be blocked in an iframe).
   $('refreshPreviewBtn').addEventListener('click', () => { S.previewAccess = null; delete $('previewFrame').dataset.access; renderPreview(); });
   $('downloadBtn').addEventListener('click', downloadZip);
+  // the owner's example (screen 09): the preview as a computer or as a phone sees it -- the same page, narrower
+  for (const [id, device] of [['devDesktop', 'desktop'], ['devPhone', 'phone']]) $(id).addEventListener('click', () => {
+    $('workspaceView').dataset.device = device;
+    $('devDesktop').setAttribute('aria-pressed', String(device === 'desktop'));
+    $('devPhone').setAttribute('aria-pressed', String(device === 'phone'));
+  });
   $('publishBtn').addEventListener('click', publishNotConfigured);
 }
 

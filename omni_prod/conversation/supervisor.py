@@ -196,7 +196,7 @@ _TXT = {
            'model_unavailable': 'הסוכן לא הספיק לענות הפעם (העומס אצל ספק המודל). מה שכתבתם נשמר — שלחו שוב בעוד רגע, או כתבו עוד פרט על המוצר.',
            'model_refused': 'הסוכן לא זמין כרגע: ספק המודל סירב לבקשה בגלל החשבון שלנו אצלו, לא בגללכם. מה שכתבתם נשמר, ולא חויב דבר. אפשר להמשיך לפרט כאן, והסוכן יענה כשהחשבון יחודש.',
            'missing_none': 'לא חסר כלום — אפשר לעבור לסיכום ולאשר.', 'missing': 'חסר לי:', 'contra': 'יש סתירה שצריך להחליט עליה:',
-           'conflict': 'קודם נקבע: {current}. עכשיו הבנתי: {proposed}. לא שיניתי — מה נכון?',
+           'conflict': 'רק לוודא לפני שאני משנה — {field}: {current}, או {proposed}?',
            'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
            'confirm_sensitive_words': 'זה נושא רגיש ({field}), אז אני צריך תשובה מפורשת שלכם, במילים.',
            'corrected': 'עדכנתי',
@@ -260,7 +260,7 @@ _TXT = {
            'model_refused': 'The assistant is not available right now: the model provider refused the request because of our account with it, not because of you. What you wrote is saved and nothing was charged. You can keep adding details here; the assistant answers again once the account is renewed.',
            'missing_none': 'Nothing is missing: you can review the summary and approve.', 'missing': 'Still missing:',
            'contra': 'There is a contradiction to decide:',
-           'conflict': 'Earlier: {current}. Now I understood: {proposed}. I did not change it — which is right?',
+           'conflict': 'Just to check before I change it — {field}: {current}, or {proposed}?',
            'confirm_sensitive': 'This is sensitive ({field}), so I need your explicit confirmation with the button.',
            'confirm_sensitive_words': 'This is sensitive ({field}), so I need your explicit answer, in words.',
            'corrected': 'Updated',
@@ -396,6 +396,14 @@ def _bindable_images(attachments) -> list[dict]:
     return out
 
 
+# The fields the summary card shows, in this order (the owner, 2026-11-23). The rest is in the brief and the build.
+SUMMARY_FIELDS = ('goal', 'screens', 'content', 'color', 'style', 'logo')
+# a site that keeps nothing from its visitors says so in plain words, once
+_PRIVACY_ROW = {'he': ('מידע מהמבקרים', 'האתר לא שומר שום מידע מהמבקרים', False),
+                'en': ('Visitor data', 'The site keeps nothing from its visitors', False),
+                'ar': ('بيانات الزوار', 'الموقع لا يحفظ أي معلومات من الزوار', False)}
+
+
 class ConversationSupervisor:
     def __init__(self, *, briefs, store, gateway=None, architect: ChiefArchitect | None = None, credits: int | None = None,
                  budget_usd: Decimal = Decimal('0.50'), context=None, worker_interpreter=None,
@@ -519,7 +527,7 @@ class ConversationSupervisor:
         from ..intake.worker_route import ReservedWorkerInterpreter
         from ..intake import conversation_agent as agent
         caps, profile = B.caps_from_env(), None
-        if agent.enabled():                     # the agent's turn cap (owner 2026-11-18); every other account: no cap
+        if agent.enabled():                     # the agent's cost cap; no turn cap (owner 2026-11-23: the chat never ends)
             import dataclasses
             from ..providers import venice_gateway as VG
             caps = dataclasses.replace(caps, project_turns=agent.MAX_TURNS,
@@ -622,11 +630,12 @@ class ConversationSupervisor:
             return held
         from ..intake import approval_flow as AF
         t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief, self.plan_credits)
-        items = sorted(((k, v) for k, v in row.brief.fields.items() if k not in ('windows', 'windows_rejected')),
-                       key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)    # windows: their own choice below
-        summary = '; '.join(_label(k, v['value'], lang) + (_TXT['he' if lang == 'he' else 'en']['safe_suffix']
-                                                            if v.get('confidence') == SAFE_CONFIDENCE else '')
-                            for k, v in items[:8] if 'value' in v)
+        # The owner, 2026-11-23 ("סוכן ... להפוך את המלל לתוצאה מעולה"): the summary leads with what the customer cares
+        # about -- what the site is for, its parts, its content (the packages, the prices, "about us"), its look -- and
+        # not with "font: Heebo", "dates: none" or "login: none", which stay in the brief and in the build.
+        items = [(k, row.brief.fields[k]) for k in SUMMARY_FIELDS if k in row.brief.fields]
+        if row.brief.values().get('content_only') == 'yes':
+            items.append(('content_only', row.brief.fields['content_only']))
         turn.gate = 'spec'
         turn.venice = {'agent': 'agent.venice', 'mode': 'understanding', 'stage': t['stage1'],
                        'cost_range_credits': [lo, hi]}
@@ -642,6 +651,20 @@ class ConversationSupervisor:
         excluded = [(f'{R.display_name(k, lang)} עדיין לא זמין, ולכן ייבנה בלעדיו.' if lang == 'he' else
                      f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
                     for k in d.customer_exclusions(row.brief)]      # 77: said in the spec the customer approves
+        # the owner's example (2026-11-23, "זה מה שנבנה"): the same parts as a card the screen shows in place of one
+        # paragraph; the message below stays the record (spec_card.py)
+        from .spec_card import card as spec_card
+        card = spec_card(
+            stage=t['stage1'], lang=lang, excluded=excluded, canon_lines=list(canon['lines']),
+            price=AF.range_line(lang, lo, hi), next_step=t['gate1'],
+            rows=[_PRIVACY_ROW[lang if lang in _PRIVACY_ROW else 'en'] if k == 'content_only' else
+                  (_short(k, lang), d._label(d.BY_ID[k], v['value'], lang) if k in d.BY_ID else str(v['value']),
+                   v.get('confidence') == SAFE_CONFIDENCE) for k, v in items if 'value' in v])
+        turn.actions[-1]['card'] = card
+        # the message says each detail once too: its summary is the card's rows, where a segment that repeats a
+        # business detail word for word was already dropped (the detail stays in the canon line below)
+        safe = _TXT['he' if lang == 'he' else 'en']['safe_suffix']
+        summary = '; '.join(f"{r['label']}: {r['value']}" + (safe if r['default'] else '') for r in card['rows'])
         return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *excluded, *canon['lines'],
                 AF.range_line(lang, lo, hi), t['gate1']]
 
@@ -1100,7 +1123,7 @@ class ConversationSupervisor:
             a = attachments[0]
             if re.fullmatch(r'att_[a-f0-9]{32}', a.get('id','')) and re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):
                 new_brief.assets['logo'] = {k:a[k] for k in ('id','sha256','mime','size_bytes')}
-                new_brief = d.answer(new_brief, {'logo':'later'})
+                new_brief = d.answer(new_brief, {'logo':'uploaded'})
         images = _bindable_images(attachments)
         decided = {img.get('sha256') for img in new_brief.assets.get('images') or ()}
         images = [a for a in images if a['sha256'] not in decided]    # an image whose role is decided is not re-asked
@@ -1185,6 +1208,10 @@ class ConversationSupervisor:
         if interp is not None and interp.reply and not res.conflicts:
             parts.append(interp.reply)
         stated = [x for x in res.applied if x['field'] not in {c['field'] for c in res.corrected}]
+        # the owner, 2026-11-23: when the model already said what it understood in its own words, the list of field
+        # labels ("הבנתי: צבע: ...") is not said again under it
+        if interp is not None and (interp.reply or '').strip() and str(getattr(interp, 'interpreter', '')).startswith('model'):
+            stated = []
         if stated:
             parts.append(f'{T["got"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in stated[:6]) + '.')
         if res.corrected:
@@ -1195,8 +1222,11 @@ class ConversationSupervisor:
                 parts.append(T['confirm_sensitive_words' if agent.enabled() else 'confirm_sensitive'].format(
                     field=_short(c['field'], lang)))
             else:
-                parts.append(T['conflict'].format(current=_label(c['field'], c['current'], lang),
-                                                  proposed=_label(c['field'], c['proposed'], lang)))
+                # the owner, 2026-11-23: one natural check, not "קודם נקבע ... לא שיניתי — מה נכון?"
+                q_ = d.BY_ID.get(c['field'])
+                val = (lambda v: d._label(q_, v, lang)) if q_ else str
+                parts.append(T['conflict'].format(field=_short(c['field'], lang), current=val(c['current']),
+                                                  proposed=val(c['proposed'])))
         short = [x for x in res.assumed if d.BY_ID.get(x['field']) and d.BY_ID[x['field']].kind == 'choice']
         if short:
             more = len(res.assumed) - len(short[:3])
@@ -1377,7 +1407,8 @@ class ConversationSupervisor:
                 continue
             kind = (((m.get('interpretation') or {}).get('limit')) or {}).get('kind')
             if kind:
-                return kind if kind in ('budget', 'turns') else None
+                # the owner, 2026-11-23: there is no turn cap, so a conversation closed at the old 8 turns is open again
+                return kind if kind == 'budget' else None
         return None
 
     def _last_assistant(self, project_id) -> dict | None:

@@ -1,0 +1,20 @@
+{
+ "pr": "shell-133-rest",
+ "sha256": ["tests/test_shell_133_in_ci.py", "tests/shell_133_browser.cjs"],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the shell check is dropped from the browser job",
+   "mutations": [{"file": ".github/workflows/v24-ci.yml", "old": "      - run: node tests/shell_133_browser.cjs\n", "new": "      - run: echo skipped  # NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_shell_133_in_ci.py"],
+   "expect_failed": ["test_the_browser_job_runs_it"]
+  },
+  {
+   "id": "NC2",
+   "what": "an uncaught fault no longer fails the run",
+   "mutations": [{"file": "tests/shell_133_browser.cjs", "old": "      if (!found.length) failures.push(`fault ${f.id} was NOT caught by \"${f.check}\"`);", "new": "      if (!found.length) console.log('missed');  // NEGATIVE CONTROL"}],
+   "targets": ["tests/test_shell_133_in_ci.py"],
+   "expect_failed": ["test_it_plants_the_four_rows_and_fails_on_a_miss"]
+  }
+ ]
+}
