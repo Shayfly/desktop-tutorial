@@ -2,6 +2,7 @@
 
 - Venice agent profile prefers Gemini 3.5 Flash Lite, then Claude Haiku 5.5 when the primary is ineligible before contact. Existing account scope and single-call reservation preserved. Direct/non-Venice path unchanged.
 - Tested on main 674811c: 43 focused tests and 9 subtests, 14/14 negative controls, fast suite 1040 tests and 480 subtests. Provider HTTP intercepted; no paid call.
+- #524 V11 exposed a historical Sonnet-only HTTP 500 test that never reached the new allowed route. Updated fixtures assert actual POST on both Gemini and Haiku; 56 focused tests, 17 subtests, refusal mutations 4/4 and fast suite 1042/480 passed locally. No product code changed in this correction.
 - Pending: exact-head CI, independent technical review, live catalog/JSON/account/worker canaries and release. A2–A8 tools/skills and orchestration remain separate work.
 
 # 2026-11-23 — tonight's fixes: the build no longer dies on a picture nobody asked for, the chat never ends, the phone (Claude Code)
