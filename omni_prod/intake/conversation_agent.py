@@ -43,8 +43,10 @@ MAX_COST_USD = _D('0.15')
 # The owner, 2026-11-19 (after the measurement, runs 44602428561..44616521276): openai-gpt-6-luna first -- 3/3
 # conversations, 0 failed calls, $0.0011-0.0016 a conversation (Sonnet $0.029-0.041) -- and Sonnet when Venice does not
 # offer luna. The ceiling stays Sonnet's list price so the fallback is never refused; a turn settles at its actual cost.
-VENICE_MODELS = ('openai-gpt-6-luna', 'claude-sonnet-5-5')
-VENICE_CEILING_USD_PER_M = ('2', '10')
+# Owner 2026-11-24, issue #523: Gemini Flash-Lite first; Haiku when primary is ineligible.
+# Recorded Venice prices, not direct Google prices. Verify live listing/JSON before release.
+VENICE_MODELS = ('gemini-3-5-flash-lite', 'claude-haiku-5-5')
+VENICE_CEILING_USD_PER_M = ('0.38', '3.13')
 
 
 def venice_profile() -> dict:
@@ -59,6 +61,7 @@ def venice_profile() -> dict:
 # ceiling = its list price on Venice's pricing page (docs/venice_prices_snapshot.md, read 2026-10-19): if Venice now
 # asks more, select_model refuses it before any request -- loud, never a pricier call.
 CANDIDATES = {
+    'gemini-3-5-flash-lite': ('0.38', '3.13'),
     'deepseek-v4-flash': ('0.14', '0.28'),
     'openai-gpt-oss-120b': ('0.07', '0.30'),
     'qwen3-235b-a22b-instruct-2507': ('0.15', '0.75'),
