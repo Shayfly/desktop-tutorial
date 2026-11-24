@@ -1,4 +1,14 @@
-/* Run against a disposable development server with in-memory creator accounts. */
+/* Run against a disposable development server with in-memory creator accounts.
+ *
+ * CI (v24-ci browser-tests, 2026-11-22, review item T1) starts that server -- uvicorn on omni_prod.investor_app with
+ * OMNI_CREATOR_PERSISTENCE=memory on port 18749 -- runs this test, and then runs it once per mutation below, where it
+ * must FAIL. `WORKSPACE_LIST_MUTATIONS=1 node tests/workspace_sidebar_local.cjs` prints the mutation names.
+ *
+ * Project status (review item T3): the status filter used to pass only because the in-memory server answers 503 for
+ * every build status, so every project read "status unavailable". Production answers {build: null} for a project
+ * that never built. The latest-build request is answered here by the test instead: the first project as production
+ * answers a project with no build, the second as a status that cannot be read. The filter is then checked on both.
+ */
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 
@@ -14,17 +24,26 @@ const mutations = {
 const scriptMutations = {
   hash_in_version_row: [`h('strong', {}, v.title || v.message || t('workspaceVersion'))`, "h('strong', {}, v.id)"],
   empty_failure_preview: ["empty.classList.toggle('previewFailed', buildFailed);", "empty.classList.toggle('previewFailed', buildFailed); return;"],
+  // T3: a status that cannot be read is guessed as "no build yet" instead of said to be unavailable
+  guessed_status: ['} catch { /* stays "status unavailable": said, not guessed */ }', "} catch { projectBuildStates.set(p.id, 'none'); changed = true; }"],
 };
+if (process.env.WORKSPACE_LIST_MUTATIONS) {
+  console.log([...Object.keys(mutations), ...Object.keys(scriptMutations)].join('\n'));
+  process.exit(0);
+}
 const browserOptions = process.env.CHROMIUM_PATH ? {
   executablePath: process.env.CHROMIUM_PATH,
   args: ['--no-sandbox', '--disable-gpu'],
 } : {};
 
-async function createFromForm(page, title) {
-  await page.locator('#newProjectName').fill(title);
-  await page.locator('#newProjectCreate').click();
-  await page.locator('#newProjectDialog').waitFor({ state: 'hidden' });
-  assert.equal(await page.locator('#chatTitle').textContent(), title);
+// #507 (2026-11-22, the owner): no naming step. A new project is an empty conversation; the first message sent creates
+// it and names it from its first phrase (app.js submitChat, titleFrom). The test sends through the real form.
+async function createByFirstMessage(page, text, title) {
+  assert.equal(await page.evaluate(() => S.projectId), '', 'a new conversation has no project before its first message');
+  await page.locator('#chatInput').fill(text);
+  await page.locator('#chatSend').click();
+  await page.waitForFunction(t => document.getElementById('chatTitle')?.textContent === t, title, { timeout: 15000 });
+  assert.notEqual(await page.evaluate(() => S.projectId), '', 'the first message created the project');
 }
 
 (async () => {
@@ -50,6 +69,13 @@ async function createFromForm(page, title) {
           await route.fulfill({ response, body: (await response.text()) + '\n' + mutations[mutation] });
         });
       }
+      // T3: the latest build of each project, answered by the test (see the header) rather than by the server's 503
+      await page.route('**/api/v28/projects/*/builds/latest', async route => {
+        const id = decodeURIComponent(new URL(route.request().url()).pathname.split('/')[4]);
+        const title = await page.evaluate(pid => (S.projects.find(p => p.id === pid) || {}).title, id).catch(() => undefined);
+        if (title === 'אוורסט') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ build: null }) });
+        return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'status cannot be read (test)' }) });
+      });
       await page.goto('/');
       await page.locator('#email').fill(`sidebar-${width}-${Date.now()}@example.test`);
       await page.locator('#password').fill('local-sidebar-test-only');
@@ -109,13 +135,15 @@ async function createFromForm(page, title) {
       if (Number.isFinite(credits)) assert.match(await page.locator('#sbBalance').textContent(), new RegExp(String(credits)));
 
       await page.locator('#newProjectTopBtn').click();
-      await createFromForm(page, 'אוורסט');
+      await createByFirstMessage(page, 'אוורסט', 'אוורסט');
       await page.locator('#chatInput').fill('טיוטה ששייכת לאוורסט');
       await openSidebar();
       await page.locator('#sbTemplates').click();
       await page.locator('#workspaceDialogBody button').first().click();
-      await createFromForm(page, 'אתר שני');
-      assert.match(await page.locator('#chatInput').inputValue(), /אתר לעסק/);
+      const idea = await page.locator('#chatInput').inputValue();
+      assert.match(idea, /אתר לעסק/, 'an idea is written into the box of a new, empty conversation');
+      const second = await page.evaluate(text => titleFrom(text), idea);
+      await createByFirstMessage(page, idea, second);
       await page.evaluate(() => {
         S.proposal = {price:{amount_ils:93}};
         renderWorkspaceHeader();
@@ -125,11 +153,16 @@ async function createFromForm(page, title) {
       await openSidebar();
       await page.locator('#sbAll').click();
       assert.equal(await page.locator('#workspaceProjectList button').count(), 2);
+      const listed = async () => page.locator('#workspaceProjectList button .ttl').allTextContents();
       await page.locator('#workspaceProjectState').selectOption('ready');
-      assert.equal(await page.locator('#workspaceProjectList button').count(), 0);
+      assert.deepEqual(await listed(), [], 'no project is built');
+      await page.locator('#workspaceProjectState').selectOption('none');
+      assert.deepEqual(await listed(), ['אוורסט'], 'a project with no build reads "no build yet", as production answers');
       await page.locator('#workspaceProjectState').selectOption('unknown');
-      assert.equal(await page.locator('#workspaceProjectList button').count(), 2);
+      assert.deepEqual(await listed(), [second], 'a status that cannot be read reads "unavailable", not a guess');
       assert.equal(await page.locator('#workspaceProjectList .sbStatus').first().isVisible(), true, 'status is visible in text');
+      await page.locator('#workspaceProjectState').selectOption('');
+      assert.equal(await page.locator('#workspaceProjectList button').count(), 2);
       await page.locator('#workspaceProjectSearch').fill('אוורסט');
       assert.equal(await page.locator('#workspaceProjectList button').count(), 1);
       await page.locator('#workspaceProjectList button').click();
