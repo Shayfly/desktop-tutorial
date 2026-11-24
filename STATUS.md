@@ -1,28 +1,3 @@
-# 2026-11-22 (night) — the platform UI after the release: four merges, three languages, the design's own tests (Claude Code)
-
-The owner, 2026-11-22 evening: the platform UI moves to Claude Code, "continue developing it"; "תוצאות בהרבה שפות".
-
-- **Implemented and independently verified (merged, CI green on the exact head, production READY):**
-  - #502 `90fd284` -> `473a820` [release]: a website is not offered for approval before the customer named the business.
-    Vercel `dpl_3mpTtvrCEMSx1cDqvTrEm65FQADP`.
-  - #503 `adea624` -> `e5bf2ac` [release]: Codex's design with its review fixes and a blocking WCAG 2.2 AA check (the
-    entry above). Vercel `dpl_Ax13GhrAyzxY4Bv7DcbHo9LY6MCk`, deploy-worker 45072002228.
-  - #504 `ebd34df` -> `396d571` [release]: a business we do not know is asked about its colours; a WhatsApp answer keeps
-    its role. Vercel `dpl_8tCnYrswwopYXpScShjYFQcxHvnt`.
-  - #505 `526928a` -> `e35f1b4` [release]: the platform in Hebrew, English and Arabic (`tests/ui_languages_browser.cjs`
-    in CI: no key falls back, no text in another script); the accessibility check in all three, `3 languages x 3 widths
-    clean; 8/8 faults caught`. Vercel `dpl_86kVjp5UbA22jsJZ8TyyLTSRfVeK`.
-- **Implemented, in review (this branch):** #503 review items T1-T3. `tests/workspace_sidebar_local.cjs` (Codex's) and
-  its mutations run in CI on a development server (uvicorn, in-memory accounts): `9/9 mutations caught` locally on the
-  exact CI step. Its status filter no longer passes on the in-memory server's 503 (T3). Codex's three guards against late
-  answers have a test (`tests/workspace_guards_browser.cjs`): `8 scenarios hold; 7/7 guards caught when taken out`.
-  Pinned by `tests/test_workspace_tests_in_ci.py`, controls 7/7. #506 (path ownership for `codex/` and `design/`
-  branches) is also in review.
-- **Not implemented:** the server's fixed texts (conversation sentences, approval, failures, the build announcement)
-  reach an Arabic customer in English; the translation is under way. The accent colour has no token in the G-APPLE
-  design contract, so the second colour a customer names is recorded but not rendered.
-- **Not verified:** no native Arabic speaker has read the Arabic (translated and reviewed by agents); no customer has
-  used the new design or the Arabic platform in production yet.
 # 2026-11-23 — tonight's fixes: the build no longer dies on a picture nobody asked for, the chat never ends, the phone (Claude Code)
 
 - **Merged** (all CI green on the exact head; the owner's approval in the chat): #514 `d6eb690` (build count from 2026-11-23),
@@ -45,6 +20,32 @@ The owner, 2026-11-22 evening: the platform UI moves to Claude Code, "continue d
   instead of being added (ShayFly lost its packages and prices); "מאשר" typed instead of the button (a money gate, not
   built); one picture per destination (not built).
 
+# 2026-11-22 (night) — the platform UI after the release: four merges, three languages, the design's own tests (Claude Code)
+
+The owner, 2026-11-22 evening: the platform UI moves to Claude Code, "continue developing it"; "תוצאות בהרבה שפות".
+
+- **Implemented and independently verified (merged, CI green on the exact head, production READY):**
+  - #502 `90fd284` -> `473a820` [release]: a website is not offered for approval before the customer named the business.
+    Vercel `dpl_3mpTtvrCEMSx1cDqvTrEm65FQADP`.
+  - #503 `adea624` -> `e5bf2ac` [release]: Codex's design with its review fixes and a blocking WCAG 2.2 AA check (the
+    entry above). Vercel `dpl_Ax13GhrAyzxY4Bv7DcbHo9LY6MCk`, deploy-worker 45072002228.
+  - #504 `ebd34df` -> `396d571` [release]: a business we do not know is asked about its colours; a WhatsApp answer keeps
+    its role. Vercel `dpl_8tCnYrswwopYXpScShjYFQcxHvnt`.
+  - #505 `526928a` -> `e35f1b4` [release]: the platform in Hebrew, English and Arabic (`tests/ui_languages_browser.cjs`
+    in CI: no key falls back, no text in another script); the accessibility check in all three, `3 languages x 3 widths
+    clean; 8/8 faults caught`. Vercel `dpl_86kVjp5UbA22jsJZ8TyyLTSRfVeK`.
+- **Implemented, in review (this branch):** #503 review items T1-T3. `tests/workspace_sidebar_local.cjs` (Codex's) and
+  its mutations run in CI on a development server (uvicorn, in-memory accounts): `9/9 mutations caught` locally on the
+  exact CI step. Its status filter no longer passes on the in-memory server's 503 (T3). Codex's three guards against late
+  answers have a test (`tests/workspace_guards_browser.cjs`): `8 scenarios hold; 7/7 guards caught when taken out`.
+  Pinned by `tests/test_workspace_tests_in_ci.py`, controls 7/7. #506 (path ownership for `codex/` and `design/`
+  branches) merged the same night, `0918f2b` -> `74243bf`. Update 2026-11-24: on today's main (#507 removed the naming
+  dialog) the sidebar test creates a project by its first message; the guards test passes unchanged.
+- **Not implemented:** the server's fixed texts (conversation sentences, approval, failures, the build announcement)
+  reach an Arabic customer in English; the translation is under way. The accent colour has no token in the G-APPLE
+  design contract, so the second colour a customer names is recorded but not rendered.
+- **Not verified:** no native Arabic speaker has read the Arabic (translated and reviewed by agents); no customer has
+  used the new design or the Arabic platform in production yet.
 # 2026-11-22 — the platform for everyone: no naming step, plain words, readable text, 44px controls (Claude, a second session beside Claude Code)
 
 - **The order.** The owner, 2026-11-22 23:18, after #503 went live: upgrade the platform's look to the level of the large
