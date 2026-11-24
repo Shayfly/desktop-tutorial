@@ -79,6 +79,20 @@ class ProviderProbe(unittest.TestCase):
             rc, out = self.run_probe(KEYS)
         self.assertIn('auth=FAIL billing=NOT_REACHED http=401', out)
 
+    def test_disabled_enrollment_never_starts_a_paid_probe(self):
+        calls = []
+        original = fake_urlopen
+        def capture(req, **kwargs):
+            calls.append(json.loads(req.data).get('model') if req.data else None)
+            return original(req, **kwargs)
+        with mock.patch.object(sys.modules[__name__], 'fake_urlopen', capture):
+            _, out = self.run_probe(KEYS)
+        catalog = json.loads((ROOT / 'infra/worker-host/model-catalog.json').read_text())
+        for row in catalog:
+            if not row.get('enabled', True):
+                self.assertNotIn(row['model'], calls)
+                self.assertIn('SKIPPED disabled route ' + row['name'], out)
+
     def test_missing_key_is_fail(self):
         rc, out = self.run_probe({})
         self.assertEqual(rc, 1)
