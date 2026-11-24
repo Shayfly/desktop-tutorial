@@ -2,6 +2,24 @@
  "rule": "Michael 2026-11-13: while identity.yml blocks, a flag-off change passes only with ONE signed entry that matches it exactly -- from_digest/to_digest and the exact added/removed/changed/data_changed gate-closure paths. No wildcards. reviewer must not be the author. Checked by scripts/identity_declared.py. to_digest is unique in this file: a consumed entry is never used twice.",
  "changes": [
   {
+    "id": "executed-skill-evidence-525",
+    "from_digest": "d1655f300092b184cb37a267328dd1987eebff27a476dcc63285e3286a2fcd33",
+    "to_digest": "f2fd495d7d482cfec82093e5ccccf0d2965631b8ff3494c7871cced21bd40d76",
+    "added": [],
+    "removed": [],
+    "changed": [
+      "omni_prod/intake/question_skills.py",
+      "omni_prod/product_review.py",
+      "omni_prod/skills_runtime.py"
+    ],
+    "data_changed": [],
+    "reason": "Owner requested improved agent skills and evidence. Request fidelity v2 extends to repair; question skills v4 preserves confirmed decisions and source-backed business facts; QA records actual static checks. Exact source manifest compared on current main with the same interpreter. Independent review pending.",
+    "author": "chatgpt-integration",
+    "reviewer": "shai",
+    "reviewed_at": "2026-11-25",
+    "signature_note": "Owner explicitly approved executed-skill-evidence-525 in chat on 2026-11-25. Transcribed by author; owner authorization, not independent technical review."
+  },
+  {
    "id": "338-opening-hours-facts",
    "from_digest": "728eb139efa6f3eab28ae603ede3b5b3fa9b78029642981dfdd169ba008b9a16",
    "to_digest": "9eac2891aa6db03f34053cb81776fe8fc289cd3885eefd57856754011ef42d27",
@@ -134,24 +152,6 @@
    "reviewer": "shai",
    "reviewed_at": "2026-11-22",
    "signature_note": "Signed by the owner's instruction: standing autonomy grant (2026-11-16), the owner's message of 2026-11-21 ('סומך עלייך מאשר לך הכול') and his order of 2026-11-22 ('118 — ראשון, ועכשיו'). The reviewer field was typed by the author (claude) on that instruction."
-  },
-  {
-   "id": "executed-skill-evidence-525",
-   "from_digest": "d1655f300092b184cb37a267328dd1987eebff27a476dcc63285e3286a2fcd33",
-   "to_digest": "f2fd495d7d482cfec82093e5ccccf0d2965631b8ff3494c7871cced21bd40d76",
-   "added": [],
-   "removed": [],
-   "changed": [
-    "omni_prod/intake/question_skills.py",
-    "omni_prod/product_review.py",
-    "omni_prod/skills_runtime.py"
-   ],
-   "data_changed": [],
-   "reason": "Owner requested improved agent skills and evidence. Request fidelity v2 extends to repair; question skills v4 preserves confirmed decisions and source-backed business facts; QA records actual static checks. Exact source manifest compared on current main with the same interpreter. Independent review pending.",
-   "author": "chatgpt-integration",
-   "reviewer": "pending",
-   "reviewed_at": "2026-11-24",
-   "signature_note": "Prepared for independent review; not a signed approval."
   }
  ]
 }
