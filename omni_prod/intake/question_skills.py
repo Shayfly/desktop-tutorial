@@ -8,9 +8,11 @@ customer. Versioned: change the text -> bump SKILL_VERSION.
 """
 from __future__ import annotations
 
-SKILL_VERSION = 'question-skills/3'
+SKILL_VERSION = 'question-skills/4'
 
 _COMMON = (
+    'read prior decisions and delegated choices before asking; ask one question only if its answer changes what can be built',
+    'use references only for presentation; keep business facts, prices and media rights tied to approved customer sources',
     'who uses it (customer, staff, the owner) and what each one does',
     'the one thing it must do on day one (the core flow, step by step)',
 )

@@ -488,11 +488,13 @@ def _unlabelled_inputs(repository: dict, context: dict) -> list[StaticFinding]:
 # ---------------------------------------------------------------- the skill pack
 
 REQUEST_FIDELITY = Skill(
-    key='skill.request_fidelity', version='1',
+    key='skill.request_fidelity', version='2',
     purpose='What the user stated explicitly decides scope; defaults never override it.',
     boundaries='Scope and requirements only; does not choose libraries or layout.',
-    roles=(ROLE_ARCHITECT, ROLE_GENERATOR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    roles=(ROLE_ARCHITECT, ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
     guidance=(
+        'Preserve confirmed requirements, exclusions and acceptance ids across handoffs and repairs. '
+        'Reference examples can guide presentation only; business facts, prices and testimonials need approved sources. '
         'Request fidelity: an explicit statement in the request overrides every platform default. If the request says '
         'there is no login / no users ("בלי התחברות"), do not add sign-up, login, sessions, roles or permissions anywhere '
         '(requirements, acceptance, code, tests, web_saas_acceptance kinds). Do not add features the user did not ask for, '
@@ -998,13 +1000,28 @@ def checklist_for_review() -> list[dict]:
     return [{'skill': s.key, 'checks': list(s.checklist)} for s in skills_for(ROLE_REVIEWER)]
 
 
-def static_findings(repository: dict, context: dict | None = None) -> list[StaticFinding]:
+def static_findings(repository: dict, context: dict | None = None, *,
+                    evidence: list[dict] | None = None) -> list[StaticFinding]:
+    """Run the existing probes once. Optional evidence records completed checks,
+    not configured guidance or overall product verification. Exceptions keep
+    their original behavior; an interrupted check is never marked complete.
+    """
     context = context or {}
     out: list[StaticFinding] = []
     import dataclasses
     for skill in WEB_SKILLS:
+        checks = []
         for check in skill.static_checks:
-            out.extend(dataclasses.replace(f, probe=check.__name__) for f in check(repository, context))
+            found = [dataclasses.replace(f, probe=check.__name__) for f in check(repository, context)]
+            out.extend(found)
+            if evidence is not None:
+                checks.append({'probe': check.__name__,
+                               'status': 'FINDINGS' if found else 'NO_FINDINGS',
+                               'findings': len(found),
+                               'blocking': sum(f.severity == 'blocking' for f in found)})
+        if evidence is not None:
+            evidence.append({**skill.ref(), 'status': 'STATIC_CHECKS_COMPLETED' if checks else 'NO_STATIC_CHECKS',
+                             'checks': checks})
     return out
 
 

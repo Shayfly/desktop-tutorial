@@ -234,7 +234,9 @@ class ProductReviewExecutor:
         """The review on a report in which the build passed. `max_reviews` bounds the review ROUNDS that block: a round
         counts only when the review is what still blocks (others_failed=False), exactly as when it ran last. While
         other checks fail in the same round its blocking findings are reported alongside them without using the cap."""
-        findings = self._quarantine([f.to_dict() for f in static_findings(repository, self._context(spec))])
+        skill_execution: list[dict] = []
+        findings = self._quarantine([f.to_dict() for f in static_findings(
+            repository, self._context(spec), evidence=skill_execution)])
         self._spend_at_review.append(self._spend())
         llm, meta = self._llm_findings(repository, spec)
         findings += self._converge(llm)
@@ -244,7 +246,8 @@ class ProductReviewExecutor:
                              'alongside': others_failed, 'canon_hash': getattr(self.canon, 'hash', None),
                              'canon_facts': len(getattr(self.canon, 'facts', []) or []),
                              'judged': 'served page' if self._served() else 'repository files',
-                             'blocking': len(blocking), 'findings': findings, 'skills': applied_skills()})
+                             'blocking': len(blocking), 'findings': findings, 'skills': applied_skills(),
+                             'skill_execution': skill_execution})
         if self.escalate:
             from .build_control import GateEscalation
             raise GateEscalation(self.escalate)

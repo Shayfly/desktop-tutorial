@@ -1,3 +1,9 @@
+# 2026-11-24 — Executed skill evidence (#523, partial of #455; NOT LIVE)
+
+- The existing QA skill runtime records each completed static check once, including outcome and finding counts. Guidance-only skills are explicitly NO_STATIC_CHECKS. The existing review decision, gate, budget and provider path are unchanged. Evidence excludes raw inputs and source.
+- Request fidelity v2 now reaches repair as well as architecture, generation and review; question skills v4 tells intake to preserve prior decisions and approved business facts.
+- Local exact-tree evidence: 38 focused tests, 6/6 negative controls, fast suite 1042 tests and 480 subtests; registry regenerated from source. No paid call or live verification. Other #455 changes and agent tools remain separate, pending review.
+
 # 2026-11-23 — tonight's fixes: the build no longer dies on a picture nobody asked for, the chat never ends, the phone (Claude Code)
 
 - **Merged** (all CI green on the exact head; the owner's approval in the chat): #514 `d6eb690` (build count from 2026-11-23),
