@@ -109,6 +109,36 @@ SCHEDULE: tuple[PriceRow, ...] = (
     _row('anthropic', 'claude-sonnet-5-5', src=ANTHROPIC, inp='2.00', cached='0.10', out='10.00'),
     _row('anthropic', 'claude-haiku-5-5', src=ANTHROPIC, inp='0.10', cached='0.01', out='0.50', note='<=100k prompt tokens'),
     _row('anthropic', 'claude-opus-5-5', src=ANTHROPIC, inp='4.00', cached='0.20', out='20.00'),
+    # Additional direct-provider routes requested by the owner, 2026-11-18.
+    # These are effective-dated standard short-context prices. Catalog routes
+    # remain disabled until account access and the request dialect are verified.
+    PriceRow('openai', 'gpt-6.2-astra', date(2026, 11, 18), None,
+             'https://developers.openai.com/api/docs/models/gpt-6.2-astra', '2026-11-18',
+             input_per_million=_d('8'), cached_input_per_million=_d('0.40'), output_per_million=_d('40')),
+    PriceRow('openai', 'gpt-6.2-sol', date(2026, 11, 18), None,
+             'https://developers.openai.com/api/docs/models/gpt-6.2-sol', '2026-11-18',
+             input_per_million=_d('2'), cached_input_per_million=_d('0.10'), output_per_million=_d('10')),
+    PriceRow('openai', 'gpt-6.1-terra', date(2026, 11, 18), None,
+             'https://developers.openai.com/api/docs/models/gpt-6.1-terra', '2026-11-18',
+             input_per_million=_d('1'), cached_input_per_million=_d('0.05'), output_per_million=_d('5')),
+    PriceRow('anthropic', 'claude-fable-5-2', date(2026, 11, 18), None,
+             'https://platform.claude.com/docs/en/models/overview', '2026-11-18',
+             input_per_million=_d('8'), output_per_million=_d('40')),
+    *tuple(PriceRow('gemini', model, date(2026, 11, 18), date(2026, 12, 1),
+                    'https://aistudio.google.com/docs/pricing#' + model, '2026-11-18',
+                    input_per_million=_d('2'), cached_input_per_million=_d('0.10'), output_per_million=_d('10'))
+           for model in ('gemini-4-carbon', 'gemini-4-argon')),
+    *tuple(PriceRow('gemini', model, date(2026, 12, 1), None,
+                    'https://aistudio.google.com/docs/pricing#' + model, '2026-11-18',
+                    input_per_million=_d('4'), cached_input_per_million=_d('0.20'), output_per_million=_d('20'))
+           for model in ('gemini-4-carbon', 'gemini-4-argon')),
+    PriceRow('gemini', 'gemini-4-neon', date(2026, 11, 18), None,
+             'https://aistudio.google.com/docs/pricing#gemini-4-neon', '2026-11-18',
+             input_per_million=_d('3'), cached_input_per_million=_d('0.15'), output_per_million=_d('15')),
+    PriceRow('gemini', 'gemini-4-hydrogen', date(2026, 11, 18), None,
+             'https://aistudio.google.com/docs/pricing#gemini-4-hydrogen', '2026-11-18',
+             input_per_million=_d('1.50'), cached_input_per_million=_d('0.075'), output_per_million=_d('7.50')),
+
 )
 
 

@@ -120,6 +120,10 @@ def parse_model_catalog(raw: str, env: Mapping[str, str], *, when=None) -> tuple
             raise ModelCatalogError(f'{name}: quality must be an integer 0..100') from exc
         if not 0 <= quality <= 100:
             raise ModelCatalogError(f'{name}: quality must be an integer 0..100')
+        staged_enrollment = item.get('_activation_status') == 'PENDING_LIVE_VERIFICATION'
+        enabled = item.get('enabled') is True if staged_enrollment else bool(item.get('enabled', True))
+        if staged_enrollment and enabled and (type(item['quality']) is not int or quality == 0):
+            raise ModelCatalogError(f'{name}: enabled enrollment requires an explicit quality score 1..100')
         for required in ('input_per_million', 'output_per_million'):
             if required not in item:
                 raise ModelCatalogError(f'{name}: {required} price is required')
@@ -142,25 +146,24 @@ def parse_model_catalog(raw: str, env: Mapping[str, str], *, when=None) -> tuple
         if not isinstance(extra, dict) or any(not isinstance(k, str) or k in reserved for k in extra):
             raise ModelCatalogError(f'{name}: extra_body must be an object without core request fields')
         extra_body = tuple(sorted((k, json.dumps(v)) for k, v in extra.items()))
-        enabled = bool(item.get('enabled', True))
         from .intelligence.governance import govern
         gov = govern(model=model, base_url=base_url, input_per_million=input_price,
                      output_per_million=output_price, when=when)
         input_price, output_price = gov.input_per_million, gov.output_per_million
-        enabled = enabled and gov.routable
+        routable = enabled and gov.routable
         key = (env.get(key_env) or '').strip()
         option = ModelOption(provider=provider, model=model, quality=quality, latency_ms=latency,
                              input_per_million=input_price, output_per_million=output_price,
-                             enabled=enabled and bool(key))
+                             enabled=routable and bool(key))
         endpoint = None
-        if key and enabled:
+        if key and routable:
             endpoint = ModelEndpoint(name=name, base_url=base_url, model=model, api_key=key,
                                      timeout_seconds=timeout, external=True, api_style=api_style,
                                      extra_body=extra_body)
         out.append(CatalogModel(option=option, endpoint=endpoint, max_output_tokens=max_out,
                                 api_key_env=key_env, lifecycle=gov.lifecycle, price_source=gov.price_source,
                                 governance_notes=gov.notes,
-                                blocked_reason='PRICE_UNVERIFIED' if (key and bool(item.get('enabled', True))
+                                blocked_reason='PRICE_UNVERIFIED' if (key and enabled
                                                                       and not gov.routable
                                                                       and gov.lifecycle != 'RETIRED') else ''))
     return tuple(out)
