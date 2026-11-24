@@ -63,7 +63,7 @@
    "mutations": [
     {
      "file": "scripts/release_gate.py",
-     "old": "    return (message or '').split('\\n', 1)[0].rstrip().endswith(RELEASE_MARK)",
+     "old": "    return title.rstrip().endswith(RELEASE_MARK)",
      "new": "    return RELEASE_MARK in (message or '')  # NEGATIVE CONTROL"
     }
    ],
