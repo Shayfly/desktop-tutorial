@@ -297,8 +297,8 @@
    "mutations": [
     {
      "file": "omni_prod/discovery.py",
-     "old": "            if m.get('role') == 'customer' and not (m.get('interpretation') or {}).get('label')]\n",
-     "new": "            if m.get('role') == 'customer']\n"
+     "old": "        elif m.get('role') == 'customer' and not (m.get('interpretation') or {}).get('label'):\n",
+     "new": "        elif m.get('role') == 'customer':\n"
     }
    ],
    "targets": [
