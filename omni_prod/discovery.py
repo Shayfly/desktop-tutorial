@@ -21,7 +21,9 @@ import json
 import re
 from dataclasses import dataclass, field
 from typing import Callable, Mapping
+from dataclasses import replace as _replace
 
+from . import customer_lang as CL
 from . import vocabulary as _vocab
 
 DELEGATE = '__delegate__'
@@ -29,11 +31,25 @@ GUIDED, RECOMMEND = 'guided', 'recommend'
 SOURCES = ('message', 'answer', 'delegated', 'default')
 
 
+def _in_language(obj, prefix: str, lang, name) -> str:
+    """obj.<prefix>he | <prefix>ar | <prefix>en by the one language rule (omni_prod/customer_lang). A question or an
+    option with no Arabic is a bug said loudly, never a fall to Hebrew or English."""
+    k = CL.pick(lang)
+    text = getattr(obj, prefix + k)
+    if k == 'ar' and not text:
+        raise LookupError(f'discovery: no Arabic {prefix or "text"} for {name!r} (omni_prod/discovery._QUESTIONS_AR)')
+    return text
+
+
 @dataclass(frozen=True)
 class Option:
     value: str
     he: str
     en: str
+    ar: str = ''                    # Arabic, set below from _OPTIONS_AR by (question id, option value)
+
+    def label_in(self, lang: str) -> str:
+        return _in_language(self, '', lang, self.value)
 
 
 @dataclass(frozen=True)
@@ -50,14 +66,23 @@ class Question:
     recommended: str | None = None  # value used when delegated
     delegable: bool = True
     ask_if: Callable[[Mapping[str, str]], bool] = lambda v: True
+    ar: str = ''                    # Arabic text and why, set below from _QUESTIONS_AR by the question's id
+    why_ar: str = ''
+
+    def text_in(self, lang: str) -> str:
+        return _in_language(self, '', lang, self.id)
+
+    def why_in(self, lang: str) -> str:
+        return _in_language(self, 'why_', lang, self.id)
 
     def to_dict(self, lang: str = 'he') -> dict:
-        he = lang != 'en'
+        rec = None if self.recommended == '__from_request__' else self.recommended
         return {'id': self.id, 'field': self.field, 'group': self.group,
-                'text': self.he if he else self.en, 'why': self.why_he if he else self.why_en,
+                'text': self.text_in(lang), 'why': self.why_in(lang),
                 'kind': self.kind, 'delegable': self.delegable,
-                'recommended': None if self.recommended == '__from_request__' else self.recommended,
-                'options': [{'value': o.value, 'label': o.he if he else o.en} for o in self.options]}
+                # a text question's recommended value is shown (placeholder, hint): an Arabic customer reads it in Arabic
+                'recommended': shown_value(rec, lang) if self.kind == 'text' else rec,
+                'options': [{'value': o.value, 'label': o.label_in(lang)} for o in self.options]}
 
 
 def _o(value, he, en):
@@ -252,6 +277,111 @@ QUESTIONS: tuple[Question, ...] = (
     # only then what to do with it. Never delegated, never assumed; the role goes into the alt and the canon.
     *IMAGE_QUESTIONS,
 )
+
+# ---- Arabic (2026-11-22) ------------------------------------------------------------------------------------------
+# The questions in Arabic, translated from the Hebrew and independently reviewed. A question's Arabic is keyed by its id
+# and an option's by its value -- stable ids, never the English text -- and is set once, here, on the Question and
+# Option objects (`ar`, `why_ar`). tests/test_server_texts_arabic.py fails for a question or an option without Arabic.
+GROUP_TITLES_AR = {'purpose': 'الهدف والجمهور', 'access': 'الوصول والمعلومات', 'content': 'الشاشات والمحتوى', 'rules': 'قواعد العمل', 'design': 'التصميم والهوية التجارية'}
+IMAGE_PLACES_AR = {'hero': 'الصورة الرئيسية أعلى الصفحة', 'story': 'بجانب قصتنا', 'products': 'في قسم المنتجات', 'gallery': 'في معرض الصور'}
+_IMAGE_WHO_AR = {
+    'person': ('من في الصورة، وما دوره أو دورها في النشاط التجاري؟',
+              'مثلًا: "الجد سمعان، المالك". سيُكتب هذا في وصف الصورة على الصفحة.'),
+    'product': ('ما المنتج الذي في الصورة، وما الذي يميّزه؟',
+               'مثلًا: "أسياخ دجاج، متبّلة عندنا". سيُكتب هذا في وصف الصورة على الصفحة.'),
+    'place': ('ما المكان الذي في الصورة، وماذا يحدث فيه؟',
+             'مثلًا: "منضدة البيع في المحل، هنا نقطّع أمام الزبون". سيُكتب هذا في وصف الصورة على الصفحة.'),
+    'other': ('ماذا يوجد في الصورة، وأين يجب أن تظهر؟',
+             'هكذا نعرف ماذا نفعل بها.'),
+}
+_IMAGE_USE_AR = {'as_is': 'استخدامها كما هي', 'change': 'تعديلها (غير متاح بعد)', 'inspiration': 'للإلهام فقط — لا تُعرض على الصفحة'}
+_IMAGE_PLACE_AR = ('أين ستظهر في الصفحة؟ توصيتي: {place}.',
+                   'للصفحة صورة رئيسية واحدة؛ وفي باقي الأماكن يمكن وضع عدة صور.')
+_QUESTIONS_AR = {   # question id -> (text, why)
+    'image_kind': ('استلمتُ الصورة. ماذا يوجد فيها؟',
+                   'كل صورة تُرفع تحصل على دور، لكي نعرف كيف نستخدمها.'),
+    'image_use': ('وماذا نفعل بالصورة؟ توصيتي: استخدامها كما هي.',
+                  'كما هي: ستظهر الصورة على الصفحة تمامًا كما رفعتموها، دون إنشاء صورة أخرى. تعديل الصورة نفسها (مثلًا وضعها في مشهد آخر) غير متاح بعد.'),
+    'image_use_other': ('وماذا نفعل بالصورة؟ توصيتي: للإلهام فقط.',
+                        'كما هي: ستظهر الصورة على الصفحة تمامًا كما رفعتموها، دون إنشاء صورة أخرى. تعديل الصورة نفسها (مثلًا وضعها في مشهد آخر) غير متاح بعد.'),
+    'audience': ('من سيستخدم النظام؟',
+                 'يحدد إن كانت هناك حاجة لحماية المعلومات، أو لغة بسيطة للزبائن، أو أدوات متقدمة للفريق.'),
+    'goal': ('ما أهم شيء يجب أن يتيحه النظام؟',
+             'الإجراء الرئيسي يحصل على المكان الأبرز في الشاشة ويُفحص أولًا.'),
+    'login': ('هل يلزم تسجيل دخول بكلمة مرور؟',
+              'بدون تسجيل دخول، يستطيع كل من لديه الرابط أن يرى ويغيّر. مع تسجيل الدخول — المستخدمون المصرَّح لهم فقط.'),
+    'personal_data': ('هل ستُحفظ تفاصيل شخصية للناس (الاسم، الهاتف، البريد الإلكتروني)؟',
+                      'التفاصيل الشخصية تتطلب التفكير في من يحق له رؤيتها.'),
+    'content_only': ('هل هذا موقع محتوى فقط — يعرض معلومات وأسعارًا وروابط، ولا يحفظ شيئًا من الزوار؟',
+                     'في موقع المحتوى لا نفحص إضافة المعلومات وتعديلها. إذا كانت فيه استمارة تُحفظ، أو طلبات، أو قائمة يتم تحديثها — أجيبوا "لا".'),
+    'storage_intent': ('قلتم سابقًا إن الموقع لا يحفظ شيئًا من الزوار، والآن إن تفاصيل شخصية ستُحفظ. ما الصحيح؟',
+                       'إذا كانت تفاصيل نشاطكم التجاري فقط (الهاتف، العنوان) تظهر في الموقع — فهذا موقع محتوى، ولا يُحفظ شيء.'),
+    'access_scope': ('طلبتم ألّا يكون هناك تسجيل دخول، لكن ستُحفظ تفاصيل شخصية وسيستخدمه أشخاص من الخارج. كيف نتابع؟',
+                     'بدون تسجيل دخول، كل من يصل إلى الرابط سيرى تفاصيل الجميع. هذا قراركم، لا قرارنا.'),
+    'screens': ('ما الشاشات أو الأقسام المطلوبة؟',
+                'كل شاشة تكتبونها ستُبنى وتُفحص. إذا لم تكتبوا — سنقترح حسب الطلب.'),
+    'languages': ('بأي لغة سيكون المنتج؟',
+                  'يحدد اتجاه الكتابة (من اليمين إلى اليسار)، وطريقة عرض التواريخ، والصياغة.'),
+    'content': ('هل هناك محتوى أو معلومات يجب أن تكون موجودة من البداية؟',
+                'مثلًا قائمة خدمات أو أسعار أو فئات. سنوضّح أن الأمثلة مجرد أمثلة.'),
+    'dates': ('هل هناك تواريخ أو أوقات؟ إن وُجدت — فما المدى المعقول؟',
+              'هكذا نمنع تواريخ مثل سنة 2356، ونعرض التواريخ بصيغة يوم/شهر/سنة.'),
+    'duplicates': ('ماذا نفعل عند محاولة إضافة شيء موجود من قبل؟',
+                   'مثلًا رقم الهاتف نفسه مرتين، أو حجزان للساعة نفسها.'),
+    'style': ('أي أسلوب يناسبكم؟',
+              'الأسلوب يحدد المسافات، والزوايا، والظلال، ونبرة النص.'),
+    'color': ('ما الألوان التي تريدونها؟ يمكنكم وصفها بكلماتكم',
+              'اللون الرئيسي يُستخدم للأزرار والعناوين؛ والنص يبقى دائمًا سهل القراءة.'),
+    'font': ('أي نوع خط؟',
+             'كل الخيارات تدعم العبرية وترخيصها معروف (Google Fonts, OFL).'),
+    'logo': ('شعار؟',
+             'يمكن البدء بشعار نصي واستبداله لاحقًا.'),
+    'unavailable': ('جزء مما طلبتموه غير متاح لدينا بعد. هل نبني بدونه؟',
+                    'إذا اخترتم البناء بدونه، فسيُكتب ذلك في الملخص الذي توافقون عليه. يمكن إضافته لاحقًا عندما يصبح متاحًا.'),
+    'references': ('هل هناك موقع أعجبكم شكله؟ (رابط أو وصف)',
+                   'سنستخدمه للإلهام فقط، ولن ننسخه.'),
+}
+_OPTIONS_AR = {   # question id -> {option value: label}
+    'image_kind': {'person': 'شخص', 'product': 'منتج', 'place': 'مكان', 'logo': 'شعاري', 'other': 'شيء آخر'},
+    'audience': {'internal': 'فريق داخلي (الموظفون / أنا)', 'public': 'الزبائن أو جمهور واسع من الإنترنت', 'both': 'الاثنان معًا'},
+    'login': {'none': 'بدون تسجيل دخول', 'simple': 'تسجيل دخول بسيط (مستخدم واحد أو عدة مستخدمين بالصلاحيات نفسها)', 'roles': 'مستخدمون بصلاحيات مختلفة (مثلًا مدير وموظف)'},
+    'personal_data': {'yes': 'نعم', 'no': 'لا'},
+    'content_only': {'yes': 'نعم، موقع محتوى فقط — دون حفظ معلومات', 'no': 'لا، هناك معلومات تُحفظ أو تتغيّر'},
+    'storage_intent': {'business': 'تظهر في الموقع تفاصيل النشاط التجاري فقط — لا يُحفظ شيء من الزوار', 'visitors': 'الموقع يحفظ تفاصيل الزوار (مثلًا استمارة تواصل)'},
+    'access_scope': {'internal_link': 'هذه أداة داخلية — نحن فقط سنحصل على الرابط', 'add_login': 'إضافة تسجيل دخول للمدير، والجمهور يملأ استمارة فقط', 'no_personal': 'عدم حفظ تفاصيل شخصية'},
+    'languages': {'he': 'العبرية', 'he_en': 'العبرية والإنجليزية', 'en': 'الإنجليزية'},
+    'dates': {'none': 'لا توجد تواريخ', 'future_year': 'تواريخ مستقبلية حتى سنة من الآن', 'past_and_future': 'الماضي والمستقبل معًا (مدى معقول)'},
+    'duplicates': {'block': 'المنع مع شرح السبب', 'allow': 'السماح'},
+    'style': {'clean': 'نظيف وعصري', 'warm': 'دافئ ومرحِّب', 'formal': 'مهني ورسمي', 'playful': 'ملوّن ومبهج'},
+    'color': {'category': 'حسب نوع النشاط التجاري', 'blue': 'أزرق', 'green': 'أخضر', 'purple': 'بنفسجي', 'orange': 'برتقالي', 'teal': 'فيروزي', 'neutral': 'رمادي/أسود'},
+    'font': {'heebo': 'Heebo — نظيف وعصري', 'assistant': 'Assistant — ناعم وسهل القراءة', 'rubik': 'Rubik — مستدير وودود', 'system': 'خط الجهاز (الأسرع)'},
+    'logo': {'text': 'شعار نصي باسم المنتج', 'none': 'بدون شعار', 'later': 'لديّ شعار — سأرفعه لاحقًا'},
+    'unavailable': {'build_without': 'نعم، البناء بدونه', 'wait': 'لا، سأنتظر حتى يصبح متاحًا'},
+}
+
+
+def group_title(group: str, lang: str = 'he') -> str:
+    """A question group's title in the customer's language."""
+    k = CL.pick(lang)
+    return GROUP_TITLES_AR[group] if k == 'ar' else GROUP_TITLES[group][0 if k == 'he' else 1]
+
+
+def _arabic(q: Question) -> Question:
+    """The question with its Arabic (empty when the tables have none: tests/test_server_texts_arabic.py fails then)."""
+    if q.id.startswith('image_who_'):
+        text, why = _IMAGE_WHO_AR.get(q.id[len('image_who_'):], ('', ''))
+    elif q.id.startswith('image_place_'):
+        place = IMAGE_PLACES_AR.get(q.recommended, '')
+        text, why = (_IMAGE_PLACE_AR[0].format(place=place) if place else ''), _IMAGE_PLACE_AR[1]
+    else:
+        text, why = _QUESTIONS_AR.get(q.id, ('', ''))
+    labels = (IMAGE_PLACES_AR if q.field == 'image_place' else _IMAGE_USE_AR if q.field == 'image_use'
+              else _OPTIONS_AR.get(q.id, {}))
+    return _replace(q, ar=text, why_ar=why, options=tuple(_replace(o, ar=labels.get(o.value, '')) for o in q.options))
+
+
+QUESTIONS = tuple(_arabic(q) for q in QUESTIONS)
+IMAGE_QUESTIONS = tuple(q for q in QUESTIONS if q.id in {i.id for i in IMAGE_QUESTIONS})
 BY_ID = {q.id: q for q in QUESTIONS}
 
 # ---- what the request already says (source = message) ----------------------
@@ -482,6 +612,7 @@ def main_image(brief: 'Brief') -> dict | None:
 
 
 _KIND_HE = {'person': 'אדם', 'product': 'מוצר', 'place': 'מקום', 'other': 'אחר'}
+_KIND_AR = {'person': 'شخص', 'product': 'منتج', 'place': 'مكان', 'other': 'غير ذلك'}
 
 
 def image_role(brief: 'Brief') -> dict | None:
@@ -499,10 +630,13 @@ def image_canon_lines(brief: 'Brief', lang: str = 'he') -> list[str]:
     for img in brief.assets.get('images') or ():
         if img.get('use') == 'as_is':
             use = (f'תופיע בדף כמו שהיא, {IMAGE_PLACES_HE[img["place"]]}' if lang == 'he'
+                   else f'ستظهر على الصفحة كما هي، {IMAGE_PLACES_AR[img["place"]]}' if lang == 'ar'
                    else f'shown on the page as is, {img["place"]}')
         else:
-            use = 'השראה בלבד, לא מוצגת בדף' if lang == 'he' else 'inspiration only, not shown'
+            use = CL.say(lang, he='השראה בלבד, לא מוצגת בדף', ar='للإلهام فقط، لا تُعرض على الصفحة',
+                         en='inspiration only, not shown')
         out.append(f'תמונה שהעלית ({_KIND_HE[img["kind"]]}): {img["alt"]} — {use}.' if lang == 'he'
+                   else f'صورة رفعتموها ({_KIND_AR[img["kind"]]}): {img["alt"]} — {use}.' if lang == 'ar'
                    else f'Your image ({img["kind"]}): {img["alt"]} -- {use}.')
     return out
 
@@ -524,6 +658,44 @@ def _website_screens(prompt: str) -> str:
     )
     screens = [label for pattern, label in patterns if re.search(pattern, prompt, re.I)]
     return ', '.join(screens) if screens else 'אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו'
+
+
+# Stored brief values written in Hebrew (a text question's recommended value, the website defaults, the screens above).
+# The stored value is what the builder reads and what the fingerprint binds, so it never changes; an Arabic customer
+# reads it in Arabic, at display time only (Hebrew and English show it as stored, as before).
+_STORED_AR = {
+    'דף בית':
+        'الصفحة الرئيسية',
+    'חיפוש חופשות / שירותים':
+        'البحث عن عطلات / خدمات',
+    'טופס יצירת קשר':
+        'استمارة التواصل',
+    'אודות':
+        'من نحن',
+    'גלריה':
+        'معرض الصور',
+    'מחירון':
+        'قائمة الأسعار',
+    'אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו':
+        'أقسام حسب طلبكم، دون إضافة شاشات إدارة أو تعديل لم تطلبوها',
+    'הטקסטים, המחירים והקישורים שצוינו בבקשה, בדיוק כפי שנכתבו':
+        'النصوص والأسعار والروابط المذكورة في الطلب، تمامًا كما كُتبت',
+    'ללא — המערכת תתחיל ריקה עם הסבר מה לעשות':
+        'لا شيء — سيبدأ النظام فارغًا مع شرح لما يجب فعله',
+    'אין':
+        'لا يوجد',
+}
+
+
+def shown_value(value, lang: str):
+    """A stored brief value as the customer reads it: for Arabic, a known stored Hebrew value (or a list of them,
+    ', '-separated) in Arabic; every other value, and every other language, as stored."""
+    if CL.pick(lang) != 'ar' or not isinstance(value, str):
+        return value
+    if value in _STORED_AR:
+        return _STORED_AR[value]
+    parts = value.split(', ')
+    return '، '.join(_STORED_AR[p] for p in parts) if len(parts) > 1 and all(p in _STORED_AR for p in parts) else value
 
 
 def _recommended(q: Question, brief: 'Brief', hints: Mapping[str, str]) -> str:
@@ -785,8 +957,8 @@ _FONT = {'heebo': "'Heebo', system-ui, sans-serif", 'assistant': "'Assistant', s
 def _label(q: Question, value: str, lang: str = 'he') -> str:
     for o in q.options:
         if o.value == value:
-            return o.he if lang != 'en' else o.en
-    return value
+            return o.label_in(lang)
+    return shown_value(value, lang)
 
 
 BRIEF_MARKER = '--- Approved project brief'
@@ -1134,34 +1306,55 @@ def requirements_text(brief: Brief) -> str:
     return '\n'.join(lines)
 
 
+_SEMANTIC_NAMES_AR = {   # summary(): the semantic review's names, in Arabic
+    'target.agent': 'وكيل ذكاء اصطناعي',
+    'ai.agent.tools': 'أدوات عمل لوكيل الذكاء الاصطناعي',
+    'ai.agent.memory': 'ذاكرة وكيل الذكاء الاصطناعي',
+    'ai.agent.eval': 'فحوصات وكيل الذكاء الاصطناعي',
+    'integration.maps': 'خرائط تفاعلية',
+    'integration.email': 'إرسال البريد الإلكتروني',
+    'integration.webhook': 'ربط تلقائي مع خدمات أخرى',
+    'integration.messaging': 'خدمة رسائل',
+    'media.audio.tts': 'إنشاء صوت وتعليق صوتي',
+    'media.audio.stt': 'تحويل الكلام إلى نص',
+    'media.audio.realtime_voice': 'محادثة صوتية فورية',
+    'media.image.generate': 'إنشاء صور',
+    'media.video.generate': 'إنشاء فيديو',
+    'target.automation': 'أتمتة',
+}
+
+
 def summary(brief: Brief, lang: str = 'he') -> dict:
     """Plain-language understanding for the approval screen (§5)."""
     v = brief.values()
-    he = lang != 'en'
+    k = CL.pick(lang)
 
     def item(fld):
         f = brief.fields.get(fld)
         if not f:
             return None
         q = BY_ID.get(f.get('question_id') or fld) or BY_ID.get(fld)
-        return {'field': fld, 'question': (q.he if he else q.en) if q else fld,
+        return {'field': fld, 'question': q.text_in(lang) if q else fld,
                 'value': _label(q, f['value'], lang) if q else f['value'], 'source': f['source']}
 
     sections = {g: [x for x in (item(q.field) for q in QUESTIONS if q.group == g) if x] for g in GROUPS}
     included, excluded = [], []
     login = v.get('login')
     if login == 'none' and v.get('access_scope') != 'add_login':
-        excluded.append('התחברות והרשאות' if he else 'Sign-in and roles')
+        excluded.append(CL.say(lang, he='התחברות והרשאות', ar='تسجيل الدخول والصلاحيات', en='Sign-in and roles'))
     else:
-        included.append('התחברות' if he else 'Sign-in')
+        included.append(CL.say(lang, he='התחברות', ar='تسجيل الدخول', en='Sign-in'))
     if v.get('personal_data') == 'no' or v.get('access_scope') == 'no_personal':
-        excluded.append('שמירת פרטים אישיים' if he else 'Personal details')
+        excluded.append(CL.say(lang, he='שמירת פרטים אישיים', ar='حفظ التفاصيل الشخصية', en='Personal details'))
     if _content_only(v, 'none' if login == 'none' else 'x'):
-        excluded.append('שמירת נתונים מהמבקרים (אתר תוכן בלבד)' if he else 'Visitor data storage (content-only site)')
-    excluded += (['פרסום לכתובת קבועה (בשלב זה: תצוגה מקדימה וקוד להורדה)'] if he
-                 else ['Publishing to a permanent address (for now: preview and downloadable code)'])
-    excluded += (['שמירת נתונים לאורך זמן — הנתונים בתצוגה המקדימה זמניים'] if he
-                 else ['Long-term data storage — preview data is temporary'])
+        excluded.append(CL.say(lang, he='שמירת נתונים מהמבקרים (אתר תוכן בלבד)', ar='حفظ معلومات من الزوار (موقع محتوى فقط)',
+                               en='Visitor data storage (content-only site)'))
+    excluded.append(CL.say(lang, he='פרסום לכתובת קבועה (בשלב זה: תצוגה מקדימה וקוד להורדה)',
+                           ar='النشر على عنوان دائم (في هذه المرحلة: المعاينة وكود للتنزيل)',
+                           en='Publishing to a permanent address (for now: preview and downloadable code)'))
+    excluded.append(CL.say(lang, he='שמירת נתונים לאורך זמן — הנתונים בתצוגה המקדימה זמניים',
+                           ar='حفظ المعلومات لفترة طويلة — المعلومات في المعاينة مؤقتة',
+                           en='Long-term data storage — preview data is temporary'))
     assumptions = [x for g in sections.values() for x in g if x['source'] in ('delegated', 'default')]
     # Plain-language semantic review before approval. Do not expose internal
     # capability keys, model diagnostics or provider pricing to the customer.
@@ -1182,7 +1375,7 @@ def summary(brief: Brief, lang: str = 'he') -> dict:
         'target.automation': ('אוטומציה', 'Automation'),
     }
     semantic_review = [
-        {'label': names[d['key']][0 if he else 1],
+        {'label': _SEMANTIC_NAMES_AR[d['key']] if k == 'ar' else names[d['key']][0 if k == 'he' else 1],
          'included': d['decision'] == 'required',
          'uncertain': d['decision'] == 'uncertain',
          'evidence': str(d['evidence'])[:160],
@@ -1191,7 +1384,7 @@ def summary(brief: Brief, lang: str = 'he') -> dict:
         and d.get('decision') in ('required','not_required','uncertain')
     ]
     return {'goal': v.get('goal') or brief.prompt[:200], 'sections': sections,
-            'group_titles': {g: GROUP_TITLES[g][0 if he else 1] for g in GROUPS},
+            'group_titles': {g: group_title(g, lang) for g in GROUPS},
             'included': included, 'excluded': excluded, 'assumptions': assumptions,
             'semantic_review': semantic_review,
             'contradictions': contradictions(brief), 'complete': complete(brief)}

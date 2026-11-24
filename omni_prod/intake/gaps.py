@@ -20,6 +20,7 @@ import json
 import re
 from dataclasses import dataclass, field
 
+from .. import customer_lang as CL
 from .artifact_fields import CONDITIONAL, fields_for
 from .sources import ASSUMED, STATED, Ledger, Requirement, Span
 
@@ -51,18 +52,19 @@ FALLBACK = {
            '_delegate': 'אפשר גם לכתוב "תחליט אתה".', '_because': 'כי', '_why': 'למה אני שואל',
            '_confirm': 'רק לוודא:', '_understood': 'הבנתי מהבקשה',
            '_values': {'yes': 'כן', 'no': 'לא', 'internal_link': 'רק אתה', 'public': 'פתוח לכולם', 'none': 'בלי'}},
-    'ar': {'who_reads': ('لمن هذا الموقع؟', 'تُكتب النصوص والمحتوى لهم'),
-           'text_direction': ('بأي لغة ستكون النصوص؟', 'هذا يحدد لغة واتجاه الكتابة في كل الصفحات'),
-           'look_and_feel': ('ما الطابع الذي تريده للتصميم؟', 'هذا يغيّر الشكل بالكامل'),
-           'who_can_enter': ('هل يحتاج المستخدمون إلى تسجيل الدخول بكلمة مرور؟', 'هذا يغيّر من يمكنه رؤية ماذا'),
-           'what_is_stored': ('هل ستُحفظ بيانات شخصية مثل الهاتف أو البريد؟', 'هذا يغيّر ما يُحفظ ومن يراه'),
-           'saves_records': ('هل يعرض الموقع معلومات فقط، أم يحفظ شيئًا من الزوار — نموذجًا أو حجزًا أو قائمة؟', 'هذا يحدد إن كانت هناك قاعدة بيانات أصلًا'),
-           'link_scope': ('من سيحصل على الرابط — أنت فقط أم الجميع؟', 'تُحفظ بيانات شخصية بلا تسجيل دخول، فهذا يحدد من يمكنه رؤيتها'),
-           'brand_colour': ('ما هي ألوان علامتك التجارية؟', 'طلبت أن يشبه الموقع علامتك'),
-           'typeface': ('ما حجم النص ووضوحه المطلوب؟', 'من سيقرأ الموقع يحتاج نصًا مريحًا جدًا'),
-           '_delegate': 'يمكنك أيضًا أن تكتب "قرر أنت".', '_because': 'لأن', '_why': 'لماذا أسأل',
-           '_confirm': 'فقط للتأكد:', '_understood': 'فهمت من طلبك',
-           '_values': {'yes': 'نعم', 'no': 'لا', 'internal_link': 'أنت فقط', 'public': 'للجميع', 'none': 'بدون'}},
+    # Arabic (2026-11-22): the reviewed translation, in the plural address the platform uses, without system words
+    'ar': {'who_reads': ('لمن هذا الموقع؟', 'الصياغة والمحتوى يُكتبان من أجلهم'),
+           'text_direction': ('بأي لغة ستكون النصوص؟', 'هذا يحدد لغة كل الصفحات واتجاه الكتابة فيها'),
+           'look_and_feel': ('أي طابع تريدونه للتصميم؟', 'هذا يغيّر المظهر كله'),
+           'who_can_enter': ('هل يحتاج الناس إلى الدخول باسم مستخدم وكلمة مرور؟', 'هذا يغيّر ما يستطيع كل شخص رؤيته'),
+           'what_is_stored': ('هل ستُحفظ تفاصيل شخصية مثل الهاتف أو البريد الإلكتروني؟', 'هذا يغيّر ما يُحفظ ومن يراه'),
+           'saves_records': ('هل يعرض الموقع معلومات فقط، أم يحفظ أيضًا شيئًا من الزوار — استمارة أو حجزًا أو قائمة؟', 'هذا يحدد إن كان الموقع سيحفظ أي تفاصيل أصلًا'),
+           'link_scope': ('من سيحصل على الرابط — أنتم فقط، أم أنه مفتوح للجميع؟', 'التفاصيل الشخصية تُحفظ دون تسجيل دخول، لذلك هذا يحدد من يستطيع رؤيتها'),
+           'brand_colour': ('ما هي ألوان نشاطكم التجاري؟', 'الموقع يجب أن يشبه علامتكم التجارية، كما طلبتم'),
+           'typeface': ('إلى أي حد يجب أن يكون النص كبيرًا وسهل القراءة؟', 'من سيقرأ الموقع يحتاج إلى نص مريح للقراءة بشكل خاص'),
+           '_delegate': 'يمكنكم أيضًا أن تكتبوا "قرروا أنتم".', '_because': 'لأن', '_why': 'لماذا أسأل',
+           '_confirm': 'فقط للتأكد:', '_understood': 'فهمت من طلبكم',
+           '_values': {'yes': 'نعم', 'no': 'لا', 'internal_link': 'أنتم فقط', 'public': 'مفتوح للجميع', 'none': 'بدون'}},
     'en': {'who_reads': ('Who is this site for?', 'the wording and content are written for them'),
            'text_direction': ('Which language should the texts be in?', 'it sets the language and direction of every page'),
            'look_and_feel': ('What feel should the design have?', 'it changes the whole look'),
@@ -299,7 +301,7 @@ class Questioner:
 
 
 def fallback_text(reason: str, lang: str, mode: str = 'ask', proposed=None) -> str:
-    t = FALLBACK.get(lang, FALLBACK['en'])
+    t = CL.of(FALLBACK, lang)
     question, why = t[reason]
     if mode == 'explain':
         return f'{t["_why"]}: {why}. {question} {t["_delegate"]}'

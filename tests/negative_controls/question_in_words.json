@@ -83,8 +83,8 @@
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
-     "old": "(q.he if (lang or key) != 'en' else q.en)",
-     "new": "(q.he if (lang or key) != 'en' else q.he)"
+     "old": "q.text_in(lang or key)",
+     "new": "q.text_in('he' if (lang or key) == 'en' else (lang or key))"
     }
    ],
    "targets": [

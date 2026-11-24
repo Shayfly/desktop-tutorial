@@ -31,6 +31,7 @@ import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from .. import customer_lang as CL
 from .. import discovery as d
 from ..intake import agent as intake_agent
 from ..intake import approval_flow as AF      # the buttons' names, said in the texts below exactly as the buttons carry them
@@ -85,6 +86,11 @@ _INTEGRATION_HE = {'payments': 'תשלומים וסליקה', 'email': 'שליח
 _ALT_HE = {'payments': 'לבנות עכשיו בלי תשלומים ולהוסיף אותם כשהחיבור יהיה זמין', 'sign-in': 'כלי פנימי בלי התחברות, בקישור פרטי',
            'email': 'לבנות עכשיו בלי שליחת מיילים', 'sms': 'לבנות עכשיו בלי הודעות', 'mobile app': 'גרסת ווב שעובדת גם בנייד',
            'publishing': 'תצוגה מקדימה פרטית והורדת קוד המקור', 'images': 'להעלות תמונות משלכם'}
+# Arabic (2026-11-22): the same customer wording, said to an Arabic customer (English says the registry's own words).
+_CAP_AR = {'payments': 'المدفوعات', 'sign-in': 'تسجيل دخول المستخدمين', 'email': 'إرسال رسائل البريد الإلكتروني', 'sms': 'رسائل SMS/واتساب', 'mobile app': 'تطبيق للهاتف المحمول', 'publishing': 'النشر على عنوان ثابت', 'images': 'إنشاء الصور'}
+_REASON_AR = {F.BLOCKED: 'لم نربطه بعد', F.UNSUPPORTED: 'غير مدعوم بعد', F.WITH_CONSTRAINTS: 'ممكن مع بعض القيود'}
+_INTEGRATION_AR = {'payments': 'المدفوعات وقبول البطاقات', 'email': 'إرسال رسائل البريد الإلكتروني', 'sms': 'إرسال رسائل SMS/واتساب', 'maps': 'الخرائط', 'calendar': 'التقويم', 'ai_model': 'خدمة ذكاء اصطناعي'}
+_ALT_AR = {'payments': 'البناء الآن من دون مدفوعات وإضافتها عندما يصبح الربط متاحاً', 'sign-in': 'أداة داخلية من دون تسجيل دخول، عبر رابط خاص', 'email': 'البناء الآن من دون إرسال رسائل بريد إلكتروني', 'sms': 'البناء الآن من دون رسائل', 'mobile app': 'نسخة ويب تعمل على الهاتف أيضاً', 'publishing': 'معاينة خاصة وتنزيل الكود المصدري', 'images': 'رفع صوركم الخاصة'}
 
 
 # A bare "start" once a brief exists ("תתחיל", "בוא נתחיל", "go") asks for the approval screen. The first message
@@ -289,6 +295,74 @@ _TXT = {
            'image_hero_taken': 'The page already has its one main image. Choose another place for this image.',
            'attached_kept': '(I saved {n} in the project; from this message it does not go into the build.)',
            'images': lambda n: 'one image' if n == 1 else f'{n} images'},
+    # Arabic (2026-11-22): translated from the Hebrew and independently reviewed. The quoted screen and button names are
+    # app.js's T.ar labels (tab_req, delegateShort; AF.*_BUTTON['ar']); tests/test_server_texts_arabic.py compares them.
+    'ar': {'safe_default': 'لم تصلني إجابة بخصوص {topic}، لذلك اخترتُ الخيار الآمن: {label}. يمكنكم التغيير في أي وقت من شاشة "المتطلبات".',
+           'card_blocked': 'ينقص قرار بخصوص {topic}، ولا يمكن المتابعة من دونه. يمكنكم الاختيار من شاشة "المتطلبات".',
+           'image_still': 'ما زلت أحتاج إلى إجابة بخصوص {topic} لنتابع. اضغطوا على أحد الأزرار، أو اكتبوا بالكلمات: {opts}.',
+           'still_in_words': 'ما زلت أحتاج إلى إجابة بخصوص {topic} لنتابع. اكتبوا أحد هذه الخيارات، بكلماتكم: {opts}.',
+           'image_still_text': 'ما زلت أحتاج إلى جملة قصيرة عن الصورة لنتابع — مثلاً "باب المحل" أو "الجد سليم، صاحب المحل".',
+           'rephrase_q': 'لم تصلني بعد إجابة عن هذا السؤال. يمكنكم الضغط على أحد الخيارات أدناه، أو كتابة إجابتكم بالكلمات.',
+           'rephrase': 'لم ألاحظ أي تغيير منذ الرسالة السابقة. اكتبوا ما تريدون تغييره أو إضافته، أو اسألوا "ما الذي ينقص؟".',
+           'safe_suffix': ' (خيار آمن)',
+           'got': 'فهمت',
+           'assumed': 'اخترتُ لكم (ويمكنكم التغيير في أي وقت)',
+           'ask': 'لنتابع، أحتاج منكم إلى إجابة واحدة قصيرة',
+           'content_saved': 'حفظتُ المحتوى الذي كتبتموه في ملخّص المشروع، كما كُتب تماماً. أُلغيت الموافقة السابقة — يجب الموافقة على النسخة المحدّثة.',
+           'ready_again': 'الخطة محدّثة وجاهزة. لبدء البناء اضغطوا على "' + AF.APPROVE_BUTTON['ar'] + '" — لن يُخصم أي مبلغ قبل الموافقة.',
+           'ready': 'أصبحت لديّ صورة كاملة. أعددتُ خطة عمل — يمكنكم مراجعتها والموافقة عليها. لا يبدأ أي بناء ولا يُخصم أي مبلغ قبل الموافقة.',
+           'blocked': 'بعض ما طلبتموه لا يمكن بناؤه حالياً',
+           'nothing': 'لم ألاحظ تفاصيل جديدة. أخبروني المزيد عمّا تريدون، أو اسألوا "ما الذي ينقص؟".',
+           'limit_budget': 'وصلنا إلى الحدّ الأقصى لتكلفة المحادثة مع المساعد، لذلك لن يتابع المحادثة الحرّة. ما كتبتموه محفوظ.',
+           'limit_turns': 'وصلنا إلى الحدّ الأقصى لعدد الرسائل في المحادثة مع المساعد، لذلك لن يتابع المحادثة الحرّة. ما كتبتموه محفوظ.',
+           'limit_daily': 'وصل المساعد إلى حدّ الاستخدام اليومي وسيعود للرد لاحقاً. ما كتبتموه محفوظ.',
+           'limit_busy': 'المساعد ما زال يرد على الرسالة السابقة. ما كتبتموه محفوظ — أرسلوه مجدداً بعد لحظة.',
+           'limit_busy_alt': 'الرد السابق ما زال في الطريق. رسالتكم محفوظة — حاولوا مجدداً بعد لحظة.',
+           'limit_daily_alt': 'المساعد ما زال في استراحته اليومية وسيعود للرد لاحقاً. هذه الرسالة محفوظة أيضاً.',
+           'limit_ready': 'إليكم الملخّص — يمكنكم الموافقة عليه أو تصحيحه:',
+           'limit_incomplete': 'ما زال ينقص: {missing}.',
+           'limit_incomplete_any': 'للمتابعة، أكملوا التفاصيل الناقصة: اضغطوا على "' + AF.EDIT_BUTTON['ar'] + '".',
+           'limit_ask': 'أجيبوا هنا بكلماتكم، من دون أي تكلفة:',
+           'limit_still': 'انتهت المحادثة مع المساعد. ما كتبتموه محفوظ.',
+           'limit_still_alt': 'المساعد لم يعد يرد في هذه المحادثة، لكن الرسالة محفوظة.',
+           'model_unavailable': 'لم يتمكّن المساعد من الرد هذه المرة (بسبب ضغط مؤقت لدينا). ما كتبتموه محفوظ — أرسلوه مجدداً بعد لحظة، أو اكتبوا تفصيلاً آخر عن المنتج.',
+           'model_refused': 'المساعد غير متاح الآن بسبب مشكلة في حسابنا نحن، لا بسببكم. ما كتبتموه محفوظ، ولم يُخصم أي مبلغ. يمكنكم مواصلة كتابة التفاصيل هنا، وسيعود المساعد للرد عند تجديد الحساب.',
+           'missing_none': 'لا ينقص شيء — يمكنكم الانتقال إلى الملخّص والموافقة.',
+           'missing': 'ينقصني:',
+           'contra': 'هناك تناقض يجب أن تحسموه:',
+           'conflict': 'سابقاً تقرّر: {current}. والآن فهمت: {proposed}. لم أغيّر شيئاً — أيّهما الصحيح؟',
+           'confirm_sensitive': 'هذا موضوع حسّاس ({field})، لذلك أحتاج إلى موافقتكم الصريحة بالضغط على الزر.',
+           'confirm_sensitive_words': 'هذا موضوع حسّاس ({field})، لذلك أحتاج إلى إجابة صريحة منكم، بالكلمات.',
+           'corrected': 'حدّثت',
+           'cost': 'سيُخصم {credits} من رصيدكم مقابل البناء. لن يُخصم أي مبلغ قبل أن توافقوا.',
+           'canon_ack': 'قبل الموافقة: اكتبوا في رسالة التفاصيل الناقصة المذكورة أدناه، أو ضعوا علامة في المربّع للموافقة على البناء من دونها.',
+           'cost_unknown': 'سأحسب السعر الدقيق بعد أن تؤكدوا أنني فهمت بشكل صحيح.',
+           'approve': 'للبدء، اضغطوا على "' + AF.APPROVE_BUTTON['ar'] + '".',
+           'approve_not_ready': 'لا يمكن الموافقة بعد:',
+           'status_none': 'لم يبدأ أي بناء في هذا المشروع بعد.',
+           'status': 'آخر بناء: {status}{phase}. المهام: {done} اكتملت، {running} قيد التنفيذ، {pending} في الانتظار، {failed} فشلت.',
+           'modify': 'فهمت أنكم تريدون تغيير المنتج الحالي. وافقوا وسأرسل التغيير للتنفيذ (ستظهر لكم التكلفة قبل البدء).',
+           'feas_yes': '{cap}: ممكن الآن.',
+           'feas_no': '{cap}: غير متاح حالياً — {reason}.{alt}',
+           'recommend': 'توصياتي (موجودة في الملخّص، ويمكنكم تغيير أيٍّ منها):',
+           'alt': ' البديل: {x}.',
+           'more': ' عدد القرارات الأخرى من هذا النوع في شاشة "المتطلبات": {n}.',
+           'ask_one': 'سؤال واحد قبل أن نتابع:',
+           'decide': 'هناك قرار واحد قبل أن نتابع:',
+           'verify': 'للتأكد فقط — فهمت من طلبكم: {label}. صحيح؟',
+           'why': 'لماذا أسأل: {why}',
+           'unsure': 'إن لم تكونوا متأكدين، اضغطوا "اختاروا لي" وسأختار {rec}. ويمكنكم دائماً التغيير لاحقاً.',
+           'unsure_norec': 'إن لم تكونوا متأكدين، اضغطوا "اختاروا لي". ويمكنكم دائماً التغيير لاحقاً.',
+           'options': '{q} الخيارات: {opts}.',
+           'attached_shown': '📎 {n}',
+           'attached_only': 'استلمتُ {n} وحفظتُها في المشروع. لا نحلّل الصور تلقائياً بعد، لذا اكتبوا في جملة واحدة ما المهم فيها أو ما الذي تريدون تغييره.',
+           'attached_note': '(حفظتُ {n}؛ وتُرفق بالتغيير للتوضيح، من دون تحليل تلقائي للصور.)',
+           'attached_bound': '(حفظتُ {n} ضمن طلب المشروع.)',
+           'image_change': 'تعديل الصورة نفسها غير متاح لدينا بعد. يمكن استخدامها كما هي، أو كمصدر إلهام فقط.',
+           'image_change_defaulted': 'تعديل الصورة نفسها (مثلاً تحويلها إلى رسم كاريكاتيري) غير متاح بعد، لذلك اخترتُ للمتابعة: {choice}. يمكنكم التغيير في أي وقت.',
+           'image_hero_taken': 'في الصفحة صورة رئيسية واحدة بالفعل. اختاروا لهذه الصورة مكاناً آخر.',
+           'attached_kept': '(حفظتُ {n} في المشروع؛ لكنها لن تدخل في البناء من خلال هذه الرسالة.)',
+           'images': lambda n: 'صورة واحدة' if n == 1 else 'صورتين' if n == 2 else f'{n} صور' if n <= 10 else f'{n} صورة'},
 }
 
 
@@ -307,6 +381,12 @@ SHORT = {
            'references': 'references', 'content_only': 'content-only site', 'unavailable': 'an unavailable capability',
            'image_kind': 'what is in the image', 'image_identity': 'who or what is in the image',
            'image_use': 'what to do with the image', 'image_place': 'where the image goes'},
+    'ar': {'audience': 'الجمهور', 'goal': 'الهدف', 'login': 'تسجيل الدخول', 'personal_data': 'المعلومات الشخصية',
+           'access_scope': 'الوصول', 'screens': 'الشاشات', 'languages': 'اللغة', 'content': 'المحتوى الأولي',
+           'dates': 'التواريخ', 'duplicates': 'التكرارات', 'style': 'الأسلوب', 'color': 'اللون',
+           'font': 'نوع الخط', 'logo': 'الشعار', 'references': 'مصادر الإلهام', 'content_only': 'موقع محتوى فقط',
+           'unavailable': 'ميزة غير متاحة حالياً', 'image_kind': 'ما في الصورة', 'image_identity': 'مَن أو ما في الصورة', 'image_use': 'ماذا نفعل بالصورة',
+           'image_place': 'أين تظهر الصورة'},
 }
 # "I don't know / what? / why?" -- explain why the open question matters and
 # offer the recommendation, instead of repeating the same sentence.
@@ -346,8 +426,8 @@ def _provider_refused(interp) -> str | None:
 
 def _short(field_: str, lang: str) -> str:
     q = d.BY_ID.get(field_)
-    name = SHORT['he' if lang == 'he' else 'en'].get(field_)
-    return name or ((q.he if lang == 'he' else q.en) if q else field_)
+    name = CL.of(SHORT, lang).get(field_)
+    return name or (q.text_in(lang) if q else field_)
 
 
 def _lines(items) -> str:
@@ -434,6 +514,8 @@ class ConversationSupervisor:
             turn.questions = [d.BY_ID['unavailable']]
             return [(f'בסדר. {names} עדיין לא זמין אצלנו, ולכן אי אפשר להתחיל לבנות את הבקשה כפי שהיא. '
                      'כשתרצו — בחרו "כן, לבנות בלעדיו", או ערכו את הבקשה.') if he else
+                    # the quoted choice is the card's own label (discovery 'unavailable' / build_without, Arabic)
+                    (f'حسناً. {names} غير متاح لدينا بعد، لذلك لا يمكن بدء بناء الطلب كما هو. متى شئتم — اختاروا "نعم، البناء بدونه"، أو عدّلوا الطلب.') if lang == 'ar' else
                     (f'OK. {names} is not available yet, so this request cannot be built as it is. '
                      'Whenever you like, choose "Yes, build without it", or edit the request.')]
         try:
@@ -457,12 +539,15 @@ class ConversationSupervisor:
             turn.questions = [d.BY_ID['unavailable']]
             names = ', '.join(dict.fromkeys(R.display_name(k, lang) for k in ask))
             return [(f'{names} עדיין לא זמין אצלנו. לבנות בלעדיו? אם כן, זה ייכתב בסיכום שתאשרו, והשאר ייבנה כרגיל.') if he else
+                    (f'{names} غير متاح لدينا بعد. هل نبني من دونه؟ إن وافقتم، سيُذكر ذلك في الملخّص الذي توافقون عليه، ويُبنى الباقي كالمعتاد.') if lang == 'ar' else
                     (f'{names} is not available yet. Build without it? If so, the summary you confirm says so and the rest is built as usual.')]
         names = ', '.join(dict.fromkeys(R.display_name(k, lang) for k in keys))
         login = 'auth_session' in keys
         nxt = (('אפשר לבנות בלי התחברות — כתבו "בלי התחברות".' if login else 'ערכו את הבקשה בלעדיו.') if he else
+               ('يمكن البناء من دون تسجيل دخول — اكتبوا "بدون تسجيل دخول".' if login else 'عدّلوا الطلب من دونه.') if lang == 'ar' else
                ('It can be built without sign-in: write "no sign-in".' if login else 'Edit the request without it.'))
         return [(f'{names} עדיין לא זמין אצלנו, ולכן אי אפשר לבנות את הבקשה כפי שהיא. {nxt}') if he else
+                (f'{names} غير متاح لدينا بعد، لذلك لا يمكن بناء الطلب كما هو. {nxt}') if lang == 'ar' else
                 (f'{names} is not available yet, so this request cannot be built as it is. {nxt}')]
 
     def _admission_block(self, project_id: str, row, lang: str) -> str | None:
@@ -480,7 +565,8 @@ class ConversationSupervisor:
             return None
         from ..build_readiness import primary_blocker
         reason = preview.get('blocked_reason') or primary_blocker(preview, lang)
-        head = 'לא ניתן להתחיל בבנייה כרגע' if lang == 'he' else 'The build cannot start yet'
+        head = CL.say(lang, he='לא ניתן להתחיל בבנייה כרגע', ar='لا يمكن بدء البناء حالياً',
+                      en='The build cannot start yet')
         return f"{head}: {reason['message']} {reason['next']}"
 
     def intake_mode(self, project_id, account_id=None):
@@ -611,7 +697,7 @@ class ConversationSupervisor:
         open_qs = self._contract_open(row)
         if not open_qs:
             return None
-        T = _TXT['he' if lang == 'he' else 'en']
+        T = CL.of(_TXT, lang)
         field = self._CONTRACT_CARD.get(open_qs[0].id)
         turn.gate = None
         turn.actions = [a for a in turn.actions if a.get('type') != 'approve_spec']
@@ -635,7 +721,7 @@ class ConversationSupervisor:
         t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief, self.plan_credits)
         items = sorted(((k, v) for k, v in row.brief.fields.items() if k not in ('windows', 'windows_rejected')),
                        key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)    # windows: their own choice below
-        summary = '; '.join(_label(k, v['value'], lang) + (_TXT['he' if lang == 'he' else 'en']['safe_suffix']
+        summary = '; '.join(_label(k, v['value'], lang) + (CL.of(_TXT, lang)['safe_suffix']
                                                             if v.get('confidence') == SAFE_CONFIDENCE else '')
                             for k, v in items[:8] if 'value' in v)
         turn.gate = 'spec'
@@ -651,6 +737,7 @@ class ConversationSupervisor:
                              **({'windows': offer} if offer else {})})       # no offer, no key (an app has no windows)
         from .. import build_readiness as R
         excluded = [(f'{R.display_name(k, lang)} עדיין לא זמין, ולכן ייבנה בלעדיו.' if lang == 'he' else
+                     f'{R.display_name(k, lang)} غير متاح بعد، لذلك سيتم البناء من دونه.' if lang == 'ar' else
                      f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
                     for k in d.customer_exclusions(row.brief)]      # 77: said in the spec the customer approves
         return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *excluded, *canon['lines'],
@@ -686,11 +773,11 @@ class ConversationSupervisor:
               reading: dict | None = None) -> Turn:
         message = (message or '').strip()[:8000]
         lang = lang or language_of(message or 'שלום')
-        T = _TXT['he' if lang == 'he' else 'en']
+        T = CL.of(_TXT, lang)
         ctx = self.context(project_id) or {}
         row = self._collected(project_id, account_id, self.briefs.latest(project_id))
         shown = message or '; '.join(_label(d.BY_ID[q].field if q in d.BY_ID else q,
-                                            v if v != d.DELEGATE else ('בחרו עבורי' if lang == 'he' else 'choose for me'), lang)
+                                            v if v != d.DELEGATE else CL.say(lang, he='בחרו עבורי', ar='اختاروا لي', en='choose for me'), lang)
                                      for q, v in (answers or {}).items())
         attachments = list(attachments or [])
         if attachments and not shown:
@@ -818,9 +905,9 @@ class ConversationSupervisor:
         from ..intake import approval_flow as AF
         row = self._collected(project_id, account_id, self.briefs.latest(project_id))
         lang = lang or language_of(row.brief.prompt if row else 'שלום')
-        t, T = AF.text(lang), _TXT['he' if lang == 'he' else 'en']
+        t, T = AF.text(lang), CL.of(_TXT, lang)
         turn = Turn('approve_spec', lang, '', row)
-        shown = {'he': AF.CONFIRM_BUTTON['he'], 'ar': 'وافقت على المواصفات'}.get(lang, AF.CONFIRM_BUTTON['en'])
+        shown = CL.of(AF.CONFIRM_BUTTON, lang)      # the customer's message is the button they pressed, by its name
         current = row is not None and row.complete and brief_fingerprint == row.fingerprint
         feasible = current and self._feasibility(row).get('buildable')
         if feasible and self._contract_open(row):
@@ -875,7 +962,7 @@ class ConversationSupervisor:
             if row is None:
                 turn.reply = T['nothing']
             elif not row.complete:
-                pend = [(q.he if lang == 'he' else q.en) for q in d.pending(row.brief)]
+                pend = [q.text_in(lang) for q in d.pending(row.brief)]
                 turn.reply = T['approve_not_ready'] + ' ' + '; '.join(pend[:4] or ['—'])
             elif not self._feasibility(row).get('buildable'):
                 blocked = [f for f in self._feasibility(row).get('findings', [])
@@ -1063,7 +1150,7 @@ class ConversationSupervisor:
             if not reply.endswith(label):
                 continue
             q = turn.questions[0] if turn.questions else None
-            text = ((q.he if (lang or key) != 'en' else q.en) or '').strip() if q is not None else ''
+            text = (q.text_in(lang or key) or '').strip() if q is not None else ''
             if text:
                 turn.reply = reply + ' ' + text
             else:
@@ -1338,7 +1425,7 @@ class ConversationSupervisor:
         if res.corrected:
             parts.append(f'{T["corrected"]}: ' + '; '.join(_label(c['field'], c['new'], lang) for c in res.corrected[:4]) + '.')
         for c in res.conflicts[:3]:
-            name = (d.BY_ID[c['field']].he if lang == 'he' else d.BY_ID[c['field']].en) if c['field'] in d.BY_ID else c['field']
+            name = d.BY_ID[c['field']].text_in(lang) if c['field'] in d.BY_ID else c['field']
             if c['current'] is None:     # the question itself is the card below: the text names the topic only
                 parts.append(T['confirm_sensitive_words' if agent.enabled() else 'confirm_sensitive'].format(
                     field=_short(c['field'], lang)))
@@ -1443,7 +1530,7 @@ class ConversationSupervisor:
         self._card_limit(project_id, account_id, turn, lang, T, request_key)
         if no_subject and not res.conflicts and not turn.blocked:
             base = _no_question(interp.reply.strip()) if model_reply else ''   # the model's own words, never a card list
-            turn.reply = ((base or '') + ' ' + agent.SUBJECT_QUESTION['he' if lang == 'he' else 'en']).strip()
+            turn.reply = ((base or '') + ' ' + CL.of(agent.SUBJECT_QUESTION, lang)).strip()
             turn.questions, turn.asked_in_words = [], [agent.SUBJECT_ID]
             return turn
         # never over a model failure: "the model refused / is busy" is the truth of this turn (found by
@@ -1451,12 +1538,12 @@ class ConversationSupervisor:
         model_failed = turn.reply in (T['model_refused'], T['model_unavailable'])
         if no_name and not res.conflicts and not turn.blocked and not turn.questions and not model_failed:
             said = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
-            turn.reply = ((said or '') + ' ' + agent.NAME_QUESTION['he' if lang == 'he' else 'en']).strip()
+            turn.reply = ((said or '') + ' ' + CL.of(agent.NAME_QUESTION, lang)).strip()
             turn.asked_in_words = [agent.NAME_ID]
             return turn
         if no_colour and not model_failed and not res.conflicts and not turn.blocked and not turn.questions:
             words = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
-            turn.reply = ((words or '') + ' ' + agent.COLOUR_QUESTION['he' if lang == 'he' else 'en']).strip()
+            turn.reply = ((words or '') + ' ' + CL.of(agent.COLOUR_QUESTION, lang)).strip()
             turn.asked_in_words = [agent.COLOUR_ID]
             return turn
         if agent.enabled() and turn.questions:
@@ -1686,14 +1773,14 @@ class ConversationSupervisor:
             # default stays asked, in words, with the choices named (conversation rehearsal 2026-11-17: the doors
             # conversation dead-ended on "choose it in the Requirements tab")
             turn.reply = T['still_in_words'].format(
-                topic=topic, opts=' / '.join(o.he if lang == 'he' else o.en for o in q.options))
+                topic=topic, opts=' / '.join(o.label_in(lang) for o in q.options))
             return
         if q.field in d.IMAGE_FIELDS:
             # warehouse 113: the image's role has no safe default and is never delegated, so blocking it behind the
             # Requirements tab left the customer with no way forward in the chat. The card stays, with its buttons,
             # and the text says how to answer -- in words or by a button.
             turn.reply = T['image_still'].format(
-                topic=topic, opts=' / '.join(o.he if lang == 'he' else o.en for o in q.options)) if q.options else T['image_still_text']
+                topic=topic, opts=' / '.join(o.label_in(lang) for o in q.options)) if q.options else T['image_still_text']
             return
         if q.field in SAFE_DEFAULT:
             brief = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
@@ -1741,7 +1828,7 @@ class ConversationSupervisor:
         from ..intake.interpreter import Proposal
         if message or not answers:
             return message or '', list(proposals or ()), True
-        labels = [(q, v, next((o.he if lang == 'he' else o.en for o in d.BY_ID[q].options if o.value == v), str(v)))
+        labels = [(q, v, next((o.label_in(lang) for o in d.BY_ID[q].options if o.value == v), str(v)))
                   for q, v in answers.items() if q in d.BY_ID]
         said = '; '.join(label for _, _, label in labels)
         props = [Proposal(d.BY_ID[q].field, v, 'high', label) for q, v, label in labels if v != d.DELEGATE]
@@ -1904,7 +1991,7 @@ class ConversationSupervisor:
                 continue                                      # warehouse 128: a platform label, not the customer's words
             if m.get('role') == 'customer':
                 text = m.get('content') or ''
-                lang = 'he' if language_of(text) == 'he' else 'en'
+                lang = CL.pick(language_of(text))         # the live turn's labels (_heard) in the same language
                 answers = meta.get('answers') if isinstance(meta.get('answers'), dict) else None
                 typed_text = '' if answers else text
                 props = DeterministicInterpreter().interpret(typed_text, None).proposals if typed_text else ()
@@ -1969,6 +2056,13 @@ class ConversationSupervisor:
             name = _INTEGRATION_HE.get(kind, kind)
             alt = _ALT_HE.get(kind) or 'לבנות עכשיו בלי החיבור הזה ולהוסיף אותו כשיהיה זמין'
             return f'חיבור ל{name} עדיין לא זמין' + T['alt'].format(x=alt)
+        if lang == 'ar' and f['item'].startswith('sign-in'):
+            return 'تسجيل الدخول والصلاحيات في الموقع الذي سيُبنى غير متاحة بعد. يمكنكم تعديل طلب تسجيل الدخول أو تركه لوقت لاحق'
+        if lang == 'ar' and f['item'].startswith('integration: '):
+            kind = f['item'].split(': ', 1)[1]
+            name = _INTEGRATION_AR.get(kind, kind)
+            alt = _ALT_AR.get(kind) or 'البناء الآن من دون هذا الربط وإضافته عندما يصبح متاحاً'
+            return f'ربط {name} غير متاح بعد' + T['alt'].format(x=alt)
         return f['item'] + (T['alt'].format(x=f['alternative']) if f.get('alternative') else '')
 
     _last_reply_was_why = False
@@ -1997,12 +2091,11 @@ class ConversationSupervisor:
         """One short line per turn: verify a pre-selected value, explain why on
         "I don't know"/repeats, otherwise just ask. Never the same sentence twice."""
         q = res.asked[0]
-        he = lang == 'he'
         if unsure and self._last_reply_was_why:
-            opts = ' / '.join(o.he if he else o.en for o in q.options[:4])
+            opts = ' / '.join(o.label_in(lang) for o in q.options[:4])
             return [T['options'].format(q=_short(q.field, lang) + ' —', opts=opts) if opts else T['ask_one']]
         if unsure:
-            out = [T['why'].format(why=(q.why_he if he else q.why_en).rstrip('.') + '.')]
+            out = [T['why'].format(why=q.why_in(lang).rstrip('.') + '.')]
             rec = q.recommended if q.recommended and q.recommended != '__from_request__' else None
             out.append(T['unsure'].format(rec=d._label(q, rec, lang)) if rec and q.delegable else
                        (T['unsure_norec'] if q.delegable else ''))
@@ -2027,9 +2120,9 @@ class ConversationSupervisor:
         if intent == 'missing':
             # C6: what is missing is what the detector still asks (then the catalog's fallback), not the catalog list
             pend = (d.must_ask(row.brief) if row.brief.detector else d.pending(row.brief))
-            names = [(d.BY_ID[f].he if lang == 'he' else d.BY_ID[f].en) if f in d.BY_ID else f
+            names = [d.BY_ID[f].text_in(lang) if f in d.BY_ID else f
                      for f in (row.brief.open_material if row.brief.detector else ())]
-            names += [(q.he if lang == 'he' else q.en) for q in pend if q.field not in row.brief.open_material]
+            names += [q.text_in(lang) for q in pend if q.field not in row.brief.open_material]
             if not names and not d.contradictions(row.brief):
                 return T['missing_none']
             return T['missing'] + ' ' + '; '.join(names[:4])
@@ -2051,7 +2144,7 @@ class ConversationSupervisor:
                 return T['approve']
             reasons = [f['item'] for f in ((plan or {}).get('feasibility') or self._feasibility(row)).get('findings', [])
                        if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
-            pend = [(q.he if lang == 'he' else q.en) for q in d.pending(row.brief)]
+            pend = [q.text_in(lang) for q in d.pending(row.brief)]
             return T['approve_not_ready'] + ' ' + '; '.join((pend + reasons)[:4] or ['—'])
         if intent == 'modify':
             return T['modify']
@@ -2090,7 +2183,11 @@ class ConversationSupervisor:
                 cap = _CAP_HE.get(name, name) if he else name
                 reason = (_REASON_HE.get(f.outcome, f.reason) + f' ({f.reason})') if he else f.reason
                 alt = _ALT_HE.get(name, f.alternative) if he else f.alternative
+                if T is _TXT['ar']:      # the Arabic words alone: no registry sentence in English inside the Arabic one
+                    cap, alt = _CAP_AR[name], _ALT_AR[name]
+                    reason = f'إنشاء الصور غير متاح بعد ({st})' if name == 'images' else _REASON_AR[f.outcome]
                 out.append(T['feas_no'].format(cap=cap, reason=reason, alt=T['alt'].format(x=alt) if alt else ''))
             else:
-                out.append(T['feas_yes'].format(cap=_CAP_HE.get(name, name) if T is _TXT['he'] else name))
+                out.append(T['feas_yes'].format(cap=_CAP_HE.get(name, name) if T is _TXT['he']
+                                                else _CAP_AR[name] if T is _TXT['ar'] else name))
         return ' '.join(out) or T['nothing']

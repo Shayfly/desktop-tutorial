@@ -171,7 +171,7 @@ def model_choice(question, interp) -> str | None:
 
 def asked_in_words(question, lang: str) -> str:
     """The question as one sentence of the reply."""
-    text = (question.he if lang == 'he' else question.en).strip()
+    text = question.text_in(lang).strip()
     return text[:MAX_QUESTION_CHARS]
 
 
@@ -222,6 +222,7 @@ def names_a_subject(text: str) -> bool:
 NAME_ID = 'business_name'
 NAME_QUESTION = {'he': 'איך קוראים לעסק? כתבו את השם בדיוק כמו שהוא צריך להופיע באתר.',
                  'en': 'What is the business called? Write the name exactly as it should appear on the site.'}
+NAME_QUESTION['ar'] = 'ما اسم نشاطكم التجاري؟ اكتبوا الاسم تمامًا كما يجب أن يظهر في الموقع.'   # reviewed translation, 2026-11-22
 _NAME_LEAD = re.compile(r'^\s*(?:(?:קוראים|קוראות)\s+(?:לו|לה|לנו|לי|לעסק)|השם(?:\s+(?:הוא|שלנו|שלי|של\s+העסק))?|שם\s+העסק(?:\s+הוא)?|'
                         r"(?:it'?s\s+)?called|the\s+name\s+is|name)\s*[:\-–]?\s*", re.I)
 _NAME_REFUSED = re.compile(r'[0-9@/\\<>{}\[\]|]|https?:|www\.')
@@ -266,6 +267,8 @@ COLOUR_QUESTION = {'he': 'יש צבעים שאתם אוהבים לאתר? כתב
                    'en': 'Are there colours you like for the site? Write which colour should take the most space and '
                          'which less, or write "you choose" and I will pick from the palettes that fit businesses like '
                          'yours.'}
+COLOUR_QUESTION['ar'] = ('هل هناك ألوان تحبونها للموقع؟ اكتبوا أيّ لون سيأخذ المساحة الأكبر وأيّ لون سيأخذ'
+                         ' مساحة أقل، أو اكتبوا "اختاروا أنتم" وسأختار لكم من الألوان التي تناسب الأنشطة التجارية المشابهة لنشاطكم.')   # reviewed translation, 2026-11-22
 ASK_COLOUR_AT_MOST = 1     # one question; with no usable answer the build takes the nearest palette, said as such
 _LEAVE_IT_TO_US = re.compile(r'תבחר|תחליט|בחר(?:ו)?\s+(?:לי|לנו|אתם|בשביל)|החליט|לא\s+משנה|לא\s+יודע|מה\s+ש(?:מתאים|תרצו|בא)|'
                              r'אין\s+(?:לי\s+|לנו\s+)?העדפ|בלי\s+העדפ|על\s+דעתכם|you\s+(?:choose|decide|pick)|'
@@ -301,3 +304,4 @@ def colour_unknown_business(brief) -> bool:
 SUBJECT_QUESTION = {'he': 'ספרו לי במשפט או שניים על מה זה: שם העסק או הנושא, מה אתם עושים, ולמי זה מיועד?',
                     'en': 'Tell me in a sentence or two what this is about: the business or topic, what you do, and '
                           'who it is for?'}
+SUBJECT_QUESTION['ar'] = 'أخبروني في جملة أو جملتين عمَّ يدور الأمر: اسم النشاط التجاري أو الموضوع، وما الذي تقومون به، ولمن هو موجَّه؟'   # reviewed translation, 2026-11-22

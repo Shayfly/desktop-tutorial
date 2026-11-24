@@ -1939,7 +1939,7 @@ def _discovery_view(row, lang: str) -> dict:
                              'source': f['source']})
     return {
         'brief': row.to_dict(), 'prompt': brief.prompt, 'mode': brief.mode,
-        'group': group, 'group_title': d.GROUP_TITLES[group][0 if lang != 'en' else 1] if group else None,
+        'group': group, 'group_title': d.group_title(group, lang) if group else None,
         'questions': [{**q.to_dict(lang), 'suggested': brief.hints.get(q.field)} for q in questions],
         'answered': answered, 'complete': row.complete,
         'progress': {'answered': len(answered), 'remaining': len(d.pending(brief))},

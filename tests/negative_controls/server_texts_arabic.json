@@ -1,0 +1,167 @@
+{
+ "pr": "server-texts-arabic",
+ "sha256": [
+  "tests/test_server_texts_arabic.py",
+  "omni_prod/customer_lang.py",
+  "omni_prod/conversation/supervisor.py",
+  "omni_prod/discovery.py",
+  "omni_prod/intake/approval_flow.py",
+  "omni_prod/build_announcement.py",
+  "omni_prod/fact_canon.py",
+  "omni_prod/intake/gaps.py",
+  "omni_prod/intake/venice.py",
+  "omni_prod/intake/conversation_agent.py",
+  "omni_prod/ui_translations.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "an Arabic key removed from a language table (the supervisor's 'limit_still_alt'): the table must fail, never fall back",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "           'limit_still_alt': 'المساعد لم يعد يرد في هذه المحادثة، لكن الرسالة محفوظة.',\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_server_texts_arabic.py"
+   ],
+   "expect_failed": [
+    "test_every_language_table_has_arabic_with_the_same_keys"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a Hebrew word placed in an Arabic text (the supervisor's 'limit_daily')",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "'limit_daily': 'وصل المساعد إلى حدّ الاستخدام اليومي",
+     "new": "'limit_daily': 'הסוכן وصل المساعد إلى حدّ الاستخدام اليومي"
+    }
+   ],
+   "targets": [
+    "tests/test_server_texts_arabic.py"
+   ],
+   "expect_failed": [
+    "test_no_arabic_text_has_a_hebrew_letter"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a placeholder dropped from an Arabic text (the supervisor's 'conflict' loses {proposed})",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "والآن فهمت: {proposed}.",
+     "new": "والآن فهمت."
+    }
+   ],
+   "targets": [
+    "tests/test_server_texts_arabic.py"
+   ],
+   "expect_failed": [
+    "test_placeholders_are_the_english_ones"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the language rule falls back to Hebrew for a language that is not Hebrew, Arabic or English (a French customer)",
+   "mutations": [
+    {
+     "file": "omni_prod/customer_lang.py",
+     "old": "    return lang if lang in ('he', 'ar') else 'en'\n",
+     "new": "    return lang if lang in ('he', 'ar', 'en') else 'he'\n"
+    }
+   ],
+   "targets": [
+    "tests/test_server_texts_arabic.py"
+   ],
+   "expect_failed": [
+    "test_a_failed_build_is_said_in_arabic_and_in_english_for_french",
+    "test_a_french_customer_reads_the_english_never_hebrew",
+    "test_a_question_without_arabic_says_so_loudly",
+    "test_a_table_without_the_language_raises_never_falls_back",
+    "test_hebrew_and_arabic_as_asked_every_other_language_english",
+    "test_the_card_carries_the_arabic",
+    "test_the_fact_check_and_the_open_questions_in_arabic",
+    "test_the_summary_and_the_image_lines_are_arabic",
+    "test_the_supervisors_own_sentences_in_arabic"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "an Arabic button name that differs from the label app.js shows for that button (the approve button)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/approval_flow.py",
+     "old": "'ar': 'الموافقة وبدء البناء'}",
+     "new": "'ar': 'وافقوا وابدؤوا البناء'}"
+    }
+   ],
+   "targets": [
+    "tests/test_server_texts_arabic.py"
+   ],
+   "expect_failed": [
+    "test_button_names_match_app_js",
+    "test_the_sentences_quote_the_buttons_and_screens_by_their_arabic_names"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "an option of a discovery question with no Arabic (unavailable / wait)",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": ", 'wait': 'لا، سأنتظر حتى يصبح متاحًا'}",
+     "new": "}"
+    }
+   ],
+   "targets": [
+    "tests/test_server_texts_arabic.py"
+   ],
+   "expect_failed": [
+    "test_each_question_and_option_has_arabic",
+    "test_every_arabic_text_has_arabic_letters",
+    "test_the_card_carries_the_arabic"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the conversation turn picks its texts by the old two-language selector: an Arabic customer reads English",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        T = CL.of(_TXT, lang)\n        ctx = self.context(project_id) or {}\n",
+     "new": "        T = _TXT['he' if lang == 'he' else 'en']\n        ctx = self.context(project_id) or {}\n"
+    }
+   ],
+   "targets": [
+    "tests/test_server_texts_arabic.py"
+   ],
+   "expect_failed": [
+    "test_a_conversation_turn_in_arabic_is_arabic"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a stored Hebrew value (the 'references' recommendation 'אין') reaches an Arabic customer as stored",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "    if CL.pick(lang) != 'ar' or not isinstance(value, str):\n        return value\n",
+     "new": "    if True:\n        return value\n"
+    }
+   ],
+   "targets": [
+    "tests/test_server_texts_arabic.py"
+   ],
+   "expect_failed": [
+    "test_a_conversation_turn_in_arabic_is_arabic",
+    "test_the_card_carries_the_arabic",
+    "test_the_summary_and_the_image_lines_are_arabic"
+   ]
+  }
+ ]
+}

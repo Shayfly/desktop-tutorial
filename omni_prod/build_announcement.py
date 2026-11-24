@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 
+from . import customer_lang as CL
 from .models import BuildStatus
 
 _LOG = logging.getLogger(__name__)
@@ -27,8 +28,9 @@ _LOG = logging.getLogger(__name__)
 # Plain words (owner 2026-11-21): what happened, what happened to the money (only when the build's record says the
 # reservation was released), and the one action -- named as its button is named in assets/app.js (actRetryBuild /
 # editAll; tests/test_plain_words_failure_and_approval.py compares the two).
-RETRY_BUTTON = {'he': 'לנסות לבנות שוב', 'en': 'Try building again'}
-EDIT_BUTTON = {'he': 'עריכת הבקשה', 'en': 'Edit requirements'}
+# The Arabic names are app.js's T.ar labels of the same buttons (tests/test_server_texts_arabic.py compares them).
+RETRY_BUTTON = {'he': 'לנסות לבנות שוב', 'en': 'Try building again', 'ar': 'محاولة البناء مرة أخرى'}
+EDIT_BUTTON = {'he': 'עריכת הבקשה', 'en': 'Edit requirements', 'ar': 'تعديل الطلب'}
 TEXT = {
     'he': {'failed': 'לא הצלחנו לבנות את האתר הפעם.', 'refunded': 'לא חויבתם.',
            'retry': 'אפשר לנסות שוב: לחצו על "' + RETRY_BUTTON['he'] + '".',
@@ -37,6 +39,8 @@ TEXT = {
            'retry': 'You can try again: press "' + RETRY_BUTTON['en'] + '".',
            'needs_input': 'A detail only you can give is missing. Add it to the request: press "' + EDIT_BUTTON['en'] + '".'},
     # Arabic (warehouse 132): the screen has no Arabic button labels yet, so the button is the one under the message.
+    # Kept on 2026-11-22 although app.js now carries the Arabic names (RETRY_BUTTON['ar'], EDIT_BUTTON['ar']): naming the
+    # button here is one change together with gate_words.NEXT['ar'], which says the same "button under the message".
     'ar': {'failed': 'لم نتمكن من بناء الموقع هذه المرة.', 'refunded': 'لم يُخصم منكم أي مبلغ.',
            'retry': 'يمكنكم المحاولة مرة أخرى بالضغط على الزر الذي تحت هذه الرسالة.',
            'needs_input': 'ينقص تفصيل لا يستطيع أحد غيركم أن يعطيه. أضيفوه إلى الطلب بالضغط على الزر الذي تحت هذه الرسالة.'},
@@ -69,7 +73,7 @@ def message_for(*, build_id: str, error_code: str | None, billing: str | None, l
                 findings=()) -> dict:
     """The assistant message for a failed build: text + the one action. `findings`: gate_words keys (gate_words.
     findings), said one sentence each before the action; empty = the general sentence alone, as before."""
-    lang = lang if lang in TEXT else 'en'   # #505: an Arabic customer reads English, not Hebrew, until Arabic is written
+    lang = CL.pick(lang)   # one rule (omni_prod/customer_lang): Hebrew, Arabic, every other language English
     T = TEXT[lang]
     customer = error_code in CUSTOMER_FIXES
     parts = [T['failed']]

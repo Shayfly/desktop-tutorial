@@ -19,6 +19,8 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 
+from . import customer_lang as CL
+
 # Candidate spans: anything that looks like a phone, in any digit script; parse_phone decides what it is.
 _PHONE = re.compile(r'(?<![\d\u0660-\u0669\u06F0-\u06F9])(?:\+|00)?[\d\u0660-\u0669\u06F0-\u06F9][\d\u0660-\u0669\u06F0-\u06F9()\s\-.\u2010-\u2015]{5,16}[\d\u0660-\u0669\u06F0-\u06F9](?![\d\u0660-\u0669\u06F0-\u06F9])')
 _EMAIL = re.compile(r'[\w.+-]+@[\w-]+(?:\.[\w-]+)+', re.I)
@@ -424,6 +426,9 @@ def validate_canon(canon: Canon, request_text: str) -> list[dict]:
 # ---- the canon on the approval screen (Michael 2026-11-10 condition 2) ----
 _LABELS = {'he': {'phone': 'טלפון', 'address': 'כתובת', 'email': 'מייל', 'hours': 'שעות', 'name': 'שם'},
            'en': {'phone': 'phone', 'address': 'address', 'email': 'e-mail', 'hours': 'hours', 'name': 'name'}}
+# Arabic (2026-11-22, reviewed translation)
+_LABELS['ar'] = {'phone': 'الهاتف', 'address': 'العنوان', 'email': 'البريد الإلكتروني', 'hours': 'ساعات العمل', 'name': 'الاسم'}
+_OR = {'he': 'או', 'en': 'or', 'ar': 'أو'}   # between two labels in the 'incomplete' line
 _TEXT = {
     'he': {'facts': 'פרטי העסק שיופיעו באתר (מתוך מה שכתבתם): {facts}.',
            'incomplete': 'אזהרה: לא כתבתם {missing}. בלי זה הם לא יופיעו באתר (לא נמציא אותם). '
@@ -431,6 +436,8 @@ _TEXT = {
     'en': {'facts': 'Business details that will appear on the site (from what you wrote): {facts}.',
            'incomplete': 'Warning: you did not give {missing}. They will not appear on the site (we never invent them). '
                          'Add them now in a message, or approve without them.'},
+    'ar': {'facts': 'تفاصيل النشاط التجاري التي ستظهر في الموقع (مما كتبتموه): {facts}.',
+           'incomplete': 'تنبيه: لم تكتبوا {missing}، لذلك لن تظهر هذه التفاصيل في الموقع (لن نختلقها). يمكنكم إضافتها الآن في رسالة، أو الموافقة بدونها.'},
 }
 
 
@@ -439,10 +446,10 @@ def canon_view(request_text: str, *, family: str | None = None, lang: str = 'he'
 
     For a business website an empty phone AND address is CANON_INCOMPLETE -- a warning the customer sees, never a
     silent pass (a canon with nothing in it makes the truth gate pass "happily")."""
-    lang = lang if lang in _TEXT else 'en'
+    lang = CL.pick(lang)
     canon = build_canon(request_text)
     shown = [f for f in canon.facts if f.key in ('phone', 'address', 'email', 'hours')]
-    labels = _LABELS.get(lang, _LABELS['en'])
+    labels = _LABELS[lang]
     lines = []
     if shown:
         lines.append(_TEXT[lang]['facts'].format(
@@ -458,7 +465,7 @@ def canon_view(request_text: str, *, family: str | None = None, lang: str = 'he'
     status = 'OK'
     if family in (None, 'website', 'landing', 'content') and not (canon.values('phone') or canon.values('address')):
         status = 'CANON_INCOMPLETE'
-        missing = f"{labels['phone']} {'או' if lang == 'he' else 'or'} {labels['address']}"
+        missing = f"{labels['phone']} {_OR[lang]} {labels['address']}"
         lines.append(_TEXT[lang]['incomplete'].format(missing=missing))
     return {'status': status, 'hash': canon.hash, 'facts': [f.to_dict() for f in shown], 'lines': lines,
             'issues': validate_canon(canon, request_text)}
@@ -489,6 +496,11 @@ _NEEDED_TEXT = {
            'what': {'phone': 'a call or WhatsApp button', 'hours': 'an opening-hours section'},
            'fact': {'phone': 'the phone number', 'hours': 'the opening hours'},
            'omit': {'phone': 'the button and the number are left out', 'hours': 'the hours section is left out'}},
+    'ar': {'needed': 'طلبتم {what}، لكنكم لم تكتبوا {fact}. ما {fact}؟ يمكنكم كتابة ذلك في رسالة، أو الموافقة على البناء بدون ذلك — وعندها {omit} (لن نختلق شيئًا).',
+           'waived': 'وافقتم على البناء بدون {fact}: {omit}.',
+           'what': {'phone': 'زر اتصال أو واتساب', 'hours': 'قسم ساعات العمل'},
+           'fact': {'phone': 'رقم الهاتف', 'hours': 'ساعات العمل'},
+           'omit': {'phone': 'لن يظهر الزر ولا الرقم', 'hours': 'لن يظهر قسم ساعات العمل'}},
 }
 
 
@@ -513,7 +525,7 @@ def gate_view(request_text: str, *, customer_text: str, family: str | None = Non
     view = canon_view(request_text, family=family, lang=lang)
     missing = missing_needed(customer_text, build_canon(request_text), needs)
     open_ = [k for k in missing if k not in waived]
-    t = _NEEDED_TEXT['he' if lang == 'he' else 'en']
+    t = CL.of(_NEEDED_TEXT, lang)
     view['lines'] = (list(view['lines'])
                      + [t['needed'].format(what=t['what'][k], fact=t['fact'][k], omit=t['omit'][k]) for k in open_]
                      + [t['waived'].format(fact=t['fact'][k], omit=t['omit'][k]) for k in missing if k in waived])

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .. import customer_lang as CL
 from ..pricing import M5_CLASS_BUILD_CREDITS, CostClass
 from .gaps import Spec, language_of
 
@@ -44,8 +45,8 @@ def cost_range(spec: Spec) -> tuple[int, int]:
 _TEXT = {
     'he': {'stage_u': 'שלב 1 מתוך 2 — אני מקשיב ומבין מה לבנות', 'stage_p': 'שלב 2 מתוך 2 — אישרתם מה שהבנתי, אני מתכנן',
            'cost': 'הערכת מחיר: בין {lo} ל-{hi} מהיתרה שלכם. הטווח יצטמצם כשנסכם מה בונים; שום דבר בתשלום לא מתחיל בלי אישור שלכם.'},
-    'ar': {'stage_u': 'المرحلة 1 من 2 — أستمع وأفهم ما يجب بناؤه', 'stage_p': 'المرحلة 2 من 2 — وافقتم على ما فهمته، أخطط الآن',
-           'cost': 'تقدير السعر: بين {lo} و{hi} من رصيدكم. يضيق النطاق عندما نتفق على ما سنبنيه؛ لا يبدأ أي عمل مدفوع دون موافقتكم.'},
+    'ar': {'stage_u': 'المرحلة 1 من 2 — أستمع إليكم وأفهم ما سنبنيه', 'stage_p': 'المرحلة 2 من 2 — وافقتم على ما فهمته، وأنا أخطّط الآن',
+           'cost': 'تقدير السعر: بين {lo} و{hi} من رصيدكم. سيضيق هذا النطاق عندما نتفق على ما نبنيه؛ ولا يبدأ أي شيء مدفوع دون موافقتكم.'},
     'en': {'stage_u': 'Step 1 of 2 — I am listening to understand what to build', 'stage_p': 'Step 2 of 2 — you approved what I understood, I am planning',
            'cost': 'Price estimate: between {lo} and {hi} from your balance. The range narrows once we agree what to build; nothing paid starts without your approval.'},
 }
@@ -65,7 +66,7 @@ class Venice:
 
     def _lang(self) -> str:
         lang = language_of(' '.join(self.spec.ledger.messages[-2:]))
-        return lang if lang in _TEXT else 'en'
+        return CL.pick(lang)
 
     def _stage(self, mode: str) -> None:
         self.stages.append({'mode': mode})

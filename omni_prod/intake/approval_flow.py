@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 
 from ..pricing import M5_CLASS_BUILD_CREDITS, CostClass
+from .. import customer_lang as CL
 from . import contract as C
 from .plan_verifier import PlanVerifier, Verdict
 
@@ -166,9 +167,10 @@ def verified_plan(make_plan, brief, approved_fingerprint: str) -> tuple[dict | N
 # live here once; assets/app.js carries the same words (tests/test_plain_words_failure_and_approval.py compares them).
 # The verifier's own findings ({what}) and the plan's raw complexity ({cx}) stay in the stored record
 # (interpretation.verification, the plan's spec_gate) and are not said to the customer.
-CONFIRM_BUTTON = {'he': 'כן, זה נכון', 'en': 'Yes, that is right'}
-APPROVE_BUTTON = {'he': 'לאשר ולהתחיל לבנות', 'en': 'Approve and start building'}
-EDIT_BUTTON = {'he': 'עריכת הבקשה', 'en': 'Edit requirements'}
+# The Arabic names are app.js's T.ar labels of the same buttons (tests/test_server_texts_arabic.py compares them).
+CONFIRM_BUTTON = {'he': 'כן, זה נכון', 'en': 'Yes, that is right', 'ar': 'نعم، هذا صحيح'}
+APPROVE_BUTTON = {'he': 'לאשר ולהתחיל לבנות', 'en': 'Approve and start building', 'ar': 'الموافقة وبدء البناء'}
+EDIT_BUTTON = {'he': 'עריכת הבקשה', 'en': 'Edit requirements', 'ar': 'تعديل الطلب'}
 
 TEXT = {
     'he': {'stage1': 'שלב 1 מתוך 2', 'stage2': 'שלב 2 מתוך 2',
@@ -187,22 +189,24 @@ TEXT = {
            'below': 'זה {d} פחות ממה שאמרתי ({lo}–{hi}): המחיר המדויק יצא נמוך מההערכה שלי.',
            'exact_unknown': 'את המחיר המדויק אחשב כשתאשרו את הבנייה; עד אז ההערכה היא בין {lo} ל-{hi} מהיתרה שלכם.',
            'gate2': 'כדי להתחיל לבנות, לחצו על "' + APPROVE_BUTTON['he'] + '".'},
-    'ar': {'stage1': 'المرحلة 1 من 2', 'stage2': 'المرحلة 2 من 2',
-           'spec': 'هذه المواصفات كما فهمتها: {summary}.',
-           'price': 'تكلفة البناء في باقتك: {c} رصيدًا.',
-           'exact_same': 'التكلفة: {exact} رصيدًا، كما ذُكر.',
-           'range': 'تقدير التكلفة: {lo}–{hi} رصيدًا.',
-           'gate1': 'إذا كانت صحيحة، وافق على المواصفات ثم أُعدّ خطة. لا خطة ولا خصم قبل الموافقة.',
-           'gate1_needed': 'يجب الموافقة على المواصفات أولًا؛ لا خطة قبل ذلك.',
-           'stale': 'تغيّرت المواصفات منذ عرضها. هذه هي الحالية؛ وافق عليها لأخطط.',
-           'planned': 'تمت الموافقة على المواصفات. أعددت خطة وفحصها المدقق مقابل المواصفات.',
-           'fixed': 'وجد المدقق وصحّح: {what}.',
-           'refused': 'لم تجتز الخطة فحص المدقق ولذلك لا تُعرض: {what}. لم يُخصم شيء؛ يمكن تعديل المواصفات.',
-           'exact': 'التكلفة الدقيقة: {exact} رصيدًا (النطاق المذكور: {lo}–{hi}).',
-           'above': 'انتبه: هذا أعلى من النطاق الذي ذكرته ({lo}–{hi}) بـ {d} رصيدًا. السبب: السعر الدقيق يحدده اشتراكك وتعقيد الخطة ({cx})، وهو أعلى من تقديري.',
-           'below': 'هذا أقل من النطاق الذي ذكرته ({lo}–{hi}) بـ {d} رصيدًا: السعر الدقيق في اشتراكك أقل من تقديري.',
-           'exact_unknown': 'سأحسب التكلفة الدقيقة عند الموافقة على الميزانية؛ حتى ذلك الحين النطاق {lo}–{hi} رصيدًا.',
-           'gate2': 'لبدء البناء، وافق على الميزانية.'},
+    # Arabic (2026-11-22): translated from the Hebrew and independently reviewed; it replaces the first Arabic, which
+    # named the machinery (spec, verifier, budget, plan) and did not name the buttons.
+    'ar': {'stage1': 'الخطوة 1 من 2', 'stage2': 'الخطوة 2 من 2',
+           'spec': 'هذا ما فهمت أنكم تريدونه: {summary}.',
+           'price': 'هذا البناء سيخصم {c} من رصيدكم.',
+           'exact_same': 'السعر: {exact} من رصيدكم، كما قلت.',
+           'range': 'تقدير: سيخصم البناء ما بين {lo} و{hi} من رصيدكم.',
+           'gate1': 'إذا كان هذا صحيحًا، اضغطوا على "' + CONFIRM_BUTTON['ar'] + '" وسأُعدّ خطة. لا يُبنى شيء ولا يُخصم منكم أي مبلغ قبل ذلك.',
+           'gate1_needed': 'يجب أولًا أن تؤكدوا أنني فهمتكم بشكل صحيح؛ لا أُعدّ خطة قبل ذلك.',
+           'stale': 'تغيّر الطلب منذ أن عرضته. هذا هو الطلب كما هو الآن؛ أكّدوه وسأُعدّ خطة.',
+           'planned': 'رائع. أعددت خطة.',
+           'fixed': 'صحّحتها قبل أن أعرضها.',
+           'refused': 'لم أتمكن من إعداد خطة تناسب ما طلبتم. لم يُخصم منكم أي مبلغ. اكتبوا مرة أخرى، في جملة واحدة، ما هو الأهم بالنسبة لكم، أو اضغطوا على "' + EDIT_BUTTON['ar'] + '".',
+           'exact': 'السعر الدقيق: {exact} من رصيدكم (قلت سابقًا {lo}–{hi}).',
+           'above': 'لاحظوا: هذا أكثر بـ{d} مما قلت ({lo}–{hi}). السعر الدقيق لا يُحدَّد إلا بعد أن تجهز الخطة، وقد جاء أعلى من تقديري.',
+           'below': 'هذا أقل بـ{d} مما قلت ({lo}–{hi}): جاء السعر الدقيق أقل من تقديري.',
+           'exact_unknown': 'سأحسب السعر الدقيق عندما توافقون على البناء؛ وحتى ذلك الحين التقدير ما بين {lo} و{hi} من رصيدكم.',
+           'gate2': 'لبدء البناء، اضغطوا على "' + APPROVE_BUTTON['ar'] + '".'},
     'en': {'stage1': 'Step 1 of 2', 'stage2': 'Step 2 of 2',
            'spec': 'This is what I understood you want: {summary}.',
            'price': 'This build takes {c} from your balance.',
@@ -223,7 +227,7 @@ TEXT = {
 
 
 def text(lang: str) -> dict:
-    return TEXT[lang if lang in TEXT else 'en']
+    return CL.of(TEXT, lang)
 
 
 def budget_lines(cmp: dict, lang: str, complexity: str | None) -> list[str]:
