@@ -16,6 +16,7 @@ def test_full_discovery_does_not_start_a_second_unittest_suite():
             run.assert_not_called()
 
 
+@mock.patch.object(acceptance, 'find_spec', new=lambda _module: object())
 def test_standalone_acceptance_w_still_runs_with_original_timeout():
     method = 'test_W_every_non_fastapi_test_module_passes'
     result = mock.Mock(returncode=0, stdout='', stderr='OK')

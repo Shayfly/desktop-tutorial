@@ -19,8 +19,8 @@ def collected(*args: str) -> tuple[list[str], str]:
 
 
 class NeedsEnv(unittest.TestCase):
-    def test_the_list_is_the_measured_66(self):
-        self.assertEqual((len(MODULES), len(NODE_IDS)), (34, 32))
+    def test_the_list_is_the_measured_73(self):
+        self.assertEqual((len(MODULES), len(NODE_IDS)), (37, 36))
         for m in MODULES:
             self.assertTrue((ROOT / m).is_file(), m)
 
