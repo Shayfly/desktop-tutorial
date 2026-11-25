@@ -1234,10 +1234,11 @@ class ConversationSupervisor:
                 and agent.SUBJECT_ID in self._awaiting(project_id) and not agent.names_a_subject(new_brief.prompt)):
             # the answer to "what is this about?" is part of the request the build starts from, not a side remark
             new_brief.prompt = (new_brief.prompt.rstrip() + '\n' + message.strip()).strip()
-        if (agent.enabled() and row is not None and message and not answers
-                and agent.NAME_ID in self._awaiting(project_id) and not agent.declares_a_name(d.customer_text(new_brief))):
-            # the answer to "what is the business called?" joins the request as the customer's own "שם העסק:" line
-            line = agent.name_line(message)
+        if agent.enabled() and message and not answers and d.is_website(new_brief):
+            # the business name the customer stated, recognised once (rehearsals 45702506669 / 45702519795): their answer
+            # to the name question, or the one name they quoted, joins the request as their own "שם העסק:" line
+            line = agent.name_to_record(d.customer_text(new_brief), message,
+                                        answering=row is not None and agent.NAME_ID in self._awaiting(project_id))
             if line:
                 new_brief.prompt = (new_brief.prompt.rstrip() + '\n' + line).strip()
         if (agent.enabled() and row is not None and message and not answers
@@ -1344,6 +1345,15 @@ class ConversationSupervisor:
             turn.cost_usd = None if interp.cost_usd is None else Decimal(str(interp.cost_usd))
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
         turn.gaps = gaps
+        known_name = agent.stated_name(d.customer_text(row.brief)) if agent.enabled() and d.is_website(row.brief) else None
+        if known_name and interp is not None and (interp.reply or '').strip():
+            # a name the customer stated is never asked again, in the model's words either: the sentence that asks it
+            # becomes one that says it (rehearsals 45702506669 / 45702519795). The turn's record keeps the model's reply.
+            name_said = agent.without_name_question(interp.reply, known_name, lang)
+            if name_said != interp.reply:
+                import copy
+                interp = copy.copy(interp)
+                interp.reply = name_said
         parts = []
         if any(k.startswith('image_place_') for k in answers) and row.brief.hints.get('image_hero_taken') == 'yes':
             parts.append(T['image_hero_taken'])      # one main image per page: the place is asked again
@@ -1481,7 +1491,8 @@ class ConversationSupervisor:
         model_failed = turn.reply in (T['model_refused'], T['model_unavailable'])
         if no_name and not res.conflicts and not turn.blocked and not turn.questions and not model_failed:
             said = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
-            turn.reply = ((said or '') + ' ' + agent.NAME_QUESTION['he' if lang == 'he' else 'en']).strip()
+            # two different names the customer wrote are asked back as a choice, quoting both (agent.name_question)
+            turn.reply = ((said or '') + ' ' + agent.name_question(d.customer_text(row.brief), lang)).strip()
             turn.asked_in_words = [agent.NAME_ID]
             return turn
         if no_colour and not model_failed and not res.conflicts and not turn.blocked and not turn.questions:

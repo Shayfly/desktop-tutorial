@@ -243,11 +243,9 @@ ASK_NAME_AT_MOST = 2       # then the approval opens without it, and the route s
 
 
 def declares_a_name(customer_text: str) -> bool:
-    """Does the customer's own text already give the business name the content route accepts: a "שם העסק:" line or a
-    quoted span (fact_canon._NAME; site_content.facts.name_candidates)?"""
-    from ..fact_canon import _NAME
-    text = customer_text or ''
-    return bool(_NAME.search(text) or _QUOTED_NAME.search(text))
+    """Does the customer's own text state exactly one business name (stated_names)? Two different names are not a
+    declaration: the agent asks which one (name_question)."""
+    return len(stated_names(customer_text)) == 1
 
 
 def name_line(answer: str) -> str | None:
@@ -260,6 +258,132 @@ def name_line(answer: str) -> str | None:
     if not 2 <= len(text) <= 40 or len(text.split()) > 6 or _NAME_REFUSED.search(text) or '\n' in (answer or '').strip():
         return None
     return f'שם העסק: {text}.'
+
+
+# ---- the name the customer stated (rehearsals 45702506669 / 45702519795, 2026-11-25: with the name in the first
+# message, the agent asked for it -- twice in one conversation, with Haiku and with Flash-Lite -- and the summary had no
+# name). One reading for the whole conversation: the agent's question, the model's context and the summary read the
+# same names. A name is stated when it is
+#   1. a "שם העסק:" label (fact_canon._NAME, the canon's own reading),
+#   2. a quoted span right after the kind of business: 'לאטליז "בשר השכונה"', 'למספרה שלי, "תספורת טובה"',
+#      'אתר תדמית למורה פרטית "נועה ברק"' (a catalogue word, or "ל..." after the product word), or
+#   3. a quoted span in a naming phrase: 'קוראים לנו "זית ולימון"', 'בשם "X"'.
+# A label is the customer's declaration and is what the canon and the content route take, so when there is one a quoted
+# span does not compete with it. Any other quoted span -- a hero title, a button -- is not a name.
+_QUOTE = r'["״“„]([^"״“”„\n]{2,40}?)["״”]'
+_PRODUCT_FOR = (r'(?:אתר|דף|אפליקציה|אפליקציית)(?:\s+(?:תדמית|נחיתה|חדש|קטן|פשוט|אינטרנט))?'
+                r'\s+(?:עבור\s+|בשביל\s+|ל|של\s+)[א-ת]{2,}')
+_AFTER = r'(?:\s+[^\s"״“„,.;:!?]{2,15}){0,2}\s*[,:\-–]?\s*'
+_NAMING = re.compile(r'(?:(?:קוראים|קוראות)\s+(?:לו|לה|לנו|לי|לעסק|למקום)|נקרא(?:ת|ים)?|בשם|שמו|שמה|שמנו|'
+                     r'השם\s+(?:שלנו|שלי|שלו|שלה|של\s+העסק|של\s+המקום)(?:\s+(?:הוא|היא))?|השם\s+(?:הוא|היא)|'
+                     r'called|named|name\s+is)\s*[:\-–]?\s*' + _QUOTE, re.I)
+_POINTER = re.compile(r'^\s*(?:ה)?(?:ראשון|ראשונה|שני|שנייה|שניה|אחרון|אחרונה)\b|שניהם|first|second|both|either', re.I)
+
+
+def _after_the_kind() -> re.Pattern:
+    """A quoted span within two words after the kind of business: a catalogue category word (vertical_palettes, with
+    its Hebrew prefixes) or "ל..." right after the product word."""
+    global _AFTER_KIND
+    if _AFTER_KIND is None:
+        from ..vertical_palettes import _END, _PRE, load
+        words = sorted({w.lower() for e in load()['categories'].values() for w in e['words']}, key=len, reverse=True)
+        kind = _PRE + '(?:' + '|'.join(re.escape(w) for w in words) + ')' + _END
+        _AFTER_KIND = re.compile('(?:' + kind + '|' + _PRODUCT_FOR + ')' + _AFTER + _QUOTE, re.I)
+    return _AFTER_KIND
+
+
+_AFTER_KIND: re.Pattern | None = None
+
+
+def stated_names(customer_text: str) -> list[str]:
+    """The business names the customer's own text states, each once, in the order written: the "שם העסק:" labels when
+    there is one, else the quoted names (after the kind of business, or in a naming phrase)."""
+    from ..fact_canon import _NAME
+    text = customer_text or ''
+    labels = list(dict.fromkeys(' '.join(m.group(1).split()) for m in _NAME.finditer(text)))
+    if labels:
+        return labels
+    found = sorted((m.start(1), ' '.join(m.group(1).split())) for rx in (_after_the_kind(), _NAMING)
+                   for m in rx.finditer(text))
+    return list(dict.fromkeys(name for _, name in found if len(name) >= 2))
+
+
+def stated_name(customer_text: str) -> str | None:
+    """The one business name the customer stated, or None (none, or two different ones)."""
+    names = stated_names(customer_text)
+    return names[0] if len(names) == 1 else None
+
+
+NAME_WHICH_QUESTION = {'he': 'כתבתם שני שמות: "{a}" ו"{b}". איזה מהם יופיע באתר? כתבו אותו בדיוק כמו שהוא צריך להופיע.',
+                       'en': 'You wrote two names, "{a}" and "{b}". Which one should appear on the site? Write it exactly '
+                             'as it should appear.'}
+
+
+def name_question(customer_text: str, lang: str) -> str:
+    """The name question: which of the two names the customer wrote, quoting both; else what the business is called."""
+    names = stated_names(customer_text)
+    key = 'he' if lang == 'he' else 'en'
+    if len(names) >= 2:
+        return NAME_WHICH_QUESTION[key].format(a=names[0], b=names[1])
+    return NAME_QUESTION[key]
+
+
+def name_to_record(known: str, message: str, *, answering: bool) -> str | None:
+    """The "שם העסק:" line this turn adds to the request, or None. `known` is the customer's text so far (the request,
+    discovery.customer_text), `message` this turn's message, `answering` whether the last turn asked the name.
+      * an answer to the name question: the one stated name the answer names (two names: the customer chose), else the
+        answer itself when it is a name (name_line) -- never a pointer ("הראשון") or a handed-back answer;
+      * otherwise, the one name the customer quoted, written once as their declared name: from then on the canon, the
+        content route and the summary read it, and nothing asks it again."""
+    from ..fact_canon import _NAME
+    whole = (known or '') + '\n' + (message or '')
+    names = stated_names(whole)
+    if answering and len(names) != 1:
+        chosen = [n for n in names if n in (message or '')]
+        if len(names) >= 2 and len(chosen) == 1:
+            return f'שם העסק: {chosen[0]}.'
+        if len(names) >= 2 and _POINTER.search(message or ''):
+            return None
+        return name_line(message)
+    if len(names) == 1 and not _NAME.search(whole):
+        return f'שם העסק: {names[0]}.'
+    return None
+
+
+# The model asks a name the customer already gave in its own words ("מה שם האטליז כפי שתרצו שיופיע באתר?"). A sentence
+# asks for the business name when it asks (a question mark, a question word, "write / tell me") about a name word and
+# the business (a business word, a catalogue category, or "as it should appear on the site").
+_ASKS = re.compile(r'[?؟]|(?:^|[\s,:;(])(?:האם|ספרו|כתבו|תכתבו|תגידו|שתפו|נשאר\s+רק\s+לדעת|tell\s+me|write)(?=[\s,:]|$)|'
+                   r'(?:^|[,:;(—–-]\s*)(?:מה|מהו|מהי|איך|איזה|אילו|what|how|which)(?=[\s,:]|$)', re.I)
+_NAME_WORD = re.compile(r'(?<![א-ת])[הבלו]?(?:שם|שמו|שמה|שמכם|שמך)(?![א-ת])|קוראים|לקרוא\s+ל|נקרא|\bname\b|\bcalled\b', re.I)
+_BUSINESS_WORD = re.compile(r'עסק|מקום|חנות|משרד|סטודיו|קליניקה|מרפאה|מותג|באתר|יופיע|בראש\s+העמוד|כפי\s+ש|בדיוק|'
+                            r'\b(?:business|shop|store|studio|brand|site|appear)', re.I)
+_SAY_SENTENCE = re.compile(r'[^.!?؟\n]*(?:[.!?؟]+|$)')
+NAME_SAID = {'he': 'השם שיופיע באתר: "{name}".', 'en': 'The name on the site: "{name}".'}
+
+
+def asks_for_name(sentence: str) -> bool:
+    """Does this sentence ask the customer for the business name?"""
+    from ..vertical_palettes import category_of
+    s = sentence or ''
+    return bool(_ASKS.search(s) and _NAME_WORD.search(s) and (_BUSINESS_WORD.search(s) or category_of(s)))
+
+
+def without_name_question(reply: str, name: str, lang: str) -> str:
+    """The model's reply with every sentence that asks for the business name replaced by one that says it (once), so
+    the customer is never asked a name they gave and can still correct it. Unchanged when no sentence asks it."""
+    kept, asked = [], False
+    for m in _SAY_SENTENCE.finditer(reply or ''):
+        s = m.group(0).strip()
+        if not s:
+            continue
+        if asks_for_name(s):
+            asked = True
+        else:
+            kept.append(s)
+    if not asked:
+        return reply
+    return ' '.join(kept + [NAME_SAID['he' if lang == 'he' else 'en'].format(name=name)]).strip()
 
 
 
