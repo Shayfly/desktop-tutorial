@@ -1,0 +1,317 @@
+{
+ "pr": "laws-5-6",
+ "sha256": [
+  "scripts/weakening_declared.py",
+  "scripts/deletions_declared.py",
+  "tests/test_weakening_declared.py",
+  "tests/test_deletions_declared.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "law 5: the or-true kind is dropped from the table (an added line that swallows a failure passes)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "(?:/bin/)?true\\b')),",
+     "new": "(?:/bin/)?true\\bNEVER')),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_content_line_that_looks_like_a_file_header_stays_in_its_file",
+    "test_an_added_swallowed_exit_code_fails",
+    "test_every_added_weakening_is_its_own_error"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "law 5: the skip-marker kind is dropped from the table",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "re.compile(r'\\bmark\\.skip')),",
+     "new": "re.compile(r'\\bmark\\.skipNEVER')),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py"
+   ],
+   "expect_failed": [
+    "test_an_added_skip_marker_or_skip_call_fails",
+    "test_every_added_weakening_is_its_own_error"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "law 5: workflows are not read, only tests/",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "SCOPE = ('tests', '.github/workflows')",
+     "new": "SCOPE = ('tests',)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py"
+   ],
+   "expect_failed": [
+    "test_an_added_continue_on_error_fails",
+    "test_an_added_swallowed_exit_code_fails",
+    "test_continue_on_error_false_and_a_plain_line_pass",
+    "test_every_added_weakening_is_its_own_error",
+    "test_existing_weakenings_that_this_change_does_not_add_are_ignored"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "law 5: a declaration signed by its own author is accepted",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "        if who.lower() in DD._NOT_A_REVIEWER or who == match.get('author'):",
+     "new": "        if who.lower() in DD._NOT_A_REVIEWER:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py"
+   ],
+   "expect_failed": [
+    "test_an_author_signed_or_unsigned_declaration_fails"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "law 5: the digest ignores the path (a declaration in one file covers the same line in any file)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "    return hashlib.sha256(f'{path}\\n{line}'.encode('utf-8')).hexdigest()",
+     "new": "    return hashlib.sha256(line.encode('utf-8')).hexdigest()  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_declaration_binds_its_path_and_its_exact_line"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "law 5: measured from the anchor itself, not the merge base (main's later removals are charged to the PR)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "        base = merge_base(argv[0], cwd)",
+     "new": "        base = argv[0]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py"
+   ],
+   "expect_failed": [
+    "test_measured_from_the_merge_base_when_main_moved_on"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "law 5: the whole tree is read instead of the change (existing lines are charged, the anchor is ignored)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "        base = merge_base(argv[0], cwd)",
+     "new": "        base = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'  # NEGATIVE CONTROL: the empty tree"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_anchor_or_no_repository_is_an_error",
+    "test_continue_on_error_false_and_a_plain_line_pass",
+    "test_existing_weakenings_that_this_change_does_not_add_are_ignored",
+    "test_measured_from_the_merge_base_when_main_moved_on"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "law 5: a change that could not be measured passes",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "        return 2\n    found = weakenings(rows)",
+     "new": "        return 0  # NEGATIVE CONTROL\n    found = weakenings(rows)"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_anchor_or_no_repository_is_an_error",
+    "test_an_unreadable_declarations_file_is_an_error"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "law 5: the diff and numstat are not compared (a parse that loses a line passes)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "    if parsed != counted:",
+     "new": "    if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py"
+   ],
+   "expect_failed": [
+    "test_two_readings_of_git_that_disagree_are_an_error"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "law 5: a content line that looks like a file header is read as one (the line is charged to another file)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "        elif not in_hunk:",
+     "new": "        elif not in_hunk or raw.startswith('+++ b/'):  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_content_line_that_looks_like_a_file_header_stays_in_its_file"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "law 5: a declaration with no reason covers its line",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "if e.get('line_sha256') == digest and e.get('reason')), None)",
+     "new": "if e.get('line_sha256') == digest), None)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_declaration_without_a_reason_covers_nothing"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "law 5: the light job runs the script but its exit code no longer decides",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "          python3 scripts/weakening_declared.py \"$anchor\"\n",
+     "new": "          python3 scripts/weakening_declared.py \"$anchor\" || echo \"::notice::measured\"\n"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py"
+   ],
+   "expect_failed": [
+    "test_the_light_job_runs_both_scripts_and_their_exit_codes_decide"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "law 6: binary files are not checked at all (the hole the audit found)",
+   "mutations": [
+    {
+     "file": "scripts/deletions_declared.py",
+     "old": "    removed = removed_binaries(anchor, cwd)                          # law 6: a binary has no lines to digest",
+     "new": "    removed = {}  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_deletions_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_blob_declared_for_an_earlier_version_covers_nothing",
+    "test_a_deleted_binary_evidence_file_fails_undeclared",
+    "test_a_line_digest_or_a_path_alone_covers_no_binary",
+    "test_a_rewritten_binary_needs_a_declaration_too",
+    "test_an_author_signed_binary_declaration_fails",
+    "test_the_same_deletion_declared_by_its_blob_and_signed_passes"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "law 6: only a deleted binary counts; a rewritten one passes",
+   "mutations": [
+    {
+     "file": "scripts/deletions_declared.py",
+     "old": "status in ('M', 'D', 'T')",
+     "new": "status in ('D',)"
+    }
+   ],
+   "targets": [
+    "tests/test_deletions_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_rewritten_binary_needs_a_declaration_too"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "law 6: the removed blob is not compared (any declaration of the path covers any binary change)",
+   "mutations": [
+    {
+     "file": "scripts/deletions_declared.py",
+     "old": "deleted_sha256=e.get('deleted_blob'))",
+     "new": "deleted_sha256=removed[p])"
+    }
+   ],
+   "targets": [
+    "tests/test_deletions_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_blob_declared_for_an_earlier_version_covers_nothing",
+    "test_a_line_digest_or_a_path_alone_covers_no_binary"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "law 6: renames are detected, so a moved binary is no deletion at its old path",
+   "mutations": [
+    {
+     "file": "scripts/deletions_declared.py",
+     "old": "_git('diff', '--raw', '--no-renames', '--no-abbrev', '-z'",
+     "new": "_git('diff', '--raw', '-M', '--no-abbrev', '-z'"
+    }
+   ],
+   "targets": [
+    "tests/test_deletions_declared.py"
+   ],
+   "expect_failed": [
+    "test_an_added_binary_needs_nothing_and_a_moved_one_is_a_deletion"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "law 6: --digest prints a line digest for a binary (the digest of nothing) instead of refusing",
+   "mutations": [
+    {
+     "file": "scripts/deletions_declared.py",
+     "old": "    if len(argv) == 3 and argv[1] == '--digest' and argv[2] in removed_binaries(anchor, cwd):",
+     "new": "    if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_deletions_declared.py"
+   ],
+   "expect_failed": [
+    "test_the_blob_helper_prints_what_to_declare_and_the_digest_helper_refuses_a_binary"
+   ]
+  }
+ ]
+}
