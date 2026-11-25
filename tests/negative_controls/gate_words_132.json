@@ -57,7 +57,8 @@
     "test_no_machinery_word_reaches_the_customer",
     "test_a_real_gate_failure_reaches_the_conversation_in_the_customers_words",
     "test_a_missing_phone_is_said_as_the_owner_wrote_it_and_asks_for_the_number",
-    "test_each_language_reads_its_own_words"
+    "test_each_language_reads_its_own_words",
+    "test_an_empty_page_is_said_as_empty_in_every_language"
    ]
   },
   {
@@ -107,7 +108,8 @@
     "test_every_entry_says_what_why_and_one_next_action_named_as_its_button",
     "test_every_id_the_chain_can_produce_has_words_in_every_language",
     "test_hebrew_and_arabic_carry_no_english_and_english_no_hebrew",
-    "test_no_machinery_word_reaches_the_customer"
+    "test_no_machinery_word_reaches_the_customer",
+    "test_an_empty_page_is_said_as_empty_in_every_language"
    ]
   },
   {
@@ -334,6 +336,24 @@
    "expect_failed": [
     "test_every_kind_a_check_lists_in_its_own_code_has_words",
     "test_no_words_for_a_check_nobody_can_fail"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "an empty page is said again as 'the site did not open' (the PREVIEW kind is not read)",
+   "mutations": [
+    {
+     "file": "omni_prod/gate_words.py",
+     "old": "    elif aid in ('BROWSER', 'REVIEW', 'PREVIEW'):\n",
+     "new": "    elif aid in ('BROWSER', 'REVIEW'):\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_words.py"
+   ],
+   "expect_failed": [
+    "test_an_empty_page_is_said_as_empty_in_every_language",
+    "test_every_kind_a_check_lists_in_its_own_code_has_words"
    ]
   }
  ]

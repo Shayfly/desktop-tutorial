@@ -52,6 +52,9 @@ def kind_messages() -> dict[str, tuple[str, str]]:
         out[f'CONSISTENCY:{check}'] = (f.acceptance_id, f.message)
     for kind, marker in G.BROWSER_KINDS:
         out[f'BROWSER:{kind}'] = (browser_probe.BROWSER_FAILURE_ID, 'the product misbehaves in a real browser: ' + marker)
+    from omni_prod.preview_smoke import PREVIEW_FAILURE_ID
+    for kind, marker in G.PREVIEW_KINDS:                 # the empty page (rule 78), as preview_smoke words it
+        out[f'PREVIEW:{kind}'] = (PREVIEW_FAILURE_ID, f'GET / {marker} (no form, no heading)')
     assert len(G.REVIEW_KINDS) == len(REVIEW_RULES) - 1, 'a static REVIEW rule with no kind here'
     for kind, marker in G.REVIEW_KINDS:
         out[f'REVIEW:{kind}'] = ('REVIEW', f'QA review (skill.copy_quality): {marker}: x')
@@ -408,6 +411,28 @@ class TheCountPerRoute(unittest.TestCase):
         for path in ('omni_prod/build_announcement.py', 'omni_prod/gate_words.py', 'omni_prod/build_readiness.py'):
             with self.subTest(path):
                 self.assertEqual(CW.scan(path, root=ROOT), [])
+
+
+class AnEmptyPageIsNotAPageThatDidNotOpen(unittest.TestCase):
+    """Review of bundle 2 on today's main (2026-11-24): a build whose site started but served an empty page was told
+    in the chat "the site did not open", while its card says "the site that was built came out empty" (rule 78,
+    Michael 2026-11-11). The chat now reads the same markers the worker reads."""
+
+    def test_the_markers_are_the_workers(self):
+        from omni_prod import worker_tasks as W
+        self.assertEqual(sorted(m for _, m in G.PREVIEW_KINDS), sorted(W._EMPTY_UI.pattern.split('|')))
+
+    def test_an_empty_page_is_said_as_empty_in_every_language(self):
+        from omni_prod.worker_tasks import EMPTY_UI_PREFIX
+        for message in ('GET / returned a placeholder page', 'GET / did not return an HTML page'):
+            self.assertEqual(G.key_of('PREVIEW', message), 'PREVIEW:empty')
+        self.assertEqual(G.key_of('PREVIEW', 'GET / timed out after 30 s'), 'PREVIEW')     # the site did not open
+        said = {lang: G.words('PREVIEW:empty', lang)['what'] for lang in G.LANGS}
+        self.assertIn('ריק', said['he'])
+        self.assertNotIn('לא נפתח', said['he'])
+        self.assertIn('empty', said['en'])
+        self.assertIn('فارغ', said['ar'])
+        self.assertTrue(EMPTY_UI_PREFIX.startswith('the app started'))
 
 
 if __name__ == '__main__':

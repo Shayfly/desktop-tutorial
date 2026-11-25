@@ -472,6 +472,12 @@ WORDS: dict[str, Entry] = {
         ('האתר לא נפתח כשניסינו להציג אותו', 'אי אפשר להראות אותו לכם או לאנשים'),
         ('لم يُفتح الموقع عندما حاولنا عرضه', 'لا يمكن عرضه عليكم ولا على الناس'),
         ('The site did not open when we tried to show it', 'it cannot be shown to you or to anyone')),
+    # rule 78 (Michael 2026-11-11): the site STARTED and served an empty page -- never "did not open". The build card
+    # (app.js friendlyError, EMPTY_UI) says the same; review of bundle 2 on 2026-11-24 found the chat contradicting it.
+    'PREVIEW:empty': _r(
+        ('האתר שנבנה יצא ריק', 'אין בו עדיין מה להראות לכם או לאנשים'),
+        ('الموقع الذي بُني خرج فارغاً', 'ليس فيه بعد ما يُعرض عليكم ولا على الناس'),
+        ('The site that was built came out empty', 'there is nothing in it yet to show you or anyone')),
     'BEHAVIOR': _r(
         ('משהו שביקשתם לא עבד כשניסינו אותו כמו מבקר באתר', 'אנשים שינסו את אותו דבר ייתקעו'),
         ('شيء طلبتموه لم يعمل عندما جرّبناه كزائر للموقع', 'من يجرّب الشيء نفسه سيتعثر'),
@@ -606,6 +612,9 @@ BROWSER_KINDS = (('dead_form', 'submitting it sent no request and changed nothin
                  ('feedback_disappears', 'the second successful submit showed no message'),
                  ('page_error', 'uncaught JavaScript error'),
                  ('server_error', 'server error during the browser flow'))
+# PREVIEW: the same markers as worker_tasks._EMPTY_UI (the site started, the page it served was empty)
+PREVIEW_KINDS = (('empty', 'returned a placeholder page'),
+                 ('empty', 'did not return an HTML page'))
 REVIEW_KINDS = (('missing_facts', 'facts the customer gave are missing from the page'),
                 ('invented_contact', 'contact details not in the approved request (invented)'),
                 ('invented_hours', 'opening hours the customer never gave (invented)'),
@@ -629,8 +638,9 @@ def _kind(aid: str, msg: str) -> tuple[str, str] | None:
         m = _CODE_COLON.match(msg)
     elif aid == 'gate-GAME-runtime':
         m = _CODE_PAREN.match(msg)
-    elif aid in ('BROWSER', 'REVIEW'):
-        for kind, marker in (BROWSER_KINDS if aid == 'BROWSER' else REVIEW_KINDS):
+    elif aid in ('BROWSER', 'REVIEW', 'PREVIEW'):
+        kinds = {'BROWSER': BROWSER_KINDS, 'REVIEW': REVIEW_KINDS, 'PREVIEW': PREVIEW_KINDS}[aid]
+        for kind, marker in kinds:
             if marker in msg:
                 return aid, kind
         return None                  # a finding with no known marker: the check's own words are true for all of them
