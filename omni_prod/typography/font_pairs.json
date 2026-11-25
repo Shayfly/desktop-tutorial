@@ -1,0 +1,49 @@
+{
+ "_about": "Warehouse 126 (the owner, 2026-11-22): a library of font pairs, so a page never gets a font the model invented and never Heebo everywhere. Per supported script (scripts.json) four pairs, each a display face for headings and a body face, both from Google Fonts (OFL; rights_sources.json 'google_fonts'), each with the weights the page loads -- the design contract's two weights, 400 and 700, or 400 alone for a display face that has one weight. Every family and weight was checked against fonts.googleapis.com/css2 on 2026-11-22 for its script's subset (Hebrew pairs serve the 'hebrew' subset, Arabic pairs the 'arabic' one); tests/test_font_pairs_load.py loads every pair in Chromium. 'tones' are the section library's art directions (directions.json): a business's category gives its palette, the palette its direction, and the direction the two pairs it may get; the business itself picks one of them (omni_prod/typography.pair_for). Formal and elegant pages get a serif display face (Frank Ruhl Libre, David Libre; Amiri, El Messiri; Playfair Display, Fraunces); warm and bold pages a friendly or heavy one (Secular One, Rubik; Lalezar, Noto Kufi Arabic; Space Grotesk, Archivo). No family belongs to two scripts, so a Hebrew page and an Arabic page never share a font.",
+ "version": 1,
+ "tones": ["formal", "warm", "bold", "elegant"],
+ "pairs": {
+  "hebrew": [
+   {"id": "he-frank-heebo", "tones": ["formal", "elegant"],
+    "display": {"family": "Frank Ruhl Libre", "fallback": "serif", "weights": [400, 700]},
+    "body": {"family": "Heebo", "fallback": "system-ui, sans-serif", "weights": [400, 700]}},
+   {"id": "he-david-assistant", "tones": ["formal", "elegant"],
+    "display": {"family": "David Libre", "fallback": "serif", "weights": [400, 700]},
+    "body": {"family": "Assistant", "fallback": "system-ui, sans-serif", "weights": [400, 700]}},
+   {"id": "he-secular-heebo", "tones": ["warm", "bold"],
+    "display": {"family": "Secular One", "fallback": "system-ui, sans-serif", "weights": [400]},
+    "body": {"family": "Heebo", "fallback": "system-ui, sans-serif", "weights": [400, 700]}},
+   {"id": "he-rubik-assistant", "tones": ["warm", "bold"],
+    "display": {"family": "Rubik", "fallback": "system-ui, sans-serif", "weights": [400, 700]},
+    "body": {"family": "Assistant", "fallback": "system-ui, sans-serif", "weights": [400, 700]}}
+  ],
+  "arabic": [
+   {"id": "ar-amiri-plex", "tones": ["formal", "elegant"],
+    "display": {"family": "Amiri", "fallback": "serif", "weights": [400, 700]},
+    "body": {"family": "IBM Plex Sans Arabic", "fallback": "system-ui, sans-serif", "weights": [400, 700]}},
+   {"id": "ar-messiri-tajawal", "tones": ["formal", "elegant"],
+    "display": {"family": "El Messiri", "fallback": "system-ui, sans-serif", "weights": [400, 700]},
+    "body": {"family": "Tajawal", "fallback": "system-ui, sans-serif", "weights": [400, 700]}},
+   {"id": "ar-lalezar-cairo", "tones": ["warm", "bold"],
+    "display": {"family": "Lalezar", "fallback": "system-ui, sans-serif", "weights": [400]},
+    "body": {"family": "Cairo", "fallback": "system-ui, sans-serif", "weights": [400, 700]}},
+   {"id": "ar-kufi-almarai", "tones": ["warm", "bold"],
+    "display": {"family": "Noto Kufi Arabic", "fallback": "system-ui, sans-serif", "weights": [400, 700]},
+    "body": {"family": "Almarai", "fallback": "system-ui, sans-serif", "weights": [400, 700]}}
+  ],
+  "latin": [
+   {"id": "la-playfair-source", "tones": ["formal", "elegant"],
+    "display": {"family": "Playfair Display", "fallback": "serif", "weights": [400, 700]},
+    "body": {"family": "Source Sans 3", "fallback": "system-ui, sans-serif", "weights": [400, 700]}},
+   {"id": "la-fraunces-inter", "tones": ["formal", "elegant"],
+    "display": {"family": "Fraunces", "fallback": "serif", "weights": [400, 700]},
+    "body": {"family": "Inter", "fallback": "system-ui, sans-serif", "weights": [400, 700]}},
+   {"id": "la-grotesk-dmsans", "tones": ["warm", "bold"],
+    "display": {"family": "Space Grotesk", "fallback": "system-ui, sans-serif", "weights": [400, 700]},
+    "body": {"family": "DM Sans", "fallback": "system-ui, sans-serif", "weights": [400, 700]}},
+   {"id": "la-archivo-plex", "tones": ["warm", "bold"],
+    "display": {"family": "Archivo", "fallback": "system-ui, sans-serif", "weights": [400, 700]},
+    "body": {"family": "IBM Plex Sans", "fallback": "system-ui, sans-serif", "weights": [400, 700]}}
+  ]
+ }
+}

@@ -88,6 +88,7 @@
     "tests/test_workspace_tests_in_ci.py"
    ],
    "expect_failed": [
+    "test_nothing_lets_a_failure_through",
     "test_the_browser_job_runs_the_guards"
    ]
   },
@@ -123,6 +124,74 @@
    ],
    "expect_failed": [
     "test_every_guard_is_taken_out_once"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a sidebar mutation that crashes or finds no server counts as caught again",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "            elif ! grep -q AssertionError mutation.log; then\n              # a crash, a dead server or a timeout also exits non-zero; only a failed assertion is a catch\n              echo \"::error title=sidebar mutation::$m failed without an assertion, so it was not caught\"; cat mutation.log; missed=1\n",
+     "new": "            # NEGATIVE CONTROL: any non-zero exit is a catch\n"
+    }
+   ],
+   "targets": [
+    "tests/test_workspace_tests_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_test_and_every_mutation_run"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the sidebar step may fail and the job still passes (continue-on-error)",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - name: Sidebar against the development API, and its mutations\n        timeout-minutes: 9\n",
+     "new": "      - name: Sidebar against the development API, and its mutations\n        timeout-minutes: 9\n        continue-on-error: true  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_workspace_tests_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_nothing_lets_a_failure_through"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the guards test's failure is swallowed by || true",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - run: node tests/workspace_guards_browser.cjs\n",
+     "new": "      - run: node tests/workspace_guards_browser.cjs || true  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_workspace_tests_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_nothing_lets_a_failure_through"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the sidebar script runs under set +e, so a failed run no longer stops it",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "        timeout-minutes: 9\n        run: |\n          OMNI_ENV=development",
+     "new": "        timeout-minutes: 9\n        run: |\n          set +e  # NEGATIVE CONTROL\n          OMNI_ENV=development"
+    }
+   ],
+   "targets": [
+    "tests/test_workspace_tests_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_nothing_lets_a_failure_through"
    ]
   }
  ]

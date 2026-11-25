@@ -85,9 +85,19 @@ def _readable(fg: str, bg: str, minimum: float) -> str:
     return end
 
 
-def build(prompt: str) -> dict:
+_FONTS_KEYS = {'pair', 'script', 'body', 'display'}
+
+
+def build(prompt: str, fonts: dict | None = None) -> dict:
     """The contract for this build, from the approved brief's Design line. Raises ContractError when the brief has
-    no Design line with a four-colour palette (a raw request has none: there is nothing to lock)."""
+    no Design line with a four-colour palette (a raw request has none: there is nothing to lock).
+
+    `fonts` (warehouse 126; the content route, omni_prod/typography.contract_fonts) locks a font pair from the library
+    instead of the Design line's one font: the body and display tokens are the pair's, and the contract records the
+    pair, its script and the font the brief named (`fonts`), so the fingerprint binds the pair. Without it the
+    contract is exactly what it was (same tokens, same fingerprint)."""
+    if fonts is not None and set(fonts) != _FONTS_KEYS:
+        raise ContractError(f'fonts must name exactly {sorted(_FONTS_KEYS)}, not {sorted(fonts)}')
     block = (prompt or '').rsplit('--- Approved project brief', 1)
     line = _DESIGN.search(block[1] if len(block) == 2 else '')
     if not line:
@@ -106,6 +116,9 @@ def build(prompt: str) -> dict:
     design_line = block[1][line.start():].split('\n', 1)[0]
     display_m = _DISPLAY.search(design_line)
     display = ' '.join(display_m.group('display').split()) if display_m else family
+    brief_font = family
+    if fonts is not None:
+        family, display = fonts['body'], fonts['display']
     tokens = {
         '--color-bg': bg, '--color-surface': surface, '--color-text': text, '--color-muted': muted,
         '--color-border': border, '--color-primary': primary, '--color-on-primary': on_primary,
@@ -127,6 +140,8 @@ def build(prompt: str) -> dict:
     css = ':root {\n' + ''.join(f'  {k}: {v};\n' for k, v in tokens.items()) + '}'
     body = {'version': VERSION, 'style': line.group('style'), 'tokens': tokens, 'contrast': measured,
             'dropped': {'accent': _accent.lower(), 'why': 'one accent colour: the primary'}}
+    if fonts is not None:
+        body['fonts'] = {'pair': fonts['pair'], 'script': fonts['script'], 'brief_font': brief_font}
     return {**body, 'css': css,
             'fingerprint': hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()[:16]}
 

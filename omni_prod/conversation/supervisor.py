@@ -35,6 +35,7 @@ from .. import discovery as d
 from ..intake import agent as intake_agent
 from ..intake import approval_flow as AF      # the buttons' names, said in the texts below exactly as the buttons carry them
 from ..intake import contract as C
+from ..intake import media_reading as MR    # warehouse 128: a file's reading is a draft the customer approves first
 from ..intake.interpreter import DeterministicInterpreter, interpreter_from_env, language_of
 
 
@@ -564,8 +565,18 @@ class ConversationSupervisor:
         A changed brief is a new revision with a new fingerprint: an older approval no longer matches it."""
         if row is None:
             return row
+        row = self._collected_skeleton(project_id, account_id, row)
         brief = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
         if not d.note_customer_texts(brief, d.customer_messages(self._messages(project_id))):
+            return row
+        return self.briefs.save(project_id=project_id, account_id=account_id, brief=brief,
+                                expected_revision=row.revision, request_key=None)
+
+    def _collected_skeleton(self, project_id, account_id, row):
+        """Warehouse 128: the skeleton the customer approved from a competitor screenshot is the brief's, by the same
+        rule as their facts (idempotent; a changed brief is a new revision, so an older approval no longer matches)."""
+        brief = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
+        if not MR.collect_skeleton(brief, self._messages(project_id)):
             return row
         return self.briefs.save(project_id=project_id, account_id=account_id, brief=brief,
                                 expected_revision=row.revision, request_key=None)
@@ -681,19 +692,21 @@ class ConversationSupervisor:
 
     # --------------------------------------------------------------------- turn
     def turn(self, *, project_id: str, account_id: str, message: str = '', answers: dict | None = None,
-             request_key: str | None = None, lang: str | None = None, attachments: list | None = None) -> Turn:
+             request_key: str | None = None, lang: str | None = None, attachments: list | None = None,
+             reading: dict | None = None) -> Turn:
         # the conversation agent is decided per account (OMNI_INTAKE_AGENT=accounts): every check of this turn --
         # here, in the interpreter's context, in the card limit -- reads the account set for this turn
         from ..intake import conversation_agent as agent
         token = agent.for_account(account_id)
         try:
             return self._turn(project_id=project_id, account_id=account_id, message=message, answers=answers,
-                              request_key=request_key, lang=lang, attachments=attachments)
+                              request_key=request_key, lang=lang, attachments=attachments, reading=reading)
         finally:
             agent.release(token)
 
     def _turn(self, *, project_id: str, account_id: str, message: str = '', answers: dict | None = None,
-              request_key: str | None = None, lang: str | None = None, attachments: list | None = None) -> Turn:
+              request_key: str | None = None, lang: str | None = None, attachments: list | None = None,
+              reading: dict | None = None) -> Turn:
         message = (message or '').strip()[:8000]
         lang = lang or language_of(message or 'שלום')
         T = _TXT['he' if lang == 'he' else 'en']
@@ -709,7 +722,9 @@ class ConversationSupervisor:
             # A quick-reply button is stored with its answers (not only its label), so the conversation can be
             # replayed exactly from the store on any server (_replayed_spec); no schema change (jsonb column).
             said_meta = {**({'attachments': [{'id': a['id'], 'kind': a['kind']} for a in attachments]} if attachments else {}),
-                         **({'answers': dict(answers)} if answers and not message else {})}
+                         **({'answers': dict(answers)} if answers and not message else {}),
+                         # warehouse 128: this message is the customer's approval of a reading draft (approve_reading)
+                         **({'reading_decision': dict(reading)} if reading else {})}
             # Founder 2026-10-28 (option b): a conversation that STARTS now is on the two-gate flow from its first
             # message -- an explicit, durable mark, not a creation date. A project that already has a brief or a
             # conversation keeps whatever flow it was on (EarlierProjectsKeepWorking).
@@ -860,6 +875,18 @@ class ConversationSupervisor:
                 turn.brief_row = row
         flow = {'flow': AF.FLOW} if any((m.get('interpretation') or {}).get('flow') == AF.FLOW
                                         for m in self.store.messages_for(project_id, limit=2)) else {}
+        pending = MR.pending_drafts(self._messages(project_id)) if feasible else []
+        if pending:
+            # warehouse 128: a draft read from the customer's file waits for their decision. Nothing is approved and no
+            # plan is made until they approve it (it enters the request) or discard it -- the same rule build admission
+            # applies (approval_flow.spec_invalid_reason).
+            self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=shown,
+                                   brief_revision=row.revision, request_key=request_key,
+                                   interpretation={'spec_approval_refused': brief_fingerprint,
+                                                   'reason': 'reading_draft_pending', **flow})
+            turn.reply = MR.text(lang)['pending']
+            turn.actions = MR.actions(pending[-1])
+            return self._finish(project_id, account_id, turn, request_key)
         self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=shown,
                                brief_revision=row.revision if row else None, request_key=request_key,
                                interpretation={**({'spec_approved': row.fingerprint} if feasible else
@@ -925,6 +952,126 @@ class ConversationSupervisor:
         turn.reply = ' '.join(parts)
         return self._finish(project_id, account_id, turn, request_key)
 
+    # ------------------------------------------------------------- warehouse 128: input by image and voice
+    def _customer_says(self, project_id, account_id, row, content, meta, request_key):
+        """A customer message of a reading step whose content is a platform LABEL ("📎 a handwritten note", "I approved
+        the draft"), not the customer's words: marked so that no new brief starts from it and no replay hears it. The
+        two-gate flow mark is carried like on every customer message."""
+        meta = {**meta, 'label': True}
+        recent = self.store.messages_for(project_id, limit=2)
+        if (row is None and not recent) or any((m.get('interpretation') or {}).get('flow') == AF_FLOW for m in recent):
+            meta = {**meta, 'flow': AF_FLOW}
+        self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=content,
+                               brief_revision=row.revision if row else None, request_key=request_key,
+                               interpretation=meta)
+
+    def read_attachment(self, *, project_id: str, account_id: str, attachment: dict, data: bytes, purpose: str,
+                        reader, lang: str | None = None, request_key: str | None = None) -> Turn:
+        """The customer's stored file is read and becomes a DRAFT they see (an assistant message): never the brief,
+        never a build. A reading that fails is one sentence in their language with the next action."""
+        MR.check_purpose(purpose)
+        row = self.briefs.latest(project_id)
+        lang = MR.check_lang(lang or language_of(row.brief.prompt if row else 'שלום'))
+        evidence = {'id': str((attachment or {}).get('id') or ''), 'kind': str((attachment or {}).get('kind') or ''),
+                    'sha256': str((attachment or {}).get('sha256') or '')}
+        self._customer_says(project_id, account_id, row, MR.text(lang)['uploaded'][purpose],
+                            {'attachments': [{'id': evidence['id'], 'kind': evidence['kind']}],
+                             'reading_request': {'purpose': purpose, 'attachment_id': evidence['id'],
+                                                 'sha256': evidence['sha256']}}, request_key)
+        try:
+            source = MR.source_of(purpose, attachment, data)
+            answer = MR.read(reader, purpose, data, source['mime'])
+            draft = MR.draft_from_reading(purpose, answer, source=source, lang=lang,
+                                          reader=getattr(reader, 'name', type(reader).__name__))
+        except MR.ReadingFailed as exc:
+            logging.getLogger(__name__).warning('MEDIA_READING_NOT_DRAFTED project=%s purpose=%s code=%s detail=%s',
+                                                project_id, purpose, exc.code, exc.detail)
+            turn = Turn('reading_failed', lang, MR.failure_sentence(exc.code, purpose, lang), row)
+            turn.interpretation = {'reading_failed': {'code': exc.code, 'purpose': purpose, 'detail': exc.detail[:300],
+                                                      'attachment_id': evidence['id'], 'sha256': evidence['sha256']}}
+            return self._finish(project_id, account_id, turn, request_key)
+        turn = Turn('reading_draft', draft['language'], MR.draft_reply(draft), row)
+        turn.actions = MR.actions(draft)
+        turn.interpretation = {'reading_draft': draft}
+        return self._finish(project_id, account_id, turn, request_key)
+
+    def _reading_decided(self, project_id, account_id, draft_fingerprint, request_key, lang):
+        messages = self._messages(project_id)
+        found = MR.find_draft(messages, draft_fingerprint)
+        if found is None:
+            raise KeyError(draft_fingerprint)
+        draft = MR.checked_draft(found)
+        row = self.briefs.latest(project_id)
+        lang = MR.check_lang(lang or draft['language'])
+        if draft_fingerprint in MR.decisions(messages):
+            turn = Turn('reading_decided', lang, MR.text(lang)['already'], row)
+            return draft, row, lang, self._finish(project_id, account_id, turn, request_key)
+        return draft, row, lang, None
+
+    def approve_reading(self, *, project_id: str, account_id: str, draft_fingerprint: str, evidence,
+                        lang: str | None = None, request_key: str | None = None) -> Turn:
+        """The customer approves a draft. `evidence(attachment_id)` returns the stored attachment (KeyError when it is
+        gone): the file the draft was read from must still be saved with the same digest (128.4). A note or a
+        recording then enters the conversation as the customer's own message, through the same path as typed text; a
+        skeleton enters the brief (collected like the customer's facts). Gate 1 and gate 2 still follow."""
+        draft, row, lang, done = self._reading_decided(project_id, account_id, draft_fingerprint, request_key, lang)
+        if done is not None:
+            return done
+        src = draft['source']
+        try:
+            stored = evidence(src['attachment_id'])
+        except KeyError:
+            stored = None
+        if not stored or stored.get('sha256') != src['sha256']:
+            turn = Turn('reading_failed', lang, MR.failure_sentence('evidence_missing', draft['purpose'], lang), row)
+            turn.interpretation = {'reading_failed': {'code': 'evidence_missing', 'purpose': draft['purpose'],
+                                                      'attachment_id': src['attachment_id'], 'sha256': src['sha256'],
+                                                      'draft': draft_fingerprint}}
+            return self._finish(project_id, account_id, turn, request_key)
+        decision = {'fingerprint': draft_fingerprint, 'decision': 'approved', 'purpose': draft['purpose'],
+                    'source': {'attachment_id': src['attachment_id'], 'sha256': src['sha256']}}
+        if draft['purpose'] in MR.TEXT_PURPOSES:
+            # the approved text IS the customer's message: the brief is written by the same path as typed text
+            return self.turn(project_id=project_id, account_id=account_id, message=draft['text'],
+                             request_key=request_key, lang=draft['language'], reading=decision)
+        T = MR.text(lang)
+        self._customer_says(project_id, account_id, row, T['approved_shown'],
+                            {'reading_decision': {**decision, 'skeleton': draft['skeleton']}}, request_key)
+        row = self._collected(project_id, account_id, self.briefs.latest(project_id))
+        turn = Turn('reading_approved', lang, '', row)
+        parts = [T['skeleton_in']]
+        if row is None:
+            parts.append(T['describe'])
+        elif row.complete and self._feasibility(row).get('buildable'):
+            parts += self._gate1(turn, row, lang)
+        else:
+            parts.append(T['continue'])
+        turn.reply = ' '.join(parts)
+        return self._finish(project_id, account_id, turn, request_key)
+
+    def discard_reading(self, *, project_id: str, account_id: str, draft_fingerprint: str, lang: str | None = None,
+                        request_key: str | None = None) -> Turn:
+        """The customer discards a draft: nothing of it is used; the file stays saved as evidence."""
+        draft, row, lang, done = self._reading_decided(project_id, account_id, draft_fingerprint, request_key, lang)
+        if done is not None:
+            return done
+        T = MR.text(lang)
+        self._customer_says(project_id, account_id, row, T['discarded_shown'],
+                            {'reading_decision': {'fingerprint': draft_fingerprint, 'decision': 'discarded',
+                                                  'purpose': draft['purpose'],
+                                                  'source': {k: draft['source'][k] for k in ('attachment_id', 'sha256')}}},
+                            request_key)
+        # the next action is never lost: a draft that held gate 1 is decided, so a complete spec is shown for approval
+        # again (the approve button of the earlier message is no longer the last one the customer sees)
+        row = self._collected(project_id, account_id, self.briefs.latest(project_id))
+        turn = Turn('reading_discarded', lang, '', row)
+        parts = [T['discarded']]
+        if row is not None and row.complete and self._feasibility(row).get('buildable') \
+                and not MR.pending_drafts(self._messages(project_id)):
+            parts += self._gate1(turn, row, lang)
+        turn.reply = ' '.join(parts)
+        return self._finish(project_id, account_id, turn, request_key)
+
     @staticmethod
     def _label_carries_its_question(turn, lang=None) -> None:
         """The owner, 2026-11-16 ("the empty question"): the chat said "One question before we continue:" and nothing
@@ -983,7 +1130,8 @@ class ConversationSupervisor:
         alone, the single word "אתר". 3,295 characters of the customer's own words never reached the build.
         A message said to be kept is part of the request. Bounded; a text cut by the bound is logged."""
         earlier = [m.get('content') or '' for m in self.store.messages_for(project_id, limit=40)
-                   if m.get('role') == 'customer' and not (m.get('interpretation') or {}).get('system')]
+                   if m.get('role') == 'customer' and not (m.get('interpretation') or {}).get('system')
+                   and not (m.get('interpretation') or {}).get('label')]   # a platform label is not their words (128)
         if earlier and earlier[-1] == message:
             earlier = earlier[:-1]                        # the current message was stored at turn start
         earlier = [e.strip() for e in earlier if e.strip() and e.strip() != message.strip()]
@@ -1783,6 +1931,8 @@ class ConversationSupervisor:
         spec, previous, held = None, None, set()
         for m in history:
             meta = m.get('interpretation') or {}
+            if m.get('role') == 'customer' and meta.get('label'):
+                continue                                      # warehouse 128: a platform label, not the customer's words
             if m.get('role') == 'customer':
                 text = m.get('content') or ''
                 lang = 'he' if language_of(text) == 'he' else 'en'

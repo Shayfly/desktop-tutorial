@@ -79,6 +79,9 @@ OWNER = {
     'gate-GAME-runtime': 'platform',
     'gate-SITE_CLAIMS': 'content',
     'gate-SITE_PARITY': 'platform',
+    # app builds only (omni_prod/app_states, warehouse 130): never installed on this route; listed so no id is unowned
+    'gate-APP_STATES-': 'platform',
+    'APP-STATES': 'platform',
     'window-': 'platform',
     'asset-plan': 'platform',
     'asset-marker': 'platform',

@@ -14,6 +14,8 @@ import re
 import unittest
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 CI = (ROOT / '.github' / 'workflows' / 'v24-ci.yml').read_text(encoding='utf-8')
 SIDEBAR = (ROOT / 'tests' / 'workspace_sidebar_local.cjs').read_text(encoding='utf-8')
@@ -42,7 +44,22 @@ class SidebarRunsOnADevelopmentServer(unittest.TestCase):
         self.assertIn('WORKSPACE_MUTATION=$m node tests/workspace_sidebar_local.cjs', job)
         self.assertIn('was NOT caught', job)
         self.assertIn('mutation anchor missing', job)                            # a vanished anchor is not a catch
+        self.assertIn("elif ! grep -q AssertionError mutation.log; then", job)   # nor is a crash or a dead server
+        self.assertIn('failed without an assertion, so it was not caught', job)
         self.assertIn('exit $missed', job)
+
+    def test_nothing_lets_a_failure_through(self):
+        # read as YAML, not as text: a step-level continue-on-error, an if: that skips it, or set +e in its script
+        # would let every failure through while every string above is still present (#508 review, 2026-11-23)
+        job = yaml.safe_load(CI)['jobs']['browser-tests']
+        self.assertNotIn('continue-on-error', job)
+        steps = [s for s in job['steps'] if re.search(r'workspace_(sidebar_local|guards_browser)\.cjs', s.get('run', ''))]
+        self.assertEqual(len(steps), 3)                                           # parse-check, guards, sidebar
+        for step in steps:
+            with self.subTest(step=step.get('name') or step['run'][:40]):
+                self.assertNotIn('continue-on-error', step)
+                self.assertNotIn('if', step)
+                self.assertNotRegex(step['run'], r'set \+e|\|\|\s*true|\|\|\s*:')
 
     def test_the_test_lists_its_mutations(self):
         self.assertIn('if (process.env.WORKSPACE_LIST_MUTATIONS) {', SIDEBAR)

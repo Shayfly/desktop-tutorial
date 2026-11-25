@@ -143,6 +143,23 @@ class ContractArchitect:
         return with_contract(self._inner.create_spec(prompt, *args, **kwargs), self.contract)
 
 
+def _route_contract(core, contract: dict) -> dict:
+    """The contract the gate holds. On the content route whose contract was locked from this same brief (source
+    'brief'), it is the route's: the brief's colours with the route's font pair (warehouse 126) -- the page is checked
+    against the contract it was rendered with. Any other token that differs is a platform defect and raises."""
+    from ..site_content import ROUTE
+    route = getattr(core, 'site_route', None)
+    if getattr(route, 'route', None) != ROUTE or getattr(route, 'contract_source', None) != 'brief':
+        return contract
+    held = route.contract
+    differ = sorted(k for k in set(held['tokens']) | set(contract['tokens'])
+                    if not k.startswith('--font-') and held['tokens'].get(k) != contract['tokens'].get(k))
+    if differ:
+        raise ValueError(f"the content route's contract {held['fingerprint']} and the brief's {contract['fingerprint']} "
+                         f'differ in {differ}')
+    return held
+
+
 def install(engine, *, prompt: str, gateway=None) -> str:
     """Lock the contract, give it to the generator, and install the gate in its mode. Returns the prompt the engine
     builds from. Installed last, right before the build."""
@@ -159,6 +176,8 @@ def install(engine, *, prompt: str, gateway=None) -> str:
         contract, why = C.build(prompt), ''
     except C.ContractError as exc:
         contract, why = None, f'no design contract: {exc}'
+    if contract is not None:
+        contract = _route_contract(core, contract)
     core.design_contract = contract
     business = (prompt or '').split('--- Approved project brief')[0].strip()
     core.executor = core.apple_gate = AppleGateExecutor(core.executor, contract, mode, gateway=gateway,
