@@ -1445,6 +1445,12 @@ class ConversationSupervisor:
         limit = self._turn_limit(project_id, interp, answers)
         if limit is not None:
             return self._closing_turn(project_id, turn, row, limit, parts, lang, T)
+        if (interp is not None and (interp.reply or '').strip()
+                and any(a.get('type') == 'approve_spec' for a in turn.actions)):
+            # one message never both asks and shows the summary. The summary comes when nothing is left to ask, so the
+            # model's question goes and its other words stay (rehearsals 45702506669 / 45702519795: "...האם תרצו שנתחיל
+            # להכין את הסיכום? שלב 1 מתוך 2 — ..." asked a question and showed the summary in one message)
+            parts = [p for p in ((_no_question(p) if p == interp.reply else p) for p in parts) if p]
         if not parts:
             parts.append(T['nothing'])
         turn.reply = re.sub(r'\n +', '\n', ' '.join(parts)).strip()
