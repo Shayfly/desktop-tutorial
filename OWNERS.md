@@ -30,6 +30,9 @@ part 1).
 4. **Language with the owner:** plain Hebrew; whatever the owner must decide is one clear question with options.
 5. Stop and ask the owner before: spend, a migration, a provider change, a change to the customer's approval flow,
    and a deletion in production.
+6. **Open pull requests: no limit.** Plan v3 capped open pull requests at 3; the owner cancelled the cap on
+   2026-11-25 at 19:05 UTC ("מבטל את חוק מגבלת ה-3 PR, מעכשיו זה ללא הגבלה"). Every other condition above still
+   holds for each pull request.
 
 ## 2026-11-21 — the owner: only Claude Code works
 
