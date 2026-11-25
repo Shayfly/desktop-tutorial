@@ -9,6 +9,28 @@
 
 Ownership is responsibility-based, not a permanent file-path prohibition. All changes require evidence and the review rules in `AGENTS.md`.
 
+## 2026-11-25 (19:28) — the owner's plan v3: Claude Code executes, ChatGPT reviews
+
+This section is the rule in force; the sections below it are the record of how it came to be (inbox/002, plan v3,
+part 1).
+
+| Who | Does | Does not |
+|---|---|---|
+| Claude Code | executes every task of the plan: code, tests, CI, documentation, pull requests | merge its own pull request; approve its own work |
+| ChatGPT | reviews: one comment per pull request on its full head SHA, starting "ביקורת ChatGPT על <SHA>" and ending PASS or FAIL with findings (file, line, what breaks) | write code in the repository, push, merge, fix a bug it found |
+| The owner (Shai) | decides which Claude Code session works, approves each merge, decides money, providers, deletions and the customer's approval flow | — |
+
+1. **Merge conditions:** CI green on the head SHA, a ChatGPT PASS on the same SHA, and the owner's approval. A push
+   after the review voids it; a review on another SHA does not count.
+2. **One Claude Code session works on the repository at a time.** On 2026-11-25 two sessions worked in parallel on the
+   same files (#529, session_01ERUbRcwv8hSRuXZnDuhCtB; #530, session_01ERUbRfJvVMhK1YSeUCTduG); the owner picks the
+   one that continues, and the other stops.
+3. **ChatGPT's open pull requests (#455, #526) move to Claude Code:** reviewed, their worth moved to a new branch from
+   main, the old one closed with a link and the reason.
+4. **Language with the owner:** plain Hebrew; whatever the owner must decide is one clear question with options.
+5. Stop and ask the owner before: spend, a migration, a provider change, a change to the customer's approval flow,
+   and a deletion in production.
+
 ## 2026-11-21 — the owner: only Claude Code works
 
 The owner, 2026-11-21: "עזוב תעשה את כל המשימות שלו אתה של קודקס תמשיך אתה בנוסף לכל מה שיש לך לעשות ככה רק אתה עובד", and later
