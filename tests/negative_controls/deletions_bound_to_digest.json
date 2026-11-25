@@ -18,6 +18,8 @@
     "tests/test_deletions_declared.py"
    ],
    "expect_failed": [
+    "test_a_blob_declared_for_an_earlier_version_covers_nothing",
+    "test_a_line_digest_or_a_path_alone_covers_no_binary",
     "test_a_path_only_declaration_covers_nothing",
     "test_an_old_allowance_on_the_same_file_does_not_cover_a_new_change",
     "test_one_of_several_declarations_for_the_path_may_match",
@@ -38,6 +40,7 @@
     "tests/test_deletions_declared.py"
    ],
    "expect_failed": [
+    "test_a_line_digest_or_a_path_alone_covers_no_binary",
     "test_a_path_only_declaration_covers_nothing",
     "test_the_path_only_entries_of_the_real_file_cover_nothing_new"
    ]
@@ -56,6 +59,7 @@
     "tests/test_deletions_declared.py"
    ],
    "expect_failed": [
+    "test_an_author_signed_binary_declaration_fails",
     "test_the_matching_declaration_still_needs_a_reviewer"
    ]
   },
