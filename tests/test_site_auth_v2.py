@@ -30,7 +30,8 @@ BASELINE_SHA = '2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49'
 # instruction): the PRO gate's unit and LANDING_CONVERSION's professional-shape guidance.
 # 2026-11-21 (testimonials-one-rule, declared in docs/identity/allowed-identity-changes.json, signed by the owner's
 # instruction): skill.copy_quality's testimonial guidance and checklist say the same rule.
-BASELINE_DIGEST = 'd1655f300092b184cb37a267328dd1987eebff27a476dcc63285e3286a2fcd33'
+# #525: intentional role-guidance change, exact identity declaration prepared; independent signature still pending.
+BASELINE_DIGEST = 'f2fd495d7d482cfec82093e5ccccf0d2965631b8ff3494c7871cced21bd40d76'
 
 
 def _digest(flag: str) -> str:

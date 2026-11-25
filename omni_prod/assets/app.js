@@ -67,6 +67,14 @@ const T = {
       worker_exception:'משהו השתבש אצלנו בזמן הבנייה. זה לא בגללכם.',
       model_budget_exhausted:'הבקשה גדולה מדי לבנייה אחת, והבנייה נעצרה לפני שהסתיימה.',
       model_unavailable:'יש עומס אצלנו כרגע, והבנייה לא הושלמה. כדאי לחכות כמה דקות.',
+      site_content_invalid:'לא הצלחנו להכין תוכן תקין לאתר גם לאחר תיקון. הבנייה לא הושלמה, ואפשר לנסות שוב.',
+      site_render_defect:'התוכן הוכן, אבל תקלה אצלנו מנעה הצגה תקינה של האתר. הוא לא סומן כמוכן. אפשר לנסות שוב.',
+      model_bad_output:'קיבלנו תשובות, אבל אף אחת לא הייתה בפורמט הדרוש לבנייה. עצרנו לפני הבדיקות. זו לא בעיה של עומס או מגבלת שימוש. אפשר לנסות שוב.',
+      attempt_ledger_unavailable:'לא הצלחנו לרשום את עלויות הבנייה, ולכן עצרנו לפני שהתחלנו ליצור את האתר. אפשר לנסות שוב בעוד כמה דקות.',
+      plan_violation:'הבנייה נעצרה: אחד השלבים חרג מהתוכנית שאושרה לבנייה הזאת. הפירוט בפרטים הטכניים.',
+      infrastructure_not_configured:'אחד הכלים הדרושים לבנייה לא היה מוכן אצלנו, ולכן לא התחלנו לבנות. זו תקלה אצלנו. אפשר לנסות שוב.',
+      capability_not_configured:'אחת היכולות שהאתר צריך, למשל יצירת תמונות, עדיין לא הייתה מוכנה אצלנו. הבנייה נעצרה לפני היצירה.',
+      release_policy_unavailable:'הבנייה הסתיימה, אבל דוח האיכות שנדרש כדי לסמן אותה כמוכנה לא נוצר, ולכן היא לא סומנה כמוכנה. הפירוט בפרטים הטכניים.',
       provider_quota_exhausted:'יש עומס אצלנו כרגע, והבנייה לא הושלמה. כדאי לחכות כמה דקות.',
       model_policy_blocked:'משהו השתבש אצלנו בזמן הבנייה. זה לא בגללכם.',
       capability_gate_failed:'חלק מהאתר (למשל התמונות) לא הצלחנו להכין, אז לא מסרנו אותו.',
@@ -208,6 +216,14 @@ const T = {
       worker_exception:'Something went wrong on our side during the build. It was not caused by you.',
       model_budget_exhausted:'The request is too big for one build, and the build stopped before it finished.',
       model_unavailable:'We are very busy right now, and the build was not finished. It is worth waiting a few minutes.',
+      site_content_invalid:'We could not prepare valid site content even after correction. The build was not completed; you can try again.',
+      site_render_defect:'The content was prepared, but a problem on our side prevented the site from displaying correctly. It was not marked ready; you can try again.',
+      model_bad_output:'We received replies, but none was in the format needed to build the site. We stopped before the checks. This was not caused by high demand or a usage limit. You can try again.',
+      attempt_ledger_unavailable:'We could not record the cost of the build, so we stopped before creating the site. Try again in a few minutes.',
+      plan_violation:'The build stopped: a step went outside the plan approved for this build. See the technical details.',
+      infrastructure_not_configured:'One of the tools needed for the build was not ready on our side, so we did not start building. You can try again.',
+      capability_not_configured:'A feature the site needs, such as image creation, was not ready on our side. We stopped before creating the site.',
+      release_policy_unavailable:'The build finished, but the quality report needed to mark it ready was not produced, so it was not marked ready. See the technical details.',
       provider_quota_exhausted:'We are very busy right now, and the build was not finished. It is worth waiting a few minutes.',
       model_policy_blocked:'Something went wrong on our side during the build. It was not caused by you.',
       capability_gate_failed:'We could not prepare part of the site (the pictures, for example), so we did not hand it over.',
@@ -1810,7 +1826,7 @@ function renderTrack() {
   // shown as skipped, never as done (a failed build once showed the quality
   // gates as passed although generation had failed before them).
   const FAIL_STEP = { infrastructure_not_configured: 1, capability_not_configured: 2, capability_gate_failed: 2, image_mismatch: 2,
-    worker_exception: 3, build_timeout: 3, provider_liability_unknown: 3, worker_lost: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, provider_quota_exhausted: 3, model_policy_blocked: 3, verification_failed: 3, release_policy_failed: 4, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
+    worker_exception: 3, build_timeout: 3, provider_liability_unknown: 3, worker_lost: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, model_bad_output: 3, attempt_ledger_unavailable: 3, plan_violation: 3, provider_quota_exhausted: 3, model_policy_blocked: 3, verification_failed: 3, release_policy_failed: 4, release_policy_unavailable: 4, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
   const failedIdx = failedCode in FAIL_STEP ? FAIL_STEP[failedCode] : -1;
   const preview = S.preview;
   const steps = [];
@@ -1835,7 +1851,7 @@ function renderTrack() {
   backendStep('stepInfra', 1, ['infrastructure_not_configured'], infraEv === null && status === 'ready' ? t('none') : null);
   backendStep('stepAssets', 2, ['capability_not_configured', 'capability_gate_failed', 'image_mismatch'], null);
   const repairNote = b && b.repair_rounds !== undefined && b.repair_rounds !== null && isTerminal(b.status) ? t('repairs')(b.repair_rounds) : t('noteGenerate');
-  backendStep('stepGenerate', 3, ['worker_exception', 'preview_not_ready', 'model_budget_exhausted', 'model_unavailable', 'provider_quota_exhausted', 'model_policy_blocked', 'verification_failed'], repairNote);
+  backendStep('stepGenerate', 3, ['worker_exception', 'preview_not_ready', 'model_budget_exhausted', 'model_unavailable', 'model_bad_output', 'attempt_ledger_unavailable', 'plan_violation', 'provider_quota_exhausted', 'model_policy_blocked', 'verification_failed'], repairNote);
   backendStep('stepGates', 4, ['quality_gate_failed', 'security_gate_failed', 'rights_gate_not_clear'], null);
   let pState = (!preview && (status === 'cancelled' || status === 'failed')) ? 'skipped' : 'pending', pNote = null;
   if (preview) {
@@ -1979,7 +1995,7 @@ function renderSharing(p) {
 // died); a failed build whose report could not be generated, or a report stored before the list existed, says nothing
 // rather than guessing.
 function notRunLine(b) {
-  const NO_REPORT_BEFORE_CHECKS = ['worker_exception', 'model_budget_exhausted', 'model_unavailable', 'provider_quota_exhausted', 'model_policy_blocked', 'attempt_ledger_unavailable', 'plan_violation'];
+  const NO_REPORT_BEFORE_CHECKS = ['worker_exception', 'model_budget_exhausted', 'model_unavailable', 'model_bad_output', 'provider_quota_exhausted', 'model_policy_blocked', 'attempt_ledger_unavailable', 'plan_violation'];
   const status = b ? String(b.status || '').toLowerCase() : '';
   if (status !== 'failed' && status !== 'ready') return '';
   const qr = b.evidence && b.evidence.quality_report;

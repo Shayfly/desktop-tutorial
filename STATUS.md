@@ -1,3 +1,44 @@
+# 2026-11-25 — Skills #525 follow-up declarations approved by the owner (Codex, HOLD for CI and independent review)
+
+- Shai approved the six-path source identity declaration and exact intake deletion digest `e7d7be5a4c04c90ca07719c7e49a74657d680e34c0837a3717be2f35679c7ac8` for candidate `e1c8a7d77fbb96a844d2947d8a6749e3024fd2ec`. The authorization covers these two declarations.
+- The pre-authorization product tree passed 4,571 local tests and 2,380 subtests, with 325 skips, one expected failure and 11/11 relevant negative controls. The new head needs its own GitHub CI and independent merge review. [Review handoff](https://github.com/Shayfly/desktop-tutorial/pull/525#issuecomment-7162116394).
+
+# 2026-11-25 — Skills #525 independent automated review and follow-up (Codex, HOLD)
+
+- Independent automated reviewer reproduced lost probe evidence on worker escalation, missing Request Fidelity v2 in founder agentic and structured repair, and displaced actionable topics in a compacted intake context on `2cda8073ca3629ba3b3703a98a79aa7634eba40f`. Follow-up candidate preserves completed probe counts on terminal exceptions, carries v2 to both repair gateway calls, and puts advisory guidance after actionable topics in question skills v5.
+- Worker tests record the terminal status and billing with the real review executor and fixture storage. Repair tests capture both gateway payloads locally. Intake tests verify the fitted JSON retains the actionable topics and confirmed values. The existing narrow coverage of question guidance and of the reviewer checklist remains an open intake and QA item.
+- The flag-off digest is unchanged from #525, but the source declaration now needs six exact paths instead of three. The prior owner authorization covers the original scope. Fresh declaration approval, GitHub CI and an independent review on the resulting head are pending.
+
+# 2026-11-25 — Skills #525 reconciliation after A1 merge (HOLD until new CI and independent review)
+
+- Owner explicitly approved the identity declaration `executed-skill-evidence-525` and the four pending deletion declarations identified on `4edde6199307cd28b40d90b2d7fc11668fc0576a`. Recorded as owner authorization, not independent technical review.
+- Reconciled with main `042253f548186b7eeeab12d910c92b14a644cc6e`. Both declaration registries retain every line from main; all previous records remain. Preserve A1/A2 source/test blobs and all eight #525 product/generated/test files. No change to CI or enforcement logic.
+- Prior head: 18 successful checks, five failed (test, negative-controls, light, identity, validate), one expected skip. Fresh CI must confirm the changed identity and actual tests against the new main. Full local regression unavailable in this environment; no live provider call or deployment.
+
+# 2026-11-24 — Executed skill evidence (#523, partial of #455; NOT LIVE)
+
+- The existing QA skill runtime records each completed static check once, including outcome and finding counts. Guidance-only skills are explicitly NO_STATIC_CHECKS. The existing review decision, gate, budget and provider path are unchanged. Evidence excludes raw inputs and source.
+- Request fidelity v2 now reaches repair as well as architecture, generation and review; question skills v4 tells intake to preserve prior decisions and approved business facts.
+- Local exact-tree evidence: 38 focused tests, 6/6 negative controls, fast suite 1042 tests and 480 subtests; registry regenerated from source. No paid call or live verification. Other #455 changes and agent tools remain separate, pending review.
+
+# 2026-11-24 — A1 #524 integration after A2 merge (HOLD until new CI and review)
+
+- Owner explicitly approved declaration `#524-after-486`, deleted-line digest `524c69b525732a782139cc79d2c71674a1857833c17d911b43f38fe658d475de`; recorded as owner authorization, not independent review. Prior head `a5fe405aa390cbb7de8d5c0daf2987f53c49aef1`: 22 successful checks, one expected skip and light failed only on the pending declaration.
+- Incorporate main `4e45b3a399d8d7eb3644ebcd5b0a718ab7217d4b` (#527); preserve both STATUS entries and every A2 source/test blob. Only A1 authorization metadata and task tracking are new in this reconciliation. No provider activation or production release. Fresh exact-head CI and independent review remain required; full local regression was not run in this environment.
+
+# 2026-11-24 — A1 owner routing candidate (#523; NOT LIVE)
+
+- Venice agent profile prefers Gemini 3.5 Flash Lite, then Claude Haiku 5.5 when the primary is ineligible before contact. Existing account scope and single-call reservation preserved. Direct/non-Venice path unchanged.
+- Tested on main 674811c: 43 focused tests and 9 subtests, 14/14 negative controls, fast suite 1040 tests and 480 subtests. Provider HTTP intercepted; no paid call.
+- #524 V11 exposed a historical Sonnet-only HTTP 500 test that never reached the new allowed route. Updated fixtures assert actual POST on both Gemini and Haiku; 56 focused tests, 17 subtests, refusal mutations 4/4 and fast suite 1042/480 passed locally. No product code changed in this correction.
+- Pending: exact-head CI, independent technical review, live catalog/JSON/account/worker canaries and release. A2–A8 tools/skills and orchestration remain separate work.
+
+# 2026-11-24 — A2 approved reference comparison candidate (#523; NOT LIVE)
+
+- Google Search Grounding standard terms restrict automated link collection and indexing; no Google Grounding collector was committed or enabled. See docs/spec/a2-approved-research.md.
+- Additive A2 adapter uses the existing library; explicit revision-bound owned/licensed grants, 3–8 fresh approved sources, closed-structure model input, source evidence binding and validated three-reference recommendation. No network or model calls; no build approval.
+- Local evidence on main 851217c8: 33 focused/related tests and 5 subtests, 9/9 negative controls, fast 1042/480. Live rights-grant store, acquisition provider, metered Gemini transport and integration are pending.
+
 # 2026-11-23 — tonight's fixes: the build no longer dies on a picture nobody asked for, the chat never ends, the phone (Claude Code)
 
 - **Merged** (all CI green on the exact head; the owner's approval in the chat): #514 `d6eb690` (build count from 2026-11-23),
@@ -20,6 +61,32 @@
   instead of being added (ShayFly lost its packages and prices); "מאשר" typed instead of the button (a money gate, not
   built); one picture per destination (not built).
 
+# 2026-11-22 (night) — the platform UI after the release: four merges, three languages, the design's own tests (Claude Code)
+
+The owner, 2026-11-22 evening: the platform UI moves to Claude Code, "continue developing it"; "תוצאות בהרבה שפות".
+
+- **Implemented and independently verified (merged, CI green on the exact head, production READY):**
+  - #502 `90fd284` -> `473a820` [release]: a website is not offered for approval before the customer named the business.
+    Vercel `dpl_3mpTtvrCEMSx1cDqvTrEm65FQADP`.
+  - #503 `adea624` -> `e5bf2ac` [release]: Codex's design with its review fixes and a blocking WCAG 2.2 AA check (the
+    entry above). Vercel `dpl_Ax13GhrAyzxY4Bv7DcbHo9LY6MCk`, deploy-worker 45072002228.
+  - #504 `ebd34df` -> `396d571` [release]: a business we do not know is asked about its colours; a WhatsApp answer keeps
+    its role. Vercel `dpl_8tCnYrswwopYXpScShjYFQcxHvnt`.
+  - #505 `526928a` -> `e35f1b4` [release]: the platform in Hebrew, English and Arabic (`tests/ui_languages_browser.cjs`
+    in CI: no key falls back, no text in another script); the accessibility check in all three, `3 languages x 3 widths
+    clean; 8/8 faults caught`. Vercel `dpl_86kVjp5UbA22jsJZ8TyyLTSRfVeK`.
+- **Implemented, in review (this branch):** #503 review items T1-T3. `tests/workspace_sidebar_local.cjs` (Codex's) and
+  its mutations run in CI on a development server (uvicorn, in-memory accounts): `9/9 mutations caught` locally on the
+  exact CI step. Its status filter no longer passes on the in-memory server's 503 (T3). Codex's three guards against late
+  answers have a test (`tests/workspace_guards_browser.cjs`): `8 scenarios hold; 7/7 guards caught when taken out`.
+  Pinned by `tests/test_workspace_tests_in_ci.py`, controls 7/7. #506 (path ownership for `codex/` and `design/`
+  branches) merged the same night, `0918f2b` -> `74243bf`. Update 2026-11-24: on today's main (#507 removed the naming
+  dialog) the sidebar test creates a project by its first message; the guards test passes unchanged.
+- **Not implemented:** the server's fixed texts (conversation sentences, approval, failures, the build announcement)
+  reach an Arabic customer in English; the translation is under way. The accent colour has no token in the G-APPLE
+  design contract, so the second colour a customer names is recorded but not rendered.
+- **Not verified:** no native Arabic speaker has read the Arabic (translated and reviewed by agents); no customer has
+  used the new design or the Arabic platform in production yet.
 # 2026-11-22 — the platform for everyone: no naming step, plain words, readable text, 44px controls (Claude, a second session beside Claude Code)
 
 - **The order.** The owner, 2026-11-22 23:18, after #503 went live: upgrade the platform's look to the level of the large
@@ -400,6 +467,14 @@
 - **Evidence:** `tests/test_no_store_answer_is_read.py` 3 passed on the owner's two messages (1 fails without);
   `test_conversation_agent_no_cards` unchanged; control `no_store_words` 1/1.
 
+# 2026-11-18 — Direct-provider model enrollment (Codex; PARTIAL)
+
+- Implemented, local verification only: ten disabled text routes in the existing catalog and source-backed effective-dated prices; direct Google Nano Banana adapter through the existing image factory and capability executor; read-only account discovery.
+- Local evidence: focused provider/routing/capability suite 109 passed, 1 skipped, 9 subtests; dialect/probe/reliability suite 93 passed, 3 subtests; fast suite 1481 passed, 604 subtests, 15.1 s under the 30 s limit; enrollment/image/document checks 29 passed, 2 subtests. Matrix --check and compileall passed. No independent approval or live provider proof is claimed.
+- Awaiting external verification: account model visibility, request canaries, task quality, real durable-journal recovery and generated-image storage, then exact-SHA CI and independent review before activation.
+- Blocked here by runtime access: OPENAI_API_KEY, ANTHROPIC_API_KEY and GEMINI_API_KEY are absent in this execution environment; discovery returned NOT_CONFIGURED for each. Worker secrets were not read. New routes remain disabled with unknown quality.
+- Not implemented by this change: Google video/music/voice generation and image editing.
+- Details and official sources: docs/DIRECT_MODEL_ENROLLMENT_HE.md.
 # 2026-11-19 — the concurrent daily-cap test counted calls, not dollars (Claude Code)
 
 - **What broke:** intake-budget-pg on #463 (run 44484532008): `test_50_concurrent_turns_never_exceed_the_daily_cap`
@@ -4511,6 +4586,10 @@ call and observes both counters reach one (HTTP is intercepted, no paid call).
 The PG balance/replay test now executes that worker path twice for the same ID.
 Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
 
+## 2026-11-19 — Direct model enrollment negative controls (Codex)
+
+- PR #453 adds seven missing assertions. The requested 11 controls plus a provider-switch control exercise the real execution paths.
+- A pending image operation retains its identity across changes to price and cannot be submitted to a different provider after a lost response. Production activation and independent review of the new head are pending.
 ## 2026-11-19 — Finding attribution check (Codex)
 
 - Added CI verification of the declared Found-by and Co-Authored-By commit trailers. The check flags a shared named agent and does not infer authorship on commits without attribution. The comparison also recognizes the versioned Claude signatures used in main. Three focused tests and two mutation controls passed locally. Repository rollout and independent review pending.
@@ -4574,3 +4653,14 @@ Follow-up after the manual check: migration 045 was merged in #474. The [worker 
 - Computed from `build_jobs` for the last 35 days: 48 builds, 11 `ready` (23%), 0 first-pass.
 - In the last 21 days, `verification_failed` caused 21 of 33 failures (3.3 repair rounds on average).
 
+## 2026-11-19 — Direct model enrollment remains disabled (#453, Codex)
+
+- Synced with main `0ed3d0e`. The deletion registry contains every main declaration plus ten pending independent review: 251 + 10 = 261. The exact-deletion check found a matching digest for every changed file with deleted lines.
+- All ten added text routes remain `enabled: false`. The catalog requires explicit opt-in, an integer quality score from 1 to 100, a provider key and valid governed pricing before routing a staged entry. The four direct Google image model choices remain unavailable without explicit configuration and credentials. No paid calls or configuration changes were made.
+- Full local `pytest tests` with production and test dependencies at main `0ed3d0e` and branch code `bab6b57`: 3,979 and 4,025 passed respectively, both with 291 skips, one xfail and zero failures or collection errors. AcceptanceW passed in both reports. Focused checks: 61 passed. `direct_model_enrollment` negative controls: 14/14, including unmeasured quality and implicit opt-in. GitHub CI and review are pending.
+## 2026-11-20 — AcceptanceW without optional dependencies (Codex)
+
+- Reproduced the failure on main `0ed3d0e` without FastAPI and psycopg. The nested unittest suite ignored the repository's measured dependency manifest and reported 43 errors and four failures.
+- AcceptanceW still runs a nested suite and requires a successful exit. With optional dependencies present, the existing unittest command and 300-second timeout stay in place. Without them, the nested pytest command applies the repository's `not needs_env` selection and has a separate 600-second ceiling. Three modules and four individual tests that depend on FastAPI were measured and added to the manifest. They remain in full CI.
+- The standalone AcceptanceW test passed in the dependency-light environment on code commit `1453d7e` in 252.76 seconds. Both negative controls passed, including one that injects a real inner test failure and checks that the outer gate rejects it.
+- The same offline reproduction on current base `df37f4f` still failed (43 errors and four failures in the nested command). Full `pytest tests` with dependencies passed both before and after the fix: 4,015 on base and 4,016 on the branch, 294 skipped and one expected failure on each, with no failures or errors.

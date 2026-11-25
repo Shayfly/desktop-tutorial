@@ -2,6 +2,27 @@
  "rule": "Michael 2026-11-13: while identity.yml blocks, a flag-off change passes only with ONE signed entry that matches it exactly -- from_digest/to_digest and the exact added/removed/changed/data_changed gate-closure paths. No wildcards. reviewer must not be the author. Checked by scripts/identity_declared.py. to_digest is unique in this file: a consumed entry is never used twice.",
  "changes": [
   {
+    "id": "executed-skill-evidence-525",
+    "from_digest": "d1655f300092b184cb37a267328dd1987eebff27a476dcc63285e3286a2fcd33",
+    "to_digest": "f2fd495d7d482cfec82093e5ccccf0d2965631b8ff3494c7871cced21bd40d76",
+    "added": [],
+    "removed": [],
+    "changed": [
+      "omni_prod/agentic_repair.py",
+      "omni_prod/autonomous_agents.py",
+      "omni_prod/intake/question_skills.py",
+      "omni_prod/product_review.py",
+      "omni_prod/skills_runtime.py",
+      "omni_prod/worker_tasks.py"
+    ],
+    "data_changed": [],
+    "reason": "Record completed static checks through worker termination, apply Request Fidelity v2 across code repair routes, and keep actionable question topics before advisory guidance in question skills v5.",
+    "author": "chatgpt-integration",
+    "reviewer": "shai",
+    "reviewed_at": "2026-11-25",
+    "signature_note": "Shai explicitly approved the six-path identity declaration and named intake deletion digest in chat on 2026-11-25 for exact code candidate e1c8a7d77fbb96a844d2947d8a6749e3024fd2ec. Owner authorization transcribed by the author. Independent merge review remains pending."
+  },
+  {
    "id": "338-opening-hours-facts",
    "from_digest": "728eb139efa6f3eab28ae603ede3b5b3fa9b78029642981dfdd169ba008b9a16",
    "to_digest": "9eac2891aa6db03f34053cb81776fe8fc289cd3885eefd57856754011ef42d27",

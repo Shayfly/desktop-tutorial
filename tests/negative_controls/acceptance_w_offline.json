@@ -1,0 +1,43 @@
+{
+  "pr": "acceptance-w-offline",
+  "sha256": [
+    "tests/test_acceptance_w_offline.py",
+    "tests/test_needs_env.py"
+  ],
+  "controls": [
+    {
+      "id": "M1",
+      "what": "An offline regression suite with a failed test counts as passing.",
+      "mutations": [
+        {
+          "file": "tests/test_m4_acceptance.py",
+          "old": "            self.assertEqual(offline.returncode, 0,",
+          "new": "            self.assertEqual(0, 0,"
+        }
+      ],
+      "targets": [
+        "tests/test_acceptance_w_offline.py"
+      ],
+      "expect_failed": [
+        "test_offline_acceptance_fails_on_a_real_inner_test_failure"
+      ]
+    },
+    {
+      "id": "M2",
+      "what": "An evidenced missing FastAPI module can disappear from the offline manifest.",
+      "mutations": [
+        {
+          "file": "tests/needs_env.txt",
+          "old": "tests/test_conversation_limit.py\n",
+          "new": ""
+        }
+      ],
+      "targets": [
+        "tests/test_needs_env.py::NeedsEnv::test_the_list_is_the_measured_73"
+      ],
+      "expect_failed": [
+        "test_the_list_is_the_measured_73"
+      ]
+    }
+  ]
+}

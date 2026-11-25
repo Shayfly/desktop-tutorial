@@ -84,6 +84,13 @@ class VercelIgnoredBuildStep(unittest.TestCase):
                 self.assertEqual(run('production', 'main', message=message)[0], SKIP)
         self.assertEqual(run('production', 'main', message='Merge pull request #412 from x/y [release]  ')[0], BUILD)
 
+    def test_a_pr_title_merge_with_its_number_is_a_release(self):
+        # 2026-11-23, 02a8dc2: the repository now titles a merge with the PR title, and GitHub appends "(#521)"
+        title = 'הסוכן הראשון: כל פרט נשמר, בלי משפטים מתוסרטים, וסיכום שמדבר על העסק [release] (#521)'
+        self.assertEqual(run('production', 'main', message=title)[0], BUILD)
+        self.assertEqual(run('production', 'main', message='title (#521)')[0], SKIP)           # the number alone is not
+        self.assertEqual(run('production', 'main', message='[release] title (#521)')[0], SKIP)  # nor the mark elsewhere
+
     def test_previews_still_build_automatically(self):
         code, out = run('preview', 'fix/x', CASES['code']['head'], CASES['code'], message='no marker')
         self.assertEqual(code, BUILD, out)

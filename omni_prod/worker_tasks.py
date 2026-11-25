@@ -437,6 +437,12 @@ def failure_code(exc: BaseException) -> str:
             return 'model_budget_exhausted'
         return 'model_policy_blocked'
     if isinstance(exc, ModelGatewayError) and 'all model routes failed' in text:
+        # warehouse 70 (bld_* 2026-11-17, gemini-3.8-flash: "model did not return valid JSON"): every model that was
+        # tried answered, but none in the required format. That is not "load or quota", and the customer is told so.
+        from .model_gateway import ModelJSONRejected
+        tried = [k for k in getattr(exc, 'route_failures', ()) if k not in ('skipped', 'budget')]
+        if tried and all(isinstance(k, type) and issubclass(k, ModelJSONRejected) for k in tried):
+            return 'model_bad_output'
         return 'model_unavailable'
     return 'worker_exception'
 
@@ -502,6 +508,15 @@ def taxonomy_evidence(engine, *, ready: bool = False) -> dict:
         return {'failure_taxonomy': [], 'first_pass': False, 'taxonomy_note': 'the engine was never built'}
     return {'failure_taxonomy': list(getattr(engine, 'failure_taxonomy', None) or []),
             'first_pass': bool(ready) and getattr(engine, 'first_pass', None) is True}
+
+
+def _aborted_review_evidence(engine) -> dict:
+    """Carry completed static probe records through a terminal exception."""
+    executor = getattr(engine, 'executor', None)
+    reviews = getattr(executor, 'reviews', None) or ()
+    rounds = [{'round': review['round'], 'skill_execution': review['skill_execution']}
+              for review in reviews if review.get('skill_execution')]
+    return {'product_review_skill_execution': rounds} if rounds else {}
 
 
 def resolve_billing(subscriptions, *, build_id: str, ready: bool, spent: Decimal, external_calls: int) -> str:
@@ -1342,6 +1357,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                               if escalated else {}),
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
+                           **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS, 'model_budget_binding': model_budget_binding},
@@ -1367,6 +1383,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'infrastructure': exc.evidence,
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
+                           **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
@@ -1394,6 +1411,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence, 'capabilities': blocked_evidence,
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
+                           **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
@@ -1418,6 +1436,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
+                           **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
