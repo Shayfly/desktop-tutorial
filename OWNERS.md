@@ -33,6 +33,14 @@ part 1).
 6. **Open pull requests: no limit.** Plan v3 capped open pull requests at 3; the owner cancelled the cap on
    2026-11-25 at 19:05 UTC ("מבטל את חוק מגבלת ה-3 PR, מעכשיו זה ללא הגבלה"). Every other condition above still
    holds for each pull request.
+7. **The session that works, and the owner's approval (2026-11-25, 19:06 UTC):** "מאשר לך הכול, הכול אתה נבחרת לבנות
+   לתקן לשדרג הכול אתה!!". As Claude Code read it, and stated back to the owner the same hour:
+   - The session that continues is session_01ERUbRcwv8hSRuXZnDuhCtB. #530 moves to it; session_01ERUbRfJvVMhK1YSeUCTduG
+     stops (it was idle when the decision was made).
+   - The owner's approval is given for the open questions put to him that hour: the S1.5 state mapping; the merge of
+     each pull request once its CI is green and ChatGPT has given PASS on its full head SHA; and the live Golden E2E run
+     (S1.2) inside the $2 cap per build.
+   - ChatGPT's review stays the independent review: the author still does not approve its own work (rule 1; AGENTS.md).
 
 ## 2026-11-21 — the owner: only Claude Code works
 
