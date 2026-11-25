@@ -2,6 +2,9 @@
  *
  * Real Chromium, the real index.html, app.js and app.css, the server mocked. For every language in LANGS:
  *   1. every key the English dictionary has (all its blocks) exists in that language -- nothing falls back to English;
+ *      and inside every table the English one holds (errCodes, failMissing, workspaceStates, ...) every entry too: on
+ *      2026-11-25 eight failure messages (#486) existed in Hebrew and English only, and an Arabic customer read the
+ *      generic "something went wrong" instead of the real cause -- the top-level check could not see inside a table;
  *   2. the page's lang and dir follow the language (Arabic and Hebrew right to left);
  *   3. no text the customer can read is in another language's script: on the entry and the workspace screens there is
  *      no Hebrew letter in the English or Arabic UI, and no Arabic letter in the Hebrew or English UI (content the
@@ -38,6 +41,16 @@ async function open(browser, lang) {
 }
 
 // the visible text of the page, without the language picker (it names every language in its own script, by design)
+// the keys of T.en missing in T[l], one level into every table (an object of texts)
+const missingKeys = (page, lang) => page.evaluate(l => {
+  const out = Object.keys(T.en).filter(k => !(k in T[l]));
+  for (const [k, v] of Object.entries(T.en)) {
+    if (!v || typeof v !== 'object' || Array.isArray(v) || !T[l][k] || typeof T[l][k] !== 'object') continue;
+    for (const sub of Object.keys(v)) if (!(sub in T[l][k])) out.push(`${k}.${sub}`);
+  }
+  return out;
+}, lang);
+
 const visibleText = page => page.evaluate(() => {
   const out = [];
   const walk = el => {
@@ -64,7 +77,7 @@ const visibleText = page => page.evaluate(() => {
     assert.deepEqual(langs, ['he', 'en', 'ar'], 'the platform languages');
     for (const lang of langs) {
       const { page, errors } = await open(browser, lang);
-      const missing = await page.evaluate(l => Object.keys(T.en).filter(k => !(k in T[l])), lang);
+      const missing = await missingKeys(page, lang);
       if (missing.length) failures.push(`${lang}: ${missing.length} keys fall back to English: ${missing.slice(0, 10).join(', ')}`);
       const dir = await page.evaluate(() => [document.documentElement.lang, document.documentElement.dir]);
       const wantDir = lang === 'en' ? 'ltr' : 'rtl';
@@ -93,10 +106,14 @@ const visibleText = page => page.evaluate(() => {
       const { page: f } = await open(browser, 'ar');
       const caughtKey = await f.evaluate(() => { delete T.ar.login; return Object.keys(T.en).filter(k => !(k in T.ar)); });
       if (!caughtKey.includes('login')) failures.push('fault "a key missing in Arabic" was NOT caught');
+      // and a message missing inside a table (the 2026-11-25 gap: eight failure messages in he/en only)
+      await f.evaluate(() => { delete T.ar.errCodes.model_bad_output; });
+      if (!(await missingKeys(f, 'ar')).includes('errCodes.model_bad_output'))
+        failures.push('fault "a failure message missing in Arabic" was NOT caught');
       await f.evaluate(() => { const p = document.createElement('p'); p.textContent = 'כניסה לחשבון'; document.body.prepend(p); });
       const leaked = (await visibleText(f)).filter(x => SCRIPT.he.test(x));
       if (!leaked.length) failures.push('fault "Hebrew text on the Arabic screen" was NOT caught');
-      else console.log('::notice title=ui languages::both deliberate faults caught');
+      else console.log('::notice title=ui languages::all three deliberate faults caught');
       await f.close();
     }
     // the picker switches the page
