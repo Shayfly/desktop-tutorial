@@ -105,6 +105,23 @@
    "expect_failed": [
     "test_every_platform_language_is_checked_whole"
    ]
+  },
+  {
+   "id": "NC7",
+   "what": "the languages test checks only the top-level keys again, so a failure message missing in Arabic passes",
+   "mutations": [
+    {
+     "file": "tests/ui_languages_browser.cjs",
+     "old": "      const missing = await missingKeys(page, lang);",
+     "new": "      const missing = await page.evaluate(l => Object.keys(T.en).filter(k => !(k in T[l])), lang);  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_platform_a11y_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_every_platform_language_is_checked_whole"
+   ]
   }
  ]
 }
