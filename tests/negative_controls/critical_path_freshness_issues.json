@@ -1,0 +1,187 @@
+{
+ "pr": "critical-path-freshness-issues",
+ "sha256": [
+  "tests/test_critical_path_freshness_issues.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the issue step runs on every run, green or red",
+   "mutations": [
+    {
+     "file": ".github/workflows/critical-path-freshness.yml",
+     "old": "        if: failure() && github.event_name == 'schedule' && github.ref == 'refs/heads/main'\n",
+     "new": "        if: always()  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_critical_path_freshness_issues.py"
+   ],
+   "expect_failed": [
+    "test_the_issue_step_runs_only_when_the_scheduled_run_on_main_failed"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a failed pull-request or manual run opens issues too (not only the schedule on main)",
+   "mutations": [
+    {
+     "file": ".github/workflows/critical-path-freshness.yml",
+     "old": "        if: failure() && github.event_name == 'schedule' && github.ref == 'refs/heads/main'\n",
+     "new": "        if: failure()  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_critical_path_freshness_issues.py"
+   ],
+   "expect_failed": [
+    "test_the_issue_step_runs_only_when_the_scheduled_run_on_main_failed"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the check step may fail and the job still passes (continue-on-error)",
+   "mutations": [
+    {
+     "file": ".github/workflows/critical-path-freshness.yml",
+     "old": "      - name: Check successful production evidence\n",
+     "new": "      - name: Check successful production evidence\n        continue-on-error: true  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_critical_path_freshness_issues.py"
+   ],
+   "expect_failed": [
+    "test_nothing_lets_the_check_fail_quietly"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the pipe into tee hides the check's exit code (pipefail dropped)",
+   "mutations": [
+    {
+     "file": ".github/workflows/critical-path-freshness.yml",
+     "old": "          set -o pipefail\n          python3 scripts/check_critical_path_freshness.py",
+     "new": "          python3 scripts/check_critical_path_freshness.py"
+    }
+   ],
+   "targets": [
+    "tests/test_critical_path_freshness_issues.py"
+   ],
+   "expect_failed": [
+    "test_nothing_lets_the_check_fail_quietly",
+    "test_the_check_step_ends_with_the_scripts_own_exit_code[1]",
+    "test_the_check_step_ends_with_the_scripts_own_exit_code[3]"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the workflow may not open issues (issues: write dropped)",
+   "mutations": [
+    {
+     "file": ".github/workflows/critical-path-freshness.yml",
+     "old": "  issues: write\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_critical_path_freshness_issues.py"
+   ],
+   "expect_failed": [
+    "test_the_workflow_may_open_issues"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "an open issue for the path is ignored and a second one is opened",
+   "mutations": [
+    {
+     "file": ".github/workflows/critical-path-freshness.yml",
+     "old": "            if [ -n \"$number\" ]; then\n",
+     "new": "            if false; then  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_critical_path_freshness_issues.py"
+   ],
+   "expect_failed": [
+    "test_an_open_issue_is_updated_never_duplicated",
+    "test_the_same_path_twice_in_one_run_is_one_issue"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a failure that names no path opens no proper issue (the fallback is gone)",
+   "mutations": [
+    {
+     "file": ".github/workflows/critical-path-freshness.yml",
+     "old": "          if [ -z \"$errors\" ]; then\n            # the check failed without naming a path (it crashed or GitHub refused it): said, never dropped\n            errors=\"::error title=Critical path freshness::the check failed without naming a broken path\"\n          fi\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_critical_path_freshness_issues.py"
+   ],
+   "expect_failed": [
+    "test_a_failure_that_names_no_path_still_opens_an_issue",
+    "test_a_missing_log_still_opens_an_issue"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the check's output is no longer kept for the issue step (no tee)",
+   "mutations": [
+    {
+     "file": ".github/workflows/critical-path-freshness.yml",
+     "old": "python3 scripts/check_critical_path_freshness.py | tee \"$RUNNER_TEMP/freshness.log\"",
+     "new": "python3 scripts/check_critical_path_freshness.py  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_critical_path_freshness_issues.py"
+   ],
+   "expect_failed": [
+    "test_nothing_lets_the_check_fail_quietly",
+    "test_the_check_step_ends_with_the_scripts_own_exit_code[0]",
+    "test_the_check_step_ends_with_the_scripts_own_exit_code[1]",
+    "test_the_check_step_ends_with_the_scripts_own_exit_code[3]"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "only the first broken path gets an issue",
+   "mutations": [
+    {
+     "file": ".github/workflows/critical-path-freshness.yml",
+     "old": "          done <<< \"$errors\"\n",
+     "new": "          done <<< \"$(printf '%s\\n' \"$errors\" | head -1)\"  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_critical_path_freshness_issues.py"
+   ],
+   "expect_failed": [
+    "test_an_open_issue_is_updated_never_duplicated",
+    "test_each_broken_path_opens_its_own_issue",
+    "test_the_same_path_twice_in_one_run_is_one_issue"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "an issue opened in this run is not remembered, so a repeated path opens a second one",
+   "mutations": [
+    {
+     "file": ".github/workflows/critical-path-freshness.yml",
+     "old": "              open+=$'\\n'\"$number\"$'\\t'\"$title\"\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_critical_path_freshness_issues.py"
+   ],
+   "expect_failed": [
+    "test_the_same_path_twice_in_one_run_is_one_issue"
+   ]
+  }
+ ]
+}

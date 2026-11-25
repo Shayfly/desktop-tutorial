@@ -5,9 +5,13 @@ on:
     - cron: '11 6 * * *'
   workflow_dispatch:
 
+# Law 6 -- no hiding of failures (2026-11-25): a red scheduled run on main opens ONE issue per broken path (label
+# critical-path-broken), or comments on the open one, with the check's own ::error line. The verdict is the script's
+# (scripts/check_critical_path_freshness.py, unchanged); its output is only kept in a file for the issue step.
 permissions:
   actions: read
   contents: read
+  issues: write
 
 jobs:
   freshness:
@@ -20,4 +24,38 @@ jobs:
       - name: Check successful production evidence
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/check_critical_path_freshness.py
+        run: |
+          set -o pipefail
+          python3 scripts/check_critical_path_freshness.py | tee "$RUNNER_TEMP/freshness.log"
+      - name: A broken critical path opens or updates its issue
+        if: failure() && github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          label=critical-path-broken
+          errors=$(grep -E '^::error title=[^:]+::' "$RUNNER_TEMP/freshness.log" 2>/dev/null || true)
+          if [ -z "$errors" ]; then
+            # the check failed without naming a path (it crashed or GitHub refused it): said, never dropped
+            errors="::error title=Critical path freshness::the check failed without naming a broken path"
+          fi
+          open=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=$label&per_page=100" \
+                   --jq '.[] | "\(.number)\t\(.title)"')
+          while IFS= read -r line; do
+            name=${line#::error title=}; name=${name%%::*}
+            detail=${line#::error title=*::}
+            title="Critical path broken: $name"
+            number=$(printf '%s\n' "$open" | awk -F'\t' -v t="$title" '$2 == t {print $1; exit}')
+            if [ -n "$number" ]; then
+              gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$number/comments" \
+                -f body="Still broken on $(date -u +%F): $detail"$'\n\n'"$RUN_URL" > /dev/null
+              echo "::notice title=$name::issue #$number updated"
+            else
+              number=$(gh api -X POST "repos/$GITHUB_REPOSITORY/issues" -f title="$title" -f "labels[]=$label" \
+                -f body="The daily critical-path freshness check found this path broken on $(date -u +%F)."$'\n\n'"$line"$'\n\n'"$RUN_URL" \
+                --jq .number)
+              open+=$'\n'"$number"$'\t'"$title"
+              echo "::notice title=$name::issue #$number opened"
+            fi
+          done <<< "$errors"
