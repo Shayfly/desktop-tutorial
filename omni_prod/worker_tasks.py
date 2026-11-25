@@ -2021,24 +2021,44 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
 # The build contract that produced a version (directly, or through a chain of
 # promoted modifications) decides the demand-driven acceptance scope. Read from
 # the immutable contract, never from generated files.
-# A version's lineage follows both a promoted change (modification_requests) and the workspace's own versions
-# (project_versions.parent_id: "accepted in workspace", "undo visual edit", "rollback from workspace"). Before
-# 2026-11-25 only the first was followed, so a version made by an undo or a rollback had no contract: the strict
-# acceptance floor applied to a content site (verify-replay run 45607249874: v_88812e8a4066448e and
+#
+# Lineage (2026-11-25). Every version has exactly ONE origin, so the walk is a single chain and its answer does not
+# depend on row order. The first rule that applies names the origin:
+#   1. a promoted change (modification_requests.promoted_version_id): the version the change was proposed on
+#      (source_version_id). The change was built and judged on that version (execute_modification), also when it was
+#      accepted with force on top of another head.
+#   2. a restore, a rollback or an undo: the earliest EARLIER version of the SAME project with the SAME
+#      repository_sha256. workspace.restore() commits the target's files unchanged and the checksum is computed from
+#      the files alone (workspace._checksum), so equal content has an equal value. Which version was restored is not
+#      stored anywhere else.
+#   3. anything else: parent_id, the head it was committed on.
+# The nearest version on that chain that is the result of a build (build_jobs.result_version_id) with a contract of
+# this project gives the scope. 64 steps at most; past that, and for a cycle, there is no contract (strict floor).
+#
+# History. Until 2026-11-25 only rule 1 existed, so a version made by an undo or a rollback had no contract and a
+# content site was judged on the strict floor (verify-replay run 45607249874: v_88812e8a4066448e and
 # v_8fd6c2ad3b174200 required auth/role/data_* although their build, bld_c35b8332, was an approved content site).
+# The first fix (#530 before review) followed parent_id for every version. parent_id is the project's head at commit
+# time (PostgresProjectWorkspace.commit), not the version the content came from: a data app restored after a later
+# content-site build of the same project took the content site's contract, with auth, role and data checks waived,
+# and a change accepted with force had two edges at the same depth, so LIMIT 1 picked one arbitrarily.
 _CONTRACT_SCOPE_FOR_VERSION_SQL = """
-WITH RECURSIVE edges(child, parent) AS (
-    SELECT m.promoted_version_id, m.source_version_id FROM modification_requests m
-    WHERE m.promoted_version_id IS NOT NULL AND m.source_version_id IS NOT NULL
-    UNION
-    SELECT v.id, v.parent_id FROM project_versions v WHERE v.parent_id IS NOT NULL
-), lineage(version_id, depth) AS (
+WITH RECURSIVE lineage(version_id, depth) AS (
     SELECT %s::text, 0
-    UNION
-    SELECT e.parent, l.depth + 1
-    FROM edges e
-    JOIN lineage l ON e.child = l.version_id
-    WHERE l.depth < 64
+    UNION ALL
+    SELECT o.origin, l.depth + 1
+    FROM lineage l
+    CROSS JOIN LATERAL (
+        SELECT COALESCE(
+            (SELECT min(m.source_version_id) FROM modification_requests m WHERE m.promoted_version_id = l.version_id),
+            (SELECT e.id FROM project_versions v
+               JOIN project_versions e ON e.project_id = v.project_id AND e.repository_sha256 = v.repository_sha256
+                AND (e.created_at, e.id) < (v.created_at, v.id)
+              WHERE v.id = l.version_id ORDER BY e.created_at, e.id LIMIT 1),
+            (SELECT v.parent_id FROM project_versions v WHERE v.id = l.version_id)
+        ) AS origin
+    ) o
+    WHERE l.depth < 64 AND o.origin IS NOT NULL
 )
 SELECT c.contract_json->'infrastructure', c.contract_json->'required_integrations',
        c.contract_json->'user_roles', c.contract_json->'defaults_applied', c.contract_json->>'prompt'
@@ -2047,7 +2067,7 @@ JOIN build_jobs j ON j.result_version_id = l.version_id
 JOIN build_requests r ON r.build_id = j.id
 JOIN m5_build_contracts c ON c.id = r.build_contract_id
 WHERE r.public_project_id = %s OR r.internal_project_id = %s
-ORDER BY l.depth
+ORDER BY l.depth, j.id
 LIMIT 1
 """
 
