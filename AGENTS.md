@@ -169,8 +169,10 @@ GitHub rule. "Not required" means a red result does not block a merge.
      - `finding-attribution.yml` (not required) fails a commit whose `Found-by:` and `Co-Authored-By:` name the same
        agent. A commit without `Found-by:` passes.
      - There is no required review and no CODEOWNERS (`CONTROLS.json:855`), and every agent pushes as one GitHub user.
-     - From plan v3 (2026-11-25, OWNERS.md), ChatGPT reviews every pull request on its full head SHA and the owner
-       approves each merge. This is a process rule; nothing checks it yet.
+     - Plan v3 (2026-11-25) had ChatGPT review every pull request on its full head SHA. The owner cancelled that
+       review the same evening (OWNERS.md, rule 1). What remains is CI on the exact SHA, the owner's standing approval,
+       and a review that Claude Code runs on its own branch with separate reviewer agents. That review is the author
+       checking its own work; nothing independent of the author approves a merge today.
    - *Missing:* an approval that GitHub records from an identity other than the one that pushed, such as a required
      review on main or a signed approval verified against a key the author does not hold.
 
