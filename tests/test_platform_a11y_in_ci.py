@@ -37,6 +37,9 @@ class TheCheckRuns(unittest.TestCase):
         langs = (ROOT / 'tests' / 'ui_languages_browser.cjs').read_text(encoding='utf-8')
         self.assertIn("['he', 'en', 'ar']", langs)
         self.assertIn('was NOT caught', langs)
+        # a message inside a table counts too: eight failure messages reached production in he/en only (2026-11-25)
+        self.assertIn('const missing = await missingKeys(page, lang);', langs)
+        self.assertIn('delete T.ar.errCodes.model_bad_output', langs)
 
 
 if __name__ == '__main__':
