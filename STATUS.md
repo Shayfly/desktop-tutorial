@@ -1,3 +1,9 @@
+# 2026-11-25 — Law 2 evidence runs and Law 6 freshness issues (Claude Code; implemented, verified locally, NOT yet run on GitHub)
+
+- Law 2: `scripts/resolve_evidence_runs.py` looks up every GitHub Actions run cited as evidence (21 ids in the Evidence, Requirement.observed and ProviderEvidence records) and fails one `::error` per id that is missing, not completed, not `success`, or not on its cited commit; an API error is unverified, never a pass. `.github/workflows/evidence-runs.yml`: on evidence-file PRs, daily, by hand; not required. Local evidence: `tests/test_resolve_evidence_runs.py` 29 passed; controls evidence_runs 20/20 PASS.
+- Real answer for today's ids (read-only, GitHub MCP, 2026-11-25): 18 of 21 green on their commits; RED: model-probe 37814803770 (`failure`, cited for provider availability), postdeploy-checks 37954236866 (`failure`, the CRASH evidence), paid run 39377332673 (`failure`, a supporting id in ProviderEvidence PAID_20261020). The first real run is expected red until the owner decides on these three.
+- Law 6: `.github/workflows/critical-path-freshness.yml` opens or updates one issue per broken path (label `critical-path-broken`) on a failed scheduled run on main; the check script is unchanged. Local evidence: `tests/test_critical_path_freshness_issues.py` 11 passed; controls 10/10 PASS. Not yet run on GitHub (needs the merge and a scheduled red run).
+
 # 2026-11-25 — Skills #525 follow-up declarations approved by the owner (Codex, HOLD for CI and independent review)
 
 - Shai approved the six-path source identity declaration and exact intake deletion digest `e7d7be5a4c04c90ca07719c7e49a74657d680e34c0837a3717be2f35679c7ac8` for candidate `e1c8a7d77fbb96a844d2947d8a6749e3024fd2ec`. The authorization covers these two declarations.

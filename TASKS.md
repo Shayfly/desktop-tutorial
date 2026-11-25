@@ -2,6 +2,8 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| LAW2-EVIDENCE-RUNS | Claude Code | Implemented, verified locally; branch not pushed; first real run expected red (3 of 21 cited runs not green) | `claude/practical-hopper-oi3qj2-law2-evidence`; `scripts/resolve_evidence_runs.py`, `.github/workflows/evidence-runs.yml`; tests 29 passed, controls 20/20; STATUS.md 2026-11-25 |
+| LAW6-FRESHNESS-ISSUES | Claude Code | Implemented, verified locally; branch not pushed | `.github/workflows/critical-path-freshness.yml` issue step; tests 11 passed, controls 10/10; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525-APPROVAL | Codex | Owner approved exact declarations; HOLD for CI and independent merge review | #525, approved candidate `e1c8a7d7`, base `042253f5`; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525-REVIEW | Codex, independent automated reviewer | HOLD — follow-up verified locally, pending refreshed declarations, CI and independent review | #525 head `2cda8073`, base `042253f5`; `test_terminal_skill_execution_evidence.py`, `test_repair_request_fidelity_routes.py`, `test_intake_checklist_priority.py`; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525 | chatgpt-integration | Owner declarations approved; exact-head CI and independent review pending | #525; prior head `4edde619`, main `042253f`; STATUS.md 2026-11-25 |
