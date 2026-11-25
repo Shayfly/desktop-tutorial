@@ -90,7 +90,7 @@
   "rollback_files": 4,
   "services": 10,
   "queues": 4,
-  "workflows": 63,
+  "workflows": 64,
   "environment_names": 121
  },
  "agents": [
@@ -5708,6 +5708,17 @@
    ],
    "jobs": [
     "checks"
+   ]
+  },
+  {
+   "file": "pr-report.yml",
+   "name": "PR report",
+   "triggers": [
+    "pull_request"
+   ],
+   "schedules": [],
+   "jobs": [
+    "report"
    ]
   },
   {
