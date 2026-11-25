@@ -1,0 +1,292 @@
+{
+ "pr": "name-asked-twice",
+ "sha256": [
+  "tests/test_name_asked_once.py",
+  "tests/rehearsal_transcripts_20261125.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a labelled name does not end at the next label: the doors name ('שם העסק: 148 דלתות בהנהלת: ...') is not read and is asked",
+   "mutations": [
+    {
+     "file": "omni_prod/fact_canon.py",
+     "old": "                   r\"(?=\\s*(?:[–—,.\\n]|כתובת|טלפון|$)|\\s+(?:\" + _NEXT_LABEL + r\")\\s*:)\", re.I)",
+     "new": "                   r\"(?=\\s*(?:[–—,.\\n]|כתובת|טלפון|$))\", re.I)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_a_model_that_asks_the_name_anyway_is_not_heard",
+    "test_a_stated_name_is_never_asked_and_the_summary_shows_it",
+    "test_the_label_ends_at_the_next_label",
+    "test_the_model_is_told_the_name_and_not_to_ask_it",
+    "test_the_three_requests_state_their_name"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the summary does not show the declared name",
+   "mutations": [
+    {
+     "file": "omni_prod/fact_canon.py",
+     "old": "    shown = named + shown\n",
+     "new": "    shown = shown  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_a_stated_name_is_never_asked_and_the_summary_shows_it",
+    "test_two_names_are_asked_once_as_a_choice_and_the_answer_settles_it"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a quoted name is not recorded as the customer's declared name",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "    if len(names) == 1 and not _NAME.search(whole):\n        return f'שם העסק: {names[0]}.'\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n        return f'שם העסק: {names[0]}.'\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_a_quoted_name_becomes_the_declared_name_the_build_reads",
+    "test_a_stated_name_is_never_asked_and_the_summary_shows_it",
+    "test_the_answer_to_which_one_is_the_name_it_names"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the model is not told the name the customer stated",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "        context['confirmed']['business_name'] = name\n",
+     "new": "        pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_the_model_is_told_the_name_and_not_to_ask_it"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the domain checklist still tells the model to ask the name",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "        expert = [x for x in expert if not names_the_business(x)]\n",
+     "new": "        expert = expert  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_the_model_is_told_the_name_and_not_to_ask_it"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a model that asks a stated name is heard by the customer",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            name_said = agent.without_name_question(interp.reply, known_name, lang)\n",
+     "new": "            name_said = interp.reply  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_a_model_that_asks_the_name_anyway_is_not_heard"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "two names are not asked as a choice quoting both",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "    if len(names) >= 2:\n        return NAME_WHICH_QUESTION[key].format(a=names[0], b=names[1])\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n        return NAME_WHICH_QUESTION[key].format(a=names[0], b=names[1])\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_two_names_are_asked_as_a_choice_quoting_both",
+    "test_two_names_are_asked_once_as_a_choice_and_the_answer_settles_it"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the answer to 'which one' is taken word for word instead of the name it names",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "        chosen = [n for n in names if n in (message or '')]\n",
+     "new": "        chosen = []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_the_answer_to_which_one_is_the_name_it_names"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "any quoted span is a name again (a hero title or a button text)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "for rx in (_after_the_kind(), _NAMING)",
+     "new": "for rx in (_after_the_kind(), _NAMING, re.compile(_QUOTE))"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_a_quote_that_is_not_a_name_is_not_one"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "every question with a name word is taken for the name question (the business is not required)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "(_BUSINESS_WORD.search(s) or category_of(s))",
+     "new": "True"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_the_model_sentence_that_asks_the_name_becomes_one_that_says_it"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the model's question stays in the message that shows the summary",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            parts = [p for p in ((_no_question(p) if p == interp.reply else p) for p in parts) if p]\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_a_stated_name_is_never_asked_and_the_summary_shows_it",
+    "test_the_summary_never_shares_a_message_with_a_question"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the rehearsal's checker does not report a fact asked again",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "                out.append({'turn': i, 'fact': fact, 'sentence': hit[:200]})\n",
+     "new": "                pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_the_other_facts_asked_again_are_caught",
+    "test_the_recorded_runs_fail"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the rehearsal's checker does not report a question shown with the summary",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "            out.append({'turn': i, 'sentence': hit[:200]})\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_the_recorded_runs_fail"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "a scenario passes although the checker found a fact asked again or a question with the summary",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "    if asked_again or with_summary:\n        return False\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n        return False\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_each_new_condition_fails_on_its_own",
+    "test_the_recorded_runs_fail"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "the checker reads the summary's own lines as asking a given fact again",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation_rehearsal.py",
+     "old": "        reply = _before_summary(str(t.get('agent') or ''))\n",
+     "new": "        reply = str(t.get('agent') or '')  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_the_summarys_own_lines_are_not_read_as_asking_again"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "the declared name drops the goal row from the summary card (the name is a detail, not a repeat)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/spec_card.py",
+     "old": "    details = [x for x in details if x not in names]\n",
+     "new": "    pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_first_agent_summary.py"
+   ],
+   "expect_failed": [
+    "test_the_rows_follow_the_customers_order"
+   ]
+  }
+ ]
+}
