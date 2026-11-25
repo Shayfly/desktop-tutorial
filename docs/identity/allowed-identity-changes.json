@@ -8,16 +8,19 @@
     "added": [],
     "removed": [],
     "changed": [
+      "omni_prod/agentic_repair.py",
+      "omni_prod/autonomous_agents.py",
       "omni_prod/intake/question_skills.py",
       "omni_prod/product_review.py",
-      "omni_prod/skills_runtime.py"
+      "omni_prod/skills_runtime.py",
+      "omni_prod/worker_tasks.py"
     ],
     "data_changed": [],
-    "reason": "Owner requested improved agent skills and evidence. Request fidelity v2 extends to repair; question skills v4 preserves confirmed decisions and source-backed business facts; QA records actual static checks. Exact source manifest compared on current main with the same interpreter. Independent review pending.",
+    "reason": "Record completed static checks through worker termination, apply Request Fidelity v2 across code repair routes, and keep actionable question topics before advisory guidance in question skills v5.",
     "author": "chatgpt-integration",
     "reviewer": "shai",
     "reviewed_at": "2026-11-25",
-    "signature_note": "Owner explicitly approved executed-skill-evidence-525 in chat on 2026-11-25. Transcribed by author; owner authorization, not independent technical review."
+    "signature_note": "Shai explicitly approved the six-path identity declaration and named intake deletion digest in chat on 2026-11-25 for exact code candidate e1c8a7d77fbb96a844d2947d8a6749e3024fd2ec. Owner authorization transcribed by the author. Independent merge review remains pending."
   },
   {
    "id": "338-opening-hours-facts",

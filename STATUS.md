@@ -1,3 +1,8 @@
+# 2026-11-25 — Skills #525 follow-up declarations approved by the owner (Codex, HOLD for CI and independent review)
+
+- Shai approved the six-path source identity declaration and exact intake deletion digest `e7d7be5a4c04c90ca07719c7e49a74657d680e34c0837a3717be2f35679c7ac8` for candidate `e1c8a7d77fbb96a844d2947d8a6749e3024fd2ec`. The authorization covers these two declarations.
+- The pre-authorization product tree passed 4,571 local tests and 2,380 subtests, with 325 skips, one expected failure and 11/11 relevant negative controls. The new head needs its own GitHub CI and independent merge review. [Review handoff](https://github.com/Shayfly/desktop-tutorial/pull/525#issuecomment-7162116394).
+
 # 2026-11-25 — Skills #525 independent automated review and follow-up (Codex, HOLD)
 
 - Independent automated reviewer reproduced lost probe evidence on worker escalation, missing Request Fidelity v2 in founder agentic and structured repair, and displaced actionable topics in a compacted intake context on `2cda8073ca3629ba3b3703a98a79aa7634eba40f`. Follow-up candidate preserves completed probe counts on terminal exceptions, carries v2 to both repair gateway calls, and puts advisory guidance after actionable topics in question skills v5.
