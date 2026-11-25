@@ -104,6 +104,9 @@ def main():
             when, run_id, sha = evidence
             url = f'https://github.com/{repo}/actions/runs/{run_id}'
             note = f'[{when.isoformat()}]({url}) · `{sha[:12]}`'
+            # Law 6 (2026-11-25): a passing path says so in the log, so the issue step can close a recovered path's
+            # issue on positive evidence, never on the absence of an error line.
+            print(f'::notice title={name}::PASS — {when.isoformat()} {url} ({sha[:12]})')
         else:
             note = evidence or 'No qualifying successful step'
             print(f'::error title={name}::{status} — {note}')
