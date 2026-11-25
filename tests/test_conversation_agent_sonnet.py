@@ -33,7 +33,7 @@ GLOBAL = {'OMNI_INTAKE_PROVIDER': 'venice', 'OMNI_VENICE_PRICE_CEILING_USD_PER_M
 
 
 def models(*present):
-    prices = {'gemini-3-5-flash-lite': (0.375, 3.125), 'openai-gpt-6-luna': (0.1, 0.5), 'claude-sonnet-5-5': (2, 10), 'claude-haiku-5-5': (0.1, 0.5), 'qwen3-235b-a22b-instruct-2507': (0.15, 0.6)}
+    prices = {'openai-gpt-6-luna': (0.1, 0.5), 'claude-sonnet-5-5': (2, 10), 'claude-haiku-5-5': (0.1, 0.5), 'qwen3-235b-a22b-instruct-2507': (0.15, 0.6)}
     return {'data': [{'id': m, 'model_spec': {'privacy': 'anonymized', 'pricing': {
         'input': {'usd': prices[m][0]}, 'output': {'usd': prices[m][1]}}}} for m in present]}
 
@@ -72,27 +72,16 @@ class TheAgentRunsOnSonnet(unittest.TestCase):
     def test_the_agent_quote_carries_its_own_profile(self):
         e = agent_quote().envelope
         self.assertEqual((e['mode'], e['venice_select']), ('agent', 'order'))
-        self.assertEqual(e['venice_allowed_models'], ['gemini-3-5-flash-lite', 'claude-haiku-5-5'])
-        self.assertEqual(e['venice_ceiling_usd_per_m'], ['0.38', '3.13'])
+        self.assertEqual(e['venice_allowed_models'], ['openai-gpt-6-luna', 'claude-sonnet-5-5'])
+        self.assertEqual(e['venice_ceiling_usd_per_m'], ['2', '10'])
 
-    def test_gemini_answers_even_when_haiku_is_cheaper(self):
-        self.assertEqual(run(agent_quote(), Venice(models('claude-haiku-5-5', 'gemini-3-5-flash-lite'))),
-                         ['gemini-3-5-flash-lite'])
+    def test_luna_answers_when_venice_offers_it(self):                 # the owner, 2026-11-19, after the measurement
+        self.assertEqual(run(agent_quote(), Venice(models('claude-sonnet-5-5', 'openai-gpt-6-luna'))),
+                         ['openai-gpt-6-luna'])
 
-    def test_haiku_answers_when_gemini_is_not_offered(self):
-        self.assertEqual(run(agent_quote(), Venice(models('openai-gpt-6-luna', 'claude-haiku-5-5'))),
-                         ['claude-haiku-5-5'])
-
-    def test_gemini_above_quoted_ceiling_uses_haiku_before_contact(self):
-        listed = models('gemini-3-5-flash-lite', 'claude-haiku-5-5')
-        listed['data'][0]['model_spec']['pricing']['output']['usd'] = 3.14
-        self.assertEqual(run(agent_quote(), Venice(listed)), ['claude-haiku-5-5'])
-
-    def test_no_eligible_model_fails_without_a_paid_post(self):
-        venice = Venice(models('openai-gpt-6-luna', 'claude-sonnet-5-5'))
-        with self.assertRaises(V.NoAllowedModel):
-            run(agent_quote(), venice)
-        self.assertEqual(venice.sent_model, [])
+    def test_sonnet_answers_when_luna_is_not_offered(self):          # decision 10: the next model, before any call
+        self.assertEqual(run(agent_quote(), Venice(models('claude-haiku-5-5', 'claude-sonnet-5-5'))),
+                         ['claude-sonnet-5-5'])
 
     def test_the_list_order_wins_over_the_price(self):
         # luna is first AND cheapest, so the agent profile alone cannot tell order from price: a profile whose first
@@ -141,7 +130,7 @@ class OnlyTheAgent(unittest.TestCase):
                 agent.release(token)
 
     def test_the_agent_account_gets_the_sonnet_profile_and_no_one_else(self):
-        self.assertEqual(self.profile_for('owner')['models'], ('gemini-3-5-flash-lite', 'claude-haiku-5-5'))
+        self.assertEqual(self.profile_for('owner')['models'], ('openai-gpt-6-luna', 'claude-sonnet-5-5'))
         self.assertIsNone(self.profile_for('someone-else'))
 
     def test_off_venice_the_agent_gets_no_venice_profile(self):
@@ -157,7 +146,7 @@ class TheRehearsalMeasuresTheAgent(unittest.TestCase):
     def test_the_agent_quote_is_production_s_with_the_profile_from_the_code(self):
         q = R.agent_quote(self.PROD)
         self.assertEqual((q['mode'], q['venice_select'], q['venice_allowed_models'][0]),
-                         ('agent', 'order', 'gemini-3-5-flash-lite'))
+                         ('agent', 'order', 'openai-gpt-6-luna'))
         self.assertEqual(R.project_cap(self.PROD['quote']), Decimal('0.15'))
 
     def test_the_production_path_never_measures_an_agent_quote_by_chance(self):
@@ -170,13 +159,13 @@ class TheRehearsalMeasuresTheAgent(unittest.TestCase):
 
     def test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits(self):
         g = R.ProductionPathGateway(R.agent_quote(self.PROD), cap_usd=Decimal('0.15'), max_turns=2)
-        venice = Venice(models('gemini-3-5-flash-lite', 'claude-haiku-5-5'))
+        venice = Venice(models('openai-gpt-6-luna', 'claude-sonnet-5-5'))
         real = V.VeniceIntakeGateway
         with mock.patch.dict(os.environ, KEY), \
                 mock.patch.object(V, 'VeniceIntakeGateway', lambda q, **kw: real(q, env=KEY, transport=venice, **kw)):
             interp = ModelInterpreter(g)
             first, second, third = (interp.interpret('אתר לחנות פרחים בחיפה') for _ in range(3))
-        self.assertEqual(venice.sent_model, ['gemini-3-5-flash-lite', 'gemini-3-5-flash-lite'])
+        self.assertEqual(venice.sent_model, ['openai-gpt-6-luna', 'openai-gpt-6-luna'])
         self.assertEqual((first.limit, second.limit), (None, None))
         self.assertEqual(third.limit, {'kind': 'turns', 'source': 'reserve'})
         g.reset()
