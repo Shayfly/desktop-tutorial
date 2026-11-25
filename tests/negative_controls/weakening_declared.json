@@ -9,81 +9,1132 @@
  "controls": [
   {
    "id": "NC1",
-   "what": "law 5: the or-true kind is dropped from the table (an added line that swallows a failure passes)",
-   "mutations": [
-    {
-     "file": "scripts/weakening_declared.py",
-     "old": "(?:/bin/)?true\\b')),",
-     "new": "(?:/bin/)?true\\bNEVER')),  # NEGATIVE CONTROL"
-    }
-   ],
-   "targets": [
-    "tests/test_weakening_declared.py"
-   ],
-   "expect_failed": [
-    "test_a_content_line_that_looks_like_a_file_header_stays_in_its_file",
-    "test_an_added_swallowed_exit_code_fails",
-    "test_every_added_weakening_is_its_own_error"
-   ]
-  },
-  {
-   "id": "NC2",
-   "what": "law 5: the skip-marker kind is dropped from the table",
+   "what": "law 5: the skip-marker kind is dropped",
    "mutations": [
     {
      "file": "scripts/weakening_declared.py",
      "old": "re.compile(r'\\bmark\\.skip')),",
-     "new": "re.compile(r'\\bmark\\.skipNEVER')),  # NEGATIVE CONTROL"
+     "new": "re.compile(r'\\bmark\\.skipNEVER')),"
     }
    ],
    "targets": [
-    "tests/test_weakening_declared.py"
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
    ],
    "expect_failed": [
-    "test_an_added_skip_marker_or_skip_call_fails",
-    "test_every_added_weakening_is_its_own_error"
+    "test_spelling_mark_skip",
+    "test_spelling_mark_skip_from_import",
+    "test_spelling_mark_skipif"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "law 5: the skip marker narrowed to a whole word (skipif is not read)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "re.compile(r'\\bmark\\.skip')),",
+     "new": "re.compile(r'\\bmark\\.skip\\b')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_mark_skipif"
    ]
   },
   {
    "id": "NC3",
-   "what": "law 5: workflows are not read, only tests/",
+   "what": "law 5: the skip marker narrowed to the pytest. prefix (`from pytest import mark` is not read)",
    "mutations": [
     {
      "file": "scripts/weakening_declared.py",
-     "old": "SCOPE = ('tests', '.github/workflows')",
-     "new": "SCOPE = ('tests',)  # NEGATIVE CONTROL"
+     "old": "re.compile(r'\\bmark\\.skip')),",
+     "new": "re.compile(r'\\bpytest\\.mark\\.skip')),"
     }
    ],
    "targets": [
-    "tests/test_weakening_declared.py"
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
    ],
    "expect_failed": [
-    "test_an_added_continue_on_error_fails",
-    "test_an_added_swallowed_exit_code_fails",
-    "test_continue_on_error_false_and_a_plain_line_pass",
-    "test_every_added_weakening_is_its_own_error",
-    "test_existing_weakenings_that_this_change_does_not_add_are_ignored"
+    "test_spelling_mark_skip_from_import"
    ]
   },
   {
    "id": "NC4",
-   "what": "law 5: a declaration signed by its own author is accepted",
+   "what": "law 5: pytest.skip( is dropped",
    "mutations": [
     {
      "file": "scripts/weakening_declared.py",
-     "old": "        if who.lower() in DD._NOT_A_REVIEWER or who == match.get('author'):",
-     "new": "        if who.lower() in DD._NOT_A_REVIEWER:  # NEGATIVE CONTROL"
+     "old": "re.compile(r'\\bpytest\\.skip\\s*\\(')),",
+     "new": "re.compile(r'\\bpytest\\.skip\\s*\\(NEVER')),"
     }
    ],
    "targets": [
-    "tests/test_weakening_declared.py"
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
    ],
    "expect_failed": [
-    "test_an_author_signed_or_unsigned_declaration_fails"
+    "test_spelling_pytest_skip_call",
+    "test_spelling_python_kind_in_a_workflow"
    ]
   },
   {
    "id": "NC5",
+   "what": "law 5: skipTest( is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "re.compile(r'\\bskipTest\\s*\\(')),",
+     "new": "re.compile(r'\\bskipTest\\s*\\(NEVER')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_skip_test_call"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "law 5: unittest.skip is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "re.compile(r'\\bunittest\\.skip')),",
+     "new": "re.compile(r'\\bunittest\\.skipNEVER')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_a_python_file_that_does_not_tokenize_is_read_as_raw_text",
+    "test_negative_control_specs_are_not_read_but_a_test_beside_them_is",
+    "test_spelling_unittest_skip",
+    "test_spelling_unittest_skip_if"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "law 5: unittest.skip narrowed (unittest.skipIf and skipUnless lose the name)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "re.compile(r'\\bunittest\\.skip')),",
+     "new": "re.compile(r'\\bunittest\\.skip(?!If|Unless)')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_unittest_skip_if"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "law 5: skipIf( is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "re.compile(r'\\bskipIf\\s*\\(')),",
+     "new": "re.compile(r'\\bskipIf\\s*\\(NEVER')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_skip_if"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "law 5: skipUnless( is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "re.compile(r'\\bskipUnless\\s*\\(')),",
+     "new": "re.compile(r'\\bskipUnless\\s*\\(NEVER')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_skip_unless"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "law 5: the xfail marker is dropped (only pytest.xfail( is read)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\bmark\\.xfail|\\bpytest\\.xfail\\s*\\('",
+     "new": "r'\\bpytest\\.xfail\\s*\\('"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_mark_xfail"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "law 5: pytest.xfail( is dropped (only the marker is read)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\bmark\\.xfail|\\bpytest\\.xfail\\s*\\('",
+     "new": "r'\\bmark\\.xfail'"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_pytest_xfail_call"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "law 5: expectedFailure is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "re.compile(r'\\bexpectedFailure\\b')),",
+     "new": "re.compile(r'\\bexpectedFailureNEVER\\b')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_expected_failure"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "law 5: SkipTest is dropped (the case-sensitive hole: raise unittest.SkipTest passes again)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\bSkipTest\\s*\\(|\\braise\\s+(?:\\w+\\.)*SkipTest\\b'",
+     "new": "r'\\bSkipTestNEVER'"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_raise_bare_skiptest",
+    "test_spelling_raise_skiptest_class",
+    "test_spelling_raise_unittest_skiptest",
+    "test_spelling_skiptest_built_not_raised"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "law 5: a SkipTest( built without raise is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\bSkipTest\\s*\\(|\\braise\\s+(?:\\w+\\.)*SkipTest\\b'",
+     "new": "r'\\braise\\s+(?:\\w+\\.)*SkipTest\\b'"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_skiptest_built_not_raised"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "law 5: raise unittest.SkipTest without a call is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\bSkipTest\\s*\\(|\\braise\\s+(?:\\w+\\.)*SkipTest\\b'",
+     "new": "r'\\bSkipTest\\s*\\('"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_raise_skiptest_class"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "law 5: importorskip( is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "re.compile(r'\\bimportorskip\\s*\\(')),",
+     "new": "re.compile(r'\\bimportorskip\\s*\\(NEVER')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_importorskip"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "law 5: a bare skip( call is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'(?<![\\w.])(?<!def )skip\\s*\\(|@\\s*skip\\b'",
+     "new": "r'@\\s*skip\\b'"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_bare_skip_call"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "law 5: a bare @skip decorator is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'(?<![\\w.])(?<!def )skip\\s*\\(|@\\s*skip\\b'",
+     "new": "r'(?<![\\w.])(?<!def )skip\\s*\\('"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_bare_skip_decorator"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "law 5: a name imported as a skip function is not an alias",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "             for m in _IMPORT_AS.finditer(line)}",
+     "new": "             for m in _IMPORT_AS.finditer('')}  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_alias_imported"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "law 5: a name assigned a skip decorator is not an alias",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "    assigns = [(m.group(1), m.group(2)) for line in view if (m := _ASSIGN.match(line))]",
+     "new": "    assigns = []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_alias_assigned"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "law 5: continue-on-error is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "('continue-on-error', re.compile(r'\\bcontinue-on-error",
+     "new": "('continue-on-error', re.compile(r'\\bcontinue-on-errorNEVER"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_continue_on_error",
+    "test_spelling_continue_on_error_double_quoted_key",
+    "test_spelling_continue_on_error_expression",
+    "test_spelling_continue_on_error_single_quoted_key"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "law 5: a double-quoted continue-on-error key is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\bcontinue-on-error[\\'\"]?\\s*:",
+     "new": "r'\\bcontinue-on-error[\\']?\\s*:"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_continue_on_error_double_quoted_key"
+   ]
+  },
+  {
+   "id": "NC23",
+   "what": "law 5: a single-quoted continue-on-error key is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\bcontinue-on-error[\\'\"]?\\s*:",
+     "new": "r'\\bcontinue-on-error[\"]?\\s*:"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_continue_on_error_single_quoted_key"
+   ]
+  },
+  {
+   "id": "NC24",
+   "what": "law 5: continue-on-error narrowed to a literal true (an expression passes)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "(?!\\s*[\\'\"]?(?:false|False|FALSE)[\\'\"]?\\s*(?:[,}#]|$))')),",
+     "new": "(?=\\s*true\\b)')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_continue_on_error_expression"
+   ]
+  },
+  {
+   "id": "NC25",
+   "what": "law 5: a flow-style continue-on-error: false} is read as a weakening",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "(?:false|False|FALSE)[\\'\"]?\\s*(?:[,}#]|$))",
+     "new": "(?:false|False|FALSE)[\\'\"]?\\s*(?:#.*)?$)"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_continue_on_error_false_is_no_weakening_in_block_or_flow_style"
+   ]
+  },
+  {
+   "id": "NC26",
+   "what": "law 5: the or-true kind is dropped from the table",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "(?:/bin/)?true\\b')),",
+     "new": "(?:/bin/)?true\\bNEVER')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_or_bin_true",
+    "test_spelling_or_true",
+    "test_spelling_or_true_in_a_subshell"
+   ]
+  },
+  {
+   "id": "NC27",
+   "what": "law 5: || /bin/true is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\|\\|\\s*(?:/usr)?(?:/bin/)?true\\b'",
+     "new": "r'\\|\\|\\s*true\\b'"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_or_bin_true"
+   ]
+  },
+  {
+   "id": "NC28",
+   "what": "law 5: || true read only at the end of a line ($(... || true) passes)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\|\\|\\s*(?:/usr)?(?:/bin/)?true\\b'",
+     "new": "r'\\|\\|\\s*(?:/usr)?(?:/bin/)?true$'"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_or_true_in_a_subshell"
+   ]
+  },
+  {
+   "id": "NC29",
+   "what": "law 5: || : is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\|\\|\\s*:(?=\\s|;|\\)|$)'",
+     "new": "r'\\|\\|\\s*:NEVER'"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_or_colon"
+   ]
+  },
+  {
+   "id": "NC30",
+   "what": "law 5: set +e is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\bset\\s+(?:\\+[A-Za-z]*e[A-Za-z]*|\\+o\\s+errexit)\\b'",
+     "new": "r'\\bset\\s+NEVER'"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_set_e",
+    "test_spelling_set_eux",
+    "test_spelling_set_o_errexit"
+   ]
+  },
+  {
+   "id": "NC31",
+   "what": "law 5: set +eux is not read (only a bare +e)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\bset\\s+(?:\\+[A-Za-z]*e[A-Za-z]*|\\+o\\s+errexit)\\b'",
+     "new": "r'\\bset\\s+(?:\\+e|\\+o\\s+errexit)\\b'"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_set_eux"
+   ]
+  },
+  {
+   "id": "NC32",
+   "what": "law 5: set +o errexit is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\bset\\s+(?:\\+[A-Za-z]*e[A-Za-z]*|\\+o\\s+errexit)\\b'",
+     "new": "r'\\bset\\s+(?:\\+[A-Za-z]*e[A-Za-z]*)\\b'"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_set_o_errexit"
+   ]
+  },
+  {
+   "id": "NC33",
+   "what": "law 5: || echo is dropped (the repository's own exit-code mutation passes)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\|\\|\\s*echo\\b'",
+     "new": "r'\\|\\|\\s*echoNEVER\\b'"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_or_echo"
+   ]
+  },
+  {
+   "id": "NC34",
+   "what": "law 5: || exit 0 is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "r'\\|\\|\\s*exit\\s+0\\b'",
+     "new": "r'\\|\\|\\s*exit\\s+0NEVER\\b'"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_or_exit_0"
+   ]
+  },
+  {
+   "id": "NC35",
+   "what": "law 5: a literal if: false is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "(?:false|\\$\\{\\{\\s*false\\s*\\}\\})",
+     "new": "(?:\\$\\{\\{\\s*false\\s*\\}\\})"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_if_false"
+   ]
+  },
+  {
+   "id": "NC36",
+   "what": "law 5: if: ${{ false }} is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "(?:false|\\$\\{\\{\\s*false\\s*\\}\\})",
+     "new": "(?:false)"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_if_false_expression"
+   ]
+  },
+  {
+   "id": "NC37",
+   "what": "law 5: a comment-only workflow line is read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "            names = [] if stripped.startswith('#') else [name for name, rx in PYTHON + SHELL if rx.search(text)]",
+     "new": "            names = [name for name, rx in PYTHON + SHELL if rx.search(text)]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_a_workflow_comment_only_line_is_not_read"
+   ]
+  },
+  {
+   "id": "NC38",
+   "what": "law 5: the python kinds are not read in a workflow",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "else [name for name, rx in PYTHON + SHELL if rx.search(text)]",
+     "new": "else [name for name, rx in SHELL if rx.search(text)]"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_python_kind_in_a_workflow"
+   ]
+  },
+  {
+   "id": "NC39",
+   "what": "law 5: JS .skip( is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "re.compile(r'\\.skip\\s*\\(')),",
+     "new": "re.compile(r'\\.skip\\s*\\(NEVER')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_js_skip"
+   ]
+  },
+  {
+   "id": "NC40",
+   "what": "law 5: JS xit( is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "re.compile(r'\\bxit\\s*\\(')),",
+     "new": "re.compile(r'\\bxit\\s*\\(NEVER')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_js_xit"
+   ]
+  },
+  {
+   "id": "NC41",
+   "what": "law 5: JS xdescribe( is dropped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "re.compile(r'\\bxdescribe\\s*\\(')),",
+     "new": "re.compile(r'\\bxdescribe\\s*\\(NEVER')),"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_js_xdescribe"
+   ]
+  },
+  {
+   "id": "NC42",
+   "what": "law 5: tests/conftest.py is read as a plain test file (collect_ignore passes)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "    if name == 'conftest.py':",
+     "new": "    if path == 'conftest.py':  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_conftest_in_tests"
+   ]
+  },
+  {
+   "id": "NC43",
+   "what": "law 5: a comment, blank or string-only line of conftest.py counts",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "            if fam == 'conftest' and code.strip():",
+     "new": "            if fam == 'conftest':  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_conftest_in_tests"
+   ]
+  },
+  {
+   "id": "NC44",
+   "what": "law 5: a conftest.py outside tests/ is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "':(glob)**/conftest.py', ",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_conftest_at_the_root"
+   ]
+  },
+  {
+   "id": "NC45",
+   "what": "law 5: no pytest section is recognised",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "            inside = name in ('pytest', 'tool:pytest', 'tool.pytest') or name.startswith('tool.pytest.')",
+     "new": "            inside = False  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_pyproject_toml",
+    "test_spelling_pytest_ini",
+    "test_spelling_setup_cfg",
+    "test_spelling_tox_ini"
+   ]
+  },
+  {
+   "id": "NC46",
+   "what": "law 5: a comment in a pytest section counts",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "if sections[number - 1] and stripped and not stripped.startswith(('#', ';')) else []",
+     "new": "if sections[number - 1] and stripped else []"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_tox_ini"
+   ]
+  },
+  {
+   "id": "NC47",
+   "what": "law 5: pytest.ini is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": " ':(glob)**/pytest.ini',",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_pytest_ini"
+   ]
+  },
+  {
+   "id": "NC48",
+   "what": "law 5: tox.ini is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "':(glob)**/tox.ini', ",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_tox_ini"
+   ]
+  },
+  {
+   "id": "NC49",
+   "what": "law 5: setup.cfg is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "':(glob)**/setup.cfg', ",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_setup_cfg"
+   ]
+  },
+  {
+   "id": "NC50",
+   "what": "law 5: pyproject.toml is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": ", ':(glob)**/pyproject.toml')",
+     "new": ")"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_pyproject_toml"
+   ]
+  },
+  {
+   "id": "NC51",
+   "what": "law 5: tests/needs_env.txt is read as plain text (an added entry passes)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "    if path in RUNS:",
+     "new": "    if path in RUNS and path != 'tests/needs_env.txt':  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_needs_env_entry"
+   ]
+  },
+  {
+   "id": "NC52",
+   "what": "law 5: scripts/test_fast.sh is not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "'.github/workflows', 'scripts/test_fast.sh', ",
+     "new": "'.github/workflows', "
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_fast_suite_script"
+   ]
+  },
+  {
+   "id": "NC53",
+   "what": "law 5: a comment line of a file that decides what runs counts",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "            names = [RUNS[path]] if stripped and not stripped.startswith('#') else []",
+     "new": "            names = [RUNS[path]] if stripped else []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_fast_suite_script",
+    "test_spelling_needs_env_entry"
+   ]
+  },
+  {
+   "id": "NC54",
+   "what": "law 5: workflows are not read, only tests/",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "SCOPE = ('tests', '.github/workflows', ",
+     "new": "SCOPE = ('tests', "
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_spelling_continue_on_error",
+    "test_spelling_continue_on_error_double_quoted_key",
+    "test_spelling_continue_on_error_expression",
+    "test_spelling_continue_on_error_single_quoted_key",
+    "test_spelling_if_false",
+    "test_spelling_if_false_expression",
+    "test_spelling_or_bin_true",
+    "test_spelling_or_colon",
+    "test_spelling_or_echo",
+    "test_spelling_or_exit_0",
+    "test_spelling_or_true",
+    "test_spelling_or_true_in_a_subshell",
+    "test_spelling_python_kind_in_a_workflow",
+    "test_spelling_set_e",
+    "test_spelling_set_eux",
+    "test_spelling_set_o_errexit"
+   ]
+  },
+  {
+   "id": "NC55",
+   "what": "law 5: tests/negative_controls/*.json is read (mutation text needs a declaration)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "NOT_READ = re.compile(r'^tests/negative_controls/[^/]+\\.json$')",
+     "new": "NOT_READ = re.compile(r'(?!)')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_negative_control_specs_are_not_read_but_a_test_beside_them_is"
+   ]
+  },
+  {
+   "id": "NC56",
+   "what": "law 5: the whole tests/negative_controls/ directory is not read (a test_*.py there passes)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "NOT_READ = re.compile(r'^tests/negative_controls/[^/]+\\.json$')",
+     "new": "NOT_READ = re.compile(r'^tests/negative_controls/')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_negative_control_specs_are_not_read_but_a_test_beside_them_is"
+   ]
+  },
+  {
+   "id": "NC57",
+   "what": "law 5: a .py file is read as raw text (a string or a comment that names a pattern counts)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "            view = code_view(blob)",
+     "new": "            view = None  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_python_mentions_in_strings_comments_and_docstrings_are_not_read",
+    "test_spelling_conftest_in_tests"
+   ]
+  },
+  {
+   "id": "NC58",
+   "what": "law 5: a .py file that does not tokenize is skipped",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "                view = blob_lines",
+     "new": "                return [(n, t, []) for n, t in numbered]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::EverySpellingIsRead"
+   ],
+   "expect_failed": [
+    "test_a_python_file_that_does_not_tokenize_is_read_as_raw_text"
+   ]
+  },
+  {
+   "id": "NC59",
+   "what": "law 5: other files under tests/ are not read",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "            names = [name for name, rx in WEAKENINGS if rx.search(text)]",
+     "new": "            names = []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::OnlyTheChangeIsRead",
+    "tests/test_weakening_declared.py::NothingUnmeasuredPasses"
+   ],
+   "expect_failed": [
+    "test_a_binary_file_with_a_nul_byte_is_read_and_checked_against_its_blobs",
+    "test_a_content_line_that_looks_like_a_file_header_stays_in_its_file"
+   ]
+  },
+  {
+   "id": "NC60",
+   "what": "law 5: a record kept at the merge base still covers a later change (the #371 hole)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "        new = new_in_change(head, base_records(base, path, cwd))",
+     "new": "        new = head  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::OneChangeOnly"
+   ],
+   "expect_failed": [
+    "test_a_record_kept_from_an_earlier_change_covers_nothing"
+   ]
+  },
+  {
+   "id": "NC61",
+   "what": "law 5: records compared as a set (an exact copy of an old record is not new)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "            if old[canon]:\n                old[canon] -= 1",
+     "new": "            if old[canon]:\n                pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::OneChangeOnly"
+   ],
+   "expect_failed": [
+    "test_a_record_kept_from_an_earlier_change_covers_nothing"
+   ]
+  },
+  {
+   "id": "NC62",
+   "what": "law 5: the declared count is not compared (one record covers any number of identical lines)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "        if declared != f['net']:",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::OneChangeOnly"
+   ],
+   "expect_failed": [
+    "test_identical_lines_need_their_exact_count"
+   ]
+  },
+  {
+   "id": "NC63",
+   "what": "law 5: a new record that covers nothing is not reported",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "            if id(r) not in used:",
+     "new": "            if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::OneChangeOnly"
+   ],
+   "expect_failed": [
+    "test_a_new_record_that_covers_nothing_is_an_error"
+   ]
+  },
+  {
+   "id": "NC64",
+   "what": "law 5: a count that is not a whole number is accepted",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "    if type(count) is not int or count < 1:",
+     "new": "    if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::OneChangeOnly"
+   ],
+   "expect_failed": [
+    "test_a_count_that_is_not_a_whole_number_fails"
+   ]
+  },
+  {
+   "id": "NC65",
    "what": "law 5: the digest ignores the path (a declaration in one file covers the same line in any file)",
    "mutations": [
     {
@@ -93,69 +1144,158 @@
     }
    ],
    "targets": [
-    "tests/test_weakening_declared.py"
+    "tests/test_weakening_declared.py::OneChangeOnly"
    ],
    "expect_failed": [
     "test_a_declaration_binds_its_path_and_its_exact_line"
    ]
   },
   {
-   "id": "NC6",
-   "what": "law 5: measured from the anchor itself, not the merge base (main's later removals are charged to the PR)",
+   "id": "NC66",
+   "what": "law 5 (item 10): the error does not say which count to declare",
    "mutations": [
     {
      "file": "scripts/weakening_declared.py",
-     "old": "        base = merge_base(argv[0], cwd)",
-     "new": "        base = argv[0]  # NEGATIVE CONTROL"
+     "old": "\"count\": {net}, ",
+     "new": ""
     }
    ],
    "targets": [
-    "tests/test_weakening_declared.py"
+    "tests/test_weakening_declared.py::OneChangeOnly"
    ],
    "expect_failed": [
-    "test_measured_from_the_merge_base_when_main_moved_on"
+    "test_the_error_says_how_to_declare"
    ]
   },
   {
-   "id": "NC7",
-   "what": "law 5: the whole tree is read instead of the change (existing lines are charged, the anchor is ignored)",
+   "id": "NC67",
+   "what": "law 5: deleted occurrences are not subtracted (a move needs a declaration)",
    "mutations": [
     {
      "file": "scripts/weakening_declared.py",
-     "old": "        base = merge_base(argv[0], cwd)",
-     "new": "        base = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'  # NEGATIVE CONTROL: the empty tree"
+     "old": "                    found[(key, text)]['deleted'] += 1",
+     "new": "                    pass  # NEGATIVE CONTROL"
     }
    ],
    "targets": [
-    "tests/test_weakening_declared.py"
+    "tests/test_weakening_declared.py::NetNewOnly"
    ],
    "expect_failed": [
-    "test_an_unknown_anchor_or_no_repository_is_an_error",
-    "test_continue_on_error_false_and_a_plain_line_pass",
-    "test_existing_weakenings_that_this_change_does_not_add_are_ignored",
-    "test_measured_from_the_merge_base_when_main_moved_on"
+    "test_a_flagged_line_moved_within_its_file_adds_nothing",
+    "test_one_deleted_and_two_added_is_one_net_new"
    ]
   },
   {
-   "id": "NC8",
+   "id": "NC68",
+   "what": "law 5: renames are not detected (a renamed file's every line is new)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "'--no-relative', '-M', '--text')",
+     "new": "'--no-relative', '--no-renames', '--text')"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::NetNewOnly"
+   ],
+   "expect_failed": [
+    "test_a_renamed_file_keeps_its_lines"
+   ]
+  },
+  {
+   "id": "NC69",
+   "what": "law 5: --text dropped (a .gitattributes -diff or binary line hides a file)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "'--no-relative', '-M', '--text')",
+     "new": "'--no-relative', '-M')"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::NothingUnmeasuredPasses"
+   ],
+   "expect_failed": [
+    "test_a_binary_file_whose_parsed_lines_disagree_with_its_blobs_is_an_error",
+    "test_a_binary_file_with_a_nul_byte_is_read_and_checked_against_its_blobs",
+    "test_a_gitattributes_binary_or_minus_diff_hides_nothing"
+   ]
+  },
+  {
+   "id": "NC70",
+   "what": "law 5: a file --numstat counts as binary is not checked against its blobs",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "        if grown != added - deleted:",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::NothingUnmeasuredPasses"
+   ],
+   "expect_failed": [
+    "test_a_binary_file_whose_parsed_lines_disagree_with_its_blobs_is_an_error"
+   ]
+  },
+  {
+   "id": "NC71",
+   "what": "law 5: git output is decoded strictly (a file in another encoding exits 2 forever)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "    return proc.stdout.decode('utf-8', 'replace')",
+     "new": "    return proc.stdout.decode('utf-8')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::NothingUnmeasuredPasses"
+   ],
+   "expect_failed": [
+    "test_a_binary_file_with_a_nul_byte_is_read_and_checked_against_its_blobs",
+    "test_a_gitattributes_binary_or_minus_diff_hides_nothing",
+    "test_a_text_file_in_another_encoding_is_read_never_unmeasured"
+   ]
+  },
+  {
+   "id": "NC72",
+   "what": "law 5: a diff line the blob does not hold is not an error",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "            if not 1 <= number <= len(blob_lines) or blob_lines[number - 1] != text:",
+     "new": "            if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::NothingUnmeasuredPasses"
+   ],
+   "expect_failed": [
+    "test_a_diff_line_the_blob_does_not_hold_is_an_error"
+   ]
+  },
+  {
+   "id": "NC73",
    "what": "law 5: a change that could not be measured passes",
    "mutations": [
     {
      "file": "scripts/weakening_declared.py",
-     "old": "        return 2\n    found = weakenings(rows)",
-     "new": "        return 0  # NEGATIVE CONTROL\n    found = weakenings(rows)"
+     "old": "        return 2\n    notices, errors = judge(found, new)",
+     "new": "        return 0  # NEGATIVE CONTROL\n    notices, errors = judge(found, new)"
     }
    ],
    "targets": [
-    "tests/test_weakening_declared.py"
+    "tests/test_weakening_declared.py::NothingUnmeasuredPasses"
    ],
    "expect_failed": [
+    "test_a_declarations_file_outside_the_repository_is_an_error",
     "test_an_unknown_anchor_or_no_repository_is_an_error",
+    "test_an_unreadable_declarations_file_at_the_merge_base_is_an_error",
     "test_an_unreadable_declarations_file_is_an_error"
    ]
   },
   {
-   "id": "NC9",
+   "id": "NC74",
    "what": "law 5: the diff and numstat are not compared (a parse that loses a line passes)",
    "mutations": [
     {
@@ -165,14 +1305,49 @@
     }
    ],
    "targets": [
-    "tests/test_weakening_declared.py"
+    "tests/test_weakening_declared.py::NothingUnmeasuredPasses"
    ],
    "expect_failed": [
     "test_two_readings_of_git_that_disagree_are_an_error"
    ]
   },
   {
-   "id": "NC10",
+   "id": "NC75",
+   "what": "law 5: measured from the anchor itself, not the merge base (main's later removals are charged to the PR)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "        base = merge_base(argv[0], cwd)",
+     "new": "        base = argv[0]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::OnlyTheChangeIsRead"
+   ],
+   "expect_failed": [
+    "test_measured_from_the_merge_base_when_main_moved_on"
+   ]
+  },
+  {
+   "id": "NC76",
+   "what": "law 5: the whole tree is read instead of the change (existing lines are charged, the anchor is ignored)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "        base = merge_base(argv[0], cwd)",
+     "new": "        base = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'  # NEGATIVE CONTROL: the empty tree"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::OnlyTheChangeIsRead"
+   ],
+   "expect_failed": [
+    "test_existing_weakenings_that_this_change_does_not_add_are_ignored",
+    "test_measured_from_the_merge_base_when_main_moved_on"
+   ]
+  },
+  {
+   "id": "NC77",
    "what": "law 5: a content line that looks like a file header is read as one (the line is charged to another file)",
    "mutations": [
     {
@@ -182,31 +1357,188 @@
     }
    ],
    "targets": [
-    "tests/test_weakening_declared.py"
+    "tests/test_weakening_declared.py::OnlyTheChangeIsRead"
    ],
    "expect_failed": [
     "test_a_content_line_that_looks_like_a_file_header_stays_in_its_file"
    ]
   },
   {
-   "id": "NC11",
-   "what": "law 5: a declaration with no reason covers its line",
+   "id": "NC78",
+   "what": "law 5: a record without a reason covers its line",
    "mutations": [
     {
      "file": "scripts/weakening_declared.py",
-     "old": "if e.get('line_sha256') == digest and e.get('reason')), None)",
-     "new": "if e.get('line_sha256') == digest), None)  # NEGATIVE CONTROL"
+     "old": "    if not str(record.get('reason') or '').strip():",
+     "new": "    if False:  # NEGATIVE CONTROL"
     }
    ],
    "targets": [
-    "tests/test_weakening_declared.py"
+    "tests/test_weakening_declared.py::SignedByAnotherHand"
    ],
    "expect_failed": [
-    "test_a_declaration_without_a_reason_covers_nothing"
+    "test_a_record_without_a_reason_fails"
    ]
   },
   {
-   "id": "NC12",
+   "id": "NC79",
+   "what": "law 5: a record without an author is accepted",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "    if not author:\n        problems.append('no author')",
+     "new": "    if False:  # NEGATIVE CONTROL\n        problems.append('no author')"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::SignedByAnotherHand"
+   ],
+   "expect_failed": [
+    "test_a_record_without_an_author_fails"
+   ]
+  },
+  {
+   "id": "NC80",
+   "what": "law 5: reviewer and author compared case-sensitively (Codex signs for codex)",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "    words = re.split(r'[\\s_-]+', str(name or '').strip().casefold())",
+     "new": "    words = re.split(r'[\\s_-]+', str(name or '').strip())"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::SignedByAnotherHand"
+   ],
+   "expect_failed": [
+    "test_no_reviewer_or_a_placeholder_fails",
+    "test_the_author_signing_under_another_case_fails",
+    "test_the_author_signing_under_another_spelling_fails"
+   ]
+  },
+  {
+   "id": "NC81",
+   "what": "law 5: the whole name is compared (the author signs as 'Codex Review')",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "    return words[0] if words else ''",
+     "new": "    return ' '.join(words)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::SignedByAnotherHand"
+   ],
+   "expect_failed": [
+    "test_no_reviewer_or_a_placeholder_fails",
+    "test_the_author_signing_under_another_spelling_fails"
+   ]
+  },
+  {
+   "id": "NC82",
+   "what": "law 5: an agent writing a person's name needs no signature_note",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "          and not str(record.get('signature_note') or '').strip()):",
+     "new": "          and False):  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::SignedByAnotherHand"
+   ],
+   "expect_failed": [
+    "test_an_agent_writing_a_persons_name_needs_a_signature_note"
+   ]
+  },
+  {
+   "id": "NC83",
+   "what": "law 5: a declaration signed by its own author is accepted",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "    elif author and identity(reviewer) == identity(author):",
+     "new": "    elif False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::SignedByAnotherHand"
+   ],
+   "expect_failed": [
+    "test_the_author_signing_under_another_case_fails",
+    "test_the_author_signing_under_another_spelling_fails"
+   ]
+  },
+  {
+   "id": "NC84",
+   "what": "law 5: an empty, pending or Claude reviewer is accepted",
+   "mutations": [
+    {
+     "file": "scripts/weakening_declared.py",
+     "old": "    if identity(reviewer) in {identity(n) for n in DD._NOT_A_REVIEWER}:",
+     "new": "    if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::SignedByAnotherHand"
+   ],
+   "expect_failed": [
+    "test_no_reviewer_or_a_placeholder_fails"
+   ]
+  },
+  {
+   "id": "NC85",
+   "what": "law 5 (item 8): the weakening map is {} on one line again (the first record rewrites that line)",
+   "mutations": [
+    {
+     "file": "docs/identity/allowed-deletions.json",
+     "old": " \"weakening\": {",
+     "new": " \"weakening\": {}, \"weakening_unused\": {"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::TheRealFileAndTheLightJob"
+   ],
+   "expect_failed": [
+    "test_the_first_weakening_declaration_is_a_pure_addition"
+   ]
+  },
+  {
+   "id": "NC86",
+   "what": "law 5 (item 9): the law-5 step has no if, so a failed earlier step skips it",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "        if: ${{ !cancelled() }}\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::TheRealFileAndTheLightJob"
+   ],
+   "expect_failed": [
+    "test_the_light_job_runs_both_scripts_and_their_exit_codes_decide"
+   ]
+  },
+  {
+   "id": "NC87",
+   "what": "law 5 (item 9): the law-5 step runs on always() (it would also run in a cancelled run)",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "        if: ${{ !cancelled() }}\n",
+     "new": "        if: ${{ always() }}\n"
+    }
+   ],
+   "targets": [
+    "tests/test_weakening_declared.py::TheRealFileAndTheLightJob"
+   ],
+   "expect_failed": [
+    "test_the_light_job_runs_both_scripts_and_their_exit_codes_decide"
+   ]
+  },
+  {
+   "id": "NC88",
    "what": "law 5: the light job runs the script but its exit code no longer decides",
    "mutations": [
     {
@@ -216,14 +1548,14 @@
     }
    ],
    "targets": [
-    "tests/test_weakening_declared.py"
+    "tests/test_weakening_declared.py::TheRealFileAndTheLightJob"
    ],
    "expect_failed": [
     "test_the_light_job_runs_both_scripts_and_their_exit_codes_decide"
    ]
   },
   {
-   "id": "NC13",
+   "id": "NC89",
    "what": "law 6: binary files are not checked at all (the hole the audit found)",
    "mutations": [
     {
@@ -245,7 +1577,7 @@
    ]
   },
   {
-   "id": "NC14",
+   "id": "NC90",
    "what": "law 6: only a deleted binary counts; a rewritten one passes",
    "mutations": [
     {
@@ -262,7 +1594,7 @@
    ]
   },
   {
-   "id": "NC15",
+   "id": "NC91",
    "what": "law 6: the removed blob is not compared (any declaration of the path covers any binary change)",
    "mutations": [
     {
@@ -280,7 +1612,7 @@
    ]
   },
   {
-   "id": "NC16",
+   "id": "NC92",
    "what": "law 6: renames are detected, so a moved binary is no deletion at its old path",
    "mutations": [
     {
@@ -297,7 +1629,7 @@
    ]
   },
   {
-   "id": "NC17",
+   "id": "NC93",
    "what": "law 6: --digest prints a line digest for a binary (the digest of nothing) instead of refusing",
    "mutations": [
     {
