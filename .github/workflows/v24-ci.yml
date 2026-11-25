@@ -38,6 +38,8 @@ jobs:
     # The fast suite (budget 30 s, a failure past it), every deleted line declared, every changed JSON parses, no
     # conflict marker left. A PR that deletes a line without a SIGNED declaration fails HERE (the owner, 2026-11-16:
     # "without this the declarations are documentation, not protection; only a signed declaration releases").
+    # Laws 5 and 6 (audit 2026-11-25): an ADDED line that weakens a test or a workflow needs a signed declaration
+    # too (scripts/weakening_declared.py), and so does a deleted or rewritten binary file (scripts/deletions_declared.py).
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -61,6 +63,15 @@ jobs:
           fi
           echo "::notice title=light::deletions measured from ${anchor:0:7}"
           python3 scripts/deletions_declared.py "$anchor"
+      - name: No added line weakens a test or a workflow without a signed declaration (scripts/weakening_declared.py)
+        # Law 5: the step above sees only deleted lines. Measured from the merge base with the same anchor; one ::error
+        # per added skip, xfail or swallowed exit code that docs/identity/allowed-deletions.json does not declare.
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          anchor="$(python3 scripts/deletions_declared.py --anchor "${PR_BASE:-}")"
+          python3 scripts/weakening_declared.py "$anchor"
       - name: Changed JSON parses and no conflict marker is left
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
