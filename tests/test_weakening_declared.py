@@ -2,8 +2,9 @@
 a weakening that only adds lines passed. Real path: a real git repository in a temp dir (main, a branch, GitHub's merge
 commit where it matters) and the real script, scripts/weakening_declared.py, the code the light job of v24-ci.yml runs.
 
-Every fixture line that weakens a test or a workflow is built by concatenation (the WEAK table below), so no line of
-this file is itself an added weakening when the script reads this branch."""
+Every fixture line that weakens a test or a workflow is built by concatenation (the WEAK table below) and each kind is
+named by its index in the script's own table (KINDS), never by its text, so no line of this file is itself an added
+weakening when the script reads the branch that adds it (checked: the script on this branch reports 0)."""
 import contextlib
 import io
 import json
@@ -22,20 +23,23 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 import deletions_declared as DD  # noqa: E402
 import weakening_declared as W  # noqa: E402
 
-WEAK = {   # name the script reports -> (file, the added line); split so that this source line matches nothing
-    'pytest.mark.skip': ('tests/test_a.py', '@pytest.mark.' + 'skip(reason="flaky on CI")'),
-    'pytest.skip(': ('tests/test_a.py', '    pytest.' + 'skip("later")'),
-    'skipTest(': ('tests/test_a.py', '        self.skip' + 'Test("later")'),
-    'unittest.skip': ('tests/test_a.py', '@unittest.' + 'skip("later")'),
-    'skipIf(': ('tests/test_a.py', '@skip' + 'If(True, "later")'),
-    'skipUnless(': ('tests/test_a.py', '@skip' + 'Unless(False, "later")'),
-    'pytest.mark.xfail': ('tests/test_a.py', '@pytest.mark.' + 'xfail(strict=False)'),
-    'expectedFailure': ('tests/test_a.py', '@unittest.expected' + 'Failure'),
-    'continue-on-error': ('.github/workflows/ci.yml', '        continue-on-' + 'error: true'),
-    '|| true': ('.github/workflows/ci.yml', '        run: python -m pytest -q |' + '| true'),
-    '|| :': ('.github/workflows/ci.yml', '        run: python -m pytest -q |' + '| :'),
-    'set +e': ('.github/workflows/ci.yml', '          set ' + '+e'),
-}
+KINDS = [name for name, _ in W.WEAKENINGS]     # the names the script reports, in the order of its table
+(MARK_SKIP, SKIP_CALL, SKIP_TEST, UNITTEST_SKIP, SKIP_IF, SKIP_UNLESS, XFAIL, EXPECTED_FAILURE, CONTINUE_ON_ERROR,
+ OR_TRUE, OR_COLON, SET_E) = range(12)
+WEAK = [   # one added line per kind, in that order: (file, line); each split so that this source line matches nothing
+    ('tests/test_a.py', '@pytest.mark.' + 'skip(reason="flaky on CI")'),
+    ('tests/test_a.py', '    pytest.' + 'skip("later")'),
+    ('tests/test_a.py', '        self.skip' + 'Test("later")'),
+    ('tests/test_a.py', '@unittest.' + 'skip("later")'),
+    ('tests/test_a.py', '@skip' + 'If(True, "later")'),
+    ('tests/test_a.py', '@skip' + 'Unless(False, "later")'),
+    ('tests/test_a.py', '@pytest.mark.' + 'xfail(strict=False)'),
+    ('tests/test_a.py', '@unittest.expected' + 'Failure'),
+    ('.github/workflows/ci.yml', '        continue-on-' + 'error: true'),
+    ('.github/workflows/ci.yml', '        run: python -m pytest -q |' + '| true'),
+    ('.github/workflows/ci.yml', '        run: python -m pytest -q |' + '| :'),
+    ('.github/workflows/ci.yml', '          set ' + '+e'),
+]
 TEST = 'import unittest\n\n\nclass T(unittest.TestCase):\n    def test_x(self):\n        self.assertTrue(True)\n'
 WORKFLOW = 'name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n'
 
@@ -91,34 +95,35 @@ class EachAddedWeakeningFails(unittest.TestCase):
         self.repo = Repo()
         self.anchor = self.repo.commit({'tests/test_a.py': TEST, '.github/workflows/ci.yml': WORKFLOW})
 
-    def assert_caught(self, *names):
-        for i, name in enumerate(names):
-            with self.subTest(name=name):
-                path, line = WEAK[name]
-                git(self.repo.dir, 'checkout', '-q', '-B', f'pr-{i}', self.anchor)       # each kind on its own branch
+    def assert_caught(self, *kinds):
+        self.assertEqual(len(WEAK), len(KINDS))                                  # one fixture per kind of the table
+        for kind in kinds:
+            with self.subTest(kind=KINDS[kind]):
+                path, line = WEAK[kind]
+                git(self.repo.dir, 'checkout', '-q', '-B', f'pr-{kind}', self.anchor)    # each kind on its own branch
                 text = TEST if path.startswith('tests/') else WORKFLOW
                 self.repo.commit({path: insert_after_first_line(text, line)})
                 rc, out = run(self.repo, self.anchor)
                 self.assertEqual(rc, 1, out)
                 [error] = errors(out)
                 self.assertIn(f'::error file={path},line=2,title=law 5 (weakening)::', error)
-                self.assertIn(f'adds {name}', error)
+                self.assertIn(f'adds {KINDS[kind]}', error)
                 self.assertIn(W.line_digest(path, line), error)
 
     def test_an_added_skip_marker_or_skip_call_fails(self):
-        self.assert_caught('pytest.mark.skip', 'pytest.skip(', 'skipTest(', 'unittest.skip', 'skipIf(', 'skipUnless(')
+        self.assert_caught(MARK_SKIP, SKIP_CALL, SKIP_TEST, UNITTEST_SKIP, SKIP_IF, SKIP_UNLESS)
 
     def test_an_added_xfail_or_expected_failure_fails(self):
-        self.assert_caught('pytest.mark.xfail', 'expectedFailure')
+        self.assert_caught(XFAIL, EXPECTED_FAILURE)
 
     def test_an_added_continue_on_error_fails(self):
-        self.assert_caught('continue-on-error')
+        self.assert_caught(CONTINUE_ON_ERROR)
 
     def test_an_added_swallowed_exit_code_fails(self):
-        self.assert_caught('|| true', '|| :', 'set +e')
+        self.assert_caught(OR_TRUE, OR_COLON, SET_E)
 
     def test_continue_on_error_false_and_a_plain_line_pass(self):
-        self.repo.commit({'.github/workflows/ci.yml': WORKFLOW + '    continue-on-error: false\n',
+        self.repo.commit({'.github/workflows/ci.yml': WORKFLOW + '    continue-on-' + 'error: false\n',
                           'tests/test_a.py': TEST + '        self.assertEqual(1, 1)\n'})
         rc, out = run(self.repo, self.anchor)
         self.assertEqual(rc, 0, out)
@@ -126,8 +131,8 @@ class EachAddedWeakeningFails(unittest.TestCase):
         self.assertIn('0 weakening(s)', out)
 
     def test_every_added_weakening_is_its_own_error(self):
-        test_lines = [line for path, line in WEAK.values() if path.startswith('tests/')]
-        wf_lines = [line for path, line in WEAK.values() if not path.startswith('tests/')]
+        test_lines = [line for path, line in WEAK if path.startswith('tests/')]
+        wf_lines = [line for path, line in WEAK if not path.startswith('tests/')]
         self.repo.commit({'tests/test_a.py': TEST + '\n'.join(test_lines) + '\n',
                           '.github/workflows/ci.yml': WORKFLOW + '\n'.join(wf_lines) + '\n'})
         rc, out = run(self.repo, self.anchor)
@@ -138,8 +143,8 @@ class EachAddedWeakeningFails(unittest.TestCase):
 class OnlyTheChangeIsRead(unittest.TestCase):
     def test_existing_weakenings_that_this_change_does_not_add_are_ignored(self):
         repo = Repo()
-        skip_path, skip_line = WEAK['pytest.mark.skip']
-        wf_path, or_true = WEAK['|| true']
+        skip_path, skip_line = WEAK[MARK_SKIP]
+        wf_path, or_true = WEAK[OR_TRUE]
         anchor = repo.commit({skip_path: insert_after_first_line(TEST, skip_line),
                               wf_path: WORKFLOW + or_true + '\n'})
         repo.commit({skip_path: insert_after_first_line(TEST, skip_line) + '# a comment\n',
@@ -151,7 +156,7 @@ class OnlyTheChangeIsRead(unittest.TestCase):
     def test_lines_outside_tests_and_workflows_are_not_read(self):
         repo = Repo()
         anchor = repo.commit({'scripts/run.sh': 'echo\n'})
-        repo.commit({'scripts/run.sh': 'echo\n' + WEAK['|| true'][1] + '\n'})
+        repo.commit({'scripts/run.sh': 'echo\n' + WEAK[OR_TRUE][1] + '\n'})
         rc, out = run(repo, anchor)
         self.assertEqual(rc, 0, out)
         self.assertIn('0 line(s) added', out)
@@ -160,7 +165,7 @@ class OnlyTheChangeIsRead(unittest.TestCase):
         """main removes an old skip after the branch was cut. Diffed against main's tip the branch would 'add' it back;
         measured from the merge base (and from GitHub's merge commit) it adds only its own line."""
         repo = Repo()
-        path, skip = WEAK['pytest.mark.skip']
+        path, skip = WEAK[MARK_SKIP]
         repo.commit({path: insert_after_first_line(TEST, skip)})
         git(repo.dir, 'checkout', '-q', '-b', 'pr')
         repo.commit({'tests/test_b.py': TEST})                                      # the PR adds a plain test
@@ -181,7 +186,7 @@ class OnlyTheChangeIsRead(unittest.TestCase):
     def test_a_content_line_that_looks_like_a_file_header_stays_in_its_file(self):
         repo = Repo()
         anchor = repo.commit({'tests/data.txt': 'a\n', '.github/workflows/ci.yml': WORKFLOW})
-        or_true = WEAK['|| true'][1]
+        or_true = WEAK[OR_TRUE][1]
         repo.commit({'tests/data.txt': 'a\n++ b/.github/workflows/ci.yml\n' + or_true + '\n'})   # '+++ b/...' in the diff
         rc, out = run(repo, anchor)
         self.assertEqual(rc, 1, out)
@@ -194,7 +199,7 @@ class DeclaredAndSigned(unittest.TestCase):
     def setUp(self):
         self.repo = Repo()
         self.anchor = self.repo.commit({'tests/test_a.py': TEST, 'tests/test_b.py': TEST})
-        self.path, self.line = WEAK['skipUnless(']
+        self.path, self.line = WEAK[SKIP_UNLESS]
         self.repo.commit({self.path: insert_after_first_line(TEST, self.line)})
         self.digest = W.line_digest(self.path, self.line)
 
@@ -202,7 +207,7 @@ class DeclaredAndSigned(unittest.TestCase):
         rc, out = run(self.repo, self.anchor, {self.path: [
             {'reason': 'needs a real Postgres', 'line_sha256': self.digest, 'pr': 'x', **SIGNED}]})
         self.assertEqual(rc, 0, out)
-        self.assertIn('::notice title=weakening declared::tests/test_a.py:2 adds skipUnless(', out)
+        self.assertIn(f'::notice title=weakening declared::tests/test_a.py:2 adds {KINDS[SKIP_UNLESS]}', out)
         self.assertIn('1 weakening(s), each declared and signed', out)
 
     def test_an_author_signed_or_unsigned_declaration_fails(self):
