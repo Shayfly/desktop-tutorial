@@ -1,3 +1,23 @@
+# 2026-11-25 — Content route: two follow-ups from the release review (Claude Code; committed locally, not pushed)
+
+- **FIX 1 — implemented, verified locally (not in CI).** A heading carrying `@price:N` was measured on the model's text
+  (`validate._shape`, 8 characters for the reference) while the renderer writes the customer's span and the library's
+  heading check counts the shown text. Reproduced on `ac10e94` with the owner's brief and the price written
+  "1,250 שקלים": a 39-character services title passed validation and the generate path raised
+  `SiteRenderDefect: HeadingTooLong: h3 of 42 characters` after one content call. Now `validate.too_long` counts every
+  field the renderer substitutes as the page shows it (`render.shown`, `typography.visible`, the rule
+  `check_headings` uses too) and the problem is TOO_LONG with the shown length, fixed by the one correction round.
+  Evidence: `tests/test_site_content_price_in_heading.py` 6 passed; controls `content_followups` 5/5 PASS; the
+  non-browser site_content and typography tests 94 passed; the non-browser controls of `site_content` and
+  `typography_126_129` 53/53 PASS (7 with browser targets not run); `deletions_declared.py origin/main` exit 0
+  (675 -> 677 records). Commits `e2df850`, `3005c0d`.
+- **FIX 2 — not implemented: blocked on an owner decision.** The content route locks a library pair and keeps the
+  customer's font only as evidence (`contract['fonts']['brief_font']`). The approved prompt cannot tell a font the
+  customer chose from the default: the Design line writes Heebo when the font was chosen, skipped or filled by the
+  conversation's defaults (source `default`, not listed in the prompt), and Rubik is only a display face in one
+  warm/bold pair. The facts and the options are in the branch's report; nothing was changed for it.
+- Not verified: browser tests, the full suite, CI, a live build.
+
 # 2026-11-25 — Skills #525 follow-up declarations approved by the owner (Codex, HOLD for CI and independent review)
 
 - Shai approved the six-path source identity declaration and exact intake deletion digest `e7d7be5a4c04c90ca07719c7e49a74657d680e34c0837a3717be2f35679c7ac8` for candidate `e1c8a7d77fbb96a844d2947d8a6749e3024fd2ec`. The authorization covers these two declarations.
