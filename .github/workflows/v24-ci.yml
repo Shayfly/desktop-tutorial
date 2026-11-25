@@ -374,6 +374,9 @@ jobs:
               echo "::error title=sidebar mutation::$m was NOT caught"; missed=1
             elif grep -q -e 'mutation anchor missing' -e 'unknown mutation' mutation.log; then
               echo "::error title=sidebar mutation::$m has no anchor in the code"; cat mutation.log; missed=1
+            elif ! grep -q AssertionError mutation.log; then
+              # a crash, a dead server or a timeout also exits non-zero; only a failed assertion is a catch
+              echo "::error title=sidebar mutation::$m failed without an assertion, so it was not caught"; cat mutation.log; missed=1
             else
               echo "::notice title=sidebar mutation::$m caught: $(grep -m1 AssertionError mutation.log | cut -c1-160)"
             fi
