@@ -2022,8 +2022,8 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
 # promoted modifications) decides the demand-driven acceptance scope. Read from
 # the immutable contract, never from generated files.
 #
-# Lineage (2026-11-25). Every version has exactly ONE origin, so the walk is a single chain and its answer does not
-# depend on row order. The first rule that applies names the origin:
+# Lineage (2026-11-25). A version has at most ONE origin, so the walk is a single chain and its answer does not depend
+# on row order. The first rule that applies names the origin:
 #   1. a promoted change (modification_requests.promoted_version_id): the version the change was proposed on
 #      (source_version_id). The change was built and judged on that version (execute_modification), also when it was
 #      accepted with force on top of another head.
@@ -2031,43 +2031,60 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
 #      repository_sha256. workspace.restore() commits the target's files unchanged and the checksum is computed from
 #      the files alone (workspace._checksum), so equal content has an equal value. Which version was restored is not
 #      stored anywhere else.
-#   3. anything else: parent_id, the head it was committed on.
-# The nearest version on that chain that is the result of a build (build_jobs.result_version_id) with a contract of
-# this project gives the scope. 64 steps at most; past that, and for a cycle, there is no contract (strict floor).
+# A version neither rule covers has NO origin and, unless it is itself a build's result, no contract: the strict floor
+# applies. parent_id is never followed -- it is the project's head at commit time, not where the content came from.
+# The walk ends at the first version that is the result of a build (build_jobs.result_version_id) with a contract of
+# this project; that contract gives the scope. 64 steps at most; past that, and for a cycle, there is no contract.
+#
+# Cost. `contracted` (this project's builds that have a contract) is read once per lookup; it is the last WITH item so
+# that the three parameters stay in the caller's order (WITH RECURSIVE lets an earlier item refer to a later one).
+# Each step computes its origin once (OFFSET 0 keeps the planner from copying the lateral subquery into both the
+# filter and the output) and asks rule 2 only when rule 1 gave nothing. Rule 1 scans modification_requests and rule 2
+# scans project_versions: neither has an index for it yet (a migration needs the owner's word). ORDER BY l.depth is a
+# second guard: while the walk ends at the first build, only its last row can have a contract.
 #
 # History. Until 2026-11-25 only rule 1 existed, so a version made by an undo or a rollback had no contract and a
 # content site was judged on the strict floor (verify-replay run 45607249874: v_88812e8a4066448e and
 # v_8fd6c2ad3b174200 required auth/role/data_* although their build, bld_c35b8332, was an approved content site).
-# The first fix (#530 before review) followed parent_id for every version. parent_id is the project's head at commit
-# time (PostgresProjectWorkspace.commit), not the version the content came from: a data app restored after a later
-# content-site build of the same project took the content site's contract, with auth, role and data checks waived,
-# and a change accepted with force had two edges at the same depth, so LIMIT 1 picked one arbitrarily.
+# Two fixes were rejected in review before merge, both for following parent_id:
+#   - for every version: a data app restored after a later content-site build of the same project took the content
+#     site's contract, with auth, role and data checks waived, and a change accepted with force had two edges at the
+#     same depth, so LIMIT 1 picked one arbitrarily;
+#   - as a last rule: a build commits its version before it records result_version_id (_run_live_build_job: commit,
+#     then jobs.transition). A job killed in between (queue timeout, restart, the reaper) leaves a version with no
+#     build row, and parent_id lent it the PREVIOUS build's contract -- weaker than main, where it had none.
 _CONTRACT_SCOPE_FOR_VERSION_SQL = """
 WITH RECURSIVE lineage(version_id, depth) AS (
     SELECT %s::text, 0
     UNION ALL
     SELECT o.origin, l.depth + 1
     FROM lineage l
+    LEFT JOIN project_versions v ON v.id = l.version_id
     CROSS JOIN LATERAL (
         SELECT COALESCE(
             (SELECT min(m.source_version_id) FROM modification_requests m WHERE m.promoted_version_id = l.version_id),
-            (SELECT e.id FROM project_versions v
-               JOIN project_versions e ON e.project_id = v.project_id AND e.repository_sha256 = v.repository_sha256
+            (SELECT e.id FROM project_versions e
+              WHERE e.project_id = v.project_id AND e.repository_sha256 = v.repository_sha256
                 AND (e.created_at, e.id) < (v.created_at, v.id)
-              WHERE v.id = l.version_id ORDER BY e.created_at, e.id LIMIT 1),
-            (SELECT v.parent_id FROM project_versions v WHERE v.id = l.version_id)
+              ORDER BY e.created_at, e.id LIMIT 1)
         ) AS origin
+        WHERE NOT EXISTS (SELECT 1 FROM contracted b WHERE b.version_id = l.version_id)
+        OFFSET 0
     ) o
     WHERE l.depth < 64 AND o.origin IS NOT NULL
+), contracted(version_id, job_id, contract_id) AS MATERIALIZED (
+    SELECT j.result_version_id, j.id, c.id
+    FROM build_requests r
+    JOIN build_jobs j ON j.id = r.build_id
+    JOIN m5_build_contracts c ON c.id = r.build_contract_id
+    WHERE r.public_project_id = %s OR r.internal_project_id = %s
 )
 SELECT c.contract_json->'infrastructure', c.contract_json->'required_integrations',
        c.contract_json->'user_roles', c.contract_json->'defaults_applied', c.contract_json->>'prompt'
 FROM lineage l
-JOIN build_jobs j ON j.result_version_id = l.version_id
-JOIN build_requests r ON r.build_id = j.id
-JOIN m5_build_contracts c ON c.id = r.build_contract_id
-WHERE r.public_project_id = %s OR r.internal_project_id = %s
-ORDER BY l.depth, j.id
+JOIN contracted b ON b.version_id = l.version_id
+JOIN m5_build_contracts c ON c.id = b.contract_id
+ORDER BY l.depth, b.job_id
 LIMIT 1
 """
 
