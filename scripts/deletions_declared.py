@@ -13,6 +13,14 @@ reason and a reviewer who is not the author (Michael fix 4).
     python scripts/deletions_declared.py ANCHOR                 # check HEAD against ANCHOR (identity.yml)
     python scripts/deletions_declared.py ANCHOR --digest PATH   # the digest to declare for PATH
     python scripts/deletions_declared.py --anchor PR_BASE        # the anchor identity.yml measures from
+    python scripts/deletions_declared.py ANCHOR --blob PATH     # the blob to declare for a binary PATH (law 6)
+
+Law 6, no deleting evidence (the owner's development laws; audit 2026-11-25): `git diff --numstat` gives a binary file
+"-" for its lines, so an image or archive deleted or rewritten under docs/evidence/ or smoke/ passed undeclared. Now
+every binary file a change deletes or rewrites -- any path, like every deleted line -- needs a declaration in the same
+`allowed` map bound by `deleted_blob`: the git blob id of the version it removes (`git show BLOB` shows that version).
+A line digest (deleted_sha256) covers no binary and a blob covers no line; the reason and reviewer rules are the same.
+A rename is a deletion at the old path. An added binary removes nothing and needs nothing.
 """
 from __future__ import annotations
 
@@ -43,6 +51,35 @@ def files_with_deletions(anchor: str, cwd: str | None = None) -> list[str]:
         if removed not in ('0', '-'):
             files.append(path)
     return files
+
+
+def removed_binaries(anchor: str, cwd: str | None = None) -> dict[str, str]:
+    """Law 6: path -> blob id of the anchor's version, for every binary file (numstat "-") this change deletes or
+    rewrites. --no-renames: a moved binary is a deletion at its old path. Output this cannot read raises, never {}."""
+    binary = set()
+    for record in _git('diff', '--numstat', '--no-renames', '-z', anchor, 'HEAD', cwd=cwd).split('\0'):
+        if record:
+            added, removed, path = record.split('\t', 2)
+            if (added, removed) == ('-', '-'):
+                binary.add(path)
+    fields = _git('diff', '--raw', '--no-renames', '--no-abbrev', '-z', anchor, 'HEAD', cwd=cwd).split('\0')
+    if fields[-1] != '' or len(fields) % 2 != 1:
+        raise ValueError(f'git diff --raw -z: {len(fields)} fields, not path pairs ending in NUL')
+    out = {}
+    for meta, path in zip(fields[0:-1:2], fields[1::2]):
+        if not meta.startswith(':'):
+            raise ValueError(f'git diff --raw -z: unreadable record {meta[:80]!r}')
+        _, _, old, new, status = meta[1:].split(' ')               # ':100644 100644 OLD NEW M'
+        if path in binary and status in ('M', 'D', 'T') and old != new:
+            out[path] = old
+    return out
+
+
+def blob_view(allowed: dict, removed: dict[str, str]) -> dict:
+    """judge() matches an entry's deleted_sha256. A removed binary's declaration is matched by its deleted_blob, so
+    judge() sees each entry of that path with deleted_blob in that place: an entry without deleted_blob covers no
+    binary, and a blob declared for an earlier version covers no later rewrite."""
+    return {p: [dict(e, deleted_sha256=e.get('deleted_blob')) for e in entries_for(allowed, p)] for p in removed}
 
 
 def digest(lines: list[str]) -> str:
@@ -95,6 +132,14 @@ def main(argv: list[str], cwd: str | None = None, declarations: Path | None = No
         print(rolling_anchor(argv[1] if len(argv) > 1 else '', cwd))
         return 0
     anchor = argv[0]
+    if len(argv) == 3 and argv[1] == '--blob':
+        removed = removed_binaries(anchor, cwd)
+        if argv[2] not in removed:
+            raise SystemExit(f'{argv[2]}: not a binary file this change deletes or rewrites (nothing to declare by blob)')
+        print(removed[argv[2]])
+        return 0
+    if len(argv) == 3 and argv[1] == '--digest' and argv[2] in removed_binaries(anchor, cwd):
+        raise SystemExit(f'{argv[2]} is binary: it is declared by deleted_blob (--blob {argv[2]}), not by a line digest')
     if len(argv) == 3 and argv[1] == '--digest':
         print(digest(deleted_lines(anchor, argv[2], cwd)))
         return 0
@@ -111,6 +156,20 @@ def main(argv: list[str], cwd: str | None = None, declarations: Path | None = No
     if unreviewed:
         print(f'::error title=additive only::deletions in {", ".join(unreviewed)} have no reviewer note (a reviewer '
               f'other than the author must sign in docs/identity/allowed-deletions.json)')
+    removed = removed_binaries(anchor, cwd)                          # law 6: a binary has no lines to digest
+    b_notices, b_undeclared, b_stale, b_unreviewed = judge(blob_view(allowed, removed), removed)
+    for n in b_notices:
+        print(f'::notice title=deletion (binary)::{n}')
+    for p in b_undeclared + b_stale:
+        print(f'::error title=no deleting evidence::binary {p} deleted or rewritten without a declaration bound to the '
+              f'removed version (deleted_blob; scripts/deletions_declared.py ANCHOR --blob PATH gives it)')
+    for p in b_unreviewed:
+        print(f'::error title=no deleting evidence::binary {p}: the declaration has no reviewer note (a reviewer other '
+              f'than the author must sign in docs/identity/allowed-deletions.json)')
+    if b_undeclared or b_stale or b_unreviewed:
+        return 1
+    print(f'::notice title=no deleting evidence::{len(removed)} binary file(s) deleted or rewritten, each declared for '
+          f'the removed version and reviewed')
     if undeclared or stale or unreviewed:
         return 1
     print(f'::notice title=additive only::{len(deleted)} file(s) with deletions, each declared for this exact change and reviewed')
