@@ -6,8 +6,8 @@ in the check's own words (acceptance ids, unit codes, English repair instruction
 
 WORDS maps every way the platform can fail a build to one sentence per language (Hebrew, Arabic, English): WHAT is
 missing or wrong, WHY it matters to the customer's business, and NEXT -- the one thing to do, named as its button is
-named (build_announcement.RETRY_BUTTON / EDIT_BUTTON; in Arabic, the button under the message, because the screen has
-no Arabic labels yet). Every entry has an ACTION: 'retry' (the cause is on our side, a new build can clear it) or
+named (build_announcement.RETRY_BUTTON / EDIT_BUTTON, in every language; the Arabic screen has its labels since #505).
+Every entry has an ACTION: 'retry' (the cause is on our side, a new build can clear it) or
 'edit' (only a change to the request can: a fact only the customer has, a need we cannot build).
 
 Keys, from the most precise to the least:
@@ -38,12 +38,12 @@ from .build_announcement import EDIT_BUTTON, RETRY_BUTTON
 LANGS = ('he', 'ar', 'en')
 ACTIONS = ('retry', 'edit')
 
-# The next action, said once per action. Hebrew and English name the button exactly as the screen does.
+# The next action, said once per action, naming the button exactly as the screen does in that language.
 NEXT = {
     'he': {'retry': 'זה אצלנו, לא אצלכם. אפשר לנסות שוב: לחצו על "' + RETRY_BUTTON['he'] + '".',
            'edit': 'כדי שנוכל לבנות, צריך לשנות את הבקשה: לחצו על "' + EDIT_BUTTON['he'] + '".'},
-    'ar': {'retry': 'هذا من جهتنا وليس من جهتكم. يمكنكم المحاولة مرة أخرى بالضغط على الزر الذي تحت هذه الرسالة.',
-           'edit': 'لكي نتمكن من البناء، يجب تعديل الطلب: اضغطوا على الزر الذي تحت هذه الرسالة.'},
+    'ar': {'retry': 'هذا من جهتنا وليس من جهتكم. يمكنكم المحاولة مرة أخرى: اضغطوا على "' + RETRY_BUTTON['ar'] + '".',
+           'edit': 'لكي نتمكن من البناء، يجب تعديل الطلب: اضغطوا على "' + EDIT_BUTTON['ar'] + '".'},
     'en': {'retry': 'This is on our side, not yours. You can try again: press "' + RETRY_BUTTON['en'] + '".',
            'edit': 'To build it, the request has to change: press "' + EDIT_BUTTON['en'] + '".'},
 }
@@ -584,14 +584,14 @@ WORDS: dict[str, Entry] = {
         ('ينقص رقم الهاتف', 'بدون ذلك لا يستطيع الناس الاتصال بكم'),
         ('The phone number is missing', 'without it, people cannot call you'),
         next={'he': 'כתבו את המספר בבקשה: לחצו על "' + EDIT_BUTTON['he'] + '".',
-              'ar': 'أضيفوا الرقم إلى الطلب بالضغط على الزر الذي تحت هذه الرسالة.',
+              'ar': 'أضيفوا الرقم إلى الطلب: اضغطوا على "' + EDIT_BUTTON['ar'] + '".',
               'en': 'Add the number to the request: press "' + EDIT_BUTTON['en'] + '".'}),
     'needs:hours': _e(
         ('חסרות שעות הפתיחה', 'בלי זה אנשים לא יודעים מתי אפשר להגיע'),
         ('تنقص ساعات العمل', 'بدون ذلك لا يعرف الناس متى يمكنهم المجيء'),
         ('The opening hours are missing', 'without them, people do not know when they can come'),
         next={'he': 'כתבו את שעות הפתיחה בבקשה: לחצו על "' + EDIT_BUTTON['he'] + '".',
-              'ar': 'أضيفوا ساعات العمل إلى الطلب بالضغط على الزر الذي تحت هذه الرسالة.',
+              'ar': 'أضيفوا ساعات العمل إلى الطلب: اضغطوا على "' + EDIT_BUTTON['ar'] + '".',
               'en': 'Add the opening hours to the request: press "' + EDIT_BUTTON['en'] + '".'}),
 }
 

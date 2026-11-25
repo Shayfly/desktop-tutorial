@@ -192,10 +192,8 @@ class EveryWordingHasTheNextAction(unittest.TestCase):
                         self.assertGreaterEqual(len(w[part].split()), 2, part)
                     self.assertFalse(w['what'].endswith('.') or w['why'].endswith('.'))
                     self.assertNotEqual(w['next'], w['why'])
-                    if lang in ('he', 'en'):
-                        self.assertIn(f'"{buttons[w["action"]][lang]}"', w['next'])
-                    else:
-                        self.assertIn('الزر', w['next'])                 # the button under the message
+                    # every language names the button as its screen does (Arabic too, since #505)
+                    self.assertIn(f'"{buttons[w["action"]][lang]}"', w['next'])
 
     def test_an_entry_with_no_action_or_no_next_step_is_refused(self):
         broken = G.Entry('', ('א ב', 'ג ד'), ('ا ب', 'ج د'), ('a b', 'c d'))
@@ -433,6 +431,17 @@ class AnEmptyPageIsNotAPageThatDidNotOpen(unittest.TestCase):
         self.assertIn('empty', said['en'])
         self.assertIn('فارغ', said['ar'])
         self.assertTrue(EMPTY_UI_PREFIX.startswith('the app started'))
+
+
+class TheArabicButtonsAreTheScreensButtons(unittest.TestCase):
+    """Review of bundle 2 (2026-11-24): the Arabic chat said "the button under this message" because the screen had no
+    Arabic labels; #505 gave it labels, so the chat names them, exactly as the Arabic screen shows them."""
+
+    def test_the_server_names_the_buttons_as_the_arabic_screen_does(self):
+        app = (ROOT / 'omni_prod' / 'assets' / 'app.js').read_text(encoding='utf-8')
+        for key, server in (('actRetryBuild', BA.RETRY_BUTTON['ar']), ('editAll', BA.EDIT_BUTTON['ar'])):
+            arabic = {v for _, v in re.findall(key + r"""\s*:\s*(["'])(.*?)\1""", app) if re.search('[\u0600-\u06ff]', v)}
+            self.assertEqual(arabic, {server}, key)
 
 
 if __name__ == '__main__':
