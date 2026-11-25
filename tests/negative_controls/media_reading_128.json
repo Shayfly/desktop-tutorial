@@ -344,6 +344,24 @@
    "expect_failed": [
     "test_a_discarded_draft_changes_nothing_and_holds_nothing"
    ]
+  },
+  {
+   "id": "NC19",
+   "what": "a reading sentence the supervisor sends says the platform word 'אפיון' again (review 2026-11-24)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/media_reading.py",
+     "old": "'pending': 'לפני שמאשרים את מה שהבנתי שאתם רוצים: ",
+     "new": "'pending': 'לפני שמאשרים את האפיון: "
+    }
+   ],
+   "targets": [
+    "tests/test_customer_words.py"
+   ],
+   "expect_failed": [
+    "test_no_other_customer_text_gains_a_platform_word",
+    "test_the_conversation_route_holds_no_platform_word"
+   ]
   }
  ]
 }

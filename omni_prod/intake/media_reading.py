@@ -435,10 +435,11 @@ _TEXT = {
            'discarded_shown': 'ביטלתי את הטיוטה',
            'skeleton_in': 'המבנה מצילום המסך נכנס לבקשה: רק החלקים והסדר שלהם.',
            'describe': 'עכשיו ספרו לי על העסק שלכם במשפט או שניים, והמבנה ישמש אותו.',
-           'continue': 'ספרו לי עוד על העסק, וכשהכול יהיה ברור אציג את האפיון לאישור.',
+           'continue': 'ספרו לי עוד על העסק, וכשהכול יהיה ברור אציג לכם לאישור את מה שהבנתי שאתם רוצים.',
            'discarded': 'בסדר, לא השתמשתי בזה. הקובץ נשאר שמור בפרויקט.',
            'already': 'כבר החלטתם על הטיוטה הזו.',
-           'pending': 'לפני שמאשרים את האפיון: יש טיוטה מקובץ שהעליתם שמחכה להחלטה שלכם. אשרו אותה או בטלו אותה, '
+           'pending': 'לפני שמאשרים את מה שהבנתי שאתם רוצים: יש טיוטה מקובץ שהעליתם שמחכה להחלטה שלכם. אשרו אותה או '
+                      'בטלו אותה, '
                       'ואז נמשיך.'},
     'en': {'uploaded': {NOTE: '📎 A handwritten note', COMPETITOR: '📎 A screenshot of another site',
                         VOICE: '📎 A voice recording'},
@@ -455,10 +456,12 @@ _TEXT = {
            'discarded_shown': 'I discarded the draft',
            'skeleton_in': 'The structure from the screenshot is now in the request: only the parts and their order.',
            'describe': 'Now tell me about your business in a sentence or two; the structure will be used for it.',
-           'continue': 'Tell me more about the business; when everything is clear I will show the spec for approval.',
+           'continue': 'Tell me more about the business; when everything is clear I will show you what I understood you '
+                       'want, for approval.',
            'discarded': 'OK, I did not use it. The file stays saved in the project.',
            'already': 'You already decided on this draft.',
-           'pending': 'Before the spec is approved: a draft from a file you uploaded is waiting for your decision. '
+           'pending': 'Before you approve what I understood you want: a draft from a file you uploaded is waiting for your '
+                      'decision. '
                       'Approve it or discard it, and then we go on.'},
     'ar': {'uploaded': {NOTE: '📎 ملاحظة مكتوبة بخط اليد', COMPETITOR: '📎 لقطة شاشة لموقع آخر', VOICE: '📎 تسجيل صوتي'},
            'draft_text': {NOTE: 'هذا ما قرأته من الملاحظة. راجعوه: لا يُبنى شيء قبل موافقتكم.',
@@ -472,10 +475,11 @@ _TEXT = {
            'discarded_shown': 'ألغيت المسودة',
            'skeleton_in': 'دخلت البنية من لقطة الشاشة إلى الطلب: الأجزاء وترتيبها فقط.',
            'describe': 'الآن أخبروني عن مصلحتكم في جملة أو جملتين، وستُستخدم البنية لها.',
-           'continue': 'أخبروني المزيد عن المصلحة، وعندما يتضح كل شيء سأعرض المواصفات للموافقة.',
+           'continue': 'أخبروني المزيد عن المصلحة، وعندما يتضح كل شيء سأعرض عليكم للموافقة ما فهمت أنكم تريدونه.',
            'discarded': 'حسنًا، لم أستخدمها. يبقى الملف محفوظًا في المشروع.',
            'already': 'لقد قررتم بشأن هذه المسودة من قبل.',
-           'pending': 'قبل الموافقة على المواصفات: هناك مسودة من ملف رفعتموه تنتظر قراركم. وافقوا عليها أو ألغوها، '
+           'pending': 'قبل الموافقة على ما فهمت أنكم تريدونه: هناك مسودة من ملف رفعتموه تنتظر قراركم. وافقوا عليها أو '
+                      'ألغوها، '
                       'ثم نكمل.'},
 }
 _HERO_TYPES = {'he': {'split': 'מחולק לשניים', 'full_bleed': 'תמונה לכל הרוחב', 'centered': 'ממורכז',
