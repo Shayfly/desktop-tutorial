@@ -66,6 +66,9 @@ jobs:
       - name: No added line weakens a test or a workflow without a signed declaration (scripts/weakening_declared.py)
         # Law 5: the step above sees only deleted lines. Measured from the merge base with the same anchor; one ::error
         # per added skip, xfail or swallowed exit code that docs/identity/allowed-deletions.json does not declare.
+        # It runs even when the fast suite or the deletion step failed, so one push shows every declaration it needs
+        # (each push voids an approved SHA). Only a cancelled run skips it; the job still fails on any failed step.
+        if: ${{ !cancelled() }}
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
