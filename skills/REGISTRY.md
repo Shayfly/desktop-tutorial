@@ -82,6 +82,16 @@
 | game_runtime | GAME | GAME_NOT_STARTED |
 | game_runtime | GAME | GAME_NO_CANVAS |
 | game_runtime | GAME | GAME_OFFSCREEN |
+| app_states | APP_STATES | APP_DEBUG_ON |
+| app_states | APP_STATES | APP_ERROR_WITHOUT_ACTION |
+| app_states | APP_STATES | APP_FETCH_UNHANDLED |
+| app_states | APP_STATES | APP_NO_EMPTY_STATE |
+| app_states | APP_STATES | APP_NO_ERROR_STATE |
+| app_states | APP_STATES | APP_NO_LOADING_STATE |
+| app_states | APP_STATES | APP_RAW_ERROR_SHOWN |
+| app_states | APP_STATES | APP_SERVER_ERROR_NOT_JSON |
+| app_states | APP_STATES | APP_STATUS_UNCHECKED |
+| app_states | APP_STATES | APP_TRACEBACK_TO_CLIENT |
 | a4.placement | A4 | not_first |
 | a4.placement | A4 | no_section |
 | a4.placement | A4 | wrong_section |

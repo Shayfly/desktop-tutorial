@@ -1,0 +1,56 @@
+{
+ "_about": "Warehouse 129 (the owner, 2026-11-22): the unit is the script, not the language. Every script the platform names is declared here; only a script with 'supported': true has fonts (font_pairs.json), a direction, formats and heading limits. A declared but unsupported script RAISES wherever it is used (omni_prod/typography), and a script not declared here raises too: nothing ever falls back to Latin. Formats: 'date' is a pattern of DD, MM and YYYY; numbers are written with Western digits in every supported script (the customer's own phones and prices are written that way; Eastern Arabic digits are not built). Currency: the symbols a page of this script may show, and where the symbol stands; a currency not listed raises (no default currency). heading_max_chars: Hebrew equals the content route's schema bounds (site_content/schema.py reads them from here); Arabic and Latin are estimates from average glyph width, not measured. 'ריווח', 'כוונת חיפוש' and 'קורפוס' of 129 are not built.",
+ "version": 1,
+ "scripts": {
+  "hebrew": {
+   "supported": true,
+   "direction": "rtl",
+   "lang": "he",
+   "og_locale": "he_IL",
+   "languages": ["he"],
+   "blocks": ["0590-05FF", "FB1D-FB4F"],
+   "heading_max_chars": {"h1": 70, "h2": 70, "h3": 40, "h4": 40},
+   "date": "DD/MM/YYYY",
+   "number": {"group": ",", "decimal": "."},
+   "currency": {"position": "after", "space": true, "symbols": {"ILS": "₪", "USD": "$", "EUR": "€"}},
+   "sample": "אבגדהוזחטיכלמנסעפצקרשת"
+  },
+  "arabic": {
+   "supported": true,
+   "direction": "rtl",
+   "lang": "ar",
+   "og_locale": "ar_AR",
+   "languages": ["ar"],
+   "blocks": ["0600-06FF", "0750-077F", "08A0-08FF", "FB50-FDFF", "FE70-FEFF"],
+   "heading_max_chars": {"h1": 60, "h2": 60, "h3": 36, "h4": 36},
+   "date": "DD/MM/YYYY",
+   "number": {"group": ",", "decimal": "."},
+   "currency": {"position": "after", "space": true,
+                "symbols": {"ILS": "₪", "SAR": "ر.س", "AED": "د.إ", "EGP": "ج.م", "JOD": "د.أ", "USD": "$"}},
+   "sample": "أبجد هوز حطي كلمن سعفص قرشت"
+  },
+  "latin": {
+   "supported": true,
+   "direction": "ltr",
+   "lang": "en",
+   "og_locale": "en_US",
+   "languages": ["en"],
+   "blocks": ["0041-005A", "0061-007A", "00C0-024F"],
+   "heading_max_chars": {"h1": 80, "h2": 80, "h3": 48, "h4": 48},
+   "date": "YYYY-MM-DD",
+   "number": {"group": ",", "decimal": "."},
+   "currency": {"position": "before", "space": false, "symbols": {"USD": "$", "EUR": "€", "GBP": "£"}},
+   "sample": "The quick brown fox jumps over the lazy dog"
+  },
+  "cyrillic": {"supported": false, "direction": "ltr", "languages": ["ru", "uk", "bg", "sr"],
+               "blocks": ["0400-04FF", "0500-052F"], "why": "no font pairs, no formats and no corpus yet"},
+  "greek": {"supported": false, "direction": "ltr", "languages": ["el"], "blocks": ["0370-03FF", "1F00-1FFF"],
+            "why": "no font pairs, no formats and no corpus yet"},
+  "cjk": {"supported": false, "direction": "ltr", "languages": ["zh", "ja", "ko"],
+          "blocks": ["3040-30FF", "3400-4DBF", "4E00-9FFF", "AC00-D7AF"], "why": "no font pairs, no formats and no corpus yet"},
+  "indic": {"supported": false, "direction": "ltr", "languages": ["hi", "bn", "pa", "gu", "ta", "te", "kn", "ml", "mr"],
+            "blocks": ["0900-0DFF"], "why": "no font pairs, no formats and no corpus yet"},
+  "thai": {"supported": false, "direction": "ltr", "languages": ["th"], "blocks": ["0E00-0E7F"],
+           "why": "no font pairs, no formats and no corpus yet"}
+ }
+}

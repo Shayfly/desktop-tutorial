@@ -1,0 +1,154 @@
+{
+ "pr": "part-ledger",
+ "sha256": [
+  "tests/test_part_ledger.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "crediting the customer: a fact span found only in the approved brief is labelled customer_words",
+   "mutations": [
+    {
+     "file": "omni_prod/part_ledger.py",
+     "old": "            return 'customer_approved', 'approved_brief'\n",
+     "new": "            return 'customer_words', 'approved_brief'\n"
+    }
+   ],
+   "targets": [
+    "tests/test_part_ledger.py"
+   ],
+   "expect_failed": [
+    "test_a_value_only_in_the_approved_brief_is_customer_approved"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "silent default: an unclaimed file is dropped instead of listed (unresolved always [])",
+   "mutations": [
+    {
+     "file": "omni_prod/part_ledger.py",
+     "old": "    unresolved = sorted(L.unresolved, key=lambda u: (u['path'], u['reason']))\n",
+     "new": "    unresolved = []\n"
+    }
+   ],
+   "targets": [
+    "tests/test_part_ledger.py"
+   ],
+   "expect_failed": [
+    "test_a_bare_repository_still_gets_a_ledger_that_says_what_is_missing",
+    "test_a_logo_the_brief_did_not_bind_and_a_second_file_are_unresolved",
+    "test_a_verified_artifact_without_its_file_and_a_file_that_is_not_its_artifact",
+    "test_an_incomplete_version_exits_non_zero",
+    "test_an_unattested_generated_image_is_unresolved",
+    "test_an_unclaimed_file_is_unresolved"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "leak: customer_view returns the ledger unchanged",
+   "mutations": [
+    {
+     "file": "omni_prod/part_ledger.py",
+     "old": "    view = _strip(copy.deepcopy(led))\n",
+     "new": "    return led\n    view = _strip(copy.deepcopy(led))\n"
+    }
+   ],
+   "targets": [
+    "tests/test_part_ledger.py"
+   ],
+   "expect_failed": [
+    "test_parts_json_has_no_internal_key_and_no_provider_name"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "hook removed: decorate_repository stops writing .148ai/parts.json",
+   "mutations": [
+    {
+     "file": "omni_prod/branding.py",
+     "old": "        repo[PARTS_PATH] = self.parts_json(repo)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_part_ledger.py"
+   ],
+   "expect_failed": [
+    "test_a_bare_repository_still_gets_a_ledger_that_says_what_is_missing",
+    "test_a_logo_the_brief_did_not_bind_and_a_second_file_are_unresolved",
+    "test_a_value_only_in_the_approved_brief_is_customer_approved",
+    "test_a_verified_artifact_without_its_file_and_a_file_that_is_not_its_artifact",
+    "test_an_unattested_generated_image_is_unresolved",
+    "test_an_unclaimed_file_is_unresolved",
+    "test_an_unknown_origin_or_route_raises",
+    "test_decorating_twice_gives_byte_identical_parts_and_signature",
+    "test_design_is_the_platform_default_and_page_and_code_are_ai_written",
+    "test_each_fact_the_customer_said_is_customer_words",
+    "test_no_value_is_customer_words_unless_it_is_in_customer_text",
+    "test_parts_json_has_no_internal_key_and_no_provider_name",
+    "test_the_brief_is_composed_by_the_conversations_own_functions",
+    "test_the_cli_on_the_zip_gives_the_same_ledger",
+    "test_the_design_is_the_customers_colour",
+    "test_the_fixture_is_the_production_prompt",
+    "test_the_generated_hero_is_a_web_rendition_of_its_artifact",
+    "test_the_generated_image_is_linked_to_its_verified_requirement",
+    "test_the_ledger_is_complete_and_every_file_is_claimed_once",
+    "test_the_ledger_written_is_the_ledger_of_the_decorated_repository",
+    "test_the_logo_and_the_photo_are_the_customers_uploads",
+    "test_the_provenance_signature_covers_parts_json",
+    "test_the_route_files_have_the_routes_origins"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "design source flipped: 'requested colour description' is read as platform_default",
+   "mutations": [
+    {
+     "file": "omni_prod/part_ledger.py",
+     "old": "        origin = 'customer_words' if brief.said(said) else 'customer_approved'\n",
+     "new": "        origin = 'platform_default'\n"
+    }
+   ],
+   "targets": [
+    "tests/test_part_ledger.py"
+   ],
+   "expect_failed": [
+    "test_the_design_is_the_customers_colour"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "unattested image passes: the verified-manifest check for assets/148ai-image-N is skipped",
+   "mutations": [
+    {
+     "file": "omni_prod/part_ledger.py",
+     "old": "        if art is None:\n            L.unresolve(path, 'a generated image with no verified artifact in the asset manifest')\n            continue\n",
+     "new": "        if art is None:\n            L.item('images', 'ai_generated', path=path, index=n, sha256=sha)\n            continue\n"
+    }
+   ],
+   "targets": [
+    "tests/test_part_ledger.py"
+   ],
+   "expect_failed": [
+    "test_an_unattested_generated_image_is_unresolved"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the signature does not bind: parts.json is written after signature_source is computed",
+   "mutations": [
+    {
+     "file": "omni_prod/branding.py",
+     "old": "        repo[PARTS_PATH] = self.parts_json(repo)\n        signature_source = '\\n'.join(f'{k}\\0{repo[k]}' for k in sorted(repo)) + f'\\0{project_id}\\0{version_hint}'\n",
+     "new": "        signature_source = '\\n'.join(f'{k}\\0{repo[k]}' for k in sorted(repo)) + f'\\0{project_id}\\0{version_hint}'\n        repo[PARTS_PATH] = self.parts_json(repo)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_part_ledger.py"
+   ],
+   "expect_failed": [
+    "test_the_provenance_signature_covers_parts_json"
+   ]
+  }
+ ]
+}

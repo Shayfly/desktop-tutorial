@@ -73,6 +73,7 @@ CALIBRATING = (
     'PRO',       # professional minimum of a business site (skill_units/design_minimum; owner 2026-11-19)
     'SITE_CLAIMS',   # content route: a superlative no fact supports, in the model's copy (omni_prod/site_content)
     'SITE_PARITY',   # content route: the served page is the rendered page, and the only page (omni_prod/site_content)
+    'APP_STATES',    # an app's data screens: loading, empty, error; no stack trace to the customer (omni_prod/app_states)
 )
 # Calibrated 2026-11-19 on the five builds that carry gate evidence (bld_a875456f, bld_77899122, bld_a9643012,
 # bld_d36b3b4e, bld_b0de74d5): G1, G10 and G5 passed all five, and each unit's broken fixture proves the fall on a

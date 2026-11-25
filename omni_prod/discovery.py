@@ -918,13 +918,14 @@ def note_customer_texts(brief: Brief, texts) -> bool:
 
 
 def customer_messages(messages) -> list[str]:
-    """The stored customer messages' text, in the order the store returns them; a bare number answering a question
-    about WhatsApp is read with that label (answer_in_context)."""
+    """The stored customer messages' text, in the order the store returns them. A platform LABEL stored on the
+    customer's side ("📎 a handwritten note", "I approved the draft" -- warehouse 128) is not their words. A bare number
+    answering a question about WhatsApp is read with that label (answer_in_context)."""
     out, asked = [], None
     for m in messages or ():
         if m.get('role') == 'assistant':
             asked = str(m.get('content') or '')
-        elif m.get('role') == 'customer':
+        elif m.get('role') == 'customer' and not (m.get('interpretation') or {}).get('label'):
             out.append(answer_in_context(str(m.get('content') or ''), asked))
     return out
 
@@ -1114,6 +1115,10 @@ def requirements_text(brief: Brief) -> str:
     for img in brief.assets.get('images') or ():
         if img.get('use') == 'inspiration':
             lines.append(f'Uploaded image {img["id"]}: the customer chose inspiration only. Do not show it on the page.')
+    from .intake.media_reading import requirements_line as _skeleton_line   # warehouse 128: an approved skeleton
+    skeleton = _skeleton_line(brief)
+    if skeleton:
+        lines.append(skeleton)
     delegated = [k for k, f in brief.fields.items() if f.get('source') == 'delegated']
     if delegated:
         lines.append('Chosen by 148AI on the user\'s behalf (recommended defaults): ' + ', '.join(sorted(delegated)) + '.')
