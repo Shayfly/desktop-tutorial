@@ -1,6 +1,7 @@
 {
  "source": "production, read-only, 2026-11-25: m5_build_contracts bc_c3e6aa413faabff9b469f1df behind build_jobs bld_c35b8332175c4ebd9f416049d3da6792 (status ready, result version v_089840b5472d4323, a content site)",
  "contract_md5": "537ed579ac74233744781d4c943733ec",
+ "contract_md5_note": "Recorded when the row was fetched. This file's row does not reproduce it: the prompt is redacted (see redacted), and the review of #530 found no serialisation of the row that gives this value. No test compares it. It records which fetch the row came from; it is not a check.",
  "redacted": "the customer's phone and street address in the prompt are replaced by [phone] and [address]; nothing the acceptance scope reads is changed",
  "replay_before_fix": "run 45607249874: v_089840b5472d4323 FAIL, BEHAVIOR: missing required behavior kinds: data_create",
  "row": [

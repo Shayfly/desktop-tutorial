@@ -120,6 +120,9 @@ def verify_versions(limit: int, deadline_s: float = 2400) -> dict:
         try:
             repo = ws._unzip_repo(ws.storage.get_bytes(key, verify=True))
             spec = specs.get(vid, pid)
+            # A new chain for every version: a scope set for one version must never reach the next one, which may have
+            # no contract (strict floor). This call site is run by tests/test_replay_scope_matches_production.py
+            # (VerifyVersionsTests) and mutated by replay_content_scope NC4-NC7.
             chain = _verification_executor(None)
             _replay_screenshots(chain, vid)
             apply_version_scope(find_in_chain(chain, BehaviorAcceptanceExecutor),
