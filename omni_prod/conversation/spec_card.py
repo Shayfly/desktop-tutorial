@@ -59,6 +59,11 @@ def card(*, stage: str, rows: list[tuple[str, str, bool]], canon_lines: list[str
     details = [f['value'] for f in facts]
     # an hours detail is "א׳–ה׳ 09:00–19:00, ו׳ 08:00–13:00": each statement is matched on its own
     details += [part.strip() for f in facts for part in f['value'].split(', ') if part.strip()]
+    # the business name (shown first since 2026-11-25) is said inside the goal and the content as a matter of course:
+    # it is a detail of its own, never a reason to drop a row ("מטרה: אתר תדמית למספרה סטודיו נועה" stays)
+    name_label = F._LABELS['he' if lang == 'he' else 'en']['name']
+    names = {f['value'] for f in facts if f['label'] == name_label}
+    details = [x for x in details if x not in names]
     shown = []
     for label, value, default in rows:
         rest = _without_repeats(_PLAIN.get(str(value).strip(), value), details)
