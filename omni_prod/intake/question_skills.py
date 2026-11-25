@@ -8,7 +8,14 @@ customer. Versioned: change the text -> bump SKILL_VERSION.
 """
 from __future__ import annotations
 
-SKILL_VERSION = 'question-skills/3'
+SKILL_VERSION = 'question-skills/5'
+
+# The context fitter removes the checklist's tail first. Preserve the
+# actionable expert topics before this advisory turn guidance.
+_TURN_GUIDANCE = (
+    'read prior decisions and delegated choices before asking; ask one question only if its answer changes what can be built',
+    'use references only for presentation; keep business facts, prices and media rights tied to approved customer sources',
+)
 
 _COMMON = (
     'who uses it (customer, staff, the owner) and what each one does',
@@ -25,7 +32,7 @@ PLAYBOOKS: dict[str, tuple[str, ...]] = {
         'what exists today (paper, Excel, another system) and whether its data must be brought in',
         'how the owner will know it works (the number or moment that means success)',
         'look and language (colours, tone, mobile first)',
-    ),
+    ) + _TURN_GUIDANCE,
     'website': _COMMON + (
         'the goal of the site (leads, sales, information, booking) and the main call to action',
         'the pages and what each must say',
@@ -34,13 +41,13 @@ PLAYBOOKS: dict[str, tuple[str, ...]] = {
         'address to show -- the builder never invents them (CEO 2026-11-09)',
         'customer reviews: only real ones the owner provides, or none',
         'look and language (colours, tone, mobile first)',
-    ),
+    ) + _TURN_GUIDANCE,
     'mobile_app': _COMMON + (
         'what must work offline or on the go',
         'what data is kept about people and who may see it',
         'notifications the users expect',
         'look and language',
-    ),
+    ) + _TURN_GUIDANCE,
     'game': (
         'the genre and the one-sentence idea (what the player does, how they win or lose)',
         'controls (keyboard, touch, mouse) and target device',
@@ -52,7 +59,7 @@ PLAYBOOKS: dict[str, tuple[str, ...]] = {
         'what the agent may decide alone and what needs a human',
         'which sources of knowledge it uses and what it must never say',
         'where it talks to people (site chat, WhatsApp, email)',
-    ),
+    ) + _TURN_GUIDANCE,
     'automation': (
         'what triggers it (time, new row, form, message)',
         'the steps in order and the systems involved',

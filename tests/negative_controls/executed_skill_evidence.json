@@ -1,0 +1,113 @@
+{
+ "pr": "executed-skill-evidence",
+ "sha256": [
+  "tests/test_executed_skill_evidence.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "Completed probe evidence is silently lost.",
+   "mutations": [
+    {
+     "file": "omni_prod/skills_runtime.py",
+     "old": "        if evidence is not None:\n            evidence.append({**skill.ref(), 'status': 'STATIC_CHECKS_COMPLETED' if checks else 'NO_STATIC_CHECKS',\n                             'checks': checks})",
+     "new": "        if False:  # negative control\n            evidence.append({**skill.ref(), 'status': 'STATIC_CHECKS_COMPLETED' if checks else 'NO_STATIC_CHECKS',\n                             'checks': checks})"
+    }
+   ],
+   "targets": [
+    "tests/test_executed_skill_evidence.py"
+   ],
+   "expect_failed": [
+    "test_probes_run_once_and_evidence_matches_actual_results",
+    "test_real_review_carries_execution_not_just_skill_registry"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "Guidance-only skills falsely claim their checks completed.",
+   "mutations": [
+    {
+     "file": "omni_prod/skills_runtime.py",
+     "old": "'status': 'STATIC_CHECKS_COMPLETED' if checks else 'NO_STATIC_CHECKS',",
+     "new": "'status': 'STATIC_CHECKS_COMPLETED',"
+    }
+   ],
+   "targets": [
+    "tests/test_executed_skill_evidence.py"
+   ],
+   "expect_failed": [
+    "test_probes_run_once_and_evidence_matches_actual_results",
+    "test_real_review_carries_execution_not_just_skill_registry"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "Actual review does not pass the trace collector to the runtime.",
+   "mutations": [
+    {
+     "file": "omni_prod/product_review.py",
+     "old": "repository, self._context(spec), evidence=skill_execution)])",
+     "new": "repository, self._context(spec))])"
+    }
+   ],
+   "targets": [
+    "tests/test_executed_skill_evidence.py"
+   ],
+   "expect_failed": [
+    "test_real_review_carries_execution_not_just_skill_registry"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "Repair agent loses approved scope preservation guidance.",
+   "mutations": [
+    {
+     "file": "omni_prod/skills_runtime.py",
+     "old": "roles=(ROLE_ARCHITECT, ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),\n    guidance=(\n        'Preserve confirmed",
+     "new": "roles=(ROLE_ARCHITECT, ROLE_GENERATOR, ROLE_EVOLUTION, ROLE_REVIEWER),\n    guidance=(\n        'Preserve confirmed"
+    }
+   ],
+   "targets": [
+    "tests/test_executed_skill_evidence.py"
+   ],
+   "expect_failed": [
+    "test_repair_receives_approved_scope_and_business_fact_guidance"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "Intake forgets prior decisions and repeats questions.",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/question_skills.py",
+     "old": "    'read prior decisions and delegated choices before asking; ask one question only if its answer changes what can be built',\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_executed_skill_evidence.py"
+   ],
+   "expect_failed": [
+    "test_intake_receives_context_specific_consultant_guidance"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "Review claims successful probe despite actual blocking finding.",
+   "mutations": [
+    {
+     "file": "omni_prod/skills_runtime.py",
+     "old": "'blocking': sum(f.severity == 'blocking' for f in found)",
+     "new": "'blocking': 0"
+    }
+   ],
+   "targets": [
+    "tests/test_executed_skill_evidence.py"
+   ],
+   "expect_failed": [
+    "test_probes_run_once_and_evidence_matches_actual_results",
+    "test_real_review_carries_execution_not_just_skill_registry"
+   ]
+  }
+ ]
+}

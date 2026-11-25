@@ -1,3 +1,26 @@
+# 2026-11-25 — Skills #525 follow-up declarations approved by the owner (Codex, HOLD for CI and independent review)
+
+- Shai approved the six-path source identity declaration and exact intake deletion digest `e7d7be5a4c04c90ca07719c7e49a74657d680e34c0837a3717be2f35679c7ac8` for candidate `e1c8a7d77fbb96a844d2947d8a6749e3024fd2ec`. The authorization covers these two declarations.
+- The pre-authorization product tree passed 4,571 local tests and 2,380 subtests, with 325 skips, one expected failure and 11/11 relevant negative controls. The new head needs its own GitHub CI and independent merge review. [Review handoff](https://github.com/Shayfly/desktop-tutorial/pull/525#issuecomment-7162116394).
+
+# 2026-11-25 — Skills #525 independent automated review and follow-up (Codex, HOLD)
+
+- Independent automated reviewer reproduced lost probe evidence on worker escalation, missing Request Fidelity v2 in founder agentic and structured repair, and displaced actionable topics in a compacted intake context on `2cda8073ca3629ba3b3703a98a79aa7634eba40f`. Follow-up candidate preserves completed probe counts on terminal exceptions, carries v2 to both repair gateway calls, and puts advisory guidance after actionable topics in question skills v5.
+- Worker tests record the terminal status and billing with the real review executor and fixture storage. Repair tests capture both gateway payloads locally. Intake tests verify the fitted JSON retains the actionable topics and confirmed values. The existing narrow coverage of question guidance and of the reviewer checklist remains an open intake and QA item.
+- The flag-off digest is unchanged from #525, but the source declaration now needs six exact paths instead of three. The prior owner authorization covers the original scope. Fresh declaration approval, GitHub CI and an independent review on the resulting head are pending.
+
+# 2026-11-25 — Skills #525 reconciliation after A1 merge (HOLD until new CI and independent review)
+
+- Owner explicitly approved the identity declaration `executed-skill-evidence-525` and the four pending deletion declarations identified on `4edde6199307cd28b40d90b2d7fc11668fc0576a`. Recorded as owner authorization, not independent technical review.
+- Reconciled with main `042253f548186b7eeeab12d910c92b14a644cc6e`. Both declaration registries retain every line from main; all previous records remain. Preserve A1/A2 source/test blobs and all eight #525 product/generated/test files. No change to CI or enforcement logic.
+- Prior head: 18 successful checks, five failed (test, negative-controls, light, identity, validate), one expected skip. Fresh CI must confirm the changed identity and actual tests against the new main. Full local regression unavailable in this environment; no live provider call or deployment.
+
+# 2026-11-24 — Executed skill evidence (#523, partial of #455; NOT LIVE)
+
+- The existing QA skill runtime records each completed static check once, including outcome and finding counts. Guidance-only skills are explicitly NO_STATIC_CHECKS. The existing review decision, gate, budget and provider path are unchanged. Evidence excludes raw inputs and source.
+- Request fidelity v2 now reaches repair as well as architecture, generation and review; question skills v4 tells intake to preserve prior decisions and approved business facts.
+- Local exact-tree evidence: 38 focused tests, 6/6 negative controls, fast suite 1042 tests and 480 subtests; registry regenerated from source. No paid call or live verification. Other #455 changes and agent tools remain separate, pending review.
+
 # 2026-11-24 — A1 #524 integration after A2 merge (HOLD until new CI and review)
 
 - Owner explicitly approved declaration `#524-after-486`, deleted-line digest `524c69b525732a782139cc79d2c71674a1857833c17d911b43f38fe658d475de`; recorded as owner authorization, not independent review. Prior head `a5fe405aa390cbb7de8d5c0daf2987f53c49aef1`: 22 successful checks, one expected skip and light failed only on the pending declaration.

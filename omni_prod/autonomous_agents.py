@@ -9,6 +9,7 @@ from .repository_patch import parse_patch
 from .change_policy import ChangeAssessment
 from .dependency_policy import GENERATION_CONSTRAINTS
 from .skills_runtime import guidance_for
+from .skills_runtime import REQUEST_FIDELITY_GUIDANCE
 
 # Founder build "חגית" (2026-10-11): the generator only sees the ProductSpec, so a content-only requirement must be
 # explained to every model role, otherwise it still builds CRUD to satisfy a platform floor that does not apply.
@@ -240,6 +241,7 @@ _REPAIR_SYSTEM_V1 = (
     'Only edit files explicitly named in the reported compiler or test evidence. '
     'Never change tests, acceptance policy, secrets, manifests or lockfiles; '
     'never delete files, execute shell or broaden approved scope.'
+    + REQUEST_FIDELITY_GUIDANCE
 )
 
 

@@ -1,0 +1,68 @@
+{
+  "pr": "skill-review-followup",
+  "sha256": [
+    "tests/test_terminal_skill_execution_evidence.py",
+    "tests/test_repair_request_fidelity_routes.py",
+    "tests/test_intake_checklist_priority.py"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "Completed static-probe counts disappear from terminal build evidence.",
+      "mutations": [{
+        "file": "omni_prod/worker_tasks.py",
+        "old": "    return {'product_review_skill_execution': rounds} if rounds else {}",
+        "new": "    return {}"
+      }],
+      "targets": ["tests/test_terminal_skill_execution_evidence.py"],
+      "expect_failed": [
+        "test_gate_escalation_preserves_the_three_completed_rounds",
+        "test_failure_after_review_preserves_only_the_completed_round_counts"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "An early cancellation reports a skill execution record despite never reaching QA.",
+      "mutations": [{
+        "file": "omni_prod/worker_tasks.py",
+        "old": "    return {'product_review_skill_execution': rounds} if rounds else {}",
+        "new": "    return {'product_review_skill_execution': rounds}"
+      }],
+      "targets": ["tests/test_terminal_skill_execution_evidence.py"],
+      "expect_failed": ["test_cancellation_before_review_has_no_skill_execution_claim"]
+    },
+    {
+      "id": "NC3",
+      "what": "The founder worker's agentic repair loses the versioned scope guidance.",
+      "mutations": [{
+        "file": "omni_prod/agentic_repair.py",
+        "old": "    + REQUEST_FIDELITY_GUIDANCE\n",
+        "new": ""
+      }],
+      "targets": ["tests/test_repair_request_fidelity_routes.py"],
+      "expect_failed": ["test_founder_worker_agentic_repair_sends_versioned_scope"]
+    },
+    {
+      "id": "NC4",
+      "what": "Opt-in structured repair loses the versioned scope guidance.",
+      "mutations": [{
+        "file": "omni_prod/autonomous_agents.py",
+        "old": "    + REQUEST_FIDELITY_GUIDANCE\n",
+        "new": ""
+      }],
+      "targets": ["tests/test_repair_request_fidelity_routes.py"],
+      "expect_failed": ["test_structured_repair_sends_versioned_scope_and_keeps_its_constraints"]
+    },
+    {
+      "id": "NC5",
+      "what": "Generic intake guidance displaces the first actionable topics when the context is compacted.",
+      "mutations": [{
+        "file": "omni_prod/intake/question_skills.py",
+        "old": "    'website': _COMMON + (",
+        "new": "    'website': _TURN_GUIDANCE + _COMMON + ("
+      }],
+      "targets": ["tests/test_intake_checklist_priority.py"],
+      "expect_failed": ["test_long_website_context_preserves_actionable_expert_topics"]
+    }
+  ]
+}
