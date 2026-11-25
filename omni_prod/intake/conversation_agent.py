@@ -43,12 +43,13 @@ MAX_COST_USD = _D('0.15')
 # The owner, 2026-11-19 (after the measurement, runs 44602428561..44616521276): openai-gpt-6-luna first -- 3/3
 # conversations, 0 failed calls, $0.0011-0.0016 a conversation (Sonnet $0.029-0.041) -- and Sonnet when Venice does not
 # offer luna. The ceiling stays Sonnet's list price so the fallback is never refused; a turn settles at its actual cost.
-# Owner 2026-11-24, issue #523 (A1): Gemini Flash-Lite first; Haiku when the primary is ineligible. STAGED, not active:
-# the 2026-11-19 order is measure, then switch. The rehearsal measures a model only when the worker's deployed code
-# lists it in CANDIDATES below, so this profile stays the measured one (luna, then Sonnet) until both A1 models pass
-# the live rehearsal as candidates; the switch is then these two lines (#524's values: the two A1 models, '0.38', '3.13').
-VENICE_MODELS = ('openai-gpt-6-luna', 'claude-sonnet-5-5')
-VENICE_CEILING_USD_PER_M = ('2', '10')
+# Owner 2026-11-24, issue #523 (A1): Gemini Flash-Lite first; Haiku when the primary is ineligible. Measured on the
+# deployed worker ac10e94, 2026-11-25, three scripted conversations each (conversation-rehearsal, path=agent):
+# Flash-Lite 3/3 passed, $0.0288 in all, 2 of 16 calls answered invalid JSON (run 45702506669); Haiku 3/3 passed,
+# $0.0059, no failed call (run 45702519795). The owner chose this order after the numbers ("א נבדוק אותו", 21:30 UTC).
+# Recorded Venice prices, not direct Google prices; the ceiling is Flash-Lite's, above Haiku's ('0.10', '0.50').
+VENICE_MODELS = ('gemini-3-5-flash-lite', 'claude-haiku-5-5')
+VENICE_CEILING_USD_PER_M = ('0.38', '3.13')
 
 
 def venice_profile() -> dict:
