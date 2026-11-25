@@ -27,6 +27,8 @@ import re
 from pathlib import Path
 from urllib.parse import quote
 
+from .. import typography as T
+
 HERE = Path(__file__).resolve().parent
 # shipped without its comments: a comment that names what the page avoids must not read as the thing itself
 LIBRARY_VERSION = '2'
@@ -124,9 +126,38 @@ def _val(v) -> str:
     return ''.join(e(p) if i % 2 else f'<span class="hours-seg">{e(p)}</span>' for i, p in enumerate(parts))
 
 
+# The library writes its own words (the menu, the form, the footer, the skip link) in Hebrew only: a contract for a
+# page of another script is refused here, never rendered with Hebrew around it (warehouse 129).
+LIBRARY_SCRIPT = 'hebrew'
+
+
+def page_fonts(contract: dict) -> tuple[str, dict | None]:
+    """(script, pair or None) of the page a contract describes. A contract that locks a pair (typography.contract_fonts
+    through g_apple.contract.build) names one from the library, and its tokens are that pair's; a contract without one
+    may name only fonts of the library's script (or generic families). Anything else raises FontNotInLibrary; a pair
+    of another script raises UnsupportedScript (warehouses 126, 129)."""
+    tokens, locked = contract['tokens'], contract.get('fonts')
+    if locked is None:
+        for token in ('--font-family', '--font-display'):
+            T.check_stack(tokens.get(token, ''), LIBRARY_SCRIPT)
+        return LIBRARY_SCRIPT, None
+    p = T.pair(locked['pair'])
+    if p['script'] != locked['script']:
+        raise T.FontNotInLibrary(f"pair {p['id']!r} is a {p['script']} pair, the contract says {locked['script']}")
+    if (tokens.get('--font-family'), tokens.get('--font-display')) != (T.stack(p['body']), T.stack(p['display'])):
+        raise T.FontNotInLibrary(f"the contract's font tokens are not those of pair {p['id']!r}")
+    if p['script'] != LIBRARY_SCRIPT:
+        raise T.UnsupportedScript(f"the section library writes its own words in Hebrew only; a {p['script']} page "
+                                  'needs its own skeleton (warehouse 129)')
+    return p['script'], p
+
+
 def font_links(contract: dict) -> str:
     """Google Fonts for the contract's body and heading fonts (each loaded once, weights 400 and 700, display=swap);
-    a system font stack loads nothing."""
+    a system font stack loads nothing. A contract that locks a pair loads exactly the pair's faces and weights."""
+    _, locked = page_fonts(contract)
+    if locked is not None:
+        return T.font_link(locked)
     names = []
     for token in ('--font-family', '--font-display'):
         m = re.match(r"\s*'([^']+)'", contract['tokens'].get(token, ''))
@@ -663,17 +694,22 @@ def page(content: dict, contract: dict, order: list[str] | None = None, windows=
     if not c['hero'].get('image'):
         # no hero photo: the page's first image is still the first one the browser meets -- it is not deferred
         body = body.replace(' loading="lazy"', ' loading="eager"', 1)
-    single = any(n in contract['tokens'].get('--font-display', '') for n in DIRECTIONS['single_weight_display'])
+    script, locked = page_fonts(contract)
+    if locked is not None:
+        single = locked['display']['weights'] == [400]
+    else:
+        single = any(n in contract['tokens'].get('--font-display', '') for n in DIRECTIONS['single_weight_display'])
     markup = (f'<a class="skip" href="#main">דלגו לתוכן</a>{window_html}{header(c, rendered)}'
               f'<main id="main">{body}</main>{footer(c, rendered)}{mobile_bar(c)}{SCRIPT}')
+    T.check_headings(markup, script)            # a heading longer than its script's limit raises (warehouse 129)
     classes = {k for m in re.findall(r'class="([^"]*)"', markup) for k in m.split()}
     attrs = {'data-direction': direction, **({'data-display-weight': 'regular'} if single else {})}
     head = (f'<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
             f'<title>{e(c["title"])}</title><meta name="description" content="{ea(c["description"])}">'
             f'<meta property="og:title" content="{ea(c["title"])}"><meta property="og:description" content="{ea(c["description"])}">'
-            f'<meta property="og:type" content="website"><meta property="og:locale" content="he_IL">'
+            f'<meta property="og:type" content="website"><meta property="og:locale" content="{T.script(script)["og_locale"]}">'
             f'{font_links(contract)}<style>{contract["css"]}\n{purge(CSS, classes, attrs) if PURGE else CSS}</style>{_schema(c)}')
-    doc = (f'<!doctype html><html lang="he" dir="rtl"><head>{head}</head>'
+    doc = (f'<!doctype html><html {T.html_attrs(script)}><head>{head}</head>'
            f'<body data-direction="{direction}" data-148-kit="section-library/{LIBRARY_VERSION}" '
            f'data-layout="{" ".join(f"{k}:{v}" for k, v in c["_layout"].items())}"'
            f'{" data-display-weight=regular" if single else ""}>{markup}</body></html>')

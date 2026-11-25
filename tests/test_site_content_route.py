@@ -78,7 +78,10 @@ class TheDecisionTable(unittest.TestCase):
         self.assertEqual(route.outline_titles['contact'], 'צור קשר')
         self.assertEqual(route.contract_source, 'brief-primary+category')   # the brief states two colours, not four
         self.assertEqual(route.contract['tokens']['--color-primary'], '#1e3a5f')
-        self.assertEqual(route.contract['tokens']['--font-display'], route.contract['tokens']['--font-family'])
+        # warehouse 126: a pair from the font-pair library, no longer the Design line's one font for body and headings
+        self.assertEqual((route.script, route.font_pair), ('hebrew', 'he-frank-heebo'))
+        self.assertEqual((route.contract['tokens']['--font-family'], route.contract['tokens']['--font-display']),
+                         ("'Heebo', system-ui, sans-serif", "'Frank Ruhl Libre', serif"))
 
     def test_every_legacy_reason(self):
         logo = 'Uploaded logo attachment: att_' + 'a' * 32 + '; sha256=' + 'b' * 64 + '.'

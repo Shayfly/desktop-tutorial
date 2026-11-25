@@ -32,8 +32,8 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/__init__.py",
-     "old": "windows=tuple(approved), **domain_kw)",
-     "new": "windows=(), **domain_kw)"
+     "old": "windows=tuple(approved), script=script,",
+     "new": "windows=(), script=script,"
     }
    ],
    "targets": [

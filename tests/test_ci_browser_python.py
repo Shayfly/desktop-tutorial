@@ -57,6 +57,9 @@ class TheBrowserJob(unittest.TestCase):
         self.assertIn('run_negative_controls.py section_library', step['run'])
         self.assertIn('run_negative_controls.py library_cookie_banner', step['run'])
         self.assertIn('exit $(( a | b ))', step['run'])                     # one failing spec fails the step
+        # bundle 2 (warehouse 126): the typography spec's 4 browser controls run here too, and fail the step
+        self.assertIn('NC_SCOPE=declared python scripts/run_negative_controls.py typography_126_129; c=$?', step['run'])
+        self.assertIn('b=$(( b | c ))', step['run'])
         spec = json.loads((ROOT / 'tests/negative_controls/section_library.json').read_text(encoding='utf-8'))
         for control in spec['controls']:
             needs_browser = set(control['expect_failed']) <= set(BROWSER_ONLY)

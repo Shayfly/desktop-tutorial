@@ -1,0 +1,262 @@
+{
+ "pr": "w130-app-states",
+ "sha256": [
+  "tests/test_app_states.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "an empty state is no longer required (warehouse 130 mutation: \"empty state missing and no test fails\")",
+   "mutations": [
+    {
+     "file": "omni_prod/app_states.py",
+     "old": "        if state not in marks:\n",
+     "new": "        if state not in marks and state != 'empty':\n"
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_empty_state_fails",
+    "test_the_platforms_own_app_fixture_has_none_of_the_three_states",
+    "test_a_css_rule_or_a_query_for_the_state_is_not_the_state",
+    "test_in_block_a_missing_state_fails_the_round_and_the_repair_fixes_it"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a loading state is no longer required (warehouse 130 mutation: \"loading state missing\")",
+   "mutations": [
+    {
+     "file": "omni_prod/app_states.py",
+     "old": "        if state not in marks:\n",
+     "new": "        if state not in marks and state != 'loading':\n"
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_loading_state_fails",
+    "test_the_platforms_own_app_fixture_has_none_of_the_three_states",
+    "test_it_warns_by_default_and_the_evidence_keeps_the_findings",
+    "test_an_app_that_keeps_failing_fails_the_build"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the caught exception's own text may reach the client (warehouse 130 mutation: \"a stack trace reaches the customer\")",
+   "mutations": [
+    {
+     "file": "omni_prod/app_states.py",
+     "old": "        if var is None or n.id != var:\n            continue\n",
+     "new": "        if True:\n            continue\n"
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_the_exceptions_text_to_the_client_fails",
+    "test_a_flask_or_fastapi_handler_that_returns_the_exception_fails",
+    "test_in_block_a_stack_trace_to_the_client_fails_the_round"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a formatted traceback may reach the client",
+   "mutations": [
+    {
+     "file": "omni_prod/app_states.py",
+     "old": "    return (isinstance(node, ast.Call) and\n",
+     "new": "    return False and (isinstance(node, ast.Call) and\n"
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_the_exceptions_text_to_the_client_fails"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the page may show the error's own text (message, stack) to the customer",
+   "mutations": [
+    {
+     "file": "omni_prod/app_states.py",
+     "old": "        if _RAW_ALWAYS.search(value) or any(p.search(value) for p, lo, hi in scopes if lo < m.start() < hi):",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_the_errors_own_text_shown_to_the_customer_fails"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "an app request is sent to the site engine (warehouse 130 mutation: \"an app is sent to the sites engine\")",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    if not content_only_approved(prompt):\n        return Route(LEGACY, 'not_content_only')\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_an_app_build_records_the_route_reason_and_the_app_gate",
+    "test_the_route_reason_is_recorded_when_the_build_raises"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the app gate also runs on a content-only site",
+   "mutations": [
+    {
+     "file": "omni_prod/app_states.py",
+     "old": "    return (False, 'content_only_site') if content_only_approved(prompt) else (True, 'not_content_only')",
+     "new": "    return (True, 'not_content_only')"
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_never_on_a_content_only_site",
+    "test_the_rule_reaches_the_generator_of_an_app_and_never_of_a_content_site"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the production worker does not install the gate",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        install_app_states(engine, prompt=prompt)\n        carry_app_states_rule(engine)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_an_app_build_records_the_route_reason_and_the_app_gate",
+    "test_the_worker_and_the_rehearsal_install_it_before_the_build"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "an error state with a sentence and no action passes",
+   "mutations": [
+    {
+     "file": "omni_prod/app_states.py",
+     "old": "        if not any(s and a for s, a in pairs):\n",
+     "new": "        if not any(s for s, a in pairs):\n"
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_an_error_state_without_a_button_fails"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a request that is not caught passes",
+   "mutations": [
+    {
+     "file": "omni_prod/app_states.py",
+     "old": "    if _chain(masked, close)[1] or any(o < pos < c for o, c in tries):\n        return True\n",
+     "new": "    if True:\n        return True\n"
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_a_request_that_is_not_caught_fails",
+    "test_the_platforms_own_app_fixture_has_none_of_the_three_states",
+    "test_every_walk_is_bounded"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a response used without checking response.ok passes",
+   "mutations": [
+    {
+     "file": "omni_prod/app_states.py",
+     "old": "    if _STATUS.search(masked, pos, end):\n        return True\n",
+     "new": "    if True:\n        return True\n"
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_a_response_that_is_not_checked_fails",
+    "test_the_platforms_own_app_fixture_has_none_of_the_three_states",
+    "test_a_script_file_the_page_loads_is_read"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "a CSS selector or a querySelector string counts as the state element",
+   "mutations": [
+    {
+     "file": "omni_prod/app_states.py",
+     "old": "_MARK = re.compile(r'<[a-zA-Z][\\w-]*\\b[^<>]*?\\bdata-state\\s*=\\s*\\\\?[\"\\']?(loading|empty|error)\\b', re.I)",
+     "new": "_MARK = re.compile(r'data-state\\s*=\\s*\\\\?[\"\\']?(loading|empty|error)\\b', re.I)"
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_a_css_rule_or_a_query_for_the_state_is_not_the_state"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the build evidence loses the app gate's decision",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "    evidence['app_states'] = app_states_report(engine)        # warehouse 130: app or not (and why), the three states\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_an_app_build_records_the_route_reason_and_the_app_gate",
+    "test_the_worker_and_the_rehearsal_install_it_before_the_build"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the button's own label counts as the error sentence",
+   "mutations": [
+    {
+     "file": "omni_prod/app_states.py",
+     "old": "    told = _TAG.sub(' ', _ACTION_EL.sub(' ', inner))\n",
+     "new": "    told = _TAG.sub(' ', inner)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py"
+   ],
+   "expect_failed": [
+    "test_an_error_state_without_a_sentence_fails"
+   ]
+  }
+ ]
+}

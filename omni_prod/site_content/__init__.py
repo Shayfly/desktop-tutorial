@@ -21,7 +21,8 @@ customer's own words name it and its number is known; every palette in section_l
 window the library does not render (it renders section_library.RENDERED_WINDOWS: the cookie banner, DECISIONS.md
 question 14 (b)); no uploaded logo; images only in the hero and story places; the customer's outline only when
 every title maps to a library section (OUTLINE_MAP, exact titles, never guessed); no plan-governed approved
-criteria. Headings use the body font (the discovery display-font change is deferred).
+criteria. The fonts are a pair from the font-pair library (omni_prod/typography, warehouse 126), not the Design
+line's one font.
 """
 from __future__ import annotations
 
@@ -95,13 +96,18 @@ class Route:
     domain_facts: list = field(default_factory=list)
     domain_words: list = field(default_factory=list)       # the trade's verified Hebrew words (warehouse 127)
     windows: tuple[str, ...] = ()          # the approved windows the library renders on this route
+    # Warehouse 129/126: the page's script and the font pair locked into its contract (None off the route).
+    script: str | None = None
+    font_pair: str | None = None
 
     def to_dict(self) -> dict:
         return {'route': self.route, 'reason': self.reason, 'palette': self.palette, 'direction': self.direction,
                 'contract': self.contract_fp, 'contract_source': self.contract_source, 'canon_hash': self.canon_hash,
                 'order': self.order, 'outline_titles': self.outline_titles, 'category': self.category,
                 'category_found': self.category_found, 'domain': self.domain, 'domain_facts': self.domain_facts,
-                'windows': list(self.windows)}
+                'windows': list(self.windows),
+                'script': self.script, 'font_pair': self.font_pair,
+                'fonts': (self.contract or {}).get('fonts')}
 
 
 def _norm_title(title: str) -> str:
@@ -143,7 +149,8 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
     if not content_only_approved(prompt):
         return Route(LEGACY, 'not_content_only')
     from ..page_locale import rtl_language
-    if rtl_language(prompt) != 'he':
+    lang = rtl_language(prompt)
+    if lang != 'he':
         return Route(LEGACY, 'not_hebrew')
     if plan_governed:
         return Route(LEGACY, 'plan_governed')
@@ -186,17 +193,26 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
     if palette not in DIRECTIONS['palettes']:
         return Route(LEGACY, f'palette_not_in_library: {palette}')
     entry = DIRECTIONS['palettes'][palette]
+    # Warehouse 126/129: the page's script follows the customer's language, and its fonts are a pair from the library
+    # -- the category's art direction allows two pairs, the business (its name, or the name the customer quoted)
+    # picks one -- locked into the design contract in place of the Design line's one font (Heebo by default).
+    from .. import typography as T
+    script = T.script_for_language(lang)
+    sheet = Fx.fact_sheet(prompt)
+    business = sheet.name or next(iter(sheet.name_candidates), None)
+    pair = T.pair_for(script, category=category, tone=entry['direction'], business=business) if business else None
     from ..g_apple.contract import ContractError
     from .render import render_contract
     try:
-        contract, source = render_contract(prompt, colours)
+        contract, source = render_contract(prompt, colours, fonts=T.contract_fonts(pair) if pair else None)
     except ContractError as exc:
         return Route(LEGACY, f'no_design_contract: {exc}'[:200])
-    sheet = Fx.fact_sheet(prompt)
     if sheet.problems:
         return Route(LEGACY, sheet.problems[0])
     if not sheet.name and not sheet.name_candidates:
         return Route(LEGACY, 'name_not_declared')          # the model never chooses the business name
+    if pair is None:                                       # unreachable: a business key exists past the line above
+        raise RuntimeError('the content route reached its end without a font pair')
     order, titles, why = map_outline(sheet.outline)
     if why:
         return Route(LEGACY, why)
@@ -209,7 +225,8 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
                  direction=entry['direction'], voice=entry['voice'], contract=contract,
                  contract_fp=contract['fingerprint'], contract_source=source, canon_hash=sheet.canon_hash,
                  order=order, outline_titles=titles, title=sheet.name or 'אתר תדמית',
-                 year=year or str(datetime.date.today().year), windows=tuple(approved), **domain_kw)
+                 year=year or str(datetime.date.today().year), windows=tuple(approved), script=script,
+                 font_pair=pair['id'], **domain_kw)
 
 
 def install(engine, *, prompt: str, gateway, request=None, plan_governed: bool = False, year: str | None = None) -> Route:
@@ -272,7 +289,7 @@ def report(engine) -> dict | None:
     if route.route == ROUTE:
         from .render import RENDERER_VERSION
         repairer = getattr(core, 'repairer', None)
-        out.update(renderer=RENDERER_VERSION, headings='body font (display font deferred, slice 1)',
+        out.update(renderer=RENDERER_VERSION, headings=f'the display face of font pair {route.font_pair} (warehouse 126)',
                    **{k: v for k, v in (getattr(core, 'site_report', None) or {}).items()},
                    library_feedback=list(getattr(core, 'site_feedback', None) or [])[:40],
                    repair_trace=list(getattr(repairer, 'trace', None) or [])[-20:])
