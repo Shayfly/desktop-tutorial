@@ -122,11 +122,8 @@ def verify_versions(limit: int, deadline_s: float = 2400) -> dict:
             spec = specs.get(vid, pid)
             chain = _verification_executor(None)
             _replay_screenshots(chain, vid)
-            target = find_in_chain(chain, BehaviorAcceptanceExecutor)
-            scope = contract_scope_for_version(_v28_pool, project_id=pid, version_id=vid)
-            if target is not None and scope:
-                target.scope = {k: scope.get(k) for k in ('infrastructure', 'required_integrations', 'user_roles',
-                                                          'defaults_applied', 'prompt')}
+            apply_version_scope(find_in_chain(chain, BehaviorAcceptanceExecutor),
+                                contract_scope_for_version(_v28_pool, project_id=pid, version_id=vid))
             t0 = time.monotonic()
             report = chain.execute(repository=repo, spec=spec)
             policy = _policy_decision(vid, chain, spec, repo, report)
@@ -143,6 +140,19 @@ def verify_versions(limit: int, deadline_s: float = 2400) -> dict:
     agree = sum(1 for r in results if r.get('policy') and (r['policy'] == 'READY') == (r['status'] == 'PASS'))
     return {'versions': len(results), 'counts': dict(counts), 'policy': dict(policy),
             'policy_agrees_with_chain': agree, 'results': results}
+
+
+def apply_version_scope(target, scope: dict | None) -> None:
+    """Hand a stored version's contract scope to the behavioural acceptance exactly as the production change path
+    does (worker_tasks.execute_modification: target.scope = contract_scope_for_version(...)).
+
+    2026-11-25 (verify-replay 0/10, run 45607249874): this used to copy only the keys
+    infrastructure/required_integrations/user_roles/defaults_applied/prompt, but contract_scope_for_version names the
+    defaults 'defaults'. The 'static_content_site' default was dropped, so every content site that production had
+    passed (v_089840b5472d4323, bld_c35b8332 READY) replayed as "missing required behavior kinds: data_create".
+    """
+    if target is not None and scope:
+        target.scope = dict(scope)
 
 
 def _replay_screenshots(chain, vid: str) -> None:

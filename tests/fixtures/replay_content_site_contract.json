@@ -1,0 +1,29 @@
+{
+ "source": "production, read-only, 2026-11-25: m5_build_contracts bc_c3e6aa413faabff9b469f1df behind build_jobs bld_c35b8332175c4ebd9f416049d3da6792 (status ready, result version v_089840b5472d4323, a content site)",
+ "contract_md5": "537ed579ac74233744781d4c943733ec",
+ "redacted": "the customer's phone and street address in the prompt are replaced by [phone] and [address]; nothing the acceptance scope reads is changed",
+ "replay_before_fix": "run 45607249874: v_089840b5472d4323 FAIL, BEHAVIOR: missing required behavior kinds: data_create",
+ "row": [
+  [
+   {
+    "kind": "database",
+    "purpose": "embedded SQLite application data inside the generated app",
+    "required": true,
+    "connection_mode": "SELF_CONTAINED",
+    "environment_scope": "preview_and_production",
+    "secret_reference_only": true
+   }
+  ],
+  [],
+  [
+   "user"
+  ],
+  [
+   "no_login_single_user",
+   "static_content_site",
+   "self_contained_web_v1",
+   "vercel_release_target"
+  ],
+  "אתר לעסק עם קטלוג מוצרים\nשם העסק: GOA - מוצרי עישון.\n--- Approved project brief (binding; fingerprint 750fe1fa027f6fc1) ---\nCustomer facts (the customer's own words from the conversation; show exactly these values and never other or additional ones): [phone] | [address]\nSign-in: NONE. Do not add login, sessions, users or roles.\nDo not store personal or contact details of people.\nProduct kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given.\nProduct decisions v1: {\"version\":1,\"persistence\":\"none\",\"source\":\"customer\"}\nAudience: Customers / the public\nMain action: הצגת קטלוג מוצרים של עסק באתר\nScreens: קטלוג מוצרים ואזור „למה לבחור בנו”.\nInitial content: קטלוג מוצרי עישון בסיטונאות: נרגילות, טבק לנרגילות, מוצרי גלגול, טבק לעישון, סיגריות, מוצרים נלווים לנרגילה ולטבק, באנגים ועוד. להוסיף גם עמוד או אזור „למה לבחור בנו”, עם ותק של למעלה מ־30 שנה בייבוא מוצרי עישון.\nVisual references (inspiration only): אין\nLanguage: Hebrew (RTL) with an English switch; dates shown as DD/MM/YYYY.\nDesign: style playful; requested colour description 'צבעים בהשראת בוב מארלי'; resolve it to valid CSS colours; font 'Rubik', system-ui, sans-serif (load it from Google Fonts with a system fallback); define these as CSS custom properties.\nLogo: a text logo with the product name in the header.\nSemantic capability decisions v1: {\"version\":1,\"decisions\":[{\"key\":\"integration.payment\",\"reason\":\"הבקשה מתייחסת להצגת מוצרים ויתרונות, ולא לקבלת תשלום באתר.\",\"decision\":\"not_required\",\"evidence\":\"קטלוג וגם ללמה לבחור בנו\"},{\"key\":\"integration.maps\",\"reason\":\"נמסרה כתובת, אך לא התבקש במפורש להציג מפה.\",\"decision\":\"uncertain\",\"evidence\":\"[address]\"},{\"key\":\"integration.messaging\",\"reason\":\"נמסר מספר טלפון, אך לא התבקש לשלוח הודעות.\",\"decision\":\"not_required\",\"evidence\":\"[phone]\"},{\"key\":\"integration.email\",\"reason\":\"לא צוין אם האתר ישלח דוא״ל.\",\"decision\":\"uncertain\",\"evidence\":\"אתר לעסק\"}]}\nRejected windows (the customer said no; do not add them to the page): mega_menu, cookie_banner, entry_popup, cart_drawer, promo_bar, chips."
+ ]
+}

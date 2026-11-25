@@ -1,0 +1,27 @@
+{
+ "pr": "contract-scope-lineage-pg",
+ "sha256": ["tests/test_contract_scope_lineage_pg.py", "omni_prod/worker_tasks.py"],
+ "controls": [
+  {"id": "NC1", "what": "the lineage follows promoted changes only again: an undo or a rollback loses its contract (v_88812e8a4066448e)",
+   "mutations": [{"file": "omni_prod/worker_tasks.py",
+                  "old": "    SELECT v.id, v.parent_id FROM project_versions v WHERE v.parent_id IS NOT NULL\n",
+                  "new": "    SELECT v.id, v.parent_id FROM project_versions v WHERE false\n"}],
+   "targets": ["tests/test_contract_scope_lineage_pg.py"],
+   "envs": ["pg"],
+   "expect_failed": ["test_every_workspace_version_finds_the_approved_contract", "test_a_rolled_back_content_site_is_judged_as_a_content_site"]},
+  {"id": "NC2", "what": "the lineage stops at the version itself: only the built version finds its contract",
+   "mutations": [{"file": "omni_prod/worker_tasks.py",
+                  "old": "    WHERE l.depth < 64\n)\nSELECT c.contract_json",
+                  "new": "    WHERE l.depth < 0\n)\nSELECT c.contract_json"}],
+   "targets": ["tests/test_contract_scope_lineage_pg.py"],
+   "envs": ["pg"],
+   "expect_failed": ["test_every_workspace_version_finds_the_approved_contract", "test_a_rolled_back_content_site_is_judged_as_a_content_site"]},
+  {"id": "NC3", "what": "the project filter is dropped: another project's version can borrow this contract",
+   "mutations": [{"file": "omni_prod/worker_tasks.py",
+                  "old": "WHERE r.public_project_id = %s OR r.internal_project_id = %s\n",
+                  "new": "WHERE (r.public_project_id = %s OR r.internal_project_id = %s OR true)\n"}],
+   "targets": ["tests/test_contract_scope_lineage_pg.py"],
+   "envs": ["pg"],
+   "expect_failed": ["test_another_projects_version_has_no_contract"]}
+ ]
+}
