@@ -124,6 +124,7 @@ class TheNameIsRead(unittest.TestCase):
                 out = agent.without_name_question('מצוין, אז האתר יציג את המידע בלבד. ' + asked, 'בשר השכונה', 'he')
                 self.assertEqual(out, 'מצוין, אז האתר יציג את המידע בלבד. השם שיופיע באתר: "בשר השכונה".')
         for kept in ('האם יישמרו פרטים אישיים של אנשים (שם, טלפון, מייל)?', 'מה שם המנה הכי פופולרית שלכם?',
+                     'האם להציג את שם העסק בגדול בראש העמוד?',
                      'מעולה, רשמתי את הפרטים של אטליז "בשר השכונה" בחיפה.'):
             with self.subTest(kept):
                 self.assertEqual(agent.without_name_question(kept, 'בשר השכונה', 'he'), kept)
@@ -241,7 +242,10 @@ class TheChecker(unittest.TestCase):
         for reply in ('השם שיופיע באתר: "בשר השכונה".', 'האם השם "בשר השכונה" נכון?',
                       'האם יישמרו פרטים אישיים של אנשים (שם, טלפון, מייל)?',
                       'מעולה, רשמתי את הפרטים של אטליז "בשר השכונה" בחיפה, כולל הכתובת, הטלפון ושעות הפעילות.',
-                      'מה מספר הוואטסאפ שתרצו שיופיע באתר?'):
+                      'מה מספר הוואטסאפ שתרצו שיופיע באתר?',
+                      # about the page, not the fact asked again
+                      'האם להציג את הטלפון בראש העמוד?', 'האם להציג את הכתובת עם מפה?',
+                      'האם להציג את שעות הפעילות בתחתית?', 'האם להציג את שם העסק בגדול?'):
             with self.subTest(reply):
                 self.assertEqual(R.asked_again([{'customer': REC.BUTCHER, 'agent': reply}], given), [])
 
@@ -257,8 +261,10 @@ class TheChecker(unittest.TestCase):
                 self.assertEqual([a['fact'] for a in found], [fact])
 
     def test_the_summarys_own_lines_are_not_read_as_asking_again(self):
-        reply = ('שלב 1 מתוך 2 — זה מה שהבנתי שאתם רוצים: מטרה: אתר לאטליז. ספרו לנו אם שם האטליז נכון? '
-                 'פרטי העסק שיופיעו באתר (מתוך מה שכתבתם): טלפון: 04-8123456.')
+        # the gate's own needed-fact line asks "מה מספר הטלפון?" after the mark: part of the one approval
+        needed = F._NEEDED_TEXT['he']['needed'].format(what='כפתור חיוג או וואטסאפ', fact='מספר הטלפון',
+                                                      omit='הכפתור והמספר לא יופיעו')
+        reply = 'שלב 1 מתוך 2 — זה מה שהבנתי שאתם רוצים: מטרה: אתר לאטליז. ' + needed
         self.assertEqual(R.asked_again([{'customer': REC.BUTCHER, 'agent': reply}], R.GIVEN['butcher']), [])
 
     def test_the_summarys_own_needed_line_is_part_of_the_one_approval(self):

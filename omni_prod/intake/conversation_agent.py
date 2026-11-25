@@ -355,7 +355,11 @@ def name_to_record(known: str, message: str, *, answering: bool) -> str | None:
 # the business (a business word, a catalogue category, or "as it should appear on the site").
 _ASKS = re.compile(r'[?؟]|(?:^|[\s,:;(])(?:האם|ספרו|כתבו|תכתבו|תגידו|שתפו|נשאר\s+רק\s+לדעת|tell\s+me|write)(?=[\s,:]|$)|'
                    r'(?:^|[,:;(—–-]\s*)(?:מה|מהו|מהי|איך|איזה|אילו|what|how|which)(?=[\s,:]|$)', re.I)
-_NAME_WORD = re.compile(r'(?<![א-ת])[הבלו]?(?:שם|שמו|שמה|שמכם|שמך)(?![א-ת])|קוראים|לקרוא\s+ל|נקרא|\bname\b|\bcalled\b', re.I)
+# a request for the name ("מה שם", "איך קוראים", "לקרוא ל"), not any mention of it: "האם להציג את שם העסק בגדול?"
+# asks about the page and is kept
+_NAME_WORD = re.compile(r'(?:מה|מהו)\s+(?:ה)?שם|(?:מה|מהו)\s+שמ(?:ו|ה|כם|ך)|איך\s+(?:קוראים|נקרא|נקראת|נקראים)|'
+                        r'לקרוא\s+ל|(?:כתבו|תכתבו)\s+את\s+השם|what\s+is\s+(?:the|your)\s+(?:business\s+)?name|'
+                        r'what\s+is\s+.{0,30}called|name\s+should\s+appear', re.I)
 _BUSINESS_WORD = re.compile(r'עסק|מקום|חנות|משרד|סטודיו|קליניקה|מרפאה|מותג|באתר|יופיע|בראש\s+העמוד|כפי\s+ש|בדיוק|'
                             r'\b(?:business|shop|store|studio|brand|site|appear)', re.I)
 _SAY_SENTENCE = re.compile(r'[^.!?؟\n]*(?:[.!?؟]+|$)')

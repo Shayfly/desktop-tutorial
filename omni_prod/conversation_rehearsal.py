@@ -340,13 +340,20 @@ _ASKING = re.compile(r'[?؟]|(?:^|[\s,:;(])(?:האם|ספרו|כתבו|תכתב�
                      r'(?:^|[,:;(—–-]\s*)(?:מה|מהו|מהי|מהם|איך|איזה|אילו|באילו|מתי|איפה|היכן|what|how|which|when|where)'
                      r'(?=[\s,:]|$)', re.I)
 _NOT_THIS_FACT = re.compile(r'פרטים\s+אישיים|personal\s+details', re.I)    # "האם יישמרו פרטים אישיים (שם, טלפון, מייל)?"
+# Each asks FOR the fact ("מה מספר הטלפון", "מהי הכתובת המלאה"); a question about showing it ("האם להציג את הטלפון
+# בראש העמוד?", "האם להציג את שם העסק בגדול?") is about the page, not a fact asked again.
 ASKS_FOR = {
-    'name': re.compile(r'(?<![א-ת])[הבלו]?(?:שם|שמו|שמה|שמכם)(?![א-ת])|קוראים|לקרוא\s+ל|נקרא|\bname\b|\bcalled\b', re.I),
-    'phone': re.compile(r'טלפון|מספר\s+(?:ה)?נייד|להתקשר|לחייג|\bphone\b|\bcall\b', re.I),
-    'address': re.compile(r'כתובת|איפה\s+(?:אתם|העסק|נמצא|נמצאים|המקום)|היכן\s+(?:אתם|העסק|נמצא)|\baddress\b|'
-                          r'where\s+(?:are\s+you|is\s+the)', re.I),
-    'hours': re.compile(r'(?<![א-ת])ה?שעות(?![א-ת])|באילו\s+ימים|מתי\s+(?:אתם\s+)?(?:פתוח|פתוחים|עובדים|פותחים)|'
-                        r'\bhours\b|when\s+are\s+you\s+open', re.I),
+    'name': re.compile(r'(?:מה|מהו)\s+(?:ה)?שם|(?:מה|מהו)\s+שמ(?:ו|ה|כם)|איך\s+(?:קוראים|נקרא|נקראת|נקראים)|לקרוא\s+ל|'
+                       r'כתבו\s+את\s+השם|what\s+is\s+(?:the|your)\s+(?:business\s+)?name|what\s+is\s+.{0,30}called|'
+                       r'name\s+should\s+appear', re.I),
+    'phone': re.compile(r'מספר\s+(?:ה)?(?:טלפון|נייד)|(?:מה|מהו)\s+(?:ה)?טלפון|(?:באיזה|לאיזה)\s+(?:מספר|טלפון)|'
+                        r'להתקשר\s+(?:אליכם|אליך)|phone\s+number|number\s+to\s+call|what\s+number', re.I),
+    'address': re.compile(r'(?:מה|מהי)\s+(?:ה)?כתובת|כתובת\s+(?:המלאה|מלאה|העסק|של\s+העסק)|'
+                          r'איפה\s+(?:אתם|העסק|נמצא|נמצאים|המקום)|היכן\s+(?:אתם|העסק|נמצא)|'
+                          r"what(?:'s|\s+is)\s+(?:the|your)\s+(?:full\s+)?address|where\s+(?:are\s+you|is\s+the)", re.I),
+    'hours': re.compile(r'(?:מה|מהן|מהם)\s+(?:ה)?שעות|(?:באילו|אילו|איזה)\s+(?:ימים|שעות)|'
+                        r'מתי\s+(?:אתם\s+)?(?:פתוח|פתוחים|עובדים|פותחים)|what\s+(?:are\s+)?(?:your\s+)?(?:opening\s+)?hours|'
+                        r'when\s+are\s+you\s+open', re.I),
 }
 _NOT_THE_PHONE = re.compile(r'וואטסאפ|ווטסאפ|whats\s*app', re.I)        # a WhatsApp number is its own question
 SUMMARY_MARKS = ('שלב 1 מתוך 2', 'Step 1 of 2')
