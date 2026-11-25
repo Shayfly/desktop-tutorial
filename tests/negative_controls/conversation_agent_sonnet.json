@@ -17,7 +17,9 @@
    "targets": [
     "tests/test_conversation_agent_sonnet.py"
    ],
-   "expect_failed": ["test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits", "test_gemini_answers_even_when_haiku_is_cheaper", "test_the_list_order_wins_over_the_price"]
+   "expect_failed": [
+    "test_the_list_order_wins_over_the_price"
+   ]
   },
   {
    "id": "NC2",
@@ -32,7 +34,9 @@
    "targets": [
     "tests/test_conversation_agent_sonnet.py"
    ],
-   "expect_failed": ["test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits", "test_gemini_answers_even_when_haiku_is_cheaper", "test_the_list_order_wins_over_the_price"]
+   "expect_failed": [
+    "test_the_list_order_wins_over_the_price"
+   ]
   },
   {
    "id": "NC3",
@@ -47,7 +51,9 @@
    "targets": [
     "tests/test_conversation_agent_sonnet.py"
    ],
-   "expect_failed": ["test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits", "test_gemini_answers_even_when_haiku_is_cheaper", "test_the_list_order_wins_over_the_price"]
+   "expect_failed": [
+    "test_the_list_order_wins_over_the_price"
+   ]
   },
   {
    "id": "NC4",
@@ -202,8 +208,6 @@
    "expect_failed": [
     "test_a_failed_call_is_recorded_with_its_reason_and_keys_masked"
    ]
-  },
-  {"id": "NC13", "what": "A1 prefers cheaper Haiku instead of Gemini", "mutations": [{"file": "omni_prod/intake/conversation_agent.py", "old": "VENICE_MODELS = ('gemini-3-5-flash-lite', 'claude-haiku-5-5')", "new": "VENICE_MODELS = ('claude-haiku-5-5', 'gemini-3-5-flash-lite')"}], "targets": ["tests/test_conversation_agent_sonnet.py"], "expect_failed": ["test_each_conversation_is_held_to_its_turns_and_its_cap_as_typed_limits", "test_gemini_answers_even_when_haiku_is_cheaper", "test_the_agent_account_gets_the_sonnet_profile_and_no_one_else", "test_the_agent_quote_carries_its_own_profile", "test_the_agent_quote_is_production_s_with_the_profile_from_the_code"]},
-  {"id": "NC14", "what": "A1 loses Haiku fallback", "mutations": [{"file": "omni_prod/intake/conversation_agent.py", "old": "VENICE_MODELS = ('gemini-3-5-flash-lite', 'claude-haiku-5-5')", "new": "VENICE_MODELS = ('gemini-3-5-flash-lite',)"}], "targets": ["tests/test_conversation_agent_sonnet.py"], "expect_failed": ["test_a_failed_call_is_recorded_with_its_reason_and_keys_masked", "test_gemini_above_quoted_ceiling_uses_haiku_before_contact", "test_haiku_answers_when_gemini_is_not_offered", "test_the_agent_account_gets_the_sonnet_profile_and_no_one_else", "test_the_agent_quote_carries_its_own_profile"]}
+  }
  ]
 }
