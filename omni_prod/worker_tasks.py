@@ -510,6 +510,15 @@ def taxonomy_evidence(engine, *, ready: bool = False) -> dict:
             'first_pass': bool(ready) and getattr(engine, 'first_pass', None) is True}
 
 
+def _aborted_review_evidence(engine) -> dict:
+    """Carry completed static probe records through a terminal exception."""
+    executor = getattr(engine, 'executor', None)
+    reviews = getattr(executor, 'reviews', None) or ()
+    rounds = [{'round': review['round'], 'skill_execution': review['skill_execution']}
+              for review in reviews if review.get('skill_execution')]
+    return {'product_review_skill_execution': rounds} if rounds else {}
+
+
 def resolve_billing(subscriptions, *, build_id: str, ready: bool, spent: Decimal, external_calls: int) -> str:
     """READY -> settle(). FAILED -> its credits are released (founder 2026-11-02, DELIVERY-001: a failed stage is
     not charged): release() when no external spend happened, release_failed() -- RELEASED with the real provider
@@ -1342,6 +1351,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                               if escalated else {}),
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
+                           **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS, 'model_budget_binding': model_budget_binding},
@@ -1367,6 +1377,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'infrastructure': exc.evidence,
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
+                           **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
@@ -1394,6 +1405,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence, 'capabilities': blocked_evidence,
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
+                           **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
@@ -1418,6 +1430,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
+                           **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,

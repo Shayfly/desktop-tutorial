@@ -30,6 +30,7 @@ import re
 from .build_control import BuildCancelled, BuildDeadline
 from .model_gateway import ModelJSONRejected
 from .repository_patch import parse_patch
+from .skills_runtime import REQUEST_FIDELITY_GUIDANCE
 
 _MAX_READ_CHARS = 60_000
 _MAX_SEARCH_LINES = 80
@@ -61,6 +62,7 @@ _SYSTEM = (
     'address or hours is never edited (the code shows them as given), and any other test change is reverted and '
     'counted. File content keeps every '
     'newline and indentation. Submit before you run out of steps (steps_left).'
+    + REQUEST_FIDELITY_GUIDANCE
 )
 
 

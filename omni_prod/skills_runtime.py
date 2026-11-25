@@ -503,6 +503,10 @@ REQUEST_FIDELITY = Skill(
                'Every feature the user listed is reachable from the main page.'),
 )
 
+REQUEST_FIDELITY_GUIDANCE = (
+    f' Product quality skill ({REQUEST_FIDELITY.key}@{REQUEST_FIDELITY.version}): {REQUEST_FIDELITY.guidance}'
+)
+
 FORM_VALIDATION = Skill(
     key='skill.form_validation', version='1',
     purpose='Every input is checked on the server and the user sees a clear message next to the problem.',

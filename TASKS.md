@@ -2,6 +2,7 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| AGENT-SKILLS-525-REVIEW | Codex, independent automated reviewer | HOLD — follow-up verified locally, pending refreshed declarations, CI and independent review | #525 head `2cda8073`, base `042253f5`; `test_terminal_skill_execution_evidence.py`, `test_repair_request_fidelity_routes.py`, `test_intake_checklist_priority.py`; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525 | chatgpt-integration | Owner declarations approved; exact-head CI and independent review pending | #525; prior head `4edde619`, main `042253f`; STATUS.md 2026-11-25 |
 | AGENT-A1-524 | chatgpt-integration | Owner declaration approved; fresh CI and independent review pending | #524, previous head `a5fe405`, base `4e45b3a`; STATUS.md 2026-11-24 |
 | WH-133 | Codex (design and integration, `4457710`), Claude Code (independent review, fixes, release) | Merged and released | #503 `adea624` -> `e5bf2ac` [release]; Vercel `dpl_Ax13GhrAyzxY4Bv7DcbHo9LY6MCk` READY, deploy-worker 45072002228; `tests/platform_a11y_browser.cjs`, `tests/workspace_review_fixes_browser.cjs`; review T1-T3 in UI-TESTS |

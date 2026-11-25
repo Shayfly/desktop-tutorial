@@ -1,3 +1,9 @@
+# 2026-11-25 — Skills #525 independent automated review and follow-up (Codex, HOLD)
+
+- Independent automated reviewer reproduced lost probe evidence on worker escalation, missing Request Fidelity v2 in founder agentic and structured repair, and displaced actionable topics in a compacted intake context on `2cda8073ca3629ba3b3703a98a79aa7634eba40f`. Follow-up candidate preserves completed probe counts on terminal exceptions, carries v2 to both repair gateway calls, and puts advisory guidance after actionable topics in question skills v5.
+- Worker tests record the terminal status and billing with the real review executor and fixture storage. Repair tests capture both gateway payloads locally. Intake tests verify the fitted JSON retains the actionable topics and confirmed values. The existing narrow coverage of question guidance and of the reviewer checklist remains an open intake and QA item.
+- The flag-off digest is unchanged from #525, but the source declaration now needs six exact paths instead of three. The prior owner authorization covers the original scope. Fresh declaration approval, GitHub CI and an independent review on the resulting head are pending.
+
 # 2026-11-25 — Skills #525 reconciliation after A1 merge (HOLD until new CI and independent review)
 
 - Owner explicitly approved the identity declaration `executed-skill-evidence-525` and the four pending deletion declarations identified on `4edde6199307cd28b40d90b2d7fc11668fc0576a`. Recorded as owner authorization, not independent technical review.
