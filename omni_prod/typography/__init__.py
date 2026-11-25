@@ -4,8 +4,12 @@ Until now the content route used Heebo everywhere: the brief's Design line names
 the page used it for the body and for every heading. Here the unit is the script (scripts.json): Hebrew, Arabic and
 Latin are supported -- each with its direction, its date, number and currency formats and its heading limits -- and
 Cyrillic, Greek, CJK, Indic and Thai are declared but not supported. A page gets one pair of fonts from the library
-(font_pairs.json): the business's category gives the art direction (its tone), the tone allows two of the script's
-four pairs, and the business itself (its name) picks one of the two -- the same business always the same pair.
+(font_pairs.json): the business's category gives the art direction (its tone), the tone allows at least
+MIN_PAIRS_PER_TONE of the script's pairs, and the business itself (its name) picks one of them -- the same business
+always the same pair. The owner, 2026-11-25 ("א. צריך שיהיה את כל המגוון"): the library offers the full range, so
+different businesses get different, fitting pairs; a content-only site's customer is not asked which font at all.
+Every family a pair names is on the library's allowed list ('families'): its licence (OFL or Apache 2.0), the scripts
+its Google Fonts subsets cover and the weights served were read live, and a body face is always a text face.
 
 Nothing here falls back: a script not declared raises UnknownScript, a declared one without support raises
 UnsupportedScript (never Latin), a font family that is not in the script's library raises FontNotInLibrary, a heading
@@ -35,6 +39,14 @@ _SUPPORTED_KEYS = {'supported', 'direction', 'lang', 'og_locale', 'languages', '
                    'number', 'currency', 'sample'}
 _DECLARED_KEYS = {'supported', 'direction', 'languages', 'blocks', 'why'}
 HEADINGS = ('h1', 'h2', 'h3', 'h4')
+# The owner, 2026-11-25 ("את כל המגוון"): every tone of every supported script offers at least this many pairs.
+MIN_PAIRS_PER_TONE = 3
+# The allowed list (font_pairs.json 'families'). LICENCES as google/fonts METADATA.pb writes them: the SIL Open Font
+# License and Apache 2.0. A text face (text_face) may set the body; any other face -- a display or handwriting face,
+# or one served in a single weight -- may set headings only, so a pair never has two display faces.
+LICENCES = ('OFL', 'APACHE2')
+FAMILY_KEYS = {'licence', 'source', 'categories', 'classifications', 'scripts', 'weights', 'read_on'}
+DISPLAY_ONLY = frozenset({'DISPLAY', 'HANDWRITING'})
 
 
 class ScriptError(ValueError):
@@ -115,10 +127,40 @@ def _check() -> None:
                 if owner.setdefault(f['family'], name) != name:
                     raise FontNotInLibrary(f'{f["family"]!r} is in the {owner[f["family"]]} and the {name} library: '
                                            'a page of one script would share a font with a page of the other')
+                _check_face(p['id'], role, f, name)
         for tone in TONES:
-            if len([p for p in pairs if tone in p['tones']]) < 2:
-                raise FontNotInLibrary(f'{name}: fewer than two pairs for the tone {tone!r} (the business could not '
-                                       'change the pair)')
+            if len([p for p in pairs if tone in p['tones']]) < MIN_PAIRS_PER_TONE:
+                raise FontNotInLibrary(f'{name}: fewer than {MIN_PAIRS_PER_TONE} pairs for the tone {tone!r} -- not '
+                                       'the full range the owner decided on 2026-11-25')
+    unused = sorted(set(_LIBRARY['families']) - set(owner))
+    if unused:
+        raise FontNotInLibrary(f'the allowed list names families no pair uses: {unused}')
+
+
+def text_face(entry: dict) -> bool:
+    """A family the body text may be set in: Google Fonts gives it a text category (not only display or handwriting),
+    no display or handwriting classification, and it is served in both of the contract's weights."""
+    return (bool(set(entry['categories']) - DISPLAY_ONLY) and not set(entry['classifications']) & DISPLAY_ONLY
+            and entry['weights'] == list(WEIGHTS))
+
+
+def _check_face(pair_id: str, role: str, face: dict, name: str) -> None:
+    """One face of a pair against the allowed list: listed, its licence OFL or Apache 2.0, its script covered, the
+    weights it loads served, and a body face a text face. Anything else raises FontNotInLibrary."""
+    entry = _LIBRARY['families'].get(face['family'])
+    if entry is None:
+        raise FontNotInLibrary(f'pair {pair_id!r} {role}: {face["family"]!r} is not on the allowed list (families)')
+    if set(entry) != FAMILY_KEYS:
+        raise FontNotInLibrary(f'{face["family"]!r}: keys {sorted(set(entry) ^ FAMILY_KEYS)} differ from {sorted(FAMILY_KEYS)}')
+    if entry['licence'] not in LICENCES:
+        raise FontNotInLibrary(f'{face["family"]!r}: licence {entry["licence"]!r} is not one of {LICENCES}')
+    if name not in entry['scripts']:
+        raise FontNotInLibrary(f'{face["family"]!r} does not cover the {name} script (it covers {entry["scripts"]})')
+    if set(face['weights']) - set(entry['weights']):
+        raise FontNotInLibrary(f'pair {pair_id!r} {role}: weights {face["weights"]}, but {face["family"]!r} is served in '
+                               f'{entry["weights"]} only')
+    if role == 'body' and not text_face(entry):
+        raise FontNotInLibrary(f'pair {pair_id!r}: {face["family"]!r} is a display face, never body text')
 
 
 _check()
@@ -249,9 +291,9 @@ def families(name: str) -> set[str]:
 
 
 def pair_for(name: str, *, category: str, tone: str, business: str) -> dict:
-    """The pair of one business: its tone (the art direction of its category's palette) allows two of the script's
-    pairs, and the business key -- its name, spaces collapsed, case folded -- picks one, the same every time. The
-    category is part of the key, so one name in two trades need not get the same pair."""
+    """The pair of one business: its tone (the art direction of its category's palette) allows the script's pairs of
+    that tone (at least MIN_PAIRS_PER_TONE), and the business key -- its name, spaces collapsed, case folded -- picks
+    one, the same every time. The category is part of the key, so one name in two trades need not get the same pair."""
     if tone not in TONES:
         raise ValueError(f'tone {tone!r} is not one of {TONES}')
     if not (category or '').strip():

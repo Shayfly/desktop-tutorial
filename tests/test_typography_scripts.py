@@ -139,16 +139,17 @@ class TheFormats(unittest.TestCase):
 
 # ---- 126: the font-pair library -------------------------------------------------------------------------------------------
 class TheFontPairLibrary(unittest.TestCase):
-    def test_four_pairs_per_script_with_the_contracts_two_weights_for_every_tone(self):
+    def test_a_range_of_pairs_per_script_with_the_contracts_two_weights_for_every_tone(self):
+        # the owner, 2026-11-25 ("את כל המגוון"): at least three pairs for every tone of every script (it was two)
         self.assertEqual(set(T.TONES), set(DIRECTIONS['directions']))
+        self.assertGreaterEqual(T.MIN_PAIRS_PER_TONE, 3)
         for name in ('hebrew', 'arabic', 'latin'):
             pairs = T.pairs(name)
-            self.assertEqual(len(pairs), 4, name)
             for p in pairs:
                 self.assertEqual(p['body']['weights'], [400, 700], p['id'])
                 self.assertIn(p['display']['weights'], ([400, 700], [400]), p['id'])
             for tone in T.TONES:
-                self.assertEqual(len([p for p in pairs if tone in p['tones']]), 2, (name, tone))
+                self.assertGreaterEqual(len([p for p in pairs if tone in p['tones']]), T.MIN_PAIRS_PER_TONE, (name, tone))
 
     def test_hebrew_and_arabic_pages_never_share_a_font(self):
         self.assertEqual(T.families('hebrew') & T.families('arabic'), set())
@@ -174,11 +175,11 @@ class TheFontPairLibrary(unittest.TestCase):
         a = T.pair_for('hebrew', category='lawyers', tone='formal', business='כהן ושות׳ – דיני עבודה')
         b = T.pair_for('hebrew', category='lawyers', tone='formal', business='לוי ושות׳ – דיני עבודה')
         self.assertNotEqual(a['id'], b['id'])
-        # in every category, the business decides between the tone's two pairs: twelve businesses use both
+        # in every category, the business decides between the tone's pairs: thirty businesses use every one of them
         for category in sorted(VP.load()['categories']):
             tone = DIRECTIONS['palettes'][VP.palette_for(category)[0]]['direction']
             for name in ('hebrew', 'arabic'):
-                used = {T.pair_for(name, category=category, tone=tone, business=f'עסק {i}')['id'] for i in range(12)}
+                used = {T.pair_for(name, category=category, tone=tone, business=f'עסק {i}')['id'] for i in range(30)}
                 self.assertEqual(used, {p['id'] for p in T.pairs(name) if tone in p['tones']}, (category, name))
 
     def test_a_pair_needs_a_business_a_category_and_a_known_tone(self):
@@ -217,7 +218,9 @@ class TheFontPairLibrary(unittest.TestCase):
         with mock.patch.object(T, '_LIBRARY', shared), self.assertRaises(T.FontNotInLibrary):
             T._check()
         one = copy.deepcopy(T._LIBRARY)
-        one['pairs']['hebrew'][1]['tones'] = ['elegant']                           # 'formal' left with one pair
+        formal = [p for p in one['pairs']['hebrew'] if 'formal' in p['tones']]
+        for p in formal[T.MIN_PAIRS_PER_TONE - 1:]:                                 # 'formal' left one pair short
+            p['tones'] = [t for t in p['tones'] if t != 'formal'] or ['warm']
         with mock.patch.object(T, '_LIBRARY', one), self.assertRaises(T.FontNotInLibrary):
             T._check()
         third = copy.deepcopy(T._LIBRARY)
