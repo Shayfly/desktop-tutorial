@@ -1,0 +1,88 @@
+{
+ "pr": "content-followups",
+ "sha256": ["tests/test_site_content_price_in_heading.py", "omni_prod/site_content/validate.py",
+            "omni_prod/site_content/render.py", "omni_prod/typography/__init__.py", "omni_prod/site_content/schema.py"],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the release review of 2026-11-25 reverted: a field's length is counted on the model's text again (\"@price:1\" is 8 characters), so a heading the page shows longer than its limit passes validation and fails the build as site_render_defect",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    text = T.visible(R.shown(value, sheet) if sheet is not None else value)\n",
+     "new": "    text = value\n"
+    }
+   ],
+   "targets": ["tests/test_site_content_price_in_heading.py"],
+   "expect_failed": [
+    "test_the_title_that_failed_the_build_is_corrected_before_the_render",
+    "test_a_title_still_too_long_after_its_correction_is_invalid_content_not_a_render_defect",
+    "test_a_title_longer_as_written_than_as_shown_is_not_refused",
+    "test_validation_and_the_render_refuse_the_same_heading"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the measure keeps white space as a visitor reads it but drops the substitution: a price reference counts as its 8 written characters, not the customer's span",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    text = T.visible(R.shown(value, sheet) if sheet is not None else value)\n",
+     "new": "    text = T.visible(value)\n"
+    }
+   ],
+   "targets": ["tests/test_site_content_price_in_heading.py"],
+   "expect_failed": [
+    "test_the_title_that_failed_the_build_is_corrected_before_the_render",
+    "test_a_title_still_too_long_after_its_correction_is_invalid_content_not_a_render_defect",
+    "test_a_title_longer_as_written_than_as_shown_is_not_refused",
+    "test_validation_and_the_render_refuse_the_same_heading"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the TOO_LONG problem no longer tells the model the length the page shows (the reference and its span), so the one correction is not told why a 39-character title is too long",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    if spans:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": ["tests/test_site_content_price_in_heading.py"],
+   "expect_failed": [
+    "test_the_title_that_failed_the_build_is_corrected_before_the_render"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the schema bounds a field the library renders as a heading looser than the heading's script limit (process step titles 60, h3 is 40): the validator would accept a heading the render refuses; the existing pin in test_typography_scripts.py does not list this field",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "'process': {**_head(), 'steps': Lst(2, 6, Obj({'title': Str(_H['h3']), 'desc': Str(200)}))},",
+     "new": "'process': {**_head(), 'steps': Lst(2, 6, Obj({'title': Str(60), 'desc': Str(200)}))},"
+    }
+   ],
+   "targets": ["tests/test_site_content_price_in_heading.py", "tests/test_typography_scripts.py"],
+   "expect_failed": [
+    "test_every_field_rendered_as_a_heading_is_bound_by_that_headings_limit"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the render's heading check stops counting white space as a visitor reads it, so it counts a heading differently from the validator (typography.visible no longer shared)",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "        text = visible(_html.unescape(re.sub(r'<[^>]+>', '', inner)))\n",
+     "new": "        text = _html.unescape(re.sub(r'<[^>]+>', '', inner))\n"
+    }
+   ],
+   "targets": ["tests/test_site_content_price_in_heading.py", "tests/test_typography_scripts.py"],
+   "expect_failed": [
+    "test_validation_and_the_render_refuse_the_same_heading"
+   ]
+  }
+ ]
+}
