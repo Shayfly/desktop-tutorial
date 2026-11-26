@@ -2,6 +2,16 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| RED-EVIDENCE | Claude Code | Local commits, not pushed; HOLD for CI, the main session's dispatches and the owner's answer on S4.2 (money) | `claude/practical-hopper-oi3qj2-red-evidence`: vision 43689691749 and model 42527017456 re-cited (green, read 2026-11-26); crash evidence removed, Golden 5 FAIL, crash-verify checks S4.2; 39377332673 still listed; controls vision_probe_step 3/3, model_probe_runs 3/3, postdeploy_crash_agent_graph 2/2, postdeploy_crash_resume 5/5, paid_build_red_run 4/4, evidence_runs 52/52; STATUS.md 2026-11-26; review of 78d3b79 fixed in separate commits (stage read tested, R4b/R4c caught; records corrected; nits), declarations 712 -> 713 |
+| A1-RELEASE | Claude Code | Released | #531 `8b7d204` -> `ac10e94` [release], #533 `91290f8` -> `8911e32` [release]; runs 45702506669, 45702519795; deploy-worker 45699791750, 45709671445; STATUS.md 2026-11-26 |
+| LAWS-5-6 | Claude Code | Merged | #534 `9d04b99` -> `4690d01`; STATUS.md 2026-11-26 |
+| LAWS-2-6 | Claude Code | Merged (CI only, no release) | #535 `5bf1522` -> `fa41a5d`; CI 25 passed; supersedes the rows LAW2-EVIDENCE-RUNS and LAW6-FRESHNESS-ISSUES below; STATUS.md 2026-11-26 |
+| REPLAY-530 | Claude Code (the owner merged #530) | Merged with a defect, not deployed; fix in the sites bundle | #530 `be137fd` -> `5bcfefe`; fix `9272dee`; 19 pg tests; controls 15/15 and 7/7; STATUS.md 2026-11-26 |
+| S1-GOV | Claude Code (the owner merged #532) | Merged; 23 review fixes on a follow-up branch | #532 `d7b861d` -> `18dba53`; v24-ci negative-controls timeout, run 45713038574; STATUS.md 2026-11-26 |
+| GOA-ROUTE | Claude Code | In progress | bld_3938e570; branch route-honesty |
+| FLEET-ROOTS | Claude Code | In progress | diagnosis w2fwdjhzk; branches image-subject, repair-converge |
+| TENANT-S4.5 | Claude Code | In progress | branch tenant-isolation |
+| MEDIA-137 | the owner | In the warehouse (item 137) | the owner, 2026-11-26: music and video wait; STATUS.md 2026-11-26 |
 | LAW2-EVIDENCE-RUNS | Claude Code | Implemented with review fixes, verified locally; branch not pushed; real read-only run exit 0 (18 of 22 green, 4 known red listed in docs/evidence-runs-known-red.json, not fixed) | `claude/practical-hopper-oi3qj2-law2-evidence`; `scripts/resolve_evidence_runs.py`, `.github/workflows/evidence-runs.yml`; tests 76 passed, controls 52/52; STATUS.md 2026-11-25 |
 | LAW6-FRESHNESS-ISSUES | Claude Code | Implemented with review fixes, verified locally; branch not pushed | `.github/workflows/critical-path-freshness.yml` issue step (not-verified titles, close on PASS); tests 22 + 8 passed, controls 25/25 + 3/3; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525-APPROVAL | Codex | Owner approved exact declarations; HOLD for CI and independent merge review | #525, approved candidate `e1c8a7d7`, base `042253f5`; STATUS.md 2026-11-25 |
@@ -110,3 +120,8 @@
 | UI-LANGS | Claude Code | Merged and released | #505 `526928a` -> `e35f1b4` [release]: the platform in Hebrew, English and Arabic; `tests/ui_languages_browser.cjs` in CI; the server's fixed texts still reach Arabic customers in English; Vercel `dpl_86kVjp5UbA22jsJZ8TyyLTSRfVeK` READY |
 | PATH-GUARD | Claude Code | Merged | #506 `0918f2b` -> `74243bf`: `codex/` and `design/` branches may not change the platform UI shell or the site engine (OWNERS.md, the owner 2026-11-22 evening) |
 | UI-TESTS | Claude Code | In review | `claude/practical-hopper-oi3qj2-ui-tests`: #503 review T1 (the sidebar test and its 9 mutations run in CI on a development server), T2 (`tests/workspace_guards_browser.cjs`, 7 guards), T3 (status not read from a 503) |
+| PLAN-S1-5 | Claude Code | #532 merged (`d7b861d` -> `18dba53`); follow-up on `claude/practical-hopper-oi3qj2-s1-governance-fixes`, HOLD for CI | the mapping in `docs/SYSTEM_MAP.md`, the full map as the v24-ci artifact `system-map`; `tests/test_system_map.py`; controls system_map 22/22; STATUS.md 2026-11-26 |
+| PLAN-S1-6 | Claude Code | Merged (#532 `18dba53`) | AGENTS.md, the eleven development laws with their enforcement today; the follow-up adds the 2026-11-25 merge notes after lines 18 and 34 |
+| PLAN-S1-7 | Claude Code | #532 merged; follow-up HOLD for CI | `scripts/check_pr_report.py` (code before comments; a revert by its branch and this repository; invisible text is not content), `.github/workflows/pr-report.yml` (reads `$GITHUB_EVENT_PATH`), the template; `tests/test_pr_report.py`; controls pr_report 45/45 |
+| PLAN-S1-8 | Claude Code | #532 merged; follow-up HOLD for CI | OWNERS.md rules 1-12, `inbox/002-2026-11-25-owner-plan-v3.md` (plan v3 and the owner's messages verbatim, with their send times) |
+| CI-NC-SHARDS | Claude Code | Follow-up branch, HOLD for CI | v24-ci negative-controls in 3 shards (`NC_SHARD`); main run 45713038574 timed out at 18 min (1,186 of the 1,217 controls that run in v24-ci; 31 left); controls nc_shards 10/10 |
