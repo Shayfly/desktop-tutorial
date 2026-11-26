@@ -277,6 +277,25 @@ class APagePartIsNotTheName(unittest.TestCase):
         self.assertEqual(agent.stated_names(d.customer_text(brief)), ['השף הקטן'])
 
 
+class InArabic(unittest.TestCase):
+    """F3: the name strings of this change are kept in Hebrew, Arabic and English, like the gap detector's questions
+    (intake.gaps QUESTIONS) and the gate words (gate_words.LANGS); an Arabic conversation reads them in Arabic."""
+
+    def test_every_name_string_has_the_three_languages(self):
+        for strings in (agent.NAME_QUESTION, agent.NAME_WHICH_QUESTION, agent.NAME_SAID):
+            self.assertEqual(set(strings), {'he', 'ar', 'en'})
+            self.assertRegex(strings['ar'], r'[\u0600-\u06FF]')
+
+    def test_they_are_said_in_arabic(self):
+        two = 'אתר לאטליז "בשר השכונה", וקוראים לנו "הקצב של חיפה".'
+        self.assertEqual(agent.name_question(two, 'ar'),
+                         'كتبتم اسمين: "בשר השכונה" و"הקצב של חיפה". أيهما سيظهر في الموقع؟ اكتبوه تمامًا كما يجب أن يظهر.')
+        self.assertEqual(agent.name_question('אתר', 'ar'), agent.NAME_QUESTION['ar'])
+        said = agent.without_name_question('מה שם העסק כפי שתרצו שיופיע באתר?', 'بيت الشاي', 'ar')
+        self.assertEqual(said, 'الاسم الذي سيظهر في الموقع: "بيت الشاي".')
+        self.assertEqual(agent.name_question('אתר', 'fr'), agent.NAME_QUESTION['en'])     # any other: English
+
+
 class TheChecker(unittest.TestCase):
     """The rehearsal's checks on the recorded transcripts: each recorded run fails, for the turns the logs show."""
     EXPECTED = {   # (model, scenario): (asked again [(turn, fact)], questions with the summary [turn])

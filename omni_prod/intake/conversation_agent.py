@@ -232,6 +232,7 @@ def names_a_subject(text: str) -> bool:
 # words, never the model's -- joins the request as a "שם העסק:" line.
 NAME_ID = 'business_name'
 NAME_QUESTION = {'he': 'איך קוראים לעסק? כתבו את השם בדיוק כמו שהוא צריך להופיע באתר.',
+                 'ar': 'ما اسم المصلحة؟ اكتبوا الاسم تمامًا كما يجب أن يظهر في الموقع.',
                  'en': 'What is the business called? Write the name exactly as it should appear on the site.'}
 _NAME_LEAD = re.compile(r'^\s*(?:(?:קוראים|קוראות)\s+(?:לו|לה|לנו|לי|לעסק)|השם(?:\s+(?:הוא|שלנו|שלי|של\s+העסק))?|שם\s+העסק(?:\s+הוא)?|'
                         r"(?:it'?s\s+)?called|the\s+name\s+is|name)\s*[:\-–]?\s*", re.I)
@@ -356,6 +357,7 @@ def stated_name(customer_text: str) -> str | None:
 
 
 NAME_WHICH_QUESTION = {'he': 'כתבתם שני שמות: "{a}" ו"{b}". איזה מהם יופיע באתר? כתבו אותו בדיוק כמו שהוא צריך להופיע.',
+                       'ar': 'كتبتم اسمين: "{a}" و"{b}". أيهما سيظهر في الموقع؟ اكتبوه تمامًا كما يجب أن يظهر.',
                        'en': 'You wrote two names, "{a}" and "{b}". Which one should appear on the site? Write it exactly '
                              'as it should appear.'}
 
@@ -363,7 +365,7 @@ NAME_WHICH_QUESTION = {'he': 'כתבתם שני שמות: "{a}" ו"{b}". איז�
 def name_question(customer_text: str, lang: str) -> str:
     """The name question: which of the two names the customer wrote, quoting both; else what the business is called."""
     names = stated_names(customer_text)
-    key = 'he' if lang == 'he' else 'en'
+    key = lang if lang in NAME_QUESTION else 'en'          # F3: he, ar, en
     if len(names) >= 2:
         return NAME_WHICH_QUESTION[key].format(a=names[0], b=names[1])
     return NAME_QUESTION[key]
@@ -409,7 +411,8 @@ _NAME_WORD = re.compile(r'(?:מה|מהו)\s+(?:ה)?שם|(?:מה|מהו)\s+שמ(?
 _BUSINESS_WORD = re.compile(r'עסק|מקום|חנות|משרד|סטודיו|קליניקה|מרפאה|מותג|באתר|יופיע|בראש\s+העמוד|כפי\s+ש|בדיוק|'
                             r'\b(?:business|shop|store|studio|brand|site|appear)', re.I)
 _SAY_SENTENCE = re.compile(r'[^.!?؟\n]*(?:[.!?؟]+|$)')
-NAME_SAID = {'he': 'השם שיופיע באתר: "{name}".', 'en': 'The name on the site: "{name}".'}
+NAME_SAID = {'he': 'השם שיופיע באתר: "{name}".', 'ar': 'الاسم الذي سيظهر في الموقع: "{name}".',
+             'en': 'The name on the site: "{name}".'}
 
 
 def asks_for_name(sentence: str) -> bool:
@@ -433,7 +436,7 @@ def without_name_question(reply: str, name: str, lang: str) -> str:
             kept.append(s)
     if not asked:
         return reply
-    return ' '.join(kept + [NAME_SAID['he' if lang == 'he' else 'en'].format(name=name)]).strip()
+    return ' '.join(kept + [NAME_SAID[lang if lang in NAME_SAID else 'en'].format(name=name)]).strip()
 
 
 

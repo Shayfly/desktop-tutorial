@@ -130,6 +130,7 @@
     "tests/test_name_asked_once.py"
    ],
    "expect_failed": [
+    "test_they_are_said_in_arabic",
     "test_two_names_are_asked_as_a_choice_quoting_both",
     "test_two_names_are_asked_once_as_a_choice_and_the_answer_settles_it"
    ]
@@ -344,6 +345,41 @@
    "expect_failed": [
     "test_a_stated_name_replaces_the_one_read_earlier_and_adds_no_second",
     "test_on_the_real_path_a_correction_replaces_the_name_read_earlier"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "F3: the name question is chosen between Hebrew and English only (an Arabic conversation reads English)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "    key = lang if lang in NAME_QUESTION else 'en'          # F3: he, ar, en\n",
+     "new": "    key = 'he' if lang == 'he' else 'en'  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_they_are_said_in_arabic"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "F3: the sentence that says the name has no Arabic",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "NAME_SAID = {'he': 'השם שיופיע באתר: \"{name}\".', 'ar': 'الاسم الذي سيظهر في الموقع: \"{name}\".',\n",
+     "new": "NAME_SAID = {'he': 'השם שיופיע באתר: \"{name}\".',  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_every_name_string_has_the_three_languages",
+    "test_they_are_said_in_arabic"
    ]
   }
  ]
