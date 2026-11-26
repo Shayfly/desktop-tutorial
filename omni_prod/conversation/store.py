@@ -204,7 +204,8 @@ class PostgresConversationStore:
 # The owner, 2026-11-26 (WAREHOUSE 136, option a): the conversation showed only its last 100 messages, and nothing
 # could reach the ones before -- a limit that is not money. The history is paged by a cursor: each page carries
 # `before` (the oldest message id it read) and `has_older`; GET .../conversation/messages?before=<id> gives the
-# page before it. HISTORY_PAGE is the size of one page, not a limit on what can be read.
+# page before it. HISTORY_PAGE is the size of one page, not a limit on what can be read. Recorded and returned by the
+# API; the screen loads older pages once the apps bundle calls the route.
 HISTORY_PAGE = 100
 
 

@@ -2645,7 +2645,8 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     preview['allowance'] = _v28.subscription(token=token)
     if brief_row is not None:
         # the owner, 2026-11-26: a request too long for the build prompt is cut at its start, never silently -- the
-        # plan says so in the customer's words before they approve (discovery.build_prompt)
+        # plan view returns it in the customer's words (discovery.build_prompt): recorded and returned by the API, on
+        # screen once the apps bundle shows plan.request_cut
         from . import discovery as _d
         cut = _d.request_cut_of(prompt)
         preview['request_cut'] = {**cut, 'message': _d.request_cut_message(cut, _lang(request))} if cut else None

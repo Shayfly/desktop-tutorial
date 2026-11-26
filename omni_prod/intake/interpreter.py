@@ -63,7 +63,8 @@ class Interpretation:
     # owner 2026-11-18: a conversation limit (budget / daily / turns) stopped the paid call. {kind, source} only.
     limit: dict | None = None
     # the owner, 2026-11-26: a bound that applied to this turn, in the customer's words ({kind, message}); stored with the
-    # assistant message and sent with it (investor_app._conversation_view 'notices'), never only an internal note
+    # assistant message, recorded and returned by the API (investor_app._conversation_view 'notices'); not on screen
+    # until the apps bundle shows it (STATUS.md, caps-a)
     notices: list[dict] = field(default_factory=list)
 
     def to_dict(self):
@@ -368,8 +369,8 @@ SYSTEM = ('You extract software-product requirements from a customer message. Mo
 MAX_RAW_CHARS = 50_000
 # The owner, 2026-11-26 (WAREHOUSE 136, option a): the model's reply was cut at 1,200 characters, its requirements at 12
 # (each dropped past 300 characters) and its proposals at 30 -- each recorded only in an internal note. Raised; when a
-# bound still applies it is logged (INTAKE_OUTPUT_BOUND), noted, and said to the customer (Interpretation.notices; the
-# reply also says it where it was cut). MAX_RAW_CHARS bounds the whole output first, so every list here is finite.
+# bound still applies it is logged (INTAKE_OUTPUT_BOUND), noted, and recorded and returned by the API
+# (Interpretation.notices; on screen once the apps bundle shows it). A cut reply says so in its own text, on screen today. MAX_RAW_CHARS bounds the whole output first, so every list here is finite.
 MAX_PROPOSALS = 200               # one per question field at most counts; the rest are duplicates or invalid
 MAX_REQUIREMENTS = 60
 MAX_REQUIREMENT_CHARS = 1000      # a longer requirement is cut to this, and noted (it was dropped past 300)

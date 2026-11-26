@@ -59,7 +59,8 @@ MAX_CORRECTIONS = 3
 # Review S5 (2026-11-26): one answer holds MAX_CONTENT_TOKENS (a money bound, unchanged); the raised item maxima can be
 # more than that (the schema's largest document is 90,966 characters, measured from schema.SECTIONS). The model is
 # told the room it has and, when a list must be shorter to fit, names it in the document's `shortened`; the evidence
-# records it and the customer is told which list and why (site_route.shortened, .shortened_said). ESTIMATE: about 2.5
+# records it with the sentence for the customer (site_route.shortened, .shortened_said): recorded and returned by the
+# API, on screen once the apps bundle shows it. ESTIMATE: about 2.5
 # characters of Hebrew JSON per token (not measured on a tokenizer here), so about 20,000 characters.
 OUTPUT_CHARS = MAX_CONTENT_TOKENS * 5 // 2
 

@@ -19,6 +19,17 @@ locally (tests and negative controls below); not verified in CI or production.
 - The public plan view no longer promises max_projects, seats, priority or 'priority builds'.
 - Evidence: see TASKS.md CAPS-A and the branch's commit messages. Open: the UI shell's part (visual-edit.js MAX_IMAGES,
   app.js notices, history paging, request_cut in the plan panel, the dead project_limit_reached branch).
+- **Follow-up of the apps bundle (the platform UI changes there; caps-a does not touch app.js or visual-edit.js).**
+  What caps-a records and returns by the API but is NOT on screen yet: (1) `messages[].notices` (a bound that applied
+  to a turn: reply cut, model output cut, request cut, outline cut) -- a cut reply and the request/outline notices are
+  also in the reply text, which is on screen; (2) `history: {has_older, before}` and
+  `GET /api/v28/projects/{id}/conversation/messages?before=<id>&limit=1..100` (older messages; error
+  `invalid_history_page`); (3) `plan.request_cut.message` in the plan panel; (4) `site_route.shortened_said` (a list
+  the model shortened to fit one answer); (5) `visual-edit.js:143` `MAX_IMAGES = 6` -> 20, the server's
+  `attachments.MAX_PER_MESSAGE`; (6) the dead `project_limit_reached` branch in `app.js:905-913` and its test
+  `tests/test_v7_readiness_regression.py::test_project_quota_has_distinct_client_remedy`; (7) the `site_content_invalid`
+  text "גם אחרי התיקון" (there are up to three corrections). A launch of a version whose preview is live now answers
+  `status: REUSED` with that preview's id (the screen reads only preview_id).
 
 # 2026-11-26 — the evening of 2026-11-25 and this morning: two releases, four merges without a release, what is open (Claude Code)
 
