@@ -51,6 +51,7 @@ const T = {
     stopBuild:'עצירת הבנייה', stopChange:'עצירת השינוי', stopChangeConfirm:'לעצור את השינוי? נחויב רק על מה שכבר נוצל.', modCancelled:'השינוי נעצר.', stopConfirm:'לעצור את הבנייה? נחויב רק על מה שכבר נוצל, והגרסה לא תיווצר.',
     stopping:'העצירה תתבצע בסיום הצעד הנוכחי (עד כמה דקות).', buildCancelled:'הבנייה נעצרה. נחויב רק על מה שכבר נוצל.',
     liveLog:'מה קורה עכשיו', logEmpty:'מתכוננים לבנייה…', logNoBuild:'אין בנייה עדיין בפרויקט הזה.',
+    logResumed:'השרת שעבד על זה הפסיק להגיב. ממשיכים מהנקודה האחרונה שנשמרה, בלי להתחיל מחדש.', logRestarted:'השרת שעבד על זה הפסיק להגיב. מתחיל מחדש מהתחלה.',
     checkingApproval:'מאמתים אישור ותקציב — הבנייה עדיין לא התחילה.',
     uiEmpty:'האתר שנבנה יצא ריק', uiMissing:{form:'טופס', input:'שדות קלט', button:'כפתור', table:'טבלה', content:'תוכן'}, uiMissingLead:'חסרים בו', uiEmptyTail:'אז לא מסרנו אותו.',
     errCodes:{preview_no_build_queue:'בגרסת הבדיקה הזו של 148AI אי אפשר לבנות, ולכן הבנייה לא התחילה.', build_not_found:'הבנייה לא התחילה בגלל תקלה אצלנו.', verification_failed:'לא הצלחנו לבנות את האתר הפעם.',
@@ -62,6 +63,7 @@ const T = {
       rights_gate_not_clear:'האתר נבנה ונשמר, אבל לא הצלחנו לוודא שמותר להשתמש בכל מה שיש בו (למשל תמונה או שם), ולכן הוא עוד לא מוכן.',
       unsupported_dependency:'האתר שביקשתם צריך משהו שאנחנו עוד לא יודעים לבנות.',
       worker_lost:'הבנייה נתקעה ועצרנו אותה.',
+      checkpoint_unusable:'השרת שעבד על הבנייה הפסיק להגיב, ולא הצלחנו לאמת את הנקודה האחרונה שנשמרה, אז עצרנו במקום להמשיך ממנה.',
       build_timeout:'הבנייה נמשכה יותר מדי זמן ועצרנו אותה לפני שהסתיימה.',
       provider_liability_unknown:'הבנייה נעצרה באמצע. עוד לא ידוע אם חויבתם על מה שכבר נעשה.',
       worker_exception:'משהו השתבש אצלנו בזמן הבנייה. זה לא בגללכם.',
@@ -200,6 +202,7 @@ const T = {
     stopBuild:'Stop the build', stopChange:'Stop the change', stopChangeConfirm:'Stop the change? Only what was already used is charged.', modCancelled:'The change was stopped.', stopConfirm:'Stop the build? Only what was already used is charged, and no version is created.',
     stopping:'The build stops when the current step ends (up to a few minutes).', buildCancelled:'The build was stopped. Only what was already used is charged.',
     liveLog:'What is happening now', logEmpty:'Waiting for the build server…', logNoBuild:'No build in this project yet.',
+    logResumed:'The server working on this stopped responding. We are continuing from the last saved point, without starting over.', logRestarted:'The server working on this stopped responding. Starting again from the beginning.',
     checkingApproval:'Checking approval and budget — no build has started yet.',
     uiEmpty:'The site that was built came out empty', uiMissing:{form:'a form', input:'input fields', button:'a button', table:'a table', content:'content'}, uiMissingLead:'missing', uiEmptyTail:'so we did not hand it over.',
     errCodes:{preview_no_build_queue:'This test version of 148AI cannot build, so the build did not start.', build_not_found:'The build did not start because of a problem on our side.', verification_failed:'We could not build the site this time.',
@@ -211,6 +214,7 @@ const T = {
       rights_gate_not_clear:'The site was built and saved, but we could not confirm that everything in it (a picture or a name, for example) may be used, so it is not ready yet.',
       unsupported_dependency:'The site you asked for needs something we cannot build yet.',
       worker_lost:'The build got stuck and we stopped it.',
+      checkpoint_unusable:'The server working on the build stopped responding, and we could not verify the last saved point, so we stopped instead of continuing from it.',
       build_timeout:'The build took too long and we stopped it before it finished.',
       provider_liability_unknown:'The build stopped part-way. It is not known yet whether you were charged for what was already done.',
       worker_exception:'Something went wrong on our side during the build. It was not caused by you.',
@@ -463,12 +467,14 @@ const T = {
     liveLog: "ما يحدث الآن",
     logEmpty: "نستعد للبناء…",
     logNoBuild: "لا يوجد بناء في هذا المشروع بعد.",
+    logResumed: "توقف الخادم الذي كان يعمل على هذا عن الاستجابة. نتابع من آخر نقطة محفوظة، دون البدء من جديد.",
+    logRestarted: "توقف الخادم الذي كان يعمل على هذا عن الاستجابة. نبدأ من جديد من البداية.",
     checkingApproval: "نتحقق من الموافقة والميزانية — لم يبدأ البناء بعد.",
     uiEmpty: "جاء الموقع الذي بُني فارغًا",
     uiMissing: {"form":"استمارة","input":"حقول إدخال","button":"زر","table":"جدول","content":"محتوى"},
     uiMissingLead: "ينقصه",
     uiEmptyTail: "لذلك لم نسلّمه.",
-    errCodes: {"preview_no_build_queue":"لا يمكن البناء في هذه النسخة التجريبية من 148AI، لذلك لم يبدأ البناء.","build_not_found":"لم يبدأ البناء بسبب عطل لدينا.","verification_failed":"لم ننجح في بناء الموقع هذه المرة.","needs_customer_input":"تنقص معلومة لا يستطيع تقديمها إلا أنتم، لذلك أوقفنا البناء. لن نختلقها.","release_policy_failed":"بنينا الموقع، لكنه لم يجتز فحوصاتنا، لذلك لم نسلّمه.","quality_gate_failed":"بُني الموقع لكنه لم يخرج بجودة كافية، لذلك لم نسلّمه.","preview_not_ready":"بنينا الموقع، لكنه لم يُفتح عندما جرّبناه، لذلك لم نسلّمه.","security_gate_failed":"وجدنا في الموقع الذي بُني مشكلة قد تعرّض معلومات زوّاره للخطر، لذلك لم نسلّمه.","rights_gate_not_clear":"بُني الموقع وحُفظ، لكننا لم نتمكن من التأكد من أنه مسموح استخدام كل ما فيه (مثلًا صورة أو اسم)، لذلك ليس جاهزًا بعد.","unsupported_dependency":"الموقع الذي طلبتموه يحتاج إلى شيء لا نعرف كيف نبنيه بعد.","worker_lost":"علِق البناء فأوقفناه.","build_timeout":"استغرق البناء وقتًا أطول من اللازم، فأوقفناه قبل أن ينتهي.","provider_liability_unknown":"توقف البناء في منتصفه. لا يُعرف بعد إن كان قد خُصم منكم مقابل ما أُنجز حتى الآن.","worker_exception":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","model_budget_exhausted":"الطلب كبير جدًا على بناء واحد، وقد توقف البناء قبل أن ينتهي.","model_unavailable":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","provider_quota_exhausted":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","model_policy_blocked":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","capability_gate_failed":"لم نتمكن من تجهيز جزء من الموقع (مثلًا الصور)، لذلك لم نسلّمه.","image_mismatch":"الصورة التي أُنشئت لا تُظهر ما طلبتموه، لذلك أوقفنا البناء.","image_not_described":"لإنشاء صورة كنا بحاجة لمعرفة ما تُظهره، ولم يكن ذلك واضحًا في الطلب، فتوقفنا قبل البناء. اكتبوا ما يجب أن تُظهره الصورة (مثلًا \"صورة لكل وجهة\") ونكمل.","site_content_invalid":"لم نتمكن من إعداد محتوى سليم للموقع حتى بعد التصحيح. لم يكتمل البناء، ويمكنكم المحاولة مرة أخرى.","site_render_defect":"أُعدّ المحتوى، لكن عطلًا لدينا منع عرض الموقع بشكل سليم، فلم نعتبره جاهزًا. يمكنكم المحاولة مرة أخرى.","model_bad_output":"تلقّينا ردودًا، لكن لم يكن أيّ منها بالشكل اللازم للبناء، فتوقفنا قبل الفحوصات. هذا ليس بسبب ضغط أو حدّ استخدام. يمكنكم المحاولة مرة أخرى.","attempt_ledger_unavailable":"لم نتمكن من تسجيل تكاليف البناء، لذلك توقفنا قبل أن نبدأ بإنشاء الموقع. يمكنكم المحاولة مرة أخرى بعد بضع دقائق.","plan_violation":"توقف البناء: إحدى المراحل خرجت عن الخطة التي وافقتم عليها لهذا البناء. التفصيل في «تفاصيل تقنية».","infrastructure_not_configured":"إحدى الأدوات اللازمة للبناء لم تكن جاهزة لدينا، لذلك لم نبدأ البناء. هذا عطل لدينا. يمكنكم المحاولة مرة أخرى.","capability_not_configured":"إحدى القدرات التي يحتاجها الموقع، مثل إنشاء الصور، لم تكن جاهزة لدينا بعد، فتوقف البناء قبل الإنشاء.","release_policy_unavailable":"انتهى البناء، لكن تقرير الجودة اللازم لاعتباره جاهزًا لم يُنشأ، لذلك لم نعتبره جاهزًا. التفصيل في «تفاصيل تقنية»."},
+    errCodes: {"preview_no_build_queue":"لا يمكن البناء في هذه النسخة التجريبية من 148AI، لذلك لم يبدأ البناء.","build_not_found":"لم يبدأ البناء بسبب عطل لدينا.","verification_failed":"لم ننجح في بناء الموقع هذه المرة.","needs_customer_input":"تنقص معلومة لا يستطيع تقديمها إلا أنتم، لذلك أوقفنا البناء. لن نختلقها.","release_policy_failed":"بنينا الموقع، لكنه لم يجتز فحوصاتنا، لذلك لم نسلّمه.","quality_gate_failed":"بُني الموقع لكنه لم يخرج بجودة كافية، لذلك لم نسلّمه.","preview_not_ready":"بنينا الموقع، لكنه لم يُفتح عندما جرّبناه، لذلك لم نسلّمه.","security_gate_failed":"وجدنا في الموقع الذي بُني مشكلة قد تعرّض معلومات زوّاره للخطر، لذلك لم نسلّمه.","rights_gate_not_clear":"بُني الموقع وحُفظ، لكننا لم نتمكن من التأكد من أنه مسموح استخدام كل ما فيه (مثلًا صورة أو اسم)، لذلك ليس جاهزًا بعد.","unsupported_dependency":"الموقع الذي طلبتموه يحتاج إلى شيء لا نعرف كيف نبنيه بعد.","worker_lost":"علِق البناء فأوقفناه.","checkpoint_unusable":"توقف الخادم الذي كان يعمل على البناء عن الاستجابة، ولم نتمكن من التحقق من آخر نقطة محفوظة، لذلك أوقفنا البناء بدل المتابعة منها.","build_timeout":"استغرق البناء وقتًا أطول من اللازم، فأوقفناه قبل أن ينتهي.","provider_liability_unknown":"توقف البناء في منتصفه. لا يُعرف بعد إن كان قد خُصم منكم مقابل ما أُنجز حتى الآن.","worker_exception":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","model_budget_exhausted":"الطلب كبير جدًا على بناء واحد، وقد توقف البناء قبل أن ينتهي.","model_unavailable":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","provider_quota_exhausted":"هناك ضغط كبير لدينا حاليًا، ولم يكتمل البناء. يُستحسن الانتظار بضع دقائق.","model_policy_blocked":"حدث خلل لدينا أثناء البناء. هذا ليس بسببكم.","capability_gate_failed":"لم نتمكن من تجهيز جزء من الموقع (مثلًا الصور)، لذلك لم نسلّمه.","image_mismatch":"الصورة التي أُنشئت لا تُظهر ما طلبتموه، لذلك أوقفنا البناء.","image_not_described":"لإنشاء صورة كنا بحاجة لمعرفة ما تُظهره، ولم يكن ذلك واضحًا في الطلب، فتوقفنا قبل البناء. اكتبوا ما يجب أن تُظهره الصورة (مثلًا \"صورة لكل وجهة\") ونكمل.","site_content_invalid":"لم نتمكن من إعداد محتوى سليم للموقع حتى بعد التصحيح. لم يكتمل البناء، ويمكنكم المحاولة مرة أخرى.","site_render_defect":"أُعدّ المحتوى، لكن عطلًا لدينا منع عرض الموقع بشكل سليم، فلم نعتبره جاهزًا. يمكنكم المحاولة مرة أخرى.","model_bad_output":"تلقّينا ردودًا، لكن لم يكن أيّ منها بالشكل اللازم للبناء، فتوقفنا قبل الفحوصات. هذا ليس بسبب ضغط أو حدّ استخدام. يمكنكم المحاولة مرة أخرى.","attempt_ledger_unavailable":"لم نتمكن من تسجيل تكاليف البناء، لذلك توقفنا قبل أن نبدأ بإنشاء الموقع. يمكنكم المحاولة مرة أخرى بعد بضع دقائق.","plan_violation":"توقف البناء: إحدى المراحل خرجت عن الخطة التي وافقتم عليها لهذا البناء. التفصيل في «تفاصيل تقنية».","infrastructure_not_configured":"إحدى الأدوات اللازمة للبناء لم تكن جاهزة لدينا، لذلك لم نبدأ البناء. هذا عطل لدينا. يمكنكم المحاولة مرة أخرى.","capability_not_configured":"إحدى القدرات التي يحتاجها الموقع، مثل إنشاء الصور، لم تكن جاهزة لدينا بعد، فتوقف البناء قبل الإنشاء.","release_policy_unavailable":"انتهى البناء، لكن تقرير الجودة اللازم لاعتباره جاهزًا لم يُنشأ، لذلك لم نعتبره جاهزًا. التفصيل في «تفاصيل تقنية»."},
     failUnknown: "لم ينجح البناء بسبب عطل لدينا.",
     failNotCharged: "لم يُخصم منكم أي مبلغ.",
     failNext: { edit: l=>`يمكنكم تغيير الطلب والمحاولة مرة أخرى: اضغطوا على "${l}".`, input: l=>`اكتبوا التفصيل الناقص في الطلب: اضغطوا على "${l}".`, retry: l=>`يمكنكم المحاولة مرة أخرى: اضغطوا على "${l}".` },
@@ -1779,6 +1785,13 @@ async function pollEvents() {
     for (const e of d.events || []) { b.log.push(e); b.logAfter = Math.max(b.logAfter || 0, e.seq); }
   } catch (e) { /* the log is a convenience; status polling carries on */ }
 }
+// Lines the server writes to the build log in Hebrew that this screen has in every language (S4.2: the janitor's
+// recovery lines, omni_prod/maintenance.py RECOVERY_LINES): shown in the customer's language, any other line as written.
+const SERVER_LOG_LINES = ['logResumed', 'logRestarted'];
+function serverLine(message) {
+  const key = SERVER_LOG_LINES.find(k => T.he[k] === message);
+  return key ? t(key) : message;
+}
 function renderLog() {
   const b = S.build; const box = $('liveLog'); const list = $('liveLogList');
   if (!b) {                    // an explicit empty state, never the lines of a build of another project
@@ -1788,7 +1801,7 @@ function renderLog() {
   }
   box.hidden = false;
   const fmt = iso => { try { return new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return ''; } };
-  const rows = (b.log || []).slice(-60).map(e => h('li', { class: `ev ${e.kind}` }, h('time', {}, fmt(e.at)), ' ', e.message));
+  const rows = (b.log || []).slice(-60).map(e => h('li', { class: `ev ${e.kind}` }, h('time', {}, fmt(e.at)), ' ', serverLine(e.message)));
   const atEnd = list.scrollHeight - list.scrollTop - list.clientHeight < 24;
   list.replaceChildren(...(rows.length ? rows : [h('li', { class: 'ev muted' }, t('logEmpty'))]));
   if (atEnd) list.scrollTop = list.scrollHeight;  // follow the newest line unless the user scrolled up
@@ -1826,7 +1839,7 @@ function renderTrack() {
   // shown as skipped, never as done (a failed build once showed the quality
   // gates as passed although generation had failed before them).
   const FAIL_STEP = { infrastructure_not_configured: 1, capability_not_configured: 2, capability_gate_failed: 2, image_mismatch: 2,
-    worker_exception: 3, build_timeout: 3, provider_liability_unknown: 3, worker_lost: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, model_bad_output: 3, attempt_ledger_unavailable: 3, plan_violation: 3, provider_quota_exhausted: 3, model_policy_blocked: 3, verification_failed: 3, release_policy_failed: 4, release_policy_unavailable: 4, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
+    worker_exception: 3, build_timeout: 3, provider_liability_unknown: 3, worker_lost: 3, checkpoint_unusable: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, model_bad_output: 3, attempt_ledger_unavailable: 3, plan_violation: 3, provider_quota_exhausted: 3, model_policy_blocked: 3, verification_failed: 3, release_policy_failed: 4, release_policy_unavailable: 4, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
   const failedIdx = failedCode in FAIL_STEP ? FAIL_STEP[failedCode] : -1;
   const preview = S.preview;
   const steps = [];
@@ -1851,7 +1864,7 @@ function renderTrack() {
   backendStep('stepInfra', 1, ['infrastructure_not_configured'], infraEv === null && status === 'ready' ? t('none') : null);
   backendStep('stepAssets', 2, ['capability_not_configured', 'capability_gate_failed', 'image_mismatch'], null);
   const repairNote = b && b.repair_rounds !== undefined && b.repair_rounds !== null && isTerminal(b.status) ? t('repairs')(b.repair_rounds) : t('noteGenerate');
-  backendStep('stepGenerate', 3, ['worker_exception', 'preview_not_ready', 'model_budget_exhausted', 'model_unavailable', 'model_bad_output', 'attempt_ledger_unavailable', 'plan_violation', 'provider_quota_exhausted', 'model_policy_blocked', 'verification_failed'], repairNote);
+  backendStep('stepGenerate', 3, ['worker_exception', 'checkpoint_unusable', 'preview_not_ready', 'model_budget_exhausted', 'model_unavailable', 'model_bad_output', 'attempt_ledger_unavailable', 'plan_violation', 'provider_quota_exhausted', 'model_policy_blocked', 'verification_failed'], repairNote);
   backendStep('stepGates', 4, ['quality_gate_failed', 'security_gate_failed', 'rights_gate_not_clear'], null);
   let pState = (!preview && (status === 'cancelled' || status === 'failed')) ? 'skipped' : 'pending', pNote = null;
   if (preview) {

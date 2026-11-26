@@ -90,6 +90,25 @@ class AgentRuntime:
                     conn.execute("UPDATE agent_runs SET finished_at = now(), outcome = 'superseded' WHERE id = ANY(%s)", (ids,))
         return len(ids)
 
+    def last_superseded_run(self, subject_kind: str, subject_id: str) -> str | None:
+        """The run of the worker a recovery replaced (supersede_open_runs closed it), newest first."""
+        with self.pool.connection() as conn:
+            row = conn.execute("SELECT id FROM agent_runs WHERE subject_kind = %s AND subject_id = %s "
+                               "AND outcome = 'superseded' ORDER BY finished_at DESC, created_at DESC LIMIT 1",
+                               (subject_kind, subject_id)).fetchone()
+        return row[0] if row else None
+
+    def tasks_until(self, run_id: str, until: str | None = None) -> list[dict]:
+        """A run's tasks created at or before `until` (a timestamp; None = all), with their skills and times: what a
+        build that continues from a checkpoint written at `until` may carry (S4.2)."""
+        with self.pool.connection() as conn:
+            rows = conn.execute(
+                'SELECT id, agent_key, skill_keys, state, cost_usd, evidence, created_at, finished_at FROM agent_tasks '
+                'WHERE run_id = %s AND (%s::timestamptz IS NULL OR created_at <= %s::timestamptz) ORDER BY created_at',
+                (run_id, until, until)).fetchall()
+        return [dict(zip(('id', 'agent_key', 'skill_keys', 'state', 'cost_usd', 'evidence', 'created_at', 'finished_at'),
+                         r)) for r in rows]
+
     def finish_run(self, run_id: str, outcome: str) -> None:
         with self.pool.connection() as conn:
             with conn.transaction():

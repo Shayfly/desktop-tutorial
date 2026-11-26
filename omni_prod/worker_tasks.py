@@ -419,7 +419,10 @@ def failure_code(exc: BaseException) -> str:
     from .build_control import BuildDeadline
     from .verification_verdict import queue_timeouts
     from .site_content.agents import SiteContentInvalid, SiteRenderDefect
+    from .build_checkpoint import CheckpointUnusable
     text = str(exc)
+    if isinstance(exc, CheckpointUnusable):        # S4.2: requeued to continue, but its checkpoint cannot be trusted
+        return 'checkpoint_unusable'
     if isinstance(exc, SiteContentInvalid):        # the model's content document, still invalid after its correction
         return 'site_content_invalid'
     if isinstance(exc, SiteRenderDefect):          # the platform's own render (library, fact sheet, contract)
@@ -1032,10 +1035,25 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
     capability_evidence = None
     infrastructure_evidence = None
     model_budget_binding = None
+    # S4.2: the janitor's recovery record, the checkpoint this run continues from and this run's checkpoint writer. The
+    # terminal evidence carries the record and the build's last checkpoint whichever path ends the build.
+    from . import build_checkpoint
+    claim = recorded = recovery_evidence = checkpoints = None
+
+    def carried_evidence() -> dict:
+        last = checkpoints.last if checkpoints is not None and checkpoints.last is not None else recorded
+        return {'recovery': recovery_evidence, 'checkpoint': last,
+                'checkpoint_errors': (checkpoints.errors or None) if checkpoints is not None else None}
+    jobs = build_checkpoint.CarryEvidence(jobs, carried_evidence)
 
     try:
         if preflight is not None:
             preflight()
+        if attempt_pool is not None:
+            claim = build_checkpoint.read_claim(attempt_pool, build_id)
+            recovery_evidence = claim.get('recovery')
+            # the janitor requeued this build to continue: its checkpoint (bytes are checked before the engine runs)
+            recorded = build_checkpoint.resume_record(claim)
         _report_phase(jobs, build_id, 'PLANNING', 'validating the build contract and product plan')
         # M5 Task 6: a contract-bound product cannot become READY without its
         # required generated-app infrastructure. Checked before any paid model
@@ -1111,7 +1129,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             )
         if agent_recorder is not None:  # Agent OS: the real build as a durable agent task graph
             control.recorder = agent_recorder
-            agent_recorder.start(from_brief='Approved project brief' in (prompt or ''))
+            # S4.2: a build that continues carries the lost worker's finished tasks into its run, never re-runs them
+            agent_recorder.start(from_brief='Approved project brief' in (prompt or ''),
+                                 **({'resume': {'checkpoint': build_checkpoint.label(recorded), 'stage': recorded['stage'],
+                                                'round': recorded.get('round'), 'written_at': recorded.get('written_at'),
+                                                'report_passed': recorded.get('report_passed')}}
+                                    if recorded is not None else {}))
             if hasattr(agent_recorder, 'bind'):     # plan-governed builds: plan limits + per-task charging
                 agent_recorder.bind(engine, gateway)
             if getattr(agent_recorder, 'enforce', False):   # ...and the approved criteria are the test basis (G3)
@@ -1195,7 +1218,31 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         from .fact_canon import needs_customer_input
         getattr(engine, 'core', engine).missing_input = (                    # #335 (d)
             lambda messages: needs_customer_input(messages, build_prompt))
-        result = engine.build(build_prompt)
+        # S4.2: every checkpoint of this run goes to object storage and to build_jobs.evidence_json (CheckpointWriter);
+        # a build the janitor requeued to continue reads its last checkpoint back, every byte checked, and goes on
+        resume = None
+        store, zip_repo = getattr(workspace, 'storage', None), getattr(workspace, '_zip_repo', None)
+        if claim is not None and callable(getattr(store, 'put_bytes', None)) and callable(zip_repo):
+            checkpoints = build_checkpoint.CheckpointWriter(
+                pool=attempt_pool, build_id=build_id, epoch=claim['epoch'], store=store, zip_repo=zip_repo,
+                contract_fingerprint=request.get('build_contract_fingerprint'), prompt=build_prompt, engine=engine,
+                round_snapshots=round_snapshots, flush=control.flush,
+                worker=getattr(getattr(gateway, 'recorder', None), 'trace_id', None),
+                why_not=build_checkpoint.not_resumable_reason(engine))
+            getattr(engine, 'core', engine).checkpoint_hook = checkpoints
+        if recorded is not None:
+            loaded = build_checkpoint.load(recorded, store=store, unzip=getattr(workspace, '_unzip_repo', None),
+                                           contract_fingerprint=request.get('build_contract_fingerprint'),
+                                           prompt=build_prompt)
+            not_restored = build_checkpoint.restore_executors(engine, loaded.executors)
+            round_snapshots[:0] = loaded.round_snapshots
+            # the same budgets: the earlier workers' recorded calls and cost count against this build's reservation
+            budget = build_checkpoint.carry_budget(gateway, build_checkpoint.recorded_spend(attempt_pool, build_id))
+            recovery_evidence = {**(recovery_evidence or {}), 'resumed_from': loaded.resumed_from(
+                carried_budget=budget, history_not_restored=not_restored)}
+            resume = loaded.resume
+            logging.getLogger(__name__).info('BUILD_RESUMED build=%s from %s', build_id, build_checkpoint.label(recorded))
+        result = engine.build(build_prompt, resume=resume) if resume is not None else engine.build(build_prompt)
         if agent_recorder is not None and hasattr(agent_recorder, 'raise_if_violated'):
             agent_recorder.raise_if_violated()   # plan-governed: a swallowed violation still fails closed
         _report_phase(jobs, build_id, 'VERIFYING', 'running quality, security and rights gates')
