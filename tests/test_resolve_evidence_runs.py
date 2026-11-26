@@ -1,11 +1,12 @@
 """Law 2 (2026-11-25): every GitHub Actions run cited as evidence is looked up and must be green on its commit.
 
 Real path: the real script (scripts/resolve_evidence_runs.py), the real evidence records and string constants it reads
-from the repository (22 run ids on 2026-11-25), the real known-red list (docs/evidence-runs-known-red.json) and the real
+from the repository (20 run ids on 2026-11-26), the real known-red list (docs/evidence-runs-known-red.json) and the real
 workflow file. Only the GitHub answer is replaced: `fetch` answers like GET /repos/{owner}/{repo}/actions/runs/{id}, and
 one test goes through the real request code (the drill tool's github_get) with `urlopen` replaced. The default answer is
-today's truth as read from GitHub on 2026-11-25: the four listed ids failed, the other 18 succeeded on the cited commit
-in the workflow the text names. The guard tests build their own small omni_prod/ tree in a temp dir.
+today's truth as read from GitHub: the listed id failed, the other 19 succeeded on the cited commit in the workflow the
+text names (read 2026-11-25; the two runs cited since, 42527017456 and 43689691749, read green on 2026-11-26). The guard
+tests build their own small omni_prod/ tree in a temp dir.
 Mutations: tests/negative_controls/evidence_runs.json.
 
 Review 2026-11-25 (three agents): each counter-example they reproduced is a test here -- the vision probe cited as a
@@ -38,11 +39,12 @@ CITED, UNCITED = R.collect()
 # The run ids cited on 2026-11-25, by the kind that alone cites them (a removed source loses its ids).
 ONLY_REQUIREMENT = {'37739774562'}                      # runtime_bindings _MODEL.observed: deploy-worker run
 ONLY_PROVIDER = {'39378559811'}                         # intelligence/inventory PAID_20261020
-ONLY_TEXT = {'43657047045'}                             # vision_models._PROBE, a plain string
+ONLY_TEXT = {'43689691749'}                             # vision_models._PROBE, a plain string
 SUPPORTING = {'37962090098'}                            # a later id in a record's text: green, commit not compared
-# Red on GitHub on 2026-11-25 (read with GET /actions/runs/{id}): conclusion failure, all of them. 2026-11-26: the
-# crash-recovery run 37954236866 left the list with its capability (agent_os/evidence.py: no live evidence).
-KNOWN_RED = {'37814803770': 'model-probe', '39377332673': 'postdeploy-checks', '43657047045': 'vision-probe'}
+# Red on GitHub on 2026-11-25 (read with GET /actions/runs/{id}): conclusion failure. 2026-11-26: three left the list --
+# the crash-recovery run 37954236866 with its capability (agent_os/evidence.py: no live evidence), the model probe
+# 37814803770 and the vision probe 43657047045 for their green re-runs 42527017456 and 43689691749.
+KNOWN_RED = {'39377332673': 'postdeploy-checks'}
 # The entry the list-rule tests below change: the paid run, red and listed (its index read from the list itself).
 LISTED = '39377332673'
 
@@ -138,9 +140,10 @@ def test_the_collector_finds_the_ids_present_today():
 def test_a_run_named_in_a_plain_string_is_collected():
     # Review 2026-11-25: vision_models._PROBE is the only evidence for four image models and the record walk never saw it
     from omni_prod import vision_models
-    [c] = CITED['43657047045']
+    [c] = CITED['43689691749']
     assert (c.kind, c.ref, c.where, c.primary, c.commit) == ('Text', vision_models._PROBE, 'omni_prod/vision_models.py:16',
                                                             True, '')
+    assert c.workflows == ('vision-probe',)      # 2026-11-26: the text names its workflow, so the run must be of it
     # a string that is also a record's text is cited once, by the record
     assert [c.kind for c in CITED['38083312245']] == ['Evidence']
 
@@ -192,8 +195,8 @@ def test_a_later_id_in_a_record_is_a_supporting_run_without_a_commit():
 def test_the_workflow_named_before_an_id_is_recorded():
     assert R.named_workflows('postdeploy-checks verify-replay run 1', 40) == ('postdeploy-checks',)   # not 'verify'
     assert R.named_workflows('live probe run 43657047045', 15) == ()
-    text = 'deploy-worker run 37739774562 notice "model catalog": gemini-* CONFIGURED; model-probe 37814803770 ok'
-    assert [c.workflows for c in CITED['37814803770'] if c.ref == text] == [('deploy-worker', 'model-probe')]
+    text = 'deploy-worker run 37739774562 notice "model catalog": gemini-* CONFIGURED; model-probe 42527017456 ok'
+    assert [c.workflows for c in CITED['42527017456'] if c.ref == text] == [('deploy-worker', 'model-probe')]
     assert [c.workflows for c in CITED['38083162363']] == [('deploy-worker',), ('deploy-worker',)]
 
 
@@ -308,10 +311,9 @@ def test_today_every_unlisted_run_is_green_and_the_listed_ones_are_shown_red(cap
     rc, out = run_main(capsys)
     assert rc == 0, out
     assert lines(out, '::error') == []
-    assert len(lines(out, '::notice title=evidence run ')) == 17
-    assert out.splitlines()[0] == ('::notice title=evidence runs::17 of 20 cited run ids resolved green; KNOWN RED '
-                                   '(capabilities marked verified on a failed run): 37814803770, 39377332673, '
-                                   '43657047045')
+    assert len(lines(out, '::notice title=evidence run ')) == 19
+    assert out.splitlines()[0] == ('::notice title=evidence runs::19 of 20 cited run ids resolved green; KNOWN RED '
+                                   '(capabilities marked verified on a failed run): 39377332673')
 
 
 @pytest.mark.parametrize('conclusion', ['failure', 'cancelled', 'skipped', None])
@@ -320,7 +322,7 @@ def test_a_run_that_is_not_green_fails(capsys, conclusion):
     assert rc == 1
     assert f'RED: conclusion {conclusion}' in error_for(out, '38083312245')
     assert len(lines(out, '::error')) == 1
-    assert '16 of 20 cited run ids resolved green; KNOWN RED' in out and '; not green: 38083312245' in out
+    assert '18 of 20 cited run ids resolved green; KNOWN RED' in out and '; not green: 38083312245' in out
 
 
 def test_a_run_in_progress_fails(capsys):
@@ -386,9 +388,16 @@ def test_the_run_must_be_of_the_workflow_the_text_names(capsys):
 
 
 def test_a_text_that_names_no_workflow_is_not_held_to_one():
-    assert [c.workflows for c in CITED['43657047045']] == [()]          # 'live probe run 43657047045 ...'
-    answer = dict(green('43657047045', workflow='any-workflow'))
-    assert R.judge('43657047045', CITED['43657047045'], lambda run_id: answer)[:2] == ('green', [])
+    # 2026-11-26: the vision probe's text names its workflow now; gpt-6-luna's limits in inventory.py do not
+    # ('... invalid JSON in paid run 39377332673; ...': 'paid' is no workflow)
+    [text] = [c for c in CITED[LISTED] if c.kind == 'Text']
+    assert text.workflows == () and text.where.startswith('omni_prod/intelligence/inventory.py:')
+    answer = dict(green(LISTED, workflow='any-workflow'))
+    assert R.judge(LISTED, [text], lambda run_id: answer)[:2] == ('green', [])
+    # the same run cited by a record whose text names postdeploy-checks is held to that workflow
+    named = [c for c in CITED[LISTED] if c.workflows]
+    assert [c.workflows for c in named] == [('postdeploy-checks',)]
+    assert R.judge(LISTED, named, lambda run_id: answer)[0] == 'red'
 
 
 def test_a_supporting_run_must_be_green_but_its_commit_is_not_compared(capsys):
@@ -425,9 +434,8 @@ def test_the_summary_comes_first_and_names_every_failure(capsys):
                        errors={'38083647077': urllib.error.URLError('down'), '37862903906': gone})
     assert rc == 2
     assert out.splitlines()[0] == (
-        '::notice title=evidence runs::14 of 20 cited run ids resolved green; KNOWN RED (capabilities marked verified '
-        'on a failed run): 37814803770, 39377332673, 43657047045; not green: 37820429767; expired: '
-        '37862903906; unverified: 38083647077')
+        '::notice title=evidence runs::16 of 20 cited run ids resolved green; KNOWN RED (capabilities marked verified '
+        'on a failed run): 39377332673; not green: 37820429767; expired: 37862903906; unverified: 38083647077')
 
 
 def test_every_failing_id_has_its_own_error_line(capsys):
@@ -454,9 +462,9 @@ def test_each_listed_red_run_is_a_warning_that_says_what_it_is(capsys):
     rc, out = run_main(capsys)
     assert rc == 0
     [head] = lines(out, '::warning title=evidence runs: known red::')
-    assert head.startswith('::warning title=evidence runs: known red::3 capabilities are marked verified on a run that '
-                           'did not succeed: 37814803770, 39377332673, 43657047045. They are listed in '
-                           'docs/evidence-runs-known-red.json, not fixed;')
+    assert head.startswith('::warning title=evidence runs: known red::1 capabilities are marked verified on a run that '
+                           'did not succeed: 39377332673. They are listed in docs/evidence-runs-known-red.json, not '
+                           'fixed;')
     each = lines(out, '::warning title=known red evidence run ')
     assert [w.split('::')[1] for w in each] == [f'warning title=known red evidence run {r}' for r in sorted(KNOWN_RED)]
     for w, e in zip(each, sorted(known_list()['known_red'], key=lambda e: e['run_id'])):
@@ -472,8 +480,10 @@ def test_a_listed_run_that_turned_green_fails_so_the_list_only_shrinks(capsys):
     assert error_for(out, LISTED).startswith(
         f'::error title=evidence run {LISTED}::LISTED AS KNOWN RED BUT GREEN NOW: success on f00000000000 '
         '(postdeploy-checks.yml on main, 2026-10-10); remove it from docs/evidence-runs-known-red.json')
-    assert f'; listed as known red but green now: {LISTED}' in out.splitlines()[0]
-    assert LISTED not in out.splitlines()[0].split('KNOWN RED')[1].split(';')[0]
+    head = out.splitlines()[0]
+    assert f'; listed as known red but green now: {LISTED}' in head
+    # not shown as known red (with one listed run, the summary has no KNOWN RED part at all)
+    assert LISTED not in (head.split('KNOWN RED')[1].split(';')[0] if 'KNOWN RED' in head else '')
 
 
 def test_a_listed_run_that_expired_is_still_shown_not_passed(capsys):

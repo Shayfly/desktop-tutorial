@@ -18,8 +18,6 @@
     "tests/test_resolve_evidence_runs.py"
    ],
    "expect_failed": [
-    "test_a_listed_run_that_expired_is_still_shown_not_passed",
-    "test_a_listed_run_that_turned_green_fails_so_the_list_only_shrinks",
     "test_a_run_that_is_not_green_fails[None]",
     "test_a_run_that_is_not_green_fails[cancelled]",
     "test_a_run_that_is_not_green_fails[failure]",
@@ -228,6 +226,7 @@
     "test_a_run_that_is_not_green_fails[failure]",
     "test_a_run_that_is_not_green_fails[skipped]",
     "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared",
+    "test_a_text_that_names_no_workflow_is_not_held_to_one",
     "test_an_answer_for_another_run_is_unverified",
     "test_an_answer_without_head_sha_fails_the_commit_check",
     "test_an_api_error_is_unverified_never_a_pass[http403]",
@@ -346,6 +345,7 @@
     "test_a_run_that_is_not_green_fails[skipped]",
     "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared",
     "test_a_ten_and_a_twelve_digit_run_are_collected_from_strings",
+    "test_a_text_that_names_no_workflow_is_not_held_to_one",
     "test_the_collector_finds_the_ids_present_today",
     "test_the_job_summary_shows_the_known_red_section_and_every_run",
     "test_the_run_must_be_of_the_workflow_the_text_names",
@@ -508,7 +508,6 @@
     "tests/test_resolve_evidence_runs.py"
    ],
    "expect_failed": [
-    "test_an_empty_list_makes_every_red_run_an_error",
     "test_every_failing_id_has_its_own_error_line"
    ]
   },
@@ -636,29 +635,16 @@
    ],
    "expect_failed": [
     "test_a_later_id_in_a_record_is_a_supporting_run_without_a_commit",
-    "test_a_listed_run_that_expired_is_still_shown_not_passed",
     "test_a_run_named_in_a_plain_string_is_collected",
     "test_a_run_that_is_not_green_fails[None]",
     "test_a_run_that_is_not_green_fails[cancelled]",
     "test_a_run_that_is_not_green_fails[failure]",
     "test_a_run_that_is_not_green_fails[skipped]",
-    "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared",
     "test_a_ten_and_a_twelve_digit_run_are_collected_from_strings",
     "test_a_text_that_names_no_workflow_is_not_held_to_one",
-    "test_an_empty_list_makes_every_red_run_an_error",
-    "test_an_entry_no_longer_cited_fails",
-    "test_an_entry_without_a_reviewer_other_than_the_author_fails[CLAUDE]",
-    "test_an_entry_without_a_reviewer_other_than_the_author_fails[]",
-    "test_an_entry_without_a_reviewer_other_than_the_author_fails[claude]",
-    "test_an_entry_without_a_reviewer_other_than_the_author_fails[pending]",
     "test_docstrings_and_comments_are_not_evidence",
-    "test_each_listed_red_run_is_a_warning_that_says_what_it_is",
-    "test_every_failing_id_has_its_own_error_line",
     "test_the_collector_finds_the_ids_present_today",
     "test_the_job_summary_shows_the_known_red_section_and_every_run",
-    "test_the_list_holds_exactly_the_runs_red_today_and_says_what_each_backs",
-    "test_the_listed_workflow_must_be_the_runs",
-    "test_the_real_request_carries_the_token_in_the_header_only",
     "test_the_summary_comes_first_and_names_every_failure",
     "test_the_workflow_runs_when_a_citing_file_changes_daily_and_by_hand",
     "test_today_every_unlisted_run_is_green_and_the_listed_ones_are_shown_red",
@@ -685,6 +671,7 @@
     "test_a_run_that_is_not_green_fails[failure]",
     "test_a_run_that_is_not_green_fails[skipped]",
     "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared",
+    "test_a_text_that_names_no_workflow_is_not_held_to_one",
     "test_an_entry_no_longer_cited_fails",
     "test_an_entry_without_a_reviewer_other_than_the_author_fails[CLAUDE]",
     "test_an_entry_without_a_reviewer_other_than_the_author_fails[]",
@@ -899,6 +886,7 @@
     "tests/test_resolve_evidence_runs.py"
    ],
    "expect_failed": [
+    "test_a_text_that_names_no_workflow_is_not_held_to_one",
     "test_the_run_must_be_of_the_workflow_the_text_names"
    ]
   },

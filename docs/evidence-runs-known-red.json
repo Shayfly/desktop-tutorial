@@ -2,19 +2,6 @@
   "_what": "Law 2 (2026-11-25): GitHub Actions runs cited as evidence that were already RED when scripts/resolve_evidence_runs.py was written. Each entry is a capability marked verified on a run that failed. Listing an id does not pass it: the check prints one ::warning per id saying so and a step-summary section. The list only shrinks: the check fails when a listed id is green, no longer cited, or cited in other files than cited_in says, and when a red id is not listed. An entry needs a reason and a reviewer who is not its author, checked like a deletion (scripts/deletions_declared.py). To clear an entry: re-run the workflow green, cite the new run, and remove the entry; or mark the capability unverified and remove the citation.",
   "known_red": [
     {
-      "run_id": "37814803770",
-      "workflow": "model-probe.yml",
-      "cited_in": ["omni_prod/agent_os/skills.py", "omni_prod/intelligence/inventory.py", "omni_prod/runtime_bindings.py", "omni_prod/skill_catalog.py"],
-      "backs": "Availability of each catalog model: skill_catalog _PROBE (skills integration.probe and provider.benchmark), agent_os/skills.py provider_health_check, runtime_bindings provider_evaluator and the _MODEL requirement ('model-probe 37814803770 ok'), and intelligence/inventory.py PROBE, the evidence behind CONNECTION_TESTED for the catalog models.",
-      "why_red": "Run completed with conclusion failure (read 2026-11-25): job 'probe' failed at step 'Probe every configured model' (exit 1). The records' own text says why: three Gemini models answered, gpt-6-luna and gpt-6.1-sol got HTTP 429 'no credits remaining', claude-sonnet-5-5 HTTP 400 'credit balance is too low'.",
-      "listed_on": "2026-11-25",
-      "reason": "law2-evidence: red when the check was introduced; listed so that it is shown on every run instead of failing every PR that touches an evidence file. Not fixed by this listing.",
-      "author": "claude",
-      "reviewer": "shai",
-      "reviewed_at": "2026-11-16",
-      "signature_note": "Signed by the owner's instruction, standing autonomy grant, 2026-11-16. The reviewer field was typed by the author (claude) on that instruction."
-    },
-    {
       "run_id": "39377332673",
       "workflow": "postdeploy-checks.yml",
       "cited_in": ["omni_prod/intelligence/inventory.py"],
@@ -22,19 +9,6 @@
       "why_red": "Run completed with conclusion failure (read 2026-11-25): job 'checks' failed at step 'Paid build', annotation 'paid build outcome: FAIL status=failed code=verification_failed repairs=3 ... behavioural acceptance failed'. The record counts calls made inside a build that failed.",
       "listed_on": "2026-11-25",
       "reason": "law2-evidence: red when the check was introduced; listed so that it is shown on every run instead of failing every PR that touches an evidence file. Not fixed by this listing.",
-      "author": "claude",
-      "reviewer": "shai",
-      "reviewed_at": "2026-11-16",
-      "signature_note": "Signed by the owner's instruction, standing autonomy grant, 2026-11-16. The reviewer field was typed by the author (claude) on that instruction."
-    },
-    {
-      "run_id": "43657047045",
-      "workflow": "vision-probe.yml",
-      "cited_in": ["omni_prod/vision_models.py"],
-      "backs": "omni_prod/vision_models.py _PROBE: the only evidence for gemini-3.1-flash-lite, gemini-3.5-flash-lite, gpt-6-luna and claude-sonnet-5-5 in VISION_MODELS and part of it for gpt-6.1-sol and gemini-3.8-flash; routed_gateway.py sends image calls only to models that accepts_images() finds on that list.",
-      "why_red": "Run completed with conclusion failure (read 2026-11-25): job 'probe' failed at step 'Probe' (exit 1; no other failure annotation). The text says both shapes were named correctly; GitHub says the run failed.",
-      "listed_on": "2026-11-25",
-      "reason": "law2-evidence: red when the check was introduced (the record walk had not seen this plain-string citation); listed so that it is shown on every run instead of failing every PR that touches an evidence file. Not fixed by this listing.",
       "author": "claude",
       "reviewer": "shai",
       "reviewed_at": "2026-11-16",

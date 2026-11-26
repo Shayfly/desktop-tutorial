@@ -3192,7 +3192,7 @@
    "model_id": "claude-sonnet-5-5",
    "source_status": "CONNECTION_TESTED",
    "state": "CONNECTED",
-   "availability": "INSUFFICIENT_CREDIT",
+   "availability": "UNKNOWN",
    "tasks": [
     "general",
     "classification",
@@ -3207,7 +3207,7 @@
     "security_review"
    ],
    "location": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
-   "verified_at": "2026-10-10T20:24Z"
+   "verified_at": "2026-11-18T22:43Z"
   },
   {
    "key": "gemini-2-5-flash-lite",
@@ -3250,7 +3250,7 @@
     "review"
    ],
    "location": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
-   "verified_at": "2026-10-10T20:24Z"
+   "verified_at": "2026-11-18T22:43Z"
   },
   {
    "key": "gemini-3-1-flash-lite-image",
@@ -3293,7 +3293,7 @@
     "review"
    ],
    "location": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
-   "verified_at": "2026-10-10T20:24Z"
+   "verified_at": "2026-11-18T22:43Z"
   },
   {
    "key": "gemini-3-8-flash",
@@ -3316,7 +3316,7 @@
     "security_review"
    ],
    "location": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
-   "verified_at": "2026-10-10T20:24Z"
+   "verified_at": "2026-11-18T22:43Z"
   },
   {
    "key": "gemini-3-8-flash-lite-tts",
@@ -3423,7 +3423,7 @@
    "model_id": "gpt-6.1-sol",
    "source_status": "CONNECTION_TESTED",
    "state": "CONNECTED",
-   "availability": "INSUFFICIENT_CREDIT",
+   "availability": "UNKNOWN",
    "tasks": [
     "general",
     "classification",
@@ -3438,7 +3438,7 @@
     "security_review"
    ],
    "location": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
-   "verified_at": "2026-10-10T20:24Z"
+   "verified_at": "2026-11-18T22:43Z"
   },
   {
    "key": "openai-gpt-6-1-terra",
@@ -3490,7 +3490,7 @@
     "review"
    ],
    "location": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
-   "verified_at": "2026-10-20T05:54Z"
+   "verified_at": "2026-11-18T22:43Z"
   },
   {
    "key": "replicate-flux-schnell",

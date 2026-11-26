@@ -178,7 +178,7 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'commercial_use_policy_check': (('omni_prod.agent_os.providers:commercial_status',), (U('tests/test_agent_os.py'),), ''),
     # Provider routing
     'capability_provider_match': (('omni_prod.routed_gateway:RoutedModelGateway',), (PAID,), ''),
-    'provider_health_check': (('omni_prod.model_probe:probe',), (Evidence('live', 'model-probe run 37814803770', '', 'ff6b4f6', 'worker-host', ('model provider availability',)),), ''),
+    'provider_health_check': (('omni_prod.model_probe:probe',), (Evidence('live', 'model-probe run 42527017456', '', 'f299889', 'worker-host', ('model provider availability',)),), ''),
     'provider_cost_compare': (('omni_prod.routed_gateway:RoutedModelGateway',), (PAID,), ''),
     'provider_quality_compare': (('omni_prod.routed_gateway:RoutedModelGateway',), (PAID,), 'catalog quality scores'),
     'provider_selection': (('omni_prod.routed_gateway:RoutedModelGateway',), (PAID, REHEARSAL_ACCEPT), ''),

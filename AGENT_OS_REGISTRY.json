@@ -4680,10 +4680,10 @@
    "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: model provider availability",
    "evidence": [
-    "model-probe run 37814803770"
+    "model-probe run 42527017456"
    ],
    "last_verified_at": null,
-   "last_verified_commit": "ff6b4f6"
+   "last_verified_commit": "f299889"
   },
   {
    "skill_key": "provider_cost_compare",
