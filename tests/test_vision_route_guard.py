@@ -25,7 +25,7 @@ CATALOG = json.loads((Path(__file__).resolve().parents[1] / 'infra' / 'worker-ho
 # Pending enrollment has no vision evidence and cannot route. This fixture
 # exercises the six enabled production routes and their original live probe.
 RAW = json.dumps([row for row in CATALOG if row.get('enabled', True)])
-# Since the live probe (run 43657047045) every real catalog model reads images. A model without evidence -- a new one
+# Since the live probe (run 43689691749) every real catalog model reads images. A model without evidence -- a new one
 # before its probe -- is simulated by taking the cheapest real model OFF the list for these tests (mock.patch.dict).
 BLIND = min(json.loads(RAW), key=lambda m: (float(m['output_per_million']), m['model']))['model']
 ENV = {item['api_key_env']: 'fixture-only' for item in json.loads(RAW)}
@@ -64,7 +64,8 @@ class EveryRealModelHasEvidence(unittest.TestCase):
     def test_the_six_catalog_models_are_on_the_list_with_the_probe_run(self):
         models = {m['model'] for m in json.loads(RAW)}
         self.assertEqual(models - set(VISION_MODELS), set())
-        self.assertTrue(all('43657047045' in VISION_MODELS[m] for m in models))
+        # the green re-run (law 2): run 43657047045 had the same answers but its step ended red
+        self.assertTrue(all('vision-probe run 43689691749' in VISION_MODELS[m] for m in models))
 
 
 class VisionRouteGuard(unittest.TestCase):

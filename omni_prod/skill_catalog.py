@@ -43,8 +43,10 @@ _RACE = Evidence('unit', 'tests/test_golden_mod_path_live_postgres.py::test_two_
                  'live Postgres, two parallel approvals -> one build')
 _QA_COUNT = Evidence('live', 'build-evidence run 37864934013', 'QA counted all-time $3.31', 'd8a01fa', 'worker-host',
                      ('recorded spend counted once per build',))
-_PROBE = Evidence('live', 'model-probe run 37814803770', '3 Gemini models ok; OpenAI/Anthropic: no credit', 'ff6b4f6',
-                  'worker-host', ('availability of each catalog model',))
+# Law 2 (2026-11-26): the green re-run of the probe; run 37814803770 (ff6b4f6) was red -- three of six models had no
+# provider credit that day (tests/test_model_probe_runs.py).
+_PROBE = Evidence('live', 'model-probe run 42527017456', 'all six catalog models answered OK (2026-11-08 and 2026-11-18)',
+                  'f299889', 'worker-host', ('availability of each catalog model',))
 _ZIP = Evidence('live', 'ZIP of v_0bc82ef7b33b4210 opened by the founder 2026-10-08 22:59', '', '3a4d822', 'workspace',
                 ('export ZIP of a promoted version',))
 _RESTORE = Evidence('unit', 'tests/test_golden_mod_path_live_postgres.py::test_restore_copies_the_spec_so_the_restored_version_can_be_modified')
