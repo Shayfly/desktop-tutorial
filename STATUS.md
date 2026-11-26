@@ -1,22 +1,30 @@
 # 2026-11-26 — Rate limits on the account routes, shared by every instance (Claude Code; local commits on `claude/practical-hopper-oi3qj2-rate-limits`, NOT pushed, NOT live)
 
 - **Implemented and verified locally:** `omni_prod/rate_limits.py`, one middleware (innermost) and one PostgreSQL table
-  (`infra/postgres/047_rate_limits.sql`, rollback in `infra/postgres/rollback/`). Limits: login 10/15 min per e-mail and
-  50/15 min per address; signup 10/hour per address (and the login count of its e-mail); password reset 5/hour per e-mail
-  and 20/hour per address; verification e-mail 5/hour per account and 20/hour per address; verify/reset links 30/15 min
-  per address; password change (`POST /api/v28/me/password`, active once the platform shell route merges) 10/15 min per
-  account and 50/15 min per address; social sign-in start 20/10 min and callback 30/min per address (through `enforce()`).
-  429 with Retry-After and a sentence in Hebrew, Arabic and English; the store down or 047 missing: 503 (fail closed),
-  logged, and `GET /api/v28/deployment` "rate_limits" says MIGRATION_MISSING with 047's name. On Vercel the address is
-  `x-real-ip`; off Vercel the socket peer; forwarding headers from the client are never read.
+  (`infra/postgres/047_rate_limits.sql`, rollback in `infra/postgres/rollback/`). Limits: login 10/15 min per (e-mail,
+  address) and 50/15 min per address, plus failed sign-ins of the e-mail from every address 100/hour; signup 10/hour per
+  address and the (e-mail, address) login count; password reset 5/hour per (e-mail, address) and 20/hour per address;
+  verification e-mail 5/hour per account and 20/hour per address; verify/reset links 30/15 min per address; password
+  change (`POST /api/v28/me/password`, active once the platform shell route merges) 10/15 min per account and 50/15 min
+  per address; social sign-in start 20/10 min and callback 30/min per address (through `enforce()`). 429 with
+  Retry-After and a sentence in Hebrew, Arabic and English; the store down or 047 missing: 503 (fail closed), logged,
+  and `GET /api/v28/deployment` "rate_limits" says MIGRATION_MISSING with 047's name (cached 60 s). On Vercel the address
+  is `x-real-ip`; off Vercel the socket peer, and the Dockerfile's uvicorn trusts forwarded headers from 127.0.0.1 only.
+- **Nobody can lock someone else out (review B1, the coordinator's decision):** the strict counters are per (e-mail,
+  address); the e-mail alone counts failures only, and over its bound the password is still checked -- the right one
+  signs in, a wrong one gets 429; a reset asked from an address within its limits always goes out. **What this trades
+  away:** guessing spread over many addresses is bounded only by the per-address limits and by the loose 100/hour
+  failure count of the e-mail, not by a strict per-account limit; a reset-e-mail flood from many addresses is bounded
+  only by the per-address limits.
 - **Removed by the owner's decision (2026-11-26 10:01, "(א)"):** no per-account limit on the conversation, builds or change
   requests (an earlier draft had them).
-- **Account enumeration:** an unknown e-mail's login does the same password hashing as a wrong password; a reset request
-  answers in at least 0.5 s whether a token row is written or not.
-- **Evidence:** `tests/test_rate_limits.py` 23 passed; `tests/test_rate_limits_pg.py` 21 passed (two copies of the real app
-  on one local PostgreSQL 16, every migration applied); controls `rate_limits` 4/4 PASS without a database, 9/9 PASS with
-  `NC_ENV=pg`; touched suites 319 + 8 passed; fast suite 1042 passed in 15.2 s; deletions, weakening, system map, CI
-  coverage and changed-files guards exit 0 against f1961d0.
+- **Account enumeration:** an unknown e-mail's login runs exactly one PBKDF2 with the full 250,000 rounds, as a wrong
+  password does (asserted by a spy, not a stopwatch); a reset request answers in at least 0.5 s (an `await`, holding no
+  thread) whether a token row is written or not. A flood writes bounded rows: the address counter first, nothing else
+  once it refuses, and every counter stops at twice its limit.
+- **Evidence:** `tests/test_rate_limits.py` 28 passed; `tests/test_rate_limits_pg.py` 24 passed (two copies of the real app
+  on one local PostgreSQL 16, every migration applied, including the review's lock-out probe); controls `rate_limits`
+  9/9 PASS without a database, 17/17 PASS with `NC_ENV=pg`; guards exit 0 against origin/main f675730.
 - **Not verified:** nothing on Vercel (the `x-real-ip` behaviour is from Vercel's documentation and SDK, not observed);
   047 is not applied anywhere but the throw-away databases -- the coordinator applies it to production before the release
   (CLAUDE.md section 5). Signup still answers 409 for an existing e-mail with a wrong password (existence shows there).
