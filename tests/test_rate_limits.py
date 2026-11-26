@@ -47,8 +47,9 @@ class TheLimitsAndTheirRoutes(unittest.TestCase):
     def test_each_limit_is_stated_with_its_reason(self):
         stated = {limit.name: (limit.limit, limit.window_seconds, limit.subject) for limit in R.LIMITS}
         self.assertEqual(stated, {
-            'login_identifier': (10, 900, 'identifier'), 'login_ip': (50, 900, 'ip'), 'register_ip': (10, 3600, 'ip'),
-            'password_reset_identifier': (5, 3600, 'identifier'), 'password_reset_ip': (20, 3600, 'ip'),
+            'login_identifier_ip': (10, 900, 'identifier_ip'), 'login_failures_identifier': (100, 3600, 'identifier'),
+            'login_ip': (50, 900, 'ip'), 'register_ip': (10, 3600, 'ip'),
+            'password_reset_identifier_ip': (5, 3600, 'identifier_ip'), 'password_reset_ip': (20, 3600, 'ip'),
             'verification_send_account': (5, 3600, 'account'), 'verification_send_ip': (20, 3600, 'ip'),
             'one_time_token_ip': (30, 900, 'ip'), 'password_change_account': (10, 900, 'account'),
             'password_change_ip': (50, 900, 'ip'), 'oauth_start_ip': (20, 600, 'ip'), 'oauth_callback_ip': (30, 60, 'ip')})
@@ -62,11 +63,11 @@ class TheLimitsAndTheirRoutes(unittest.TestCase):
 
     def test_only_the_routes_that_protect_an_account_are_limited(self):
         expected = {
-            ('POST', '/api/v28/auth/login'): {'login_ip', 'login_identifier'},
-            ('POST', '/api/v26/auth/login'): {'login_ip', 'login_identifier'},
-            ('POST', '/api/v28/auth/register'): {'register_ip', 'login_identifier'},
+            ('POST', '/api/v28/auth/login'): {'login_ip', 'login_identifier_ip', 'login_failures_identifier'},
+            ('POST', '/api/v26/auth/login'): {'login_ip', 'login_identifier_ip', 'login_failures_identifier'},
+            ('POST', '/api/v28/auth/register'): {'register_ip', 'login_identifier_ip', 'login_failures_identifier'},
             ('POST', '/api/v27/auth/register'): {'register_ip'},
-            ('POST', '/api/v28/auth/password-reset/request'): {'password_reset_ip', 'password_reset_identifier'},
+            ('POST', '/api/v28/auth/password-reset/request'): {'password_reset_ip', 'password_reset_identifier_ip'},
             ('POST', '/api/v28/auth/email-verification/request'): {'verification_send_ip', 'verification_send_account'},
             ('POST', '/api/v28/auth/verify-email'): {'one_time_token_ip'},
             ('POST', '/api/v28/auth/password-reset/confirm'): {'one_time_token_ip'},
@@ -146,7 +147,7 @@ class WhoIsAsking(unittest.TestCase):
 
 class TheSlidingWindow(unittest.TestCase):
     def test_the_arithmetic(self):
-        login = R.LOGIN_PER_IDENTIFIER                                     # 10 per 900 s
+        login = R.LOGIN_PER_IDENTIFIER_AND_IP                                  # 10 per 900 s
         self.assertEqual(R.refusal_seconds(login, 100, 10, 0), 0)
         self.assertEqual(R.refusal_seconds(login, 100, 11, 0), 800 + 164)  # next window, once 11 x (1 - e/900) + 1 <= 10
         self.assertEqual(R.refusal_seconds(login, 0, 1, 10), 180)          # in this window: 10 x (1 - 180/900) + 2 = 10
@@ -168,15 +169,15 @@ class TheSlidingWindow(unittest.TestCase):
     def test_the_longest_wait_of_several_limits_is_the_one_given(self):
         lim = limiter(R.MemoryRateLimitStore())
         for _ in range(10):
-            lim.check([(R.LOGIN_PER_IP, 'ip:x'), (R.LOGIN_PER_IDENTIFIER, 'e:a@b.co')])
-        v = lim.check([(R.LOGIN_PER_IP, 'ip:x'), (R.LOGIN_PER_IDENTIFIER, 'e:a@b.co')])
-        self.assertEqual(v.limit.name, 'login_identifier')
+            lim.check([(R.LOGIN_PER_IP, 'ip:x'), (R.LOGIN_PER_IDENTIFIER_AND_IP, 'ei:a@b.co')])
+        v = lim.check([(R.LOGIN_PER_IP, 'ip:x'), (R.LOGIN_PER_IDENTIFIER_AND_IP, 'ei:a@b.co')])
+        self.assertEqual(v.limit.name, 'login_identifier_ip')
 
     def test_expired_rows_are_swept_in_a_bounded_batch_once_a_minute(self):
         store = R.MemoryRateLimitStore()
         lim = limiter(store)
         for i in range(2500):
-            store.hit([('b', f'k{i}', 0, 10, -5)])
+            store.hit([('b', f'k{i}', 0, 10, -5, 2)])
         lim.check([(R.LOGIN_PER_IP, 'ip:x')])
         self.assertEqual(len(store._rows), 2500 + 1 - R.SWEEP_BATCH * R.SWEEP_MAX_BATCHES)
         lim.check([(R.LOGIN_PER_IP, 'ip:x')])                           # within the minute: no second sweep
@@ -184,6 +185,22 @@ class TheSlidingWindow(unittest.TestCase):
         lim.clock.t += R.SWEEP_INTERVAL_SECONDS
         lim.check([(R.LOGIN_PER_IP, 'ip:x')])
         self.assertEqual(len(store._rows), 1)
+
+
+class AFloodWritesBoundedRows(unittest.TestCase):
+    def test_a_counter_stops_at_twice_its_limit(self):
+        store = R.MemoryRateLimitStore()
+        lim = limiter(store)
+        for _ in range(500):
+            lim.check([(R.ONE_TIME_TOKEN_PER_IP, 'ip:x')])
+        self.assertEqual([hits for hits, _ in store._rows.values()], [2 * R.ONE_TIME_TOKEN_PER_IP.limit])
+
+    def test_once_the_address_refuses_no_counter_of_an_e_mail_is_written(self):
+        store = R.MemoryRateLimitStore()
+        lim = limiter(store)
+        for i in range(200):
+            lim.check([(R.LOGIN_PER_IP, 'ip:x'), (R.LOGIN_PER_IDENTIFIER_AND_IP, f'ei:u{i}@example.com\0x')])
+        self.assertEqual(len(store._rows), 1 + R.LOGIN_PER_IP.limit)    # the address, and the 50 it let through
 
 
 class WhenTheStoreCannotAnswer(unittest.TestCase):
@@ -249,20 +266,80 @@ class WhatThePersonReads(unittest.TestCase):
         self.assertEqual(R.language_of(None, 'fr-FR, ar-EG;q=0.8'), 'ar')
         self.assertEqual(R.language_of(None, None), 'he')
 
-    def test_a_reset_answer_takes_its_floor_answered_or_raised(self):
+    def test_a_reset_answer_takes_its_floor_answered_or_raised_and_holds_no_thread(self):
+        import asyncio
+
         @R.answers_no_sooner_than(0.2)
         def fast(fail=False):
             if fail:
                 raise ValueError('x')
             return 'ok'
+        self.assertTrue(asyncio.iscoroutinefunction(fast))
         for fail in (False, True):
             started = time.monotonic()
             try:
-                fast(fail)
+                self.assertEqual(asyncio.run(fast(fail)), 'ok')
             except ValueError:
-                pass
+                self.assertTrue(fail)
             self.assertGreaterEqual(time.monotonic() - started, 0.2)
-        self.assertEqual(fast.__wrapped__(), 'ok')
+
+        async def twenty_on_one_thread():          # the waits share the event loop; no pool thread is held by them
+            import anyio.to_thread
+            anyio.to_thread.current_default_thread_limiter().total_tokens = 1
+            return await asyncio.gather(*(fast() for _ in range(20)))
+        started = time.monotonic()
+        self.assertEqual(asyncio.run(twenty_on_one_thread()), ['ok'] * 20)
+        self.assertLess(time.monotonic() - started, 1.0)              # a wait in a thread: 20 x 0.2 s one after another
+
+
+class TheMiddleware(unittest.TestCase):
+    """The real middleware around a stand-in handler, on the memory store: the parts the PostgreSQL tests cannot reach
+    cheaply (a root_path, the held answer of a failed sign-in)."""
+
+    def call(self, mw, path, body, status=401, root_path='', peer='203.0.113.5'):
+        import asyncio
+        sent, app_ran = [], []
+
+        async def handler(scope, receive, send):
+            app_ran.append(scope['path'])
+            await send({'type': 'http.response.start', 'status': status, 'headers': []})
+            await send({'type': 'http.response.body', 'body': b'{}'})
+        mw.app = handler
+
+        async def receive():
+            return {'type': 'http.request', 'body': json.dumps(body).encode(), 'more_body': False}
+
+        async def send(message):
+            sent.append(message)
+        scope = {'type': 'http', 'method': 'POST', 'path': root_path + path, 'root_path': root_path, 'headers': [],
+                 'query_string': b'', 'client': (peer, 1)}
+        asyncio.run(mw(scope, receive, send))
+        return sent[0]['status'], bool(app_ran)
+
+    def test_a_route_behind_a_root_path_is_still_limited(self):
+        mw = R.RateLimitMiddleware(None, limiter(R.MemoryRateLimitStore()))
+        for _ in range(10):
+            self.assertEqual(self.call(mw, '/api/v28/auth/login', {'email': 'a@b.co'}, root_path='/prefix'), (401, True))
+        self.assertEqual(self.call(mw, '/api/v28/auth/login', {'email': 'a@b.co'}, root_path='/prefix'), (429, False))
+
+    def test_over_the_failure_count_a_right_password_signs_in_and_a_wrong_one_is_refused(self):
+        mw = R.RateLimitMiddleware(None, limiter(R.MemoryRateLimitStore()))
+        for i in range(100):                       # 100 failures from 100 addresses: each is within its own limits
+            self.assertEqual(self.call(mw, '/api/v28/auth/login', {'email': 'v@b.co'}, peer=f'10.0.{i // 250}.{i % 250}'),
+                             (401, True))
+        self.assertEqual(self.call(mw, '/api/v28/auth/login', {'email': 'v@b.co'}, status=200, peer='198.51.100.9'),
+                         (200, True))
+        self.assertEqual(self.call(mw, '/api/v28/auth/login', {'email': 'v@b.co'}, peer='198.51.100.10'), (429, True))
+
+
+class TheDockerImage(unittest.TestCase):
+    def test_uvicorn_trusts_forwarded_headers_from_localhost_only(self):
+        from pathlib import Path
+        cmd = next(l for l in (Path(__file__).resolve().parents[1] / 'Dockerfile').read_text().splitlines()
+                   if l.startswith('CMD'))
+        allowed = re.findall(r'--forwarded-allow-ips=([^"]*)', cmd)
+        self.assertNotIn('*', ''.join(allowed), cmd)          # '*' makes a client's X-Forwarded-For the socket peer
+        self.assertTrue(not allowed or allowed == ['127.0.0.1'], cmd)
 
 
 @unittest.skipUnless(shutil.which('node'), 'node runs app.js; CI has it')

@@ -12,8 +12,8 @@
    "mutations": [
     {
      "file": "omni_prod/rate_limits.py",
-     "old": "    _route('POST', r'/api/v2[678]/auth/login', LOGIN_PER_IP, LOGIN_PER_IDENTIFIER),\n",
-     "new": "    _route('POST', r'/api/v2[678]/auth/login-removed', LOGIN_PER_IP, LOGIN_PER_IDENTIFIER),  # NEGATIVE CONTROL\n"
+     "old": "    _route('POST', r'/api/v2[678]/auth/login', LOGIN_PER_IP, LOGIN_PER_IDENTIFIER_AND_IP,\n",
+     "new": "    _route('POST', r'/api/v2[678]/auth/login-removed', LOGIN_PER_IP, LOGIN_PER_IDENTIFIER_AND_IP,  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
@@ -21,15 +21,22 @@
     "tests/test_rate_limits_pg.py"
    ],
    "expect_failed": [
+    "test_a_route_behind_a_root_path_is_still_limited",
     "test_every_bound_route_exists_in_the_real_app_and_no_sign_in_route_is_left_out",
-    "test_only_the_routes_that_protect_an_account_are_limited"
+    "test_only_the_routes_that_protect_an_account_are_limited",
+    "test_over_the_failure_count_a_right_password_signs_in_and_a_wrong_one_is_refused"
    ],
    "expect_failed_pg": [
+    "test_a_flood_from_one_address_writes_a_bounded_number_of_rows",
+    "test_a_route_behind_a_root_path_is_still_limited",
     "test_every_bound_route_exists_in_the_real_app_and_no_sign_in_route_is_left_out",
+    "test_failures_from_many_addresses_never_refuse_the_right_password",
     "test_login_per_address_trips_at_fifty",
-    "test_login_per_identifier_trips_at_ten_across_two_instances",
+    "test_login_per_e_mail_and_address_trips_at_ten_across_two_instances",
+    "test_nobody_can_lock_the_owner_out_of_sign_in_or_password_reset",
     "test_only_the_routes_that_protect_an_account_are_limited",
-    "test_registration_counts_against_the_login_limit_of_its_e_mail",
+    "test_over_the_failure_count_a_right_password_signs_in_and_a_wrong_one_is_refused",
+    "test_registration_counts_against_the_login_limit_of_its_e_mail_and_address",
     "test_the_limit_resets_once_the_window_has_passed",
     "test_without_the_store_sign_in_fails_closed_with_a_503_in_three_languages"
    ]
@@ -51,14 +58,16 @@
     "pg"
    ],
    "expect_failed": [
+    "test_a_flood_from_one_address_writes_a_bounded_number_of_rows",
     "test_expired_counters_are_deleted_in_bounded_batches",
+    "test_failures_from_many_addresses_never_refuse_the_right_password",
     "test_login_per_address_trips_at_fifty",
-    "test_login_per_identifier_trips_at_ten_across_two_instances",
+    "test_login_per_e_mail_and_address_trips_at_ten_across_two_instances",
     "test_off_vercel_a_spoofed_forwarding_header_does_not_change_the_identity",
     "test_on_vercel_the_edge_address_counts_and_the_clients_own_headers_do_not",
     "test_one_time_tokens_per_address_trip_at_thirty",
     "test_password_reset_per_address_counts_every_request_and_trips_at_twenty",
-    "test_registration_counts_against_the_login_limit_of_its_e_mail",
+    "test_registration_counts_against_the_login_limit_of_its_e_mail_and_address",
     "test_registration_per_address_trips_at_ten",
     "test_social_sign_in_shares_the_counter_through_enforce",
     "test_the_deployment_status_names_the_store_and_a_missing_047",
@@ -79,7 +88,7 @@
    ],
    "targets": [
     "tests/test_rate_limits.py",
-    "tests/test_rate_limits_pg.py"
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_off_vercel_a_spoofed_forwarding_header_does_not_change_the_identity"
    ],
    "expect_failed": [
     "test_off_vercel_the_socket_peer_counts_and_every_forwarding_header_is_ignored"
@@ -100,7 +109,7 @@
     }
    ],
    "targets": [
-    "tests/test_rate_limits_pg.py"
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_login_answers_the_same_for_a_known_and_an_unknown_e_mail"
    ],
    "envs": [
     "pg"
@@ -160,7 +169,7 @@
     }
    ],
    "targets": [
-    "tests/test_rate_limits_pg.py"
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_without_the_store_sign_in_fails_closed_with_a_503_in_three_languages"
    ],
    "envs": [
     "pg"
@@ -181,7 +190,7 @@
    ],
    "targets": [
     "tests/test_rate_limits.py",
-    "tests/test_rate_limits_pg.py"
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_the_limit_resets_once_the_window_has_passed"
    ],
    "expect_failed": [
     "test_a_limit_trips_one_past_its_count_and_is_back_after_the_retry",
@@ -211,6 +220,176 @@
    ],
    "expect_failed_pg": [
     "test_explain_shows_the_servers_sentence_or_the_fallback"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the unknown-account path hashes with fewer rounds (60%): a partial timing leak (review S1)",
+   "mutations": [
+    {
+     "file": "omni_prod/identity_lifecycle.py",
+     "old": "            _hash_password(password, _NO_ACCOUNT_SALT)          # as long as a wrong password (enumeration by time)\n",
+     "new": "            __import__('hashlib').pbkdf2_hmac('sha256', password.encode(), _NO_ACCOUNT_SALT, 150_000)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_login_answers_the_same_for_a_known_and_an_unknown_e_mail"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_login_answers_the_same_for_a_known_and_an_unknown_e_mail"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the strict login counter keyed on the e-mail alone again: anyone locks the owner out (review B1)",
+   "mutations": [
+    {
+     "file": "omni_prod/rate_limits.py",
+     "old": "'login_identifier_ip', 10, 15 * MINUTE, 'identifier_ip',",
+     "new": "'login_identifier_ip', 10, 15 * MINUTE, 'identifier',"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_nobody_can_lock_the_owner_out_of_sign_in_or_password_reset",
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_login_per_e_mail_and_address_trips_at_ten_across_two_instances"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_login_per_e_mail_and_address_trips_at_ten_across_two_instances",
+    "test_nobody_can_lock_the_owner_out_of_sign_in_or_password_reset"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the strict reset counter keyed on the e-mail alone again: the owner's reset e-mail is refused (review B1)",
+   "mutations": [
+    {
+     "file": "omni_prod/rate_limits.py",
+     "old": "'password_reset_identifier_ip', 5, HOUR, 'identifier_ip',",
+     "new": "'password_reset_identifier_ip', 5, HOUR, 'identifier',"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_nobody_can_lock_the_owner_out_of_sign_in_or_password_reset",
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_password_reset_per_e_mail_and_address_trips_at_five"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_nobody_can_lock_the_owner_out_of_sign_in_or_password_reset",
+    "test_password_reset_per_e_mail_and_address_trips_at_five"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the loose failure counter refuses a right password too",
+   "mutations": [
+    {
+     "file": "omni_prod/rate_limits.py",
+     "old": "        if status in route.failure_statuses:\n",
+     "new": "        if status is not None:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits.py",
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_failures_from_many_addresses_never_refuse_the_right_password"
+   ],
+   "expect_failed": [
+    "test_over_the_failure_count_a_right_password_signs_in_and_a_wrong_one_is_refused"
+   ],
+   "expect_failed_pg": [
+    "test_failures_from_many_addresses_never_refuse_the_right_password",
+    "test_over_the_failure_count_a_right_password_signs_in_and_a_wrong_one_is_refused"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "every counter written although the address already refused (review S4)",
+   "mutations": [
+    {
+     "file": "omni_prod/rate_limits.py",
+     "old": "        first = [h for h in hits if h[1].startswith('ip:')]\n        rest = [h for h in hits if not h[1].startswith('ip:')]\n",
+     "new": "        first, rest = [], hits  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits.py",
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_a_flood_from_one_address_writes_a_bounded_number_of_rows"
+   ],
+   "expect_failed": [
+    "test_once_the_address_refuses_no_counter_of_an_e_mail_is_written"
+   ],
+   "expect_failed_pg": [
+    "test_a_flood_from_one_address_writes_a_bounded_number_of_rows",
+    "test_once_the_address_refuses_no_counter_of_an_e_mail_is_written"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "a counter grows without a cap (review S4)",
+   "mutations": [
+    {
+     "file": "omni_prod/rate_limits.py",
+     "old": "COUNT_CAP * limit.limit)",
+     "new": "10 ** 9)"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits.py",
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_a_flood_from_one_address_writes_a_bounded_number_of_rows"
+   ],
+   "expect_failed": [
+    "test_a_counter_stops_at_twice_its_limit"
+   ],
+   "expect_failed_pg": [
+    "test_a_counter_stops_at_twice_its_limit",
+    "test_a_flood_from_one_address_writes_a_bounded_number_of_rows"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "the Dockerfile trusts every forwarded header again (review S3)",
+   "mutations": [
+    {
+     "file": "Dockerfile",
+     "old": "\"--forwarded-allow-ips=127.0.0.1\"",
+     "new": "\"--forwarded-allow-ips=*\""
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits.py"
+   ],
+   "expect_failed": [
+    "test_uvicorn_trusts_forwarded_headers_from_localhost_only"
+   ],
+   "expect_failed_pg": [
+    "test_uvicorn_trusts_forwarded_headers_from_localhost_only"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "the reset floor holds a pool thread again: a blocking sleep (review N1)",
+   "mutations": [
+    {
+     "file": "omni_prod/rate_limits.py",
+     "old": "                    await asyncio.sleep(left)\n",
+     "new": "                    await run_in_threadpool(time.sleep, left)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits.py"
+   ],
+   "expect_failed": [
+    "test_a_reset_answer_takes_its_floor_answered_or_raised_and_holds_no_thread"
+   ],
+   "expect_failed_pg": [
+    "test_a_reset_answer_takes_its_floor_answered_or_raised_and_holds_no_thread"
    ]
   }
  ]

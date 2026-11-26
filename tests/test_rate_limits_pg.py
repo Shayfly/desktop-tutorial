@@ -161,14 +161,62 @@ class TwoInstancesOneDatabase(_Database):
         self.assertIn(r.status_code, statuses, r.text)
 
     # ---- each limit at its stated count, and one past it ------------------------------------------------------------
-    def test_login_per_identifier_trips_at_ten_across_two_instances(self):
-        email = self.email()
-        a, b = self.client(self.a), self.client(self.b)            # two instances, two addresses, one e-mail
+    def test_login_per_e_mail_and_address_trips_at_ten_across_two_instances(self):
+        email, ip = self.email(), self.ip()
+        a, b = self.client(self.a, ip), self.client(self.b, ip)     # two instances, one address, one e-mail
         for i in range(10):
             self.assert_passed((a, b)[i % 2].post('/api/v28/auth/login', json={'email': email, 'password': WRONG}), 401)
-        self.assert_refused(a.post('/api/v28/auth/login', json={'email': email, 'password': WRONG}), 'login_identifier')
-        self.assert_refused(b.post('/api/v28/auth/login', json={'email': email, 'password': WRONG}), 'login_identifier')
+        self.assert_refused(a.post('/api/v28/auth/login', json={'email': email, 'password': WRONG}), 'login_identifier_ip')
+        self.assert_refused(b.post('/api/v28/auth/login', json={'email': email, 'password': WRONG}), 'login_identifier_ip')
         self.assert_passed(b.post('/api/v28/auth/login', json={'email': self.email(), 'password': WRONG}), 401)
+        self.assert_passed(self.client(self.a).post('/api/v28/auth/login', json={'email': email, 'password': WRONG}), 401)
+
+    def test_nobody_can_lock_the_owner_out_of_sign_in_or_password_reset(self):
+        """The review's probe (B1): an attacker who knocks with the owner's e-mail every 90 s for 6 hours fills only his
+        own counter; the owner signs in from another address every 30 minutes, and still gets a reset e-mail."""
+        victim, _ = self.register()
+        attacker, owner = self.client(self.a, '203.0.113.7'), self.client(self.b, '198.51.100.9')
+        codes = [attacker.post('/api/v28/auth/login', json={'email': victim, 'password': WRONG}).status_code
+                 for _ in range(11)]
+        self.assertEqual(codes, [401] * 10 + [429])
+        self.assert_passed(owner.post('/api/v28/auth/login', json={'email': victim, 'password': PASSWORD}), 200)
+        owner_results = []
+        for step in range(240):
+            self.clock.t += 90
+            attacker.post('/api/v28/auth/login', json={'email': victim, 'password': WRONG})
+            if step % 20 == 19:
+                owner_results.append(owner.post('/api/v28/auth/login', json={'email': victim,
+                                                                            'password': PASSWORD}).status_code)
+        self.assertEqual(owner_results, [200] * 12)
+        for _ in range(6):
+            attacker.post('/api/v28/auth/password-reset/request', json={'email': victim})
+        self.assert_passed(owner.post('/api/v28/auth/password-reset/request', json={'email': victim}), 202)
+        tokens = self.sql("SELECT count(*) FROM creator_identity_tokens t JOIN creator_accounts a ON a.id = t.user_id "
+                          "WHERE a.email = %s AND t.purpose = 'PASSWORD_RESET'", (victim,))[0][0]
+        self.assertEqual(tokens, 6)           # the attacker's 5 within his limit, and the owner's: it went out
+
+    def test_failures_from_many_addresses_never_refuse_the_right_password(self):
+        victim, _ = self.register()
+        for i in range(100):                  # 100 failures, each from its own address: every address within its limits
+            self.assert_passed(self.client((self.a, self.b)[i % 2]).post(
+                '/api/v28/auth/login', json={'email': victim, 'password': WRONG}), 401)
+        self.assert_passed(self.client(self.a).post('/api/v28/auth/login', json={'email': victim, 'password': PASSWORD}),
+                           200)
+        self.assert_refused(self.client(self.b).post('/api/v28/auth/login', json={'email': victim, 'password': WRONG}),
+                            'login_failures_identifier')
+        self.assert_passed(self.client(self.b).post('/api/v28/auth/login', json={'email': victim, 'password': PASSWORD}),
+                           200)
+
+    def test_a_flood_from_one_address_writes_a_bounded_number_of_rows(self):
+        before = self.sql('SELECT count(*) FROM rate_limit_counters')[0][0]
+        ip = self.ip()
+        c = self.client(self.a, ip)
+        codes = [c.post('/api/v28/auth/login', json={'email': self.email(), 'password': WRONG}).status_code
+                 for _ in range(200)]
+        self.assertEqual(codes, [401] * 50 + [429] * 150)
+        # the address (1), and for each of the 50 it let through: its (e-mail, address) counter and its failure counter
+        self.assertEqual(self.sql('SELECT count(*) FROM rate_limit_counters')[0][0] - before, 1 + 50 + 50)
+        self.assertEqual(self.sql("SELECT max(hits) FROM rate_limit_counters WHERE bucket = 'login_ip'")[0][0], 100)
 
     def test_login_per_address_trips_at_fifty(self):
         ip = self.ip()
@@ -185,21 +233,26 @@ class TwoInstancesOneDatabase(_Database):
         r = self.client(self.b, ip).post('/api/v28/auth/register', json={'email': self.email(), 'password': PASSWORD})
         self.assert_refused(r, 'register_ip')
 
-    def test_registration_counts_against_the_login_limit_of_its_e_mail(self):
-        email, _ = self.register()
+    def test_registration_counts_against_the_login_limit_of_its_e_mail_and_address(self):
+        ip = self.ip()
+        email, _ = self.register(ip=ip)
         for _ in range(9):                    # registering an existing e-mail signs in with the password typed
-            r = self.client(self.b).post('/api/v28/auth/register', json={'email': email, 'password': WRONG})
+            r = self.client(self.b, ip).post('/api/v28/auth/register', json={'email': email, 'password': WRONG})
             self.assert_passed(r, 409)
-        self.assert_refused(self.client(self.a).post('/api/v28/auth/login', json={'email': email, 'password': PASSWORD}),
-                            'login_identifier')
+        self.assert_refused(self.client(self.a, ip).post('/api/v28/auth/login', json={'email': email,
+                                                                                     'password': PASSWORD}),
+                            'login_identifier_ip')
+        self.assert_passed(self.client(self.a).post('/api/v28/auth/login', json={'email': email, 'password': PASSWORD}),
+                           200)
 
-    def test_password_reset_per_identifier_trips_at_five(self):
+    def test_password_reset_per_e_mail_and_address_trips_at_five(self):
         email, _ = self.register()
         c = self.client(self.a)
         for _ in range(5):
             self.assert_passed(c.post('/api/v28/auth/password-reset/request', json={'email': email}), 202)
         self.assert_refused(c.post('/api/v28/auth/password-reset/request', json={'email': email.upper()}),
-                            'password_reset_identifier')
+                            'password_reset_identifier_ip')
+        self.assert_passed(self.client(self.b).post('/api/v28/auth/password-reset/request', json={'email': email}), 202)
 
     def test_password_reset_per_address_counts_every_request_and_trips_at_twenty(self):
         ip = self.ip()
@@ -255,16 +308,17 @@ class TwoInstancesOneDatabase(_Database):
 
     # ---- the window ---------------------------------------------------------------------------------------------------
     def test_the_limit_resets_once_the_window_has_passed(self):
-        email, c = self.email(), self.client(self.a)
+        email, ip = self.email(), self.ip()
+        c = self.client(self.a, ip)
         for _ in range(10):
             self.assert_passed(c.post('/api/v28/auth/login', json={'email': email, 'password': WRONG}), 401)
         first = self.assert_refused(c.post('/api/v28/auth/login', json={'email': email, 'password': WRONG}),
-                                    'login_identifier')
+                                    'login_identifier_ip')
         self.assertGreater(first, 15 * 60 // 2)                    # the whole window is not over in a moment
         self.clock.t += first // 2                                  # half way: still refused, and the wait is restated
-        second = self.assert_refused(self.client(self.b).post('/api/v28/auth/login', json={'email': email,
-                                                                                            'password': WRONG}),
-                                     'login_identifier')
+        second = self.assert_refused(self.client(self.b, ip).post('/api/v28/auth/login', json={'email': email,
+                                                                                                'password': WRONG}),
+                                     'login_identifier_ip')
         self.clock.t += second
         self.assert_passed(c.post('/api/v28/auth/login', json={'email': email, 'password': WRONG}), 401)
 
@@ -303,26 +357,30 @@ class TwoInstancesOneDatabase(_Database):
 
     # ---- account enumeration ------------------------------------------------------------------------------------------
     def test_login_answers_the_same_for_a_known_and_an_unknown_e_mail(self):
+        """Same status and body, and the same work: exactly one PBKDF2 with the full 250,000 rounds on every path (review
+        S1: a wall-clock ratio let an unknown e-mail that did 60% of the hashing pass)."""
+        import hashlib as _hashlib
+        from omni_prod import account_tenant
         known, _ = self.register()
         suspended, _ = self.register()
         self.sql("UPDATE creator_accounts SET account_status = 'SUSPENDED' WHERE email = %s", (suspended,))
         unknown = self.email()
         c = self.client(self.a)
-        c.post('/api/v28/auth/login', json={'email': self.email(), 'password': WRONG})       # warm the pool
-        answers, times = {}, {'known': [], 'unknown': [], 'suspended': []}
-        for _ in range(7):                    # interleaved, so a slow moment of the machine hits all three
-            for kind, email in (('known', known), ('unknown', unknown), ('suspended', suspended)):
-                started = time.perf_counter()
+        real, rounds, lock = _hashlib.pbkdf2_hmac, [], threading.Lock()
+
+        def spy(name, password, salt, iterations, *rest):
+            with lock:
+                rounds.append(iterations)
+            return real(name, password, salt, iterations, *rest)
+        answers = {}
+        for kind, email in (('known', known), ('unknown', unknown), ('suspended', suspended)):
+            with mock.patch('hashlib.pbkdf2_hmac', spy), mock.patch.object(account_tenant, 'pbkdf2_hmac', spy):
                 r = c.post('/api/v28/auth/login', json={'email': email, 'password': WRONG})
-                times[kind].append(time.perf_counter() - started)
-                answers.setdefault(kind, set()).add((r.status_code, r.text))
-        self.assertEqual(answers['known'], {(401, '{"detail":"invalid credentials"}')})
+            answers[kind] = (r.status_code, r.text, list(rounds))
+            rounds.clear()
+        self.assertEqual(answers['known'], (401, '{"detail":"invalid credentials"}', [250_000]))
         self.assertEqual(answers['unknown'], answers['known'])
         self.assertEqual(answers['suspended'], answers['known'])
-        # the fastest of each is its own cost (a busy machine only adds time): one hash each, so within 2x; without the
-        # equal-cost hash an unknown e-mail answers about 20 times sooner than a wrong password (negative control NC5)
-        fastest = {k: min(v) for k, v in times.items()}
-        self.assertLess(max(fastest.values()) / min(fastest.values()), 2.0, fastest)
 
     def test_a_password_reset_answers_the_same_for_a_known_and_an_unknown_e_mail(self):
         known, _ = self.register()
@@ -373,7 +431,7 @@ class TwoInstancesOneDatabase(_Database):
         from omni_prod.rate_limits import PostgresRateLimitStore
         pools = [DatabasePool(self.url, max_size=20), DatabasePool(self.url, max_size=20)]
         stores = [PostgresRateLimitStore(p) for p in pools]
-        row = ('concurrency_test', uuid.uuid4().hex * 2, 1_000_000, 1_000_120, 999_940)
+        row = ('concurrency_test', uuid.uuid4().hex * 2, 1_000_000, 1_000_120, 999_940, 1000)
         counts, barrier = [], threading.Barrier(40)
 
         def hit(i):
