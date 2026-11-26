@@ -6,6 +6,25 @@
 - The rehearsal now fails a scenario that asks for a fact the customer already gave (`asked_again`, per-scenario `GIVEN`) or that asks a question in the message showing the summary (`question_with_summary`); each finding is its own `::error`. On the six recorded transcripts (`tests/rehearsal_transcripts_20261125.py`) every run fails, on the turns the logs show.
 - Verified locally: `tests/test_name_asked_once.py` (19 tests, real supervisor and ModelInterpreter with a no-provider model double); controls `name_asked_once` 16/16 (NC1 reverts the canon fix and the doors conversation asks the name at turns 3 and 4, as in production); 46 control sets touching the changed files PASS (agent_subject after one added assertion); `deletions_declared.py origin/main` and `weakening_declared.py origin/main` exit 0; flag-off pipeline digest unchanged (`f2fd495d`).
 - Not verified: a live rehearsal with the real models after the fix (no paid call was allowed), CI, and production. Two different "שם העסק:" labels still cannot be settled by an answer (the canon reads every label; the content route says `name_not_one`).
+# 2026-11-25 — Content route: two follow-ups from the release review (Claude Code; committed locally, not pushed)
+
+- **FIX 1 — implemented, verified locally (not in CI).** A heading carrying `@price:N` was measured on the model's text
+  (`validate._shape`, 8 characters for the reference) while the renderer writes the customer's span and the library's
+  heading check counts the shown text. Reproduced on `ac10e94` with the owner's brief and the price written
+  "1,250 שקלים": a 39-character services title passed validation and the generate path raised
+  `SiteRenderDefect: HeadingTooLong: h3 of 42 characters` after one content call. Now `validate.too_long` counts every
+  field the renderer substitutes as the page shows it (`render.shown`, `typography.visible`, the rule
+  `check_headings` uses too) and the problem is TOO_LONG with the shown length, fixed by the one correction round.
+  Evidence: `tests/test_site_content_price_in_heading.py` 6 passed; controls `content_followups` 5/5 PASS; the
+  non-browser site_content and typography tests 94 passed; the non-browser controls of `site_content` and
+  `typography_126_129` 53/53 PASS (7 with browser targets not run); `deletions_declared.py origin/main` exit 0
+  (675 -> 677 records). Commits `e2df850`, `3005c0d`.
+- **FIX 2 — not implemented: blocked on an owner decision.** The content route locks a library pair and keeps the
+  customer's font only as evidence (`contract['fonts']['brief_font']`). The approved prompt cannot tell a font the
+  customer chose from the default: the Design line writes Heebo when the font was chosen, skipped or filled by the
+  conversation's defaults (source `default`, not listed in the prompt), and Rubik is only a display face in one
+  warm/bold pair. The facts and the options are in the branch's report; nothing was changed for it.
+- Not verified: browser tests, the full suite, CI, a live build.
 
 # 2026-11-25 — Skills #525 follow-up declarations approved by the owner (Codex, HOLD for CI and independent review)
 

@@ -8,6 +8,8 @@ Codes (every one has a failing document in tests/test_site_content_validate.py):
   SCHEMA_SHAPE        a missing field, a wrong type, an unknown key (never dropped), a section that was not offered
   LAYOUT_UNKNOWN      a layout axis or variant the library does not have (section_library.LAYOUTS)
   TOO_LONG / TOO_FEW / TOO_MANY / EMPTY_TEXT
+                      a length is counted as the page shows the field: each @price:N as the customer's span, white
+                      space as a visitor reads it (too_long; the release review of 2026-11-25)
   NOT_HEBREW          a copy string with no Hebrew letter
   FACT_IN_COPY        a phone, e-mail, street address, opening hours or link in copy: facts are the platform's slots;
                       an always-open claim in words ("בכל שעות היממה", "מסביב לשעון", "24/7", "כולל שבת") is hours
@@ -122,14 +124,34 @@ def leaves(doc: dict) -> list[tuple[str, str]]:
     return out
 
 
-def _shape(value, spec, path, out, *, key=None):
+def too_long(path: str, value: str, limit: int, sheet=None) -> list[Problem]:
+    """A copy string longer than its bound, counted as the page shows it (the release review of 2026-11-25): with the
+    sheet, each @price:N is the customer's own span the renderer writes in its place ("@price:1" is 8 characters,
+    "1,250 שקלים" 11), and white space is counted as a visitor reads it -- render.shown and typography.visible, the
+    text and the count the section library's heading check uses. A field whose shown text is longer than its written
+    one is told so, with the span, so the one correction can shorten the words around the reference."""
+    from .. import typography as T
+    from . import render as R
+    text = T.visible(R.shown(value, sheet) if sheet is not None else value)
+    if len(text) <= limit:
+        return []
+    spans = [f'{ref} is "{sheet.price(ref)["span"]}" ({len(sheet.price(ref)["span"])} characters)'
+             for ref in dict.fromkeys(m.group(0) for m in _REF.finditer(value) if m.group(1) == 'price')
+             if sheet is not None and sheet.price(ref) is not None]
+    if spans:
+        return [Problem(path, 'TOO_LONG', f'{len(text)} characters as the page shows it, where {"; ".join(spans)}; '
+                        f'at most {limit}: shorten the words around the reference')]
+    return [Problem(path, 'TOO_LONG', f'{len(text)} characters; at most {limit}')]
+
+
+def _shape(value, spec, path, out, *, key=None, sheet=None):
     if isinstance(spec, K.Str):
         if not isinstance(value, str):
             out.append(Problem(path, 'SCHEMA_SHAPE', f'expected a string, got {type(value).__name__}'))
         elif not value.strip():
             out.append(Problem(path, 'EMPTY_TEXT', 'an empty string: leave an optional field out instead'))
-        elif len(value) > spec.max:
-            out.append(Problem(path, 'TOO_LONG', f'{len(value)} characters; at most {spec.max}'))
+        else:
+            out += too_long(path, value, spec.max, sheet)
     elif isinstance(spec, K.Num):
         if not isinstance(value, str) or not _NUM_VALUE.match(value.strip()):
             out.append(Problem(path, 'SCHEMA_SHAPE', 'expected a number as the customer wrote it, e.g. "2008" or "+1,500"'))
@@ -145,14 +167,14 @@ def _shape(value, spec, path, out, *, key=None):
         if len(value) > spec.max:
             out.append(Problem(path, 'TOO_MANY', f'{len(value)} items; at most {spec.max}'))
         for i, item in enumerate(value[:spec.max]):
-            _shape(item, spec.item, f'{path}[{i}]', out)
+            _shape(item, spec.item, f'{path}[{i}]', out, sheet=sheet)
     elif isinstance(spec, K.Obj):
-        _fields(value, spec.fields, path, out)
+        _fields(value, spec.fields, path, out, sheet=sheet)
     else:
         raise TypeError(f'unknown field spec at {path}: {spec!r}')
 
 
-def _fields(value, fields: dict, path: str, out: list):
+def _fields(value, fields: dict, path: str, out: list, *, sheet=None):
     if not isinstance(value, dict):
         out.append(Problem(path, 'SCHEMA_SHAPE', f'expected an object, got {type(value).__name__}'))
         return
@@ -164,7 +186,7 @@ def _fields(value, fields: dict, path: str, out: list):
             if not getattr(spec, 'optional', False):
                 out.append(Problem(f'{path}.{k}', 'SCHEMA_SHAPE', 'a required field is missing'))
             continue
-        _shape(value[k], spec, f'{path}.{k}', out)
+        _shape(value[k], spec, f'{path}.{k}', out, sheet=sheet)
 
 
 def _bound(m, sheet, context: str = '') -> bool:
@@ -338,7 +360,7 @@ def validate(doc, sheet, offered: dict, outline_titles: dict | None = None, *, l
         if key not in doc:
             out.append(Problem(key, 'SCHEMA_SHAPE', 'a required field is missing'))
         else:
-            _shape(doc[key], K.TOP[key], key, out)
+            _shape(doc[key], K.TOP[key], key, out, sheet=sheet)        # rendered with its references replaced
     name = doc.get('name')
     if sheet.name:
         if name is not None and name != sheet.name:
@@ -372,7 +394,7 @@ def validate(doc, sheet, offered: dict, outline_titles: dict | None = None, *, l
             if need == 'required':
                 out.append(Problem(f'sections.{key}', 'SCHEMA_SHAPE', 'a required section is missing'))
             continue
-        _fields(sections[key], K.spec_for(key, outline_titles), f'sections.{key}', out)
+        _fields(sections[key], K.spec_for(key, outline_titles), f'sections.{key}', out, sheet=sheet)
     for path, text in leaves(doc):
         out += _text_problems(path, text, sheet, claim_severity, context=_context_of(path, doc),
                               implied=_implied(path, sections))

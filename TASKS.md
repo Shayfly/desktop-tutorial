@@ -3,6 +3,7 @@
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
 | CONV-NAME-ONCE | Claude Code | Branch committed locally, not pushed; awaiting PR, CI and a live rehearsal | `claude/practical-hopper-oi3qj2-name-asked-twice` (merge with main `c0d3d36`); `tests/test_name_asked_once.py`; controls name_asked_once 16/16; STATUS.md 2026-11-26 |
+| CONTENT-FOLLOWUPS | Claude Code | FIX 1 (price in a heading) committed locally, not pushed; FIX 2 (the customer's font) blocked on an owner decision | branch `claude/practical-hopper-oi3qj2-content-followups`, `e2df850`, `3005c0d`; controls content_followups 5/5; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525-APPROVAL | Codex | Owner approved exact declarations; HOLD for CI and independent merge review | #525, approved candidate `e1c8a7d7`, base `042253f5`; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525-REVIEW | Codex, independent automated reviewer | HOLD — follow-up verified locally, pending refreshed declarations, CI and independent review | #525 head `2cda8073`, base `042253f5`; `test_terminal_skill_execution_evidence.py`, `test_repair_request_fidelity_routes.py`, `test_intake_checklist_priority.py`; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525 | chatgpt-integration | Owner declarations approved; exact-head CI and independent review pending | #525; prior head `4edde619`, main `042253f`; STATUS.md 2026-11-25 |

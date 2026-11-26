@@ -213,6 +213,15 @@ def format_money(name: str, value, currency: str, decimals: int = 0) -> str:
 _HEADING = re.compile(r'<(h[1-6])\b[^>]*>(.*?)</\1\s*>', re.S | re.I)
 
 
+def visible(text: str) -> str:
+    """A plain text as a visitor reads it: every run of white space one space, none at either end. A heading's limit is
+    counted on this, in both places that count it: check_headings on the rendered heading, and the content route's
+    validator on a field as the page will show it (site_content/validate.py, after each price reference is replaced
+    by the customer's span) -- so what the validator accepts is what the render accepts (the release review of
+    2026-11-25: a heading that passed validation failed the build)."""
+    return ' '.join((text or '').split())
+
+
 def check_headings(markup: str, name: str) -> None:
     """Every <h1>..<h4> of the markup within its script's limit (visible characters); a longer one, or a heading level
     the script sets no limit for, raises HeadingTooLong naming each one."""
@@ -220,7 +229,7 @@ def check_headings(markup: str, name: str) -> None:
     over = []
     for tag, inner in _HEADING.findall(markup or ''):
         tag = tag.lower()
-        text = ' '.join(_html.unescape(re.sub(r'<[^>]+>', '', inner)).split())
+        text = visible(_html.unescape(re.sub(r'<[^>]+>', '', inner)))
         if tag not in limits:
             over.append(f'{tag} has no {name} limit: {text[:40]!r}')
         elif len(text) > limits[tag]:
