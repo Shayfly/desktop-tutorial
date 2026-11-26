@@ -277,6 +277,64 @@ class APagePartIsNotTheName(unittest.TestCase):
         self.assertEqual(agent.stated_names(d.customer_text(brief)), ['השף הקטן'])
 
 
+class AStatementGivesANameOnlyWhenItReadsAsOne(unittest.TestCase):
+    """Review of 49d61d3, SF2 and SF3 ($SP/rv-probe/p_s4.py, p_s4b.py): an unquoted statement replaced the right name
+    with a sentence ('השם שלנו הוא שם דבר בעיר, כולם מכירים אותנו' -> "שם דבר בעיר", 'the name is not important' ->
+    "not important"); two quoted names in one statement recorded the first; a one-letter quote came out malformed."""
+    KNOWN = 'אתר למסעדה "השף הקטן". שם העסק: השף הקטן.'
+    FIRST = 'דף נחיתה למסעדה שלי "השף הקטן" עם כפתור "הזמינו עכשיו". אתר תוכן בלבד, לא שומרים כלום. טלפון 03-5551234'
+
+    def setUp(self):
+        p = mock.patch.dict(os.environ, {'OMNI_INTAKE_AGENT': '1'})
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_the_statements_of_the_review(self):
+        cases = {'השם שלנו הוא שם דבר בעיר': ('unclear', None),
+                 'השם שלנו הוא שם דבר בעיר, כולם מכירים אותנו': ('unclear', None),
+                 'השם שלנו הוא הכי מוכר באזור': ('unclear', None), 'השם שלנו הוא מה שמוכר אותנו': ('unclear', None),
+                 'the name is not important': ('unclear', None), 'it is called a soft launch': ('unclear', None),
+                 'השם שלנו הוא "א" אבל באתר תכתבו "ב"': ('choice', ['א', 'ב']),
+                 'השם שלנו הוא "אב" אבל באתר תכתבו "גד"': ('choice', ['אב', 'גד']),
+                 'השם שלנו הוא "א"': ('unclear', None),
+                 'השם שלנו הוא "השף הקטן" והסלוגן "טעים"': ('name', 'השף הקטן'),
+                 'השם שלנו הוא "השף הקטן"': ('name', 'השף הקטן'), 'קוראים לעסק השף הקטן': ('name', 'השף הקטן'),
+                 'the name is "Little Chef"': ('name', 'Little Chef'), 'שלום': None}
+        for message, said in cases.items():
+            with self.subTest(message):
+                self.assertEqual(agent.name_statement(message), said)
+                if said and said[0] != 'name':
+                    self.assertIsNone(agent.name_to_record(self.KNOWN, message, answering=False))
+
+    def test_on_the_real_path_a_sentence_keeps_the_name_and_says_it(self):
+        sup = R._Supervisor(ModelInterpreter(FollowsThePrompt()))
+        say = lambda m: sup.turn(project_id='p', account_id='a', message=m, lang='he')   # noqa: E731
+        say(self.FIRST)
+        t = say('השם שלנו הוא שם דבר בעיר, כולם מכירים אותנו')
+        prompt = sup.briefs.latest('p').brief.prompt
+        self.assertEqual([x for x in prompt.splitlines() if x.startswith('שם העסק:')], ['שם העסק: השף הקטן.'])
+        self.assertIn('השם שיופיע באתר: "השף הקטן".', t.reply)
+
+    def test_on_the_real_path_two_names_are_asked_which_and_the_answer_settles_it(self):
+        sup = R._Supervisor(ModelInterpreter(FollowsThePrompt()))
+        say = lambda m: sup.turn(project_id='p', account_id='a', message=m, lang='he')   # noqa: E731
+        say(self.FIRST)
+        t = say('השם שלנו הוא "אב" אבל באתר תכתבו "גד"')
+        self.assertIn('כתבתם שני שמות: "אב" ו"גד". איזה מהם יופיע באתר?', t.reply)
+        self.assertEqual(t.asked_in_words, [agent.NAME_ID])
+        self.assertIn('שם העסק: השף הקטן.', sup.briefs.latest('p').brief.prompt)      # nothing recorded yet
+        say('גד')
+        prompt = sup.briefs.latest('p').brief.prompt
+        self.assertEqual([x for x in prompt.splitlines() if x.startswith('שם העסק:')], ['שם העסק: גד.'])
+
+    def test_a_name_never_holds_a_colon(self):
+        self.assertIsNone(agent.name_line('Studio: Noa'))
+        self.assertEqual(agent.name_statement('the name is "Studio: Noa"'), ('unclear', None))
+        with self.assertRaises(ValueError):
+            agent.with_name_line('x', 'שם העסק: Studio: 54.')
+        self.assertEqual(agent.with_name_line('x\nשם העסק: א ב.', 'שם העסק: ג ד.'), 'x\nשם העסק: ג ד.')
+
+
 class InArabic(unittest.TestCase):
     """F3: the name strings of this change are kept in Hebrew, Arabic and English, like the gap detector's questions
     (intake.gaps QUESTIONS) and the gate words (gate_words.LANGS); an Arabic conversation reads them in Arabic."""

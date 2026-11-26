@@ -236,7 +236,7 @@ NAME_QUESTION = {'he': 'איך קוראים לעסק? כתבו את השם בד�
                  'en': 'What is the business called? Write the name exactly as it should appear on the site.'}
 _NAME_LEAD = re.compile(r'^\s*(?:(?:קוראים|קוראות)\s+(?:לו|לה|לנו|לי|לעסק)|השם(?:\s+(?:הוא|שלנו|שלי|של\s+העסק))?|שם\s+העסק(?:\s+הוא)?|'
                         r"(?:it'?s\s+)?called|the\s+name\s+is|name)\s*[:\-–]?\s*", re.I)
-_NAME_REFUSED = re.compile(r'[0-9@/\\<>{}\[\]|]|https?:|www\.')
+_NAME_REFUSED = re.compile(r'[0-9@/\\<>{}\[\]|:]|https?:|www\.')    # ':' -- a label separator, never in a name
 # an answer that hands the choice back, or says yes/no, is not a name (found by the conversation test: "תחליטו אתם על
 # השאר" became "שם העסק: תחליטו אתם על השאר")
 _NOT_A_NAME = re.compile(r'תחליט|תבחר|החליט|בחרו|לא\s+יודע|לא\s+משנה|מה\s+ש(?:בא|תרצו|מתאים)|על\s+השאר|בלי\s+שם|אין\s+(?:לי\s+|לנו\s+)?שם|'
@@ -296,25 +296,76 @@ _EXPLICIT = re.compile(r'(?:השם\s+(?:שלנו|שלי|של\s+העסק|של\s+�
 _RECORDED_LINE = re.compile(r'(?m)^שם העסק: [^\n:]*\.[ \t]*\n?')
 
 
-def explicit_name(message: str) -> str | None:
-    """The name the customer states outright in this message ('השם שלנו הוא "השף הקטן"', 'קוראים לעסק השף הקטן'), or
-    None. A quoted span right after the statement is the name; without quotes, the rest of the sentence when it is a
-    name by name_line's rules (no digits or links, at most six words, not a handed-back answer)."""
+# Review SF2/SF3 (49d61d3): 'השם שלנו הוא שם דבר בעיר, כולם מכירים אותנו' replaced "השף הקטן" with "שם דבר בעיר"; 'the
+# name is not important' gave "not important"; 'השם שלנו הוא "אב" אבל באתר תכתבו "גד"' recorded "אב"; a one-letter quote
+# came out as 'א" אבל באתר תכתבו "ב'. A statement now gives a name only when it reads as one (name_statement).
+_ANY_QUOTE = re.compile(r'["״“„]([^"״“”„\n]{1,40}?)["״”]')
+_NOT_A_NAME_START = re.compile(r'^(?:הכי|מה|כמו|יותר|פחות|ממש|לא|אין|בלי|כל|כולם|סתם|שם\s+דבר|a|an|not|no|very|just|'
+                               r'like|what|something|nothing|whatever|لا|ليس)(?:\s|$)', re.I)
+_NOT_A_NAME_WORD = re.compile(r'(?<![\wא-ת])(?:אותנו|אותי|כולם|מכירים|חשוב|important|matter|unknown|everyone)'
+                              r'(?![\wא-ת])', re.I)
+_NEGATION_WORD = re.compile(r'(?<![\wא-ת])(?:לא|אין|בלי)(?![\wא-ת])|\b(?:not|no|none|never)\b|(?<![\wء-ي])لا(?![\wء-ي])',
+                            re.I)
+
+
+def name_statement(message: str) -> tuple[str, object] | None:
+    """What a statement of the name in this message ('השם שלנו הוא', 'קוראים לעסק', 'the name is') says, or None when the
+    message makes no such statement:
+      ('name', X)       -- X reads as a name: the one quoted span after the statement (a quote after a page word --
+                           'והסלוגן "טעים"' -- is that part's text), or, unquoted, the rest of the message when it is a
+                           short name (name_line's rules, no ':', at most four words, not a negation, not a sentence
+                           that goes on, not "הכי ..."/"מה ש..."/"a ...");
+      ('choice', [A, B]) -- two different quoted names: asked which one, never guessed;
+      ('unclear', None)  -- a statement whose words are not a name (a one-letter quote, a sentence): nothing is
+                           recorded; the name the conversation has is kept and said."""
     text = ' '.join((message or '').split())
     m = _EXPLICIT.search(text)
     if not m:
         return None
+    spans = []
+    for q in _ANY_QUOTE.finditer(text):
+        if not _PAGE_PART.search(' '.join(text[:q.start()].split()[-2:])):
+            span = ' '.join(q.group(1).split())
+            if span not in spans:
+                spans.append(span)
+    if len(spans) >= 2:
+        return 'choice', spans[:2]
     rest = text[m.end():]
-    quoted = re.match(_QUOTE, rest)
-    if quoted:
-        return ' '.join(quoted.group(1).split())
-    line = name_line(re.split(r'[.!?,;\n]', rest, maxsplit=1)[0])
-    return line[len('שם העסק: '):-1] if line else None
+    if rest[:1] in '"״“„':
+        quoted = _ANY_QUOTE.match(rest)
+        if not quoted or len(quoted.group(1).strip()) < 2 or _NAME_REFUSED.search(quoted.group(1)):
+            return 'unclear', None
+        return 'name', ' '.join(quoted.group(1).split())
+    if spans:
+        return ('name', spans[0]) if len(spans[0]) >= 2 and not _NAME_REFUSED.search(spans[0]) else ('unclear', None)
+    parts = re.split(r'[.!?,;\n]', rest, maxsplit=1)
+    candidate, after = parts[0].strip(), (parts[1] if len(parts) > 1 else '')
+    line = name_line(candidate)
+    if not line or not _plausible_name(candidate, after):
+        return 'unclear', None
+    return 'name', line[len('שם העסק: '):-1]
+
+
+def _plausible_name(candidate: str, after: str) -> bool:
+    """An unquoted name after a statement: at most four words, the message ends with it (no sentence goes on after a
+    comma), and it does not start like a phrase ("הכי", "מה ש", "a ..."), hold a word of one, or a negation."""
+    return not (re.search(r'[^\W\d_]', after or '') or len(candidate.split()) > 4
+                or _NOT_A_NAME_START.search(candidate) or _NOT_A_NAME_WORD.search(candidate)
+                or _NEGATION_WORD.search(candidate))
+
+
+def explicit_name(message: str) -> str | None:
+    """The name a statement in this message gives, when it reads as one (name_statement), else None."""
+    said = name_statement(message)
+    return said[1] if said and said[0] == 'name' else None
 
 
 def with_name_line(prompt: str, line: str) -> str:
     """The request with `line` as its one "שם העסק:" line: an earlier recorded line (a whole line in that form) is
-    replaced, never kept beside it -- two labels would ask "which one?" again (S4)."""
+    replaced, never kept beside it -- two labels would ask "which one?" again (S4). A recorded name never holds ':'
+    (name_line refuses it), so the form is exact; a line in any other form raises."""
+    if not re.fullmatch(r'שם העסק: [^\n:]+\.', line or ''):
+        raise ValueError(f'not a recorded name line: {line!r}')
     return (_RECORDED_LINE.sub('', prompt or '').rstrip() + '\n' + line).strip()
 
 
@@ -379,14 +430,15 @@ def name_to_record(known: str, message: str, *, answering: bool) -> str | None:
       * otherwise, the one name the customer quoted, written once as their declared name: from then on the canon, the
         content route and the summary read it, and nothing asks it again."""
     from ..fact_canon import _NAME
-    stated = explicit_name(message)
-    if stated is not None and all(n == stated for n in stated_names(message)):
-        # S4: said outright, and the only name of this message: it replaces a name read earlier (with_name_line). A
-        # message that itself names two ("לאטליז "א", וקוראים לנו "ב"") is asked which one, below.
-        return None if stated_names(known) == [stated] else f'שם העסק: {stated}.'
+    said = name_statement(message)
+    if said is not None and said[0] == 'name' and all(n == said[1] for n in stated_names(message)):
+        # S4: said outright, and the only name of this message: it replaces a name read earlier (with_name_line)
+        return None if stated_names(known) == [said[1]] else f'שם העסק: {said[1]}.'
+    if said is not None and not answering:
+        return None          # review SF2/SF3: two names are asked which one, words that are not a name record nothing
     whole = (known or '') + '\n' + (message or '')
     names = stated_names(whole)
-    if answering and len(names) != 1:
+    if answering:
         chosen = [n for n in names if n in (message or '')]
         if len(names) >= 2 and len(chosen) == 1:
             return f'שם העסק: {chosen[0]}.'

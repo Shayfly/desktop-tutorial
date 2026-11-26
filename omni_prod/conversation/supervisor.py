@@ -1306,7 +1306,13 @@ class ConversationSupervisor:
                 and agent.SUBJECT_ID in self._awaiting(project_id) and not agent.names_a_subject(new_brief.prompt)):
             # the answer to "what is this about?" is part of the request the build starts from, not a side remark
             new_brief.prompt = (new_brief.prompt.rstrip() + '\n' + message.strip()).strip()
+        name_choice, name_unclear = None, False
         if agent.enabled() and message and not answers and d.is_website(new_brief):
+            # review SF2/SF3: a statement of the name that names two is asked which one; one whose words are not a name
+            # records nothing, and the reply says which name is kept
+            statement = agent.name_statement(message)
+            name_choice = statement[1] if statement and statement[0] == 'choice' else None
+            name_unclear = bool(statement) and statement[0] == 'unclear'
             # the business name the customer stated, recognised once (rehearsals 45702506669 / 45702519795): their answer
             # to the name question, or the one name they quoted, joins the request as their own "שם העסק:" line
             line = agent.name_to_record(d.customer_text(new_brief), message,
@@ -1443,6 +1449,8 @@ class ConversationSupervisor:
         # questions, changes, blockers and approval controls below still apply.
         if interp is not None and interp.reply and not res.conflicts:
             parts.append(interp.reply)
+        kept = agent.stated_name(d.customer_text(row.brief)) if name_unclear else None
+        kept_said = agent.NAME_SAID[lang if lang in agent.NAME_SAID else 'en'].format(name=kept) if kept else ''
         stated = [x for x in res.applied if x['field'] not in {c['field'] for c in res.corrected}]
         # the owner, 2026-11-23: when the model already said what it understood in its own words, the list of field
         # labels ("הבנתי: צבע: ...") is not said again under it
@@ -1474,7 +1482,7 @@ class ConversationSupervisor:
         no_subject = agent.enabled() and not agent.names_a_subject(row.brief.prompt)
         # 2026-11-22: a website is not offered for approval before the customer named the business (see NAME_QUESTION)
         no_name = (agent.enabled() and not no_subject and d.is_website(row.brief)
-                   and not agent.declares_a_name(d.customer_text(row.brief))
+                   and (not agent.declares_a_name(d.customer_text(row.brief)) or bool(name_choice))
                    and self._times_asked(project_id, agent.NAME_ID) < agent.ASK_NAME_AT_MOST)
         # the owner, 2026-11-22: a business we do not know is asked about colours once (see COLOUR_QUESTION)
         no_colour = (agent.enabled() and not no_subject and not no_name and d.is_website(row.brief)
@@ -1565,6 +1573,8 @@ class ConversationSupervisor:
             turn.reply, turn.questions = T['model_refused' if refused else 'model_unavailable'], []
             if refused:
                 logging.getLogger(__name__).error('INTAKE_PROVIDER_REFUSED project=%s reason=%s', project_id, refused)
+        if kept_said and kept_said not in turn.reply:      # review SF2: the name kept is said, never silently replaced
+            turn.reply = (kept_said + ' ' + turn.reply).strip()
         self._card_limit(project_id, account_id, turn, lang, T, request_key)
         if no_subject and not res.conflicts and not turn.blocked:
             base = _no_question(interp.reply.strip()) if model_reply else ''   # the model's own words, never a card list
@@ -1574,10 +1584,14 @@ class ConversationSupervisor:
         # never over a model failure: "the model refused / is busy" is the truth of this turn (found by
         # tests/test_venice_refusal_is_not_spend.py on this change)
         model_failed = turn.reply in (T['model_refused'], T['model_unavailable'])
+        if no_name and name_choice and not res.conflicts and not model_failed:
+            turn.questions = []      # review SF3: the choice exists only in this message -- asked now, the rest after
         if no_name and not res.conflicts and not turn.blocked and not turn.questions and not model_failed:
             said = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
             # two different names the customer wrote are asked back as a choice, quoting both (agent.name_question)
-            turn.reply = ((said or '') + ' ' + agent.name_question(d.customer_text(row.brief), lang)).strip()
+            question = (agent.NAME_WHICH_QUESTION[lang if lang in agent.NAME_WHICH_QUESTION else 'en'].format(
+                a=name_choice[0], b=name_choice[1]) if name_choice else agent.name_question(d.customer_text(row.brief), lang))
+            turn.reply = ((said or '') + ' ' + question).strip()
             turn.asked_in_words = [agent.NAME_ID]
             return turn
         if no_colour and not model_failed and not res.conflicts and not turn.blocked and not turn.questions:
