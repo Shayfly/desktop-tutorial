@@ -310,6 +310,8 @@ def founder_cap_exempt(account_id) -> bool:
     paid-provider budget. Its spend is still metered on the subscription row and every per-build cap still applies
     (m5_founder_build_budget). OMNI_FOUNDER_CAP_EXEMPT is the flag: '1' (default) exempts, '0' turns the exemption
     off; any other value fails loudly rather than guessing."""
+    # The owner, 2026-11-26: the per-build cap above applies only with OMNI_FOUNDER_NO_BUILD_LIMIT=0
+    # (founder_no_build_limit); this flag still decides the plan's monthly budget and credits alone.
     raw = os.getenv('OMNI_FOUNDER_CAP_EXEMPT', '1').strip()
     if raw not in ('0', '1'):
         raise ValueError(f"OMNI_FOUNDER_CAP_EXEMPT must be '0' or '1', not {raw!r}")
@@ -318,11 +320,44 @@ def founder_cap_exempt(account_id) -> bool:
 
 def m5_founder_build_budget() -> Decimal:
     """CEO 2026-11-08 20:09: founder test builds may spend up to $2 on models (paid by us, not a customer
-    price), to measure what a real build costs before pricing is set. OMNI_FOUNDER_BUILD_LLM_USD overrides."""
+    price), to measure what a real build costs before pricing is set. OMNI_FOUNDER_BUILD_LLM_USD overrides.
+    Since the owner's word of 2026-11-26 (founder_no_build_limit) it applies only with OMNI_FOUNDER_NO_BUILD_LIMIT=0."""
     value = Decimal(os.getenv('OMNI_FOUNDER_BUILD_LLM_USD', '2.00').strip() or '2.00')
     if not value.is_finite() or value < 0 or value > Decimal('10'):
         raise PermissionError('invalid founder build budget')
     return value
+
+
+# The owner, 2026-11-26 10:13 UTC: "אני לא רוצה מגבלות כל הבנייה כרגע אני רוצה לראות תוצאות של בניה ולדעת כמה שיותר
+# נתונים על עלויות מבחינתנו ולא מהצד של הלקוח". For the founder account (m5_founder_account) no money limit stops or
+# cuts a build or a change request: not the $2 per-build model budget, not the plan's cost class, not the worker's
+# change-request budget, not the capability ceiling. CLAUDE.md §3 keeps every loop bounded, so two SAFETY bounds stay,
+# stated here and logged when a build comes near them (SAFETY_NEAR_FRACTION). They are runaway stops, never prices:
+# the most expensive build recorded so far spent $1.76 in 57 model calls (production task_attempts, 2026-11-26).
+# Every other account keeps every limit. Customer credits and plans do not change (warehouse 136 keeps pricing).
+# OMNI_FOUNDER_NO_BUILD_LIMIT: '1' (default) on, '0' restores the earlier limits; any other value fails loudly.
+FOUNDER_SAFETY_BUILD_USD = Decimal('25')        # model spend of one build or change request (14x the costliest so far)
+FOUNDER_SAFETY_CALLS_PER_BUILD = 400            # model calls of one build or change request (7x the most so far)
+SAFETY_NEAR_FRACTION = Decimal('0.8')           # a log line once a build passes 80% of a bound
+
+
+def founder_no_build_limit_enabled() -> bool:
+    raw = os.getenv('OMNI_FOUNDER_NO_BUILD_LIMIT', '1').strip()
+    if raw in ('0', '1'):
+        return raw == '1'
+    raise ValueError(f"OMNI_FOUNDER_NO_BUILD_LIMIT must be '0' or '1', not {raw!r}")
+
+
+def founder_no_build_limit(account_id) -> bool:
+    """True for the founder account while the owner's rule of 2026-11-26 is on (see FOUNDER_SAFETY_BUILD_USD)."""
+    return founder_no_build_limit_enabled() and m5_founder_account(account_id)
+
+
+def founder_safety_bounds() -> dict:
+    """The two safety bounds of a founder build, as the build evidence and the cost report show them."""
+    return {'llm_usd': str(FOUNDER_SAFETY_BUILD_USD), 'external_calls': FOUNDER_SAFETY_CALLS_PER_BUILD,
+            'near_fraction': str(SAFETY_NEAR_FRACTION),
+            'basis': "the owner 2026-11-26: no money limit on the founder's builds; runaway stops only"}
 
 
 def m5_model_allowed(cost_class, output_per_million, task: str | None = None) -> bool:

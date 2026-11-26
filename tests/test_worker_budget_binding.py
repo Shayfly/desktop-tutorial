@@ -97,6 +97,11 @@ class BudgetBindingTests(unittest.TestCase):
 
     def test_founder_test_build_gets_its_admitted_budget_up_to_the_founder_cap(self):
         # CEO 2026-11-08 20:09: founder test builds may spend up to $2 (measured, paid by us)
+        # Since the owner's word of 2026-11-26 this cap holds only with OMNI_FOUNDER_NO_BUILD_LIMIT=0 (the default is
+        # the safety bound: test_the_owner_2026_11_26_founder_build_is_bounded_by_the_safety_bound_only).
+        from unittest import mock
+        import os
+        self.enterContext(mock.patch.dict(os.environ, {"OMNI_FOUNDER_NO_BUILD_LIMIT": "0"}))
         req = {"user_id": "usr_GCWlMxENgr9vpwph", "economics_quote": {"components": {
             "llm_maximum_usd": "2.00", "cost_class": "light", "founder_test": True}}}
         self.assertEqual(bind_model_budget_to_reservation(_gw("0.5"), req)["effective_budget_usd"], "2.00")
@@ -104,6 +109,38 @@ class BudgetBindingTests(unittest.TestCase):
         self.assertEqual(bind_model_budget_to_reservation(_gw("0.5"), req)["effective_budget_usd"], "2.00")
         req["user_id"] = "usr_someone_else"                                    # the flag alone grants nothing
         self.assertEqual(bind_model_budget_to_reservation(_gw("0.5"), req)["effective_budget_usd"], "0.60")
+
+    def test_the_owner_2026_11_26_founder_build_is_bounded_by_the_safety_bound_only(self):
+        # The owner 2026-11-26: no money limit on the founder's builds; the admitted budget up to the safety bound
+        # ($25) and the call bound (400) replace the $2 cap and the worker's 150 calls. Every other account unchanged.
+        from omni_prod.pricing import FOUNDER_SAFETY_BUILD_USD, FOUNDER_SAFETY_CALLS_PER_BUILD
+        req = {"user_id": "usr_GCWlMxENgr9vpwph", "economics_quote": {"components": {
+            "llm_maximum_usd": "25", "cost_class": "heavy", "founder_test": True}}}
+        gw = _gw("0.5")
+        ev = bind_model_budget_to_reservation(gw, req)
+        self.assertEqual(ev["effective_budget_usd"], "25")
+        self.assertEqual(gw.policy.external_budget_usd, FOUNDER_SAFETY_BUILD_USD)
+        self.assertEqual(gw.policy.max_external_calls_per_build, FOUNDER_SAFETY_CALLS_PER_BUILD)
+        self.assertEqual((ev["worker_env_calls_per_build"], ev["effective_calls_per_build"]), (50, 400))
+        self.assertTrue(ev["founder_no_build_limit"])
+        req["economics_quote"]["components"]["llm_maximum_usd"] = "900"         # never above the safety bound
+        self.assertEqual(bind_model_budget_to_reservation(_gw("0.5"), req)["effective_budget_usd"], "25")
+        req["economics_quote"]["components"]["llm_maximum_usd"] = "2.00"        # admitted before the change: kept
+        self.assertEqual(bind_model_budget_to_reservation(_gw("0.5"), req)["effective_budget_usd"], "2.00")
+        other = {"user_id": "usr_someone_else", "economics_quote": {"components": {
+            "llm_maximum_usd": "25", "cost_class": "heavy", "founder_test": True}}}
+        gw_other = _gw("0.5")
+        ev_other = bind_model_budget_to_reservation(gw_other, other)               # the flag alone grants nothing
+        self.assertEqual(gw_other.policy.max_external_calls_per_build, 50)
+        self.assertNotIn("founder_no_build_limit", ev_other)
+
+    def test_an_unknown_founder_flag_value_fails_loudly(self):
+        from unittest import mock
+        import os
+        with mock.patch.dict(os.environ, {"OMNI_FOUNDER_NO_BUILD_LIMIT": "yes"}):
+            with self.assertRaises(ValueError):
+                bind_model_budget_to_reservation(_gw("0.5"), {"user_id": "usr_GCWlMxENgr9vpwph", "economics_quote": {
+                    "components": {"llm_maximum_usd": "25", "cost_class": "heavy", "founder_test": True}}})
 
     def test_standard_class_cap_clamps_oversized_reservation(self):
         gw = _gw("5")

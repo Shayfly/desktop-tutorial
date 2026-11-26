@@ -196,6 +196,8 @@ def quote(*, system: str, user: str, max_tokens: int, task: str = 'conversation'
                          output_per_million=Decimal(str(item['output_per_million'])), when=when)
         except (KeyError, TypeError, ValueError, InvalidOperation):
             continue
+        if not getattr(gov, 'price_known', True):
+            continue    # the conversation quotes only a verified price (unchanged by the owner's rule of 2026-11-26)
         if not gov.routable or not eligible(task, model_id=model, quality=quality):
             continue
         if gov.input_per_million is None or gov.output_per_million is None or \

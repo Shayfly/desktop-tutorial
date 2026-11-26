@@ -257,15 +257,23 @@ def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_comp
             minimum_margin=minimum_margin if minimum_margin is not None else Decimal('0.60'),
             internal_qa=funding == 'internal_qa')
 
+    unlimited = False
     if founder:   # CEO 2026-11-08: founder test builds, paid by us, measured; never a customer price
-        from .pricing import m5_founder_build_budget
-        provider_budget, budget_basis = m5_founder_build_budget(), 'founder_test'
+        from .pricing import FOUNDER_SAFETY_BUILD_USD, founder_no_build_limit_enabled, m5_founder_build_budget
+        unlimited = founder_no_build_limit_enabled()
+        if unlimited:   # the owner 2026-11-26: no money limit on his builds; the safety bound only (pricing.py)
+            provider_budget, budget_basis = FOUNDER_SAFETY_BUILD_USD, 'founder_safety_bound'
+        else:
+            provider_budget, budget_basis = m5_founder_build_budget(), 'founder_test'
     quote, components = _quote(provider_budget)
     if cost_class is not None:
         components = {**components, 'cost_class': getattr(cost_class, 'value', str(cost_class)),
                       'llm_class_cap_usd': str(class_cap), 'llm_budget_basis': budget_basis}
     if founder:
         components = {**components, 'founder_test': True}
+    if unlimited:
+        from .pricing import founder_safety_bounds
+        components = {**components, 'founder_no_build_limit': True, 'safety_bounds': founder_safety_bounds()}
     if funding == 'internal_qa' or exempt or founder:
         # Internal QA builds have no customer revenue by definition; they are
         # authorized against the internal QA caps (omni_prod.qa_budget) instead
@@ -1587,6 +1595,39 @@ def v28_me(request: Request) -> dict:
         return payload
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
+
+def _owner_cost_report(request: Request, days: int, scope: str) -> dict:
+    """The owner, 2026-11-26: what builds cost us. The founder account only (pricing.m5_founder_account): any other
+    signed-in account gets 403 before anything is read, no session gets 401. No account id, e-mail, prompt or project
+    id leaves (omni_prod.owner_costs)."""
+    try:
+        account = _v28.account(_v28_bearer(request))
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+    if not _founder(account.id):
+        raise HTTPException(403, 'This report is for the owner account only.')
+    if _v28_pool is None:
+        raise HTTPException(503, 'The cost report reads the durable database (PostgreSQL), which is not configured here.')
+    from .owner_costs import cost_report
+    from .pricing import _FOUNDER_DEFAULT
+    ids = {x.strip() for x in os.getenv('OMNI_FOUNDER_ACCOUNT_IDS', _FOUNDER_DEFAULT).split(',') if x.strip()}
+    try:
+        return cost_report(_v28_pool, days=days, scope=scope, founder_ids=ids)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.get('/api/v28/owner/costs')
+def v28_owner_costs(request: Request, days: int = 14, scope: str = 'all') -> dict:
+    return _owner_cost_report(request, days, scope)
+
+
+@app.get('/owner/costs', response_class=HTMLResponse)
+def owner_costs_page(request: Request, days: int = 14, scope: str = 'all'):
+    from .owner_costs import render_html
+    return HTMLResponse(render_html(_owner_cost_report(request, days, scope)),
+                        headers={'Cache-Control': 'private, no-store'})
+
 
 @app.get('/api/v28/me/subscription')
 def v28_subscription(request: Request) -> dict:

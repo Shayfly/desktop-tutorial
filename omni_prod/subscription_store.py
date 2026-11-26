@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from .db import DatabasePool
 from .pricing import PLAN_CATALOG, PlanCode, CostClass, UsageDecision, _COST_CLASS_ESTIMATE_USD, founder_cap_exempt
+from .pricing import founder_no_build_limit
 from .provider_pricing import contribution_evidence
 from .company_loss import BUDGET_CAPPED_SHORTFALL, record_failed_build, record_overrun
 
@@ -34,6 +35,14 @@ def _credit_limited(plan, user_id) -> bool:
     account is exempt from credits too, under the same flag (OMNI_FOUNDER_CAP_EXEMPT). Credits are still counted on the
     subscription row; the per-build $2 cap (pricing.m5_founder_build_budget) is not touched."""
     return bool(plan.included_credits) and not founder_cap_exempt(user_id)
+
+
+def _class_free(user_id) -> bool:
+    """The owner 2026-11-26: the plan's cost class does not stop a founder build or change request (a change request is
+    reserved as STANDARD, which Free and Amateur do not include). Production 2026-11-26, read-only: the founder account
+    is on Studio, which includes every class, so this changes nothing today; it keeps a plan change from stopping him.
+    Every other account keeps the check. OMNI_FOUNDER_NO_BUILD_LIMIT=0 restores it for the founder too."""
+    return founder_no_build_limit(user_id)
 
 
 def provider_exposure(cur, build_id: str) -> bool:
@@ -163,7 +172,8 @@ class PostgresSubscriptionService:
         user_billable = category not in {'system_bug','missing_requirement'}
         charge = credits if user_billable else 0
         reason = 'authorized'; allowed = True
-        if cc not in plan.allowed_cost_classes: allowed, reason = False, 'cost class not included in plan'
+        if cc not in plan.allowed_cost_classes and not _class_free(user_id):
+            allowed, reason = False, 'cost class not included in plan'
         elif _credit_limited(plan, user_id) and used + charge > plan.included_credits: allowed, reason = False, 'monthly credits exhausted'
         elif _capped(plan, user_id) and spend + estimate > plan.paid_provider_budget_usd: allowed, reason = False, 'paid-provider budget exhausted'
         return UsageDecision(
@@ -296,7 +306,7 @@ class PostgresSubscriptionService:
             return prior
 
         allowed, reason = True, 'authorized'
-        if cc not in plan.allowed_cost_classes:
+        if cc not in plan.allowed_cost_classes and not _class_free(user_id):
             allowed, reason = False, 'cost class not included in plan'
         elif _credit_limited(plan, user_id) and used + charge > plan.included_credits:
             allowed, reason = False, 'monthly credits exhausted'

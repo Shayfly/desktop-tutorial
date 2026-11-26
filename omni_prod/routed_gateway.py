@@ -157,8 +157,10 @@ class RoutedModelGateway:
             return {'cost_class': self.cost_class.value, 'allowed_models': before, 'excluded_models': [],
                     'task_only_models': {}, 'unrestricted': True}
         task_only = m5_task_only_models(self.cost_class)
+        # The owner 2026-11-26: a model whose price is unknown is not left out by the class ceiling (it cannot be
+        # compared); its calls are authorized at the stand-in worst case (model_catalog), so the class budget holds.
         self.ranked = tuple(m for m in catalog if m5_model_allowed(self.cost_class, m.option.output_per_million)
-                            or m.endpoint.name in task_only)
+                            or m.endpoint.name in task_only or not getattr(m.option, 'price_known', True))
         self.task_only = {m.endpoint.name: task_only[m.endpoint.name] for m in self.ranked
                           if m.endpoint.name in task_only
                           and not m5_model_allowed(self.cost_class, m.option.output_per_million)}
@@ -198,6 +200,38 @@ class RoutedModelGateway:
                 'effective_budget_usd': str(effective), 'worker_env_below_reservation': env_below,
                 'policy_version': self.policy_version}
 
+    def bind_call_limit(self, max_calls: int) -> dict:
+        """The owner 2026-11-26: a founder build's call bound (pricing.FOUNDER_SAFETY_CALLS_PER_BUILD) replaces the
+        worker's OMNI_EXTERNAL_CALLS_PER_BUILD for THIS gateway (one build or change request) only. The kill switches
+        and the budget stay as they are; a bound below 1 is refused."""
+        if isinstance(max_calls, bool) or not isinstance(max_calls, int) or max_calls < 1:
+            raise ValueError('the per-build call limit must be an integer of at least 1')
+        before = self.policy.max_external_calls_per_build
+        if max_calls != before:
+            self.policy = dataclasses.replace(self.policy, max_external_calls_per_build=max_calls)
+            p = self.policy
+            self.policy_version = content_version('model-use', p.zero_cost_mode, p.allow_external_fallback,
+                                                  str(p.external_budget_usd), p.max_external_calls_per_build)
+        return {'worker_env_calls_per_build': before, 'effective_calls_per_build': max_calls,
+                'policy_version': self.policy_version}
+
+    def _note_near_bounds(self) -> None:
+        """One log line per bound when this run passes pricing.SAFETY_NEAR_FRACTION of its call limit or of its model
+        budget (the owner 2026-11-26: the founder's safety bounds are logged when a build comes near them; every
+        other build gets the same line about its own limits). The list is kept for the build evidence."""
+        from .pricing import SAFETY_NEAR_FRACTION
+        seen = self.__dict__.setdefault('near_bounds', [])
+        named = {item['bound'] for item in seen}
+        for name, used, limit in (
+                ('external_calls', Decimal(self.state.external_calls), Decimal(self.policy.max_external_calls_per_build)),
+                ('external_spend_usd', Decimal(str(self.state.external_spend_usd)), Decimal(str(self.policy.external_budget_usd)))):
+            if name in named or limit <= 0 or used < limit * SAFETY_NEAR_FRACTION:
+                continue
+            seen.append({'bound': name, 'used': str(used), 'limit': str(limit)})
+            import logging
+            logging.getLogger(__name__).warning('BOUND_NEAR %s %s of %s (%s%% of the bound)', name, used, limit,
+                                                (used * 100 / limit).quantize(Decimal('1')))
+
     @property
     def last_usage(self):
         return self.usage.last
@@ -230,6 +264,8 @@ class RoutedModelGateway:
             state=self.state,
             estimated_cost_usd=route.max_estimated_cost_usd,
         )
+        if route.endpoint.external:
+            self._note_near_bounds()
         started = time.monotonic()
         gateway = None
         record = AttemptRecord(
@@ -539,6 +575,9 @@ class RoutedModelGateway:
             if not routes:
                 raise ModelGatewayError('no vision-capable model route for a call with images (eligible: '
                                         + ', '.join(r[0].endpoint.model for r in blind) + '; none in vision_models)')
+            # the owner 2026-11-26 (cost per stage): the attempt records say which calls were vision checks
+            n_images = len(kwargs.get('images') or ())
+            routes = [(r, k, f'{w}; vision call ({n_images} image(s))', o) for r, k, w, o in routes]
         if not routes:
             detail = '; '.join(f'{r.endpoint.model}: {w}' for r, w in refused)
             raise ModelGatewayError('no eligible model route for this request' + (f' ({detail})' if detail else ''))

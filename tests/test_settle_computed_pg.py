@@ -116,18 +116,48 @@ class SettleAtComputedCost(unittest.TestCase):
         self.check(FAILED, 'RELEASED')
 
     def test_no_number_at_all_settles_at_the_reservation_loudly(self):
+        # The owner 2026-11-26: an image with NO number (no price configured) is no longer settled at the whole
+        # reservation -- that recorded the reservation as the build's cost. It is left out of the measured sum and
+        # named (cost_data_missing); the reservation remains only for liability that cannot be bounded (below).
         b = dict(BUILDS[IMAGE_UNPRICED])
         b['capability_usage'] = [{**b['capability_usage'][0], 'estimated_cost_usd': None, 'maximum_cost_usd': None}]
         BUILDS['no_number'] = b
         try:
-            with self.assertLogs('omni_prod.worker_tasks', level='ERROR') as logs:
-                build_id, _, evidence, _ = self.run_build('no_number')
+            build_id, _, evidence, _ = self.run_build('no_number')
         finally:
             del BUILDS['no_number']
         _, _, settled, _ = self.row(build_id)
+        self.assertLess(settled, Decimal(b['estimate']))
+        self.assertEqual(evidence['provider_cost_truth'], 'COMPUTED_FROM_USAGE')
+        self.assertEqual(evidence['cost_basis']['settlement']['cost_data_missing'], ['capability:cap-media-image-generate'])
+        self.assertFalse(evidence['cost_record']['complete'])
+
+    def test_an_earlier_call_without_exposure_settles_at_the_reservation_loudly(self):
+        b = dict(BUILDS[IMAGE_UNPRICED])
+        BUILDS['lost_worker'] = b
+        try:
+            g = gateway(b)
+            g.prior_metered = {'calls': 1, 'metered_usd': Decimal('0'), 'unknown_calls': 1,
+                               'unknown_exposure_usd': Decimal('0')}
+            with self.assertLogs('omni_prod.worker_tasks', level='ERROR') as logs:
+                from omni_prod import worker_tasks
+                build_id = f"lost_{uuid.uuid4().hex[:6]}"
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        with conn.cursor() as cur:
+                            self.subs.reserve(cur, build_id=build_id, user_id=self.user, project_id='k',
+                                              cost_class='standard', credits=500,
+                                              estimated_provider_cost_usd=Decimal(b['estimate']))
+                _, evidence, _ = worker_tasks.resolve_m5_billing(
+                    self.subs, build_id=build_id, ready=b['ready'], gateway=g,
+                    capability_evidence={'usage': b['capability_usage']},
+                    economics_quote={'infrastructure_maximum_usd': '0'})
+        finally:
+            del BUILDS['lost_worker']
+        _, _, settled, _ = self.row(build_id)
         self.assertEqual(settled, Decimal(b['estimate']))
         self.assertEqual(evidence['provider_cost_truth'], 'CONSERVATIVE_RESERVATION')
-        self.assertEqual(evidence['cost_basis']['settlement']['missing'], ['capability:cap-media-image-generate'])
+        self.assertEqual(evidence['cost_basis']['settlement']['missing'], ['earlier_worker_unknown_call_without_exposure'])
         self.assertIn('SETTLEMENT_WITHOUT_MEASUREMENT', ' '.join(logs.output))
 
 

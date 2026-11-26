@@ -22,22 +22,27 @@ MODELS = frozenset(DIRECT_IMAGE_MODELS)
 MAX_BODY_BYTES = 32 * 1024 * 1024
 
 
+def price(env) -> Decimal | None:
+    """The per-image maximum when it is positive and source-backed (an https price page), else None: the price is
+    unknown. The owner 2026-11-26: an unknown price no longer blocks the provider; its cost is recorded as unknown."""
+    try:
+        maximum = Decimal(str(env.get('OMNI_GOOGLE_IMAGE_MAXIMUM_USD', '')).strip())
+    except InvalidOperation:
+        return None
+    source = str(env.get('OMNI_GOOGLE_IMAGE_PRICE_SOURCE', '')).strip()
+    return maximum if maximum.is_finite() and maximum > 0 and source.startswith('https://') else None
+
+
 def readiness(env):
     model = str(env.get('OMNI_GOOGLE_IMAGE_MODEL', '')).strip()
-    missing = [name for name in ('GEMINI_API_KEY', 'OMNI_GOOGLE_IMAGE_MAXIMUM_USD',
-                                'OMNI_GOOGLE_IMAGE_PRICE_SOURCE') if not str(env.get(name, '')).strip()]
+    missing = [name for name in ('GEMINI_API_KEY',) if not str(env.get(name, '')).strip()]
     if not model or missing:
         return {'status': 'NOT_CONFIGURED', 'reason': 'Direct Google image configuration is incomplete'}
     if model not in MODELS:
         return {'status': 'BLOCKED', 'reason': 'Unsupported direct Google image model'}
-    try:
-        maximum = Decimal(str(env['OMNI_GOOGLE_IMAGE_MAXIMUM_USD']))
-        valid_price = maximum.is_finite() and maximum > 0
-    except InvalidOperation:
-        valid_price = False
-    source = str(env.get('OMNI_GOOGLE_IMAGE_PRICE_SOURCE', ''))
-    if not valid_price or not source.startswith('https://'):
-        return {'status': 'BLOCKED', 'reason': 'A positive, source-backed per-image maximum is required'}
+    if price(env) is None:
+        return {'status': 'PARTIAL', 'reason': 'Configured without a positive, source-backed per-image price: images '
+                                               'are made and their cost is recorded as unknown; not live verified'}
     return {'status': 'PARTIAL', 'reason': 'Configured; direct generation is not live verified'}
 
 
@@ -57,8 +62,8 @@ class GoogleImageProvider:
         self.store = artifact_store
         from ..model_discovery import NoRedirect
         self.urlopen = urlopen or request.build_opener(NoRedirect()).open
-        self.maximum = Decimal(str(env['OMNI_GOOGLE_IMAGE_MAXIMUM_USD']))
-        self.price_source = str(env['OMNI_GOOGLE_IMAGE_PRICE_SOURCE'])
+        self.maximum = price(env)                       # None: the price is unknown (an unpriced quote)
+        self.price_source = str(env.get('OMNI_GOOGLE_IMAGE_PRICE_SOURCE', '')).strip()
 
     def capabilities(self):
         return (ProviderCapability('media.image.generate', ('image/png', 'image/jpeg', 'image/webp'),
@@ -70,6 +75,10 @@ class GoogleImageProvider:
     def quote(self, requirement):
         self._validate(requirement)
         count = Decimal(requirement.quantity)
+        if self.maximum is None:     # the owner 2026-11-26: runs; the cost is unknown (0 placeholders, never a price)
+            from ..provider_contracts import UNPRICED_PREFIX
+            return ProviderQuote(self.name, requirement.key, Decimal('0'), Decimal('0'),
+                                 UNPRICED_PREFIX + self.model + ':1K:no-price', 'image', count)
         return ProviderQuote(self.name, requirement.key, self.maximum * count, self.maximum * count,
                              self.model + ':1K:' + str(self.maximum) + ':' + self.price_source, 'image', count)
 

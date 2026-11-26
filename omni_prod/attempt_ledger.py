@@ -50,6 +50,8 @@ def metered_cost(option, input_tokens: int | None, output_tokens: int | None) ->
     """usage x catalog price. Unknown when the provider did not report tokens."""
     if option is None or input_tokens is None or output_tokens is None:
         return None
+    if not getattr(option, 'price_known', True):   # the owner 2026-11-26: a model without a price -> unknown, never 0
+        return None
     million = Decimal(1_000_000)
     return (Decimal(input_tokens) * option.input_per_million
             + Decimal(output_tokens) * option.output_per_million) / million
