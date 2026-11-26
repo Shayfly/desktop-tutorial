@@ -147,5 +147,100 @@ class TheRealFile(unittest.TestCase):
         self.assertNotIn('allowed.get(p)', wf)
 
 
+PNG = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR' + bytes(range(256))      # NUL bytes: git calls it binary
+TAR = b'\x1f\x8b\x08\x00' + bytes(range(255, -1, -1))
+
+
+def commit_bytes(repo, files: dict, remove=()) -> str:
+    for name, data in files.items():
+        p = Path(repo.dir) / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
+    for name in remove:
+        git(repo.dir, 'rm', '-q', name)
+    git(repo.dir, 'add', '-A')
+    git(repo.dir, 'commit', '-q', '-m', 'c')
+    return git(repo.dir, 'rev-parse', 'HEAD')
+
+
+class NoDeletingEvidence(unittest.TestCase):
+    """Law 6 (audit 2026-11-25): numstat gives a binary "-" for its lines, so a deleted or rewritten image or archive
+    under docs/evidence/ or smoke/ passed undeclared. Now it needs a declaration bound to the removed blob."""
+    def setUp(self):
+        self.repo = Repo()
+        self.anchor = commit_bytes(self.repo, {'docs/evidence/shot.png': PNG, 'smoke/run.tar.gz': TAR, 't.py': b'a\n'})
+
+    def blob(self, path):
+        return git(self.repo.dir, 'rev-parse', f'{self.anchor}:{path}')
+
+    def test_a_deleted_binary_evidence_file_fails_undeclared(self):
+        commit_bytes(self.repo, {}, remove=['docs/evidence/shot.png'])
+        self.assertEqual(DD.removed_binaries(self.anchor, cwd=self.repo.dir),
+                         {'docs/evidence/shot.png': self.blob('docs/evidence/shot.png')})
+        rc, out = run(self.repo, self.anchor, {})
+        self.assertEqual(rc, 1, out)
+        self.assertIn('::error title=no deleting evidence::binary docs/evidence/shot.png deleted or rewritten', out)
+
+    def test_the_same_deletion_declared_by_its_blob_and_signed_passes(self):
+        commit_bytes(self.repo, {}, remove=['docs/evidence/shot.png'])
+        rc, out = run(self.repo, self.anchor, {'docs/evidence/shot.png': [
+            {'reason': 'superseded screenshot', 'deleted_blob': self.blob('docs/evidence/shot.png'), **SIGNED}]})
+        self.assertEqual(rc, 0, out)
+        self.assertIn('::notice title=deletion (binary)::docs/evidence/shot.png: superseded screenshot', out)
+        self.assertIn('1 binary file(s) deleted or rewritten', out)
+
+    def test_a_rewritten_binary_needs_a_declaration_too(self):
+        commit_bytes(self.repo, {'smoke/run.tar.gz': TAR + b'\x00more'})
+        rc, out = run(self.repo, self.anchor, {})
+        self.assertEqual(rc, 1, out)
+        self.assertIn('binary smoke/run.tar.gz deleted or rewritten', out)
+        rc, out = run(self.repo, self.anchor, {'smoke/run.tar.gz': {
+            'reason': 'rerun archive', 'deleted_blob': self.blob('smoke/run.tar.gz'), **SIGNED}})
+        self.assertEqual(rc, 0, out)
+
+    def test_a_blob_declared_for_an_earlier_version_covers_nothing(self):
+        version = Path(self.repo.dir) / 'v0.png'                           # an earlier version's blob, never committed
+        version.write_bytes(PNG + b'v0')
+        earlier = git(self.repo.dir, 'hash-object', str(version))
+        version.unlink()
+        commit_bytes(self.repo, {}, remove=['docs/evidence/shot.png'])
+        rc, out = run(self.repo, self.anchor, {'docs/evidence/shot.png': {
+            'reason': 'an earlier version', 'deleted_blob': earlier, **SIGNED}})
+        self.assertEqual(rc, 1, out)
+        self.assertIn('binary docs/evidence/shot.png (deleted', out)
+
+    def test_a_line_digest_or_a_path_alone_covers_no_binary(self):
+        commit_bytes(self.repo, {}, remove=['docs/evidence/shot.png'])
+        for entry in ({'reason': 'digest of no lines', 'deleted_sha256': DD.digest([])},
+                      {'reason': 'any change, forever'}):
+            rc, out = run(self.repo, self.anchor, {'docs/evidence/shot.png': {**entry, **SIGNED}})
+            self.assertEqual(rc, 1, (entry, out))
+
+    def test_an_author_signed_binary_declaration_fails(self):
+        commit_bytes(self.repo, {}, remove=['smoke/run.tar.gz'])
+        rc, out = run(self.repo, self.anchor, {'smoke/run.tar.gz': {
+            'reason': 'old run', 'deleted_blob': self.blob('smoke/run.tar.gz'),
+            'author': 'codex', 'reviewer': 'codex', 'reviewed_at': '2026-11-25'}})
+        self.assertEqual(rc, 1, out)
+        self.assertIn('binary smoke/run.tar.gz: the declaration has no reviewer note', out)
+
+    def test_an_added_binary_needs_nothing_and_a_moved_one_is_a_deletion(self):
+        commit_bytes(self.repo, {'docs/evidence/new.png': PNG + b'new'})
+        rc, out = run(self.repo, self.anchor, {})
+        self.assertEqual(rc, 0, out)
+        git(self.repo.dir, 'mv', 'docs/evidence/shot.png', 'docs/evidence/moved.png')
+        commit_bytes(self.repo, {})
+        self.assertEqual(list(DD.removed_binaries(self.anchor, cwd=self.repo.dir)), ['docs/evidence/shot.png'])
+
+    def test_the_blob_helper_prints_what_to_declare_and_the_digest_helper_refuses_a_binary(self):
+        commit_bytes(self.repo, {}, remove=['docs/evidence/shot.png'])
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            DD.main([self.anchor, '--blob', 'docs/evidence/shot.png'], cwd=self.repo.dir)
+        self.assertEqual(out.getvalue().strip(), self.blob('docs/evidence/shot.png'))
+        with self.assertRaisesRegex(SystemExit, 'is binary'):
+            DD.main([self.anchor, '--digest', 'docs/evidence/shot.png'], cwd=self.repo.dir)
+
+
 if __name__ == '__main__':
     unittest.main()

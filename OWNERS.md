@@ -9,6 +9,43 @@
 
 Ownership is responsibility-based, not a permanent file-path prohibition. All changes require evidence and the review rules in `AGENTS.md`.
 
+## 2026-11-25 — the owner's plan v3, and his decisions of the same evening
+
+This section is the rule in force; the sections below it are the record of how it came to be (inbox/002, plan v3,
+part 1). The times are UTC. Where a later decision changed plan v3, the plan's wording is kept beside it.
+
+| Who | Does | Does not |
+|---|---|---|
+| Claude Code | executes every task of the plan: code, tests, CI, documentation, pull requests; merges a pull request under rule 1 | merge a head whose CI is not green on that exact SHA; sign a declaration in a person's name without the owner's instruction (CLAUDE.md §8) |
+| The owner (Shai) | decides money, providers, deletions, the customer's approval flow and what is in the warehouse; can stop or reverse any merge | — |
+
+1. **Merge conditions (the owner, 19:10):** CI green on the head SHA, and the owner's standing approval ("מאשר לך
+   הכול אתה יד ימיני"). Claude Code merges, and reports the SHA and the merge commit (CLAUDE.md §2).
+   - Plan v3 (19:28 local) also required a ChatGPT PASS on the same SHA and said Claude Code does not merge. The owner
+     cancelled that review at 19:10: "מבטל את הביקורת של מאט. אמרתי לך אני סומך עלייך שתעשה מה שצריך למען המטרה של
+     148AI". "Matt" is the independent reviewer of the tables below; in plan v3 that role was ChatGPT's.
+   - What replaces it is weaker and is named as such: before a merge Claude Code runs its own review of the branch by
+     separate reviewer agents and skeptics, and writes the result in the pull request. That is the author checking
+     its own work, not an independent approval (AGENTS.md, law 7).
+2. **One Claude Code session works on the repository.** On 2026-11-25 two sessions worked in parallel on the same
+   files (#529, session_01ERUbRcwv8hSRuXZnDuhCtB; #530, session_01ERUbRfJvVMhK1YSeUCTduG). The owner chose at 19:06:
+   "מאשר לך הכול, הכול אתה נבחרת לבנות לתקן לשדרג הכול אתה". session_01ERUbRcwv8hSRuXZnDuhCtB continues and takes
+   #530; the other session was idle and stops.
+3. **ChatGPT's open pull requests (#455, #526) moved to Claude Code:** reviewed, their worth moved to a new branch from
+   main, the old ones closed with a link and the reason.
+4. **Language with the owner:** plain Hebrew; whatever the owner must decide is one clear question with options. From
+   19:06: now and then, a plain explanation of what the work means in practice and how it affects the product.
+5. **Stop and ask the owner before:** a migration, a provider change, a change to the customer's approval flow, a
+   deletion in production, and spend that he has not already decided.
+6. **Open pull requests: no limit.** Plan v3 capped them at 3; the owner cancelled the cap at 19:05 ("מבטל את חוק
+   מגבלת ה-3 PR, מעכשיו זה ללא הגבלה").
+7. **The state mapping of the system map (S1.5)** is approved by the owner's word of 19:06, as put to him that hour.
+8. **Build cost limits and pricing are in the warehouse (the owner, 19:10):** "לגבי הגולדן כרגע אני מבטל הגבלת בניה
+   אלא רק ספירה. אחרי שאני יסיים כמה פרוייקטים אני ידע עלויות וידע מה לתמחר! עד אז להשאיר את הנושא במחסן!"
+   (WAREHOUSE.md, item 136). Until he takes it out: cost is counted, no new cost limit or price is built, and the
+   limits that exist in the code are not changed. Whether the live Golden E2E build (S1.2) runs meanwhile is an open
+   question to the owner; it is not run until he answers.
+
 ## 2026-11-21 — the owner: only Claude Code works
 
 The owner, 2026-11-21: "עזוב תעשה את כל המשימות שלו אתה של קודקס תמשיך אתה בנוסף לכל מה שיש לך לעשות ככה רק אתה עובד", and later
