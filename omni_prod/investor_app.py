@@ -76,7 +76,7 @@ from .product_architect import ProductArchitect
 from .capability_repository import PostgresCapabilityRepository
 from .capability_registry import CapabilityRegistry
 from .capabilities import CapabilityStatus
-from .preview_repository import PostgresPreviewRepository
+from .preview_repository import DEFAULT_TTL_SECONDS as _PREVIEW_DEFAULT_TTL, PostgresPreviewRepository
 from .preview_runtime import (NotPreviewable, PreviewBackendUnavailable, ensure_durable_workspace,
                               external_preview_url, parse_preview_contract, parse_web_saas_acceptance_plan)
 from .rights_ip import JURISDICTIONS
@@ -3002,7 +3002,8 @@ def v28_build_events(project_id: str, build_id: str, request: Request, after: in
 # may be on other hosts (see worker_tasks.py / queueing.preview_host_queue).
 #
 
-_PREVIEW_TTL_SECONDS = int(os.getenv('OMNI_PREVIEW_TTL_SECONDS', '3600'))
+# the owner, 2026-11-26: a day, not an hour (preview_repository.DEFAULT_TTL_SECONDS says what one preview holds)
+_PREVIEW_TTL_SECONDS = int(os.getenv('OMNI_PREVIEW_TTL_SECONDS', str(_PREVIEW_DEFAULT_TTL)))
 
 def _preview_public_view(preview: dict, public_project_id: str, acceptance: dict | None = None) -> dict:
     # Internal routing/runtime fields (container id, worker host/port, host

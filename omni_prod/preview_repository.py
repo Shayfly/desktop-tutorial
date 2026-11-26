@@ -1,5 +1,19 @@
 from __future__ import annotations
 
+# The owner, 2026-11-26 (WAREHOUSE 136, option a): a live preview lived one hour (OMNI_PREVIEW_TTL_SECONDS default 3600)
+# -- a limit that is not money. It lives a day. What one live preview holds, from the code (preview_runtime
+# .SECURITY_FLAGS) and the worker-host compose (infra/worker-host/docker-compose.yml): one container of python:3.11-slim
+# serving the generated app, capped at 0.5 CPU, 512 MiB of memory (its 64 MiB /tmp tmpfs counts inside that cap) and 64
+# processes, plus a small work directory on disk; the janitor stops it within 30 minutes of expiry
+# (OMNI_MAINTENANCE_INTERVAL_SECONDS=1800). ESTIMATE of what the one host carries (infra/worker-host/README_HE.md: Oracle
+# A1.Flex, 2 OCPU, 12 GB; not measured on the live host): with ~4 GB kept for the build worker, its sandbox and
+# browser containers, the intake workers, router, janitor and Caddy, 8 GB is left. At every container's 512 MiB CAP,
+# 16 previews fit at once; a content site's server idles at tens of MiB (estimate, not measured), so ~200 fit. CPU is a
+# cap, not a reservation: an idle preview uses next to none. With a 24-hour life the live count is the number of
+# previews launched in the last day, so 24 h is carried while launches stay under ~16 a day at the worst case and
+# ~200 a day at the typical one. A launch is never refused for this (no new limit): the CAPS stay what they were.
+DEFAULT_TTL_SECONDS = 86_400
+
 
 def _iso(value):
     if value is None:
