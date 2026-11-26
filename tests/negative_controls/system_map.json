@@ -35,7 +35,8 @@
     "tests/test_system_map.py"
    ],
    "expect_failed": [
-    "test_the_committed_map_is_what_the_code_gives",
+    "test_the_committed_docs_are_the_render_of_the_mapping",
+    "test_the_docs_never_read_the_inventory",
     "test_the_mapping_of_the_plan"
    ]
   },
@@ -53,7 +54,6 @@
     "tests/test_system_map.py"
    ],
    "expect_failed": [
-    "test_the_committed_map_is_what_the_code_gives",
     "test_the_mapping_of_the_plan"
    ]
   },
@@ -71,7 +71,8 @@
     "tests/test_system_map.py"
    ],
    "expect_failed": [
-    "test_the_committed_map_is_what_the_code_gives",
+    "test_the_committed_docs_are_the_render_of_the_mapping",
+    "test_the_docs_never_read_the_inventory",
     "test_the_mapping_of_the_plan"
    ]
   },
@@ -90,7 +91,8 @@
    ],
    "expect_failed": [
     "test_live_is_never_derived_here",
-    "test_the_committed_map_is_what_the_code_gives"
+    "test_the_committed_docs_are_the_render_of_the_mapping",
+    "test_the_docs_never_read_the_inventory"
    ]
   },
   {
@@ -99,16 +101,15 @@
    "mutations": [
     {
      "file": "omni_prod/system_map.py",
-     "old": "        elif m['connection_state'] == 'CONNECTION_TESTED':\n",
-     "new": "        elif m['credential_state'] == 'CREDENTIAL_PRESENT':  # NEGATIVE CONTROL\n"
+     "old": "    if m['connection_state'] == 'CONNECTION_TESTED':\n",
+     "new": "    if m.get('credential_state') == 'CREDENTIAL_PRESENT':  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
     "tests/test_system_map.py"
    ],
    "expect_failed": [
-    "test_a_credential_alone_is_not_connected",
-    "test_the_committed_map_is_what_the_code_gives"
+    "test_a_credential_alone_is_not_connected"
    ]
   },
   {
@@ -126,7 +127,272 @@
    ],
    "expect_failed": [
     "test_relative_imports_resolve_as_python_does",
-    "test_the_committed_map_is_what_the_code_gives"
+    "test_the_env_reader_on_synthetic_modules"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a tested connection or a verification wins over BLOCKED / no credit (finding 3, 11)",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "    if blocked:\n        return blocked[0][0], [f'{field} {word}' for word, field in blocked]\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n        return blocked[0][0], [f'{field} {word}' for word, field in blocked]\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_blocked_wins_over_connection_and_verification",
+    "test_no_blocked_model_of_the_matrix_is_connected_or_verified"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a role with unit tests only stays CONNECTED (finding 3)",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "    if lifecycle == 'CONNECTED' and binding is not None and not binding.config:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_a_role_with_unit_tests_only_is_not_connected"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the APIRouter prefix is ignored (finding 4, 16)",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "                    prefixes = [p + routers[owner] for p in included.get((mod, owner), [''])]\n",
+     "new": "                    prefixes = ['']  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_endpoints_carry_the_router_prefix"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "an include_router prefix the map cannot resolve is skipped silently",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "            if found is None:\n                raise ValueError(f'system_map: {rel}:{node.lineno} include_router",
+     "new": "            if found is None:  # NEGATIVE CONTROL\n                continue\n                raise ValueError(f'system_map: {rel}:{node.lineno} include_router"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_endpoints_carry_the_router_prefix"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "a queue-name prefix is listed as a queue (finding 4)",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "        names += [{'name': q, 'defined_in': rel} for q in found if not q.endswith('-')]\n",
+     "new": "        names += [{'name': q, 'defined_in': rel} for q in found]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_a_queue_prefix_is_not_a_queue"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "an env name held in a module constant is not resolved (finding 2, 10)",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "            found = self.module.constant(node.id)\n",
+     "new": "            found = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_environment_names_through_constants_helpers_and_mappings",
+    "test_the_env_reader_on_synthetic_modules"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "names passed to the package's env helpers are not followed (finding 2, 10)",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "        for node, callee in scope.package_calls:\n            sites += _helper_args(node, callee, helpers)\n",
+     "new": "        for node, callee in scope.package_calls:  # NEGATIVE CONTROL\n            pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_environment_names_through_constants_helpers_and_mappings",
+    "test_the_env_reader_on_synthetic_modules"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "an injected env mapping (env.get) is not read (finding 2, 10); the published method no longer matches the reader",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "_ENV_MAPPINGS = frozenset(ENV_MAPPINGS)\n",
+     "new": "_ENV_MAPPINGS = frozenset({'os.environ', 'environ'})  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_environment_names_through_constants_helpers_and_mappings",
+    "test_the_env_reader_reads_through_every_mapping",
+    "test_the_method_names_every_getter_and_mapping_the_reader_uses"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "a loop over a helper parameter gives no names",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "            markers = {m + '[]' for m in markers}        # a loop over a parameter: each element is a name\n",
+     "new": "            return  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_the_env_reader_on_synthetic_modules"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "the committed docs depend on the inventory again (finding 1, 9, 18)",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "    added = len(MAPPING_DECISIONS) - RULES_ADDED_AFTER_APPROVAL\n",
+     "new": "    added = len(MAPPING_DECISIONS) - RULES_ADDED_AFTER_APPROVAL + 0 * len(build()['endpoints'])  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_the_docs_never_read_the_inventory"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "the full map holds the time it was built (not reproducible)",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "        'schema': SCHEMA,\n",
+     "new": "        'schema': SCHEMA, 'built_at': __import__('time').time(),  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_building_twice_gives_the_same_map"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "the CI step that publishes the map may fail silently",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - name: System map (the artifact system-map and the run summary)\n        if: success() || failure()\n",
+     "new": "      - name: System map (the artifact system-map and the run summary)\n        if: success() || failure()\n        continue-on-error: true  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_ci_publishes_it_on_every_push_and_pull_request"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "review 2026-11-26, finding 12: the published method names a fixed list of mappings again (environment and self.environ are read but not named)",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "              + ', '.join(ENV_MAPPINGS) + ') by '",
+     "new": "              + 'os.environ, environ, env, self.env, self._env' + ') by '  # NEGATIVE CONTROL\n             "
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_the_committed_docs_are_the_render_of_the_mapping",
+    "test_the_docs_never_read_the_inventory",
+    "test_the_method_names_every_getter_and_mapping_the_reader_uses"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "review 2026-11-26, finding 12: the reader no longer reads through environment and self.environ",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "ENV_MAPPINGS = ('os.environ', 'environ', 'env', 'environment', 'self.env', 'self._env', 'self.environ')",
+     "new": "ENV_MAPPINGS = ('os.environ', 'environ', 'env', 'self.env', 'self._env')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_the_committed_docs_are_the_render_of_the_mapping",
+    "test_the_docs_never_read_the_inventory",
+    "test_the_env_reader_reads_through_every_mapping"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "review 2026-11-26, finding 12: the summary of a pull request run names GitHub's merge commit as if it were the head",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "        if event == 'pull_request':\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_the_command_line_writes_the_map_and_the_summary",
+    "test_the_summary_says_which_commit_it_maps"
    ]
   }
  ]
