@@ -9,10 +9,17 @@
 
 Ownership is responsibility-based, not a permanent file-path prohibition. All changes require evidence and the review rules in `AGENTS.md`.
 
+> **Note, 2026-11-25 (the owner's decision governs merges now):** the independent review is cancelled and Claude Code
+> merges on the owner's standing approval with CI green on the exact head SHA (rule 1 of the section below;
+> inbox/002). The table above and the review rules of `AGENTS.md` it points to are kept as the record of the earlier
+> rule; where they ask for an independent verifier, rule 1 governs.
+
 ## 2026-11-25 — the owner's plan v3, and his decisions of the same evening
 
-This section is the rule in force; the sections below it are the record of how it came to be (inbox/002, plan v3,
-part 1). The times are UTC. Where a later decision changed plan v3, the plan's wording is kept beside it.
+This section is the rule in force; the sections below it are the record of how it came to be. The owner's words are
+in inbox/002 (plan v3 verbatim, and every message quoted here, with the minute it was sent); the quotes
+below are shortened or normalised in spacing and punctuation, and inbox/002 has them exactly. The times are UTC. Where a
+later decision changed plan v3, the plan's wording is kept beside it.
 
 | Who | Does | Does not |
 |---|---|---|
@@ -23,28 +30,40 @@ part 1). The times are UTC. Where a later decision changed plan v3, the plan's w
    הכול אתה יד ימיני"). Claude Code merges, and reports the SHA and the merge commit (CLAUDE.md §2).
    - Plan v3 (19:28 local) also required a ChatGPT PASS on the same SHA and said Claude Code does not merge. The owner
      cancelled that review at 19:10: "מבטל את הביקורת של מאט. אמרתי לך אני סומך עלייך שתעשה מה שצריך למען המטרה של
-     148AI". "Matt" is the independent reviewer of the tables below; in plan v3 that role was ChatGPT's.
+     148AI". "Matt" is the independent reviewer of the table at the top of this file; in plan v3 that role was
+     ChatGPT's.
    - What replaces it is weaker and is named as such: before a merge Claude Code runs its own review of the branch by
      separate reviewer agents and skeptics, and writes the result in the pull request. That is the author checking
      its own work, not an independent approval (AGENTS.md, law 7).
 2. **One Claude Code session works on the repository.** On 2026-11-25 two sessions worked in parallel on the same
-   files (#529, session_01ERUbRcwv8hSRuXZnDuhCtB; #530, session_01ERUbRfJvVMhK1YSeUCTduG). The owner chose at 19:06:
+   files (#529, session_01ERUbRcwv8hSRuXZnDuhCtB; #530, session_01ERUbRfJvVMhK1YSeUCTduG). The owner chose at 19:04:
    "מאשר לך הכול, הכול אתה נבחרת לבנות לתקן לשדרג הכול אתה". session_01ERUbRcwv8hSRuXZnDuhCtB continues and takes
    #530; the other session was idle and stops.
 3. **ChatGPT's open pull requests (#455, #526) moved to Claude Code:** reviewed, their worth moved to a new branch from
    main, the old ones closed with a link and the reason.
 4. **Language with the owner:** plain Hebrew; whatever the owner must decide is one clear question with options. From
-   19:06: now and then, a plain explanation of what the work means in practice and how it affects the product.
-5. **Stop and ask the owner before:** a migration, a provider change, a change to the customer's approval flow, a
-   deletion in production, and spend that he has not already decided.
-6. **Open pull requests: no limit.** Plan v3 capped them at 3; the owner cancelled the cap at 19:05 ("מבטל את חוק
+   19:04: now and then, a plain explanation of what the work means in practice and how it affects the product.
+5. **Stop and ask the owner before:** a provider change, a change to the customer's approval flow, and spend that he
+   has not already decided. Until 21:54 this rule also named a migration and a deletion in production; those are now
+   rule 9.
+6. **Open pull requests: no limit.** Plan v3 capped them at 3; the owner cancelled the cap at 18:57 ("מבטל את חוק
    מגבלת ה-3 PR, מעכשיו זה ללא הגבלה").
-7. **The state mapping of the system map (S1.5)** is approved by the owner's word of 19:06, as put to him that hour.
+7. **The state mapping of the system map (S1.5)** is approved by the owner's general approval of 19:04 ("מאשר לך
+   הכול , הכול אתה נבחרת לבנות לתקן לשדרג הכול אתה!!"), not by a word on the table itself. The rules the review of
+   #532 added later (blocked wins over a tested connection; a role with unit tests only is not CONNECTED; the words
+   INSUFFICIENT_CREDIT and CREDIT_EXHAUSTED) rest on his standing approval of rule 1; docs/SYSTEM_MAP.md marks them.
 8. **Build cost limits and pricing are in the warehouse (the owner, 19:10):** "לגבי הגולדן כרגע אני מבטל הגבלת בניה
    אלא רק ספירה. אחרי שאני יסיים כמה פרוייקטים אני ידע עלויות וידע מה לתמחר! עד אז להשאיר את הנושא במחסן!"
    (WAREHOUSE.md, item 136). Until he takes it out: cost is counted, no new cost limit or price is built, and the
    limits that exist in the code are not changed. Whether the live Golden E2E build (S1.2) runs meanwhile is an open
    question to the owner; it is not run until he answers.
+9. **SQL, migrations and deletions on production are approved (the owner, 21:54 and 21:55):** "אז אני מאשר לך אמרתי
+   לך כבר גם לגבי הצהרות אני מאשר גם sql", and "אם צריך לעשות מחיקה תעשה אתה מבין בזה". Every such write, a
+   deletion included, still goes through CLAUDE.md section 5, in its order: a Neon backup branch
+   `backup-before-<what>-<date>`, a dry count of the rows, one transaction that verifies the old value of every row,
+   and a separate verification query. Each deletion is reported to the owner: the table, the rows and their count, the
+   backup branch, and the old values. The same messages approve the declarations Claude Code types in his name
+   (CLAUDE.md section 8), each with its `signature_note`.
 
 ## 2026-11-21 — the owner: only Claude Code works
 
