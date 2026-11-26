@@ -121,8 +121,7 @@ class _MainImage:
         self.source = (data, mime)
         r = rendition(data, mime, place=place, label=f'upload {index}')
         self.rendition = record(r)
-        if r['changed']:
-            self.data, self.mime, self.width, self.height = r['data'], r['mime'], r['width'], r['height']
+        self.data, self.mime, self.width, self.height = r['data'], r['mime'], r['width'], r['height']
         # warehouse 118: the page references the photo as a file (assets/148ai-upload-<n>.<ext>), never its bytes
         from .repository_assets import CarriedImage, asset_path
         self.carried = CarriedImage(self.marker, asset_path('upload', index, self.mime), self.data, self.mime)

@@ -230,8 +230,7 @@ def collect(*, plan, evidence: dict | None, store, prompt: str) -> list[Generate
         source = (data, mime)
         light = rendition(data, mime, place='icon' if _kind(purposes.get(rid, 'image')) == 'icon' else 'hero',
                           label=f'generated {index}')
-        if light['changed']:
-            data, mime, width, height = light['data'], light['mime'], light['width'], light['height']
+        data, mime, width, height = light['data'], light['mime'], light['width'], light['height']
         _LOG.info('GENERATED_IMAGE index=%s changed=%s bytes=%s original_bytes=%s size=%sx%s step=%s', index,
                   light['changed'], len(data), light['original_bytes'], width, height, light['step'])
         seen[rid] = seen.get(rid, 0) + 1

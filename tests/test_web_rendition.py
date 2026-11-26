@@ -11,6 +11,7 @@ import functools
 import hashlib
 import io
 import json
+import numbers
 import random
 import struct
 import unittest
@@ -19,7 +20,7 @@ import zlib
 from pathlib import Path
 from types import SimpleNamespace
 
-from PIL import Image, ImageCms, ImageDraw, ImageOps, PngImagePlugin
+from PIL import Image, ImageCms, ImageDraw, ImageOps, ImageStat, PngImagePlugin
 
 from omni_prod import generated_images as G
 from omni_prod import web_rendition as W
@@ -393,14 +394,110 @@ class TheSimilarityMeasure(unittest.TestCase):
         self.assertLess(W.ssim(src, self.webp(src, 10)), W.ssim(src, self.webp(src, 90)))
 
     def test_a_change_one_background_hides_is_seen_on_the_other(self):
-        white_square = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
-        ImageDraw.Draw(white_square).rectangle((16, 16, 47, 47), fill=(255, 255, 255, 255))
         gone = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
-        self.assertLess(W.ssim(white_square, gone), 0.9)                       # on black the square is plain to see
+        for colour in ((255, 255, 255, 255), (0, 0, 0, 255)):        # hidden on white, then hidden on black
+            with self.subTest(colour=colour):
+                square = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
+                ImageDraw.Draw(square).rectangle((16, 16, 47, 47), fill=colour)
+                hidden_on = (255, 255, 255, 255) if colour[0] == 255 else (0, 0, 0, 255)
+                self.assertEqual(W._window_ssim(W._luma(square, hidden_on), W._luma(gone, hidden_on)), 1.0)
+                self.assertLess(W.ssim(square, gone), 0.9)                     # the other background shows it
 
     def test_different_sizes_raise(self):
         with self.assertRaises(ValueError):
             W.ssim(Image.new('RGB', (10, 10)), Image.new('RGB', (10, 11)))
+
+
+def exif_with_orientation(kind):
+    """A little-endian EXIF block whose only tag is Orientation (6), stored as UNDEFINED (bytes) or RATIONAL (6/1)."""
+    head = b'Exif\x00\x00II*\x00' + struct.pack('<I', 8)
+    if kind == 'undefined':
+        return head + struct.pack('<H', 1) + struct.pack('<HHI', 0x0112, 7, 2) + b'\x06\x00\x00\x00' + b'\x00' * 4
+    return (head + struct.pack('<H', 1) + struct.pack('<HHII', 0x0112, 5, 1, 26) + b'\x00' * 4
+            + struct.pack('<II', 6, 1))
+
+
+def adobe_like_profile():
+    """An ICC v2 RGB profile with Adobe RGB (1998)-like primaries and gamma 2.2 (the reviewer's probe adobe_icc.py)."""
+    def s15(v):
+        return struct.pack('>i', int(round(v * 65536)))
+
+    def xyz(x, y, z):
+        return b'XYZ ' + b'\0' * 4 + s15(x) + s15(y) + s15(z)
+    curv = b'curv' + b'\0' * 4 + struct.pack('>IH', 1, 563) + b'\0\0'
+    name = b'Test AdobeRGB-like\0'
+    desc = b'desc' + b'\0' * 4 + struct.pack('>I', len(name)) + name + struct.pack('>II', 0, 0) + struct.pack('>HB', 0, 0) \
+        + b'\0' * 67
+    tags = [(b'desc', desc), (b'cprt', b'text' + b'\0' * 4 + b'none\0'), (b'wtpt', xyz(0.9642, 1.0, 0.8249)),
+            (b'rXYZ', xyz(0.60974, 0.31111, 0.01947)), (b'gXYZ', xyz(0.20528, 0.62567, 0.06087)),
+            (b'bXYZ', xyz(0.14919, 0.06322, 0.74457)), (b'rTRC', curv), (b'gTRC', curv), (b'bTRC', curv)]
+    off = 128 + 4 + 12 * len(tags)
+    table, body = struct.pack('>I', len(tags)), b''
+    for sig, data in tags:
+        while (off + len(body)) % 4:
+            body += b'\0'
+        table += sig + struct.pack('>II', off + len(body), len(data))
+        body += data
+    hdr = (struct.pack('>I', off + len(body)) + b'\0' * 4 + struct.pack('>I', 0x02100000) + b'mntrRGB XYZ ' + b'\0' * 12
+           + b'acsp' + b'\0' * 28 + s15(0.9642) + s15(1.0) + s15(0.8249) + b'\0' * 48)
+    return hdr + table + body
+
+
+class TheReviewOf2026_11_26(unittest.TestCase):
+    """The independent review of e07f74b: three findings, each with the case that showed it."""
+
+    def jpeg_with(self, exif):
+        out = io.BytesIO()
+        textured((300, 200)).save(out, 'JPEG', quality=90, exif=exif)
+        return out.getvalue()
+
+    def test_an_odd_rotation_tag_type_cannot_wipe_the_build_evidence(self):
+        for kind, stored in (('undefined', bytes), ('rational', numbers.Rational)):
+            with self.subTest(kind=kind):
+                data = self.jpeg_with(exif_with_orientation(kind))
+                self.assertIsInstance(Image.open(io.BytesIO(data)).getexif().get(0x0112), stored)   # what the file has
+                img = _MainImage(data, 'image/jpeg', hashlib.sha256(data).hexdigest(), 'x', index=1, place='hero')
+                self.assertIn(img.rendition['removed']['orientation'], (6, None))
+                report = W.report(SimpleNamespace(core=SimpleNamespace(uploaded_images=[img])))
+                self.assertEqual(json.loads(json.dumps(report))['images'][0]['removed'], img.rendition['removed'])
+
+    def test_a_malformed_file_is_refused_by_name(self):
+        out = io.BytesIO()
+        textured((300, 200)).save(out, 'PNG')
+        truncated = out.getvalue()[:len(out.getvalue()) // 2]
+        out = io.BytesIO()
+        textured((300, 200)).save(out, 'WEBP', quality=90, exif=b'Exif\x00\x00' + b'\xde\xad' * 40)
+        for data, mime in ((truncated, 'image/png'), (out.getvalue(), 'image/webp')):
+            with self.subTest(mime=mime), self.assertRaises(W.RenditionError) as ctx:
+                W.rendition(data, mime)
+            self.assertIn('could not be read', str(ctx.exception))
+
+    def test_a_wide_gamut_profile_is_converted_to_srgb(self):
+        out = io.BytesIO()
+        Image.new('RGB', (64, 64), (40, 160, 60)).save(out, 'PNG', icc_profile=adobe_like_profile())
+        r = W.rendition(out.getvalue(), 'image/png', place='icon')
+        self.assertEqual(r['icc'], 'converted to sRGB')
+        r_, g_, b_ = decoded(r).convert('RGB').getpixel((32, 32))
+        self.assertGreater(abs(r_ - 40) + abs(g_ - 160) + abs(b_ - 60), 20, (r_, g_, b_))   # the colours moved
+
+    def test_the_search_never_goes_below_quality_60(self):
+        sky = Image.linear_gradient('L').resize((1200, 800))
+        out = io.BytesIO()
+        Image.merge('RGB', (sky.point(lambda v: 70 + v // 4), sky.point(lambda v: 120 + v // 5),
+                            sky.point(lambda v: 210 - v // 8))).save(out, 'PNG')
+        r = W.rendition(out.getvalue(), 'image/png')
+        tried = [row['quality'] for row in r['candidates'] if row['quality'] is not None]
+        self.assertGreaterEqual(min(tried), 60, tried)        # 60, not the constant: a smooth sky passes far lower
+        self.assertGreaterEqual(r['quality'] or 100, 60)
+
+    def test_a_16_bit_grey_picture_keeps_its_brightness(self):
+        grad = Image.linear_gradient('L').resize((400, 300))
+        out = io.BytesIO()
+        grad.convert('I').point(lambda v: v * 257).convert('I;16').save(out, 'PNG')
+        self.assertIn(Image.open(io.BytesIO(out.getvalue())).mode, ('I;16', 'I'))
+        r = W.rendition(out.getvalue(), 'image/png')
+        got = ImageStat.Stat(decoded(r).convert('L')).mean[0]
+        self.assertAlmostEqual(got, ImageStat.Stat(grad).mean[0], delta=2)
 
 
 class AGeneratedImageGoesTheSameWay(unittest.TestCase):

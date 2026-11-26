@@ -24,17 +24,22 @@
     "tests/test_web_rendition.py"
    ],
    "expect_failed": [
+    "test_a_16_bit_grey_picture_keeps_its_brightness",
     "test_a_budget_that_cannot_be_met_is_said_not_refused",
     "test_a_decompression_bomb_is_refused_before_it_is_decoded",
     "test_a_file_that_is_not_an_image",
     "test_a_light_phone_photo_reaches_the_page_and_the_export_without_its_gps",
+    "test_a_malformed_file_is_refused_by_name",
     "test_a_phone_jpeg_with_a_second_picture_is_a_still_photo",
     "test_a_png_with_an_exif_chunk_and_text_is_cleaned_too",
+    "test_a_wide_gamut_profile_is_converted_to_srgb",
     "test_an_animated_image_is_refused",
+    "test_an_odd_rotation_tag_type_cannot_wipe_the_build_evidence",
     "test_bytes_that_are_not_the_type_they_say",
     "test_it_never_enlarges",
     "test_the_build_evidence_has_every_image_with_both_digests_and_the_measure",
     "test_the_page_fits_its_budget_and_every_file_is_the_new_bytes",
+    "test_the_search_never_goes_below_quality_60",
     "test_transparency_is_kept"
    ]
   },
@@ -114,8 +119,8 @@
    "mutations": [
     {
      "file": "omni_prod/web_rendition.py",
-     "old": "    upright = ImageOps.exif_transpose(img)                  # a phone photo is stored sideways with a rotation tag\n",
-     "new": "    upright = img   # NEGATIVE CONTROL: the rotation tag is ignored\n"
+     "old": "        upright = ImageOps.exif_transpose(img)              # a phone photo is stored sideways with a rotation tag\n",
+     "new": "        upright = img   # NEGATIVE CONTROL: the rotation tag is ignored\n"
     }
    ],
    "targets": [
@@ -352,6 +357,92 @@
    ],
    "expect_failed": [
     "test_the_small_entry_point_takes_bytes_and_a_target"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "the record keeps the raw rotation tag (bytes or a rational): the build evidence cannot be serialised",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "    return {'exif': len(exif) > 0, 'gps': gps, 'orientation': _orientation(exif.get(0x0112)),\n",
+     "new": "    return {'exif': len(exif) > 0, 'gps': gps, 'orientation': exif.get(0x0112),   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_an_odd_rotation_tag_type_cannot_wipe_the_build_evidence"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "a broken metadata block escapes as OSError / SyntaxError instead of a named RenditionError",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        gps = bool(exif.get_ifd(0x8825))\n    except Exception as exc:\n",
+     "new": "        gps = bool(exif.get_ifd(0x8825))\n    except ZeroDivisionError as exc:   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_malformed_file_is_refused_by_name"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "the colours are not converted to sRGB from the embedded profile",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "    if icc:\n        try:\n",
+     "new": "    if False:   # NEGATIVE CONTROL\n        try:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_wide_gamut_profile_is_converted_to_srgb",
+    "test_nothing_of_the_file_but_the_picture_is_left"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "the quality floor is gone (QUALITY_FLOOR = 1)",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "QUALITY_FLOOR = 60 ",
+     "new": "QUALITY_FLOOR = 1 "
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_the_search_never_goes_below_quality_60"
+   ]
+  },
+  {
+   "id": "NC23",
+   "what": "a 16-bit grey picture is not scaled to 8 bits (it clips to white)",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        factor = 255 / top if top > 255 or (upright.mode == 'F' and 0 < top <= 1) else 1\n",
+     "new": "        factor = 1   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_16_bit_grey_picture_keeps_its_brightness"
    ]
   }
  ]

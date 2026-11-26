@@ -7,7 +7,8 @@ and its export zip (a privacy defect, measured on main fa41a5d: the GPS block, m
 page's file and from the zip) -- and a heavier one went through six fixed steps, past which the BUILD STOPPED.
 
 Now every image the platform puts in a page -- the customer's photos (uploaded_assets._MainImage) and the generated
-images (generated_images.collect) -- is converted. Nothing is carried as uploaded:
+images (generated_images.collect) -- is converted; none of them is carried as uploaded. (The uploaded LOGO is not
+one of them: uploaded_assets.logo_transform still carries it as uploaded, metadata included -- open.)
 
 1. Read. A file that is not an image, an animated image or a decompression bomb is refused by name (RenditionError).
    A phone JPEG with a second picture in it (MPO: a depth map, a gain map) is a still photo: its first picture is used.
@@ -55,6 +56,7 @@ import hashlib
 import io
 import logging
 import math
+import numbers
 import time
 
 BUDGET_BYTES = 360_000          # one image, as carried: 480,000 base64 characters, under perf_inline_image_weight's 500,000
@@ -172,10 +174,25 @@ def _open(data: bytes, mime: str):
     return img
 
 
+def _orientation(value) -> int | None:
+    """The rotation tag as the record keeps it: an int, or None. A file may store the tag as UNDEFINED (bytes) or
+    RATIONAL (an IFDRational); either would make the build evidence unserialisable (json.dumps fails, and
+    dumps_evidence_for_terminal_state then replaces ALL the evidence with an error marker -- review 2026-11-26)."""
+    if isinstance(value, bool) or not isinstance(value, numbers.Real):
+        return None
+    number = float(value)
+    return int(number) if number.is_integer() else None
+
+
 def _facts(img) -> dict:
-    """What the original carried that the page does not: said in the record."""
-    exif = img.getexif()
-    return {'exif': len(exif) > 0, 'gps': bool(exif.get_ifd(0x8825)), 'orientation': exif.get(0x0112),
+    """What the original carried that the page does not: said in the record. Reading the metadata may decode the file
+    (a PNG's eXIf chunk) or parse a broken EXIF block: any failure there is a named RenditionError."""
+    try:
+        exif = img.getexif()
+        gps = bool(exif.get_ifd(0x8825))
+    except Exception as exc:
+        raise RenditionError(f'the image could not be read as an image ({type(exc).__name__} in its metadata)') from exc
+    return {'exif': len(exif) > 0, 'gps': gps, 'orientation': _orientation(exif.get(0x0112)),
             'xmp': any(k in img.info for k in ('xmp', 'XML:com.adobe.xmp')), 'icc': bool(img.info.get('icc_profile')),
             'comment': 'comment' in img.info,
             'text': sorted(k for k in img.info if isinstance(img.info.get(k), str)
@@ -200,7 +217,10 @@ def _source(img, side: int):
     except Exception as exc:
         raise RenditionError(f'the image could not be read as an image ({type(exc).__name__})') from exc
     icc = img.info.get('icc_profile')
-    upright = ImageOps.exif_transpose(img)                  # a phone photo is stored sideways with a rotation tag
+    try:
+        upright = ImageOps.exif_transpose(img)              # a phone photo is stored sideways with a rotation tag
+    except Exception as exc:
+        raise RenditionError(f'the image could not be read as an image ({type(exc).__name__} in its metadata)') from exc
     if upright.mode == 'F' or upright.mode == 'I' or upright.mode.startswith('I;16'):   # 16-bit grey: to 8 bits
         upright = upright if upright.mode == 'F' else upright.convert('I')
         top = upright.getextrema()[1]
