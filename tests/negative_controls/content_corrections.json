@@ -93,8 +93,8 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/agents.py",
-     "old": "                'output_room': {'characters': int(output_maximum(self.agent.gateway) * CHARS_PER_TOKEN_ESTIMATE),",
-     "new": "                'output_room_off': {'characters': int(output_maximum(self.agent.gateway) * CHARS_PER_TOKEN_ESTIMATE),"
+     "old": "                'output_room': {'characters': int(output_maximum(gateway) * CHARS_PER_TOKEN_ESTIMATE),",
+     "new": "                'output_room_off': {'characters': int(output_maximum(gateway) * CHARS_PER_TOKEN_ESTIMATE),"
     }
    ],
    "targets": [
