@@ -44,19 +44,23 @@
   },
   {
    "id": "NC3",
-   "what": "the page-weight budget is not enforced",
+   "what": "the page-weight budget is not enforced: since S2 (the owner, 2026-11-26: no image cap) it is enforced by fitting the pictures to it with the image-weight converter before any code, not by refusing the page",
    "mutations": [
     {
      "file": "omni_prod/a4/__init__.py",
-     "old": "    if total > PAGE_IMAGE_BUDGET_BYTES:\n",
-     "new": "    if False:\n"
+     "old": "    core.image_fit = _fit_page(core, uploaded, generated)      # S2: before the plan; in image_weight.page_fit\n",
+     "new": "    core.image_fit = None  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
-    "tests/test_a4_asset_plan.py"
+    "tests/test_a4_asset_plan.py",
+    "tests/test_page_image_weight.py"
    ],
    "expect_failed": [
-    "test_what_cannot_be_planned_stops_the_build"
+    "test_a_fit_that_cannot_run_is_said_and_the_build_goes_on",
+    "test_a_fit_that_fails_half_way_says_what_it_did",
+    "test_a_page_over_the_budget_is_fitted_before_any_code_and_the_build_goes_on",
+    "test_what_cannot_fit_is_carried_and_said_never_a_failure"
    ]
   },
   {

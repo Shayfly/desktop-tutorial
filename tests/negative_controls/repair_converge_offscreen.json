@@ -1,0 +1,204 @@
+{
+ "pr": "repair-converge (part 3: an element parked off-screen on a right-to-left page, bld_cb2d1b90a90f430c98603d14f8afa1a8)",
+ "sha256": [
+  "tests/test_offscreen_rtl.py",
+  "tests/test_visual_qa.py",
+  "tests/fixtures/visual/offscreen_app.py",
+  "omni_prod/offscreen.py",
+  "omni_prod/consistency_gate.py",
+  "omni_prod/visual_qa.py",
+  "omni_prod/skills_runtime.py",
+  "omni_prod/worker_tasks.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "envs": ["browser"],
+   "what": "no_mobile_viewport is inferred from the layout width again: a zoomed-out page WITH a meta viewport is called one without",
+   "mutations": [
+    {
+     "file": "omni_prod/visual_qa.py",
+     "old": "  if (mobile && !metaOk) add('no_mobile_viewport', meta,",
+     "new": "  if (mobile && vw > screen.width + 2) add('no_mobile_viewport', meta,"
+    }
+   ],
+   "targets": [
+    "tests/test_visual_qa.py"
+   ],
+   "expect_failed": [
+    "test_a_page_with_a_meta_viewport_is_never_called_one_without"
+   ]
+  },
+  {
+   "id": "NC2",
+   "envs": ["browser"],
+   "what": "h_overflow names no element again: the repair has no target",
+   "mutations": [
+    {
+     "file": "omni_prod/visual_qa.py",
+     "old": "    add('h_overflow', worst, 'page width '",
+     "new": "    add('h_overflow', null, 'page width '"
+    }
+   ],
+   "targets": [
+    "tests/test_visual_qa.py"
+   ],
+   "expect_failed": [
+    "test_the_element_that_widens_the_page_is_named"
+   ]
+  },
+  {
+   "id": "NC3",
+   "envs": ["browser"],
+   "what": "on a phone with a meta viewport the page is measured against the zoomed-out window (1560px), not the phone (390px)",
+   "mutations": [
+    {
+     "file": "omni_prod/visual_qa.py",
+     "old": "  const limit = (mobile && metaOk) ? Math.min(vw, screen.width) : vw;",
+     "new": "  const limit = vw;"
+    }
+   ],
+   "targets": [
+    "tests/test_visual_qa.py"
+   ],
+   "expect_failed": [
+    "test_the_element_that_widens_the_page_is_named"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the consistency gate does not run the offscreen check",
+   "mutations": [
+    {
+     "file": "omni_prod/consistency_gate.py",
+     "old": "    _offscreen(repo, out); report.checks_run.append('offscreen')",
+     "new": "    report.checks_run.append('offscreen')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_offscreen_rtl.py"
+   ],
+   "expect_failed": [
+    "test_a_stylesheet_is_read_with_the_direction_of_the_pages",
+    "test_left_off_screen_on_a_right_to_left_page_blocks_with_its_line_and_the_fix",
+    "test_margin_and_text_indent_count_and_a_fixed_box_does_not",
+    "test_the_same_rule_on_a_left_to_right_page_is_harmless",
+    "test_what_may_be_visible_is_left_to_the_gate"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "every page is read as left-to-right: the right-to-left idiom is not seen",
+   "mutations": [
+    {
+     "file": "omni_prod/offscreen.py",
+     "old": "    return d.group(1).lower() if d else 'ltr'",
+     "new": "    return 'ltr'  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_offscreen_rtl.py"
+   ],
+   "expect_failed": [
+    "test_a_python_template_keeps_compiling",
+    "test_a_stylesheet_is_read_with_the_direction_of_the_pages",
+    "test_left_off_screen_on_a_right_to_left_page_blocks_with_its_line_and_the_fix",
+    "test_margin_and_text_indent_count_and_a_fixed_box_does_not",
+    "test_the_idiom_becomes_the_visually_hidden_rule_scoped_to_not_focused",
+    "test_the_rewrite_is_in_the_evidence_and_the_stored_page",
+    "test_what_may_be_visible_is_left_to_the_gate"
+   ]
+  },
+  {
+   "id": "NC6",
+   "envs": ["browser"],
+   "what": "the rewrite hides the element even when focused: a keyboard user never sees the skip link",
+   "mutations": [
+    {
+     "file": "omni_prod/offscreen.py",
+     "old": "FOCUS_SCOPE = ':not(:focus):not(:focus-within)'",
+     "new": "FOCUS_SCOPE = ''  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_offscreen_rtl.py",
+    "tests/test_visual_qa.py"
+   ],
+   "expect_failed": [
+    "test_a_python_template_keeps_compiling",
+    "test_the_idiom_becomes_the_visually_hidden_rule_scoped_to_not_focused",
+    "test_the_rewrite_is_in_the_evidence_and_the_stored_page",
+    "test_the_rewritten_skip_link_still_shows_when_focused"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the rewrite hides rules that are not the hiding idiom (a full-width band moved by margin)",
+   "mutations": [
+    {
+     "file": "omni_prod/offscreen.py",
+     "old": "    if not any(p.group(1).lower() == 'absolute' for p in _POSITION.finditer(clean[head:close])):",
+     "new": "    if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_offscreen_rtl.py"
+   ],
+   "expect_failed": [
+    "test_what_may_be_visible_is_left_to_the_gate"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a fixed box, which does not scroll the page, is reported",
+   "mutations": [
+    {
+     "file": "omni_prod/offscreen.py",
+     "old": "        if any(p.group(1).lower() == 'fixed' for p in _POSITION.finditer(body)):",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_offscreen_rtl.py"
+   ],
+   "expect_failed": [
+    "test_margin_and_text_indent_count_and_a_fixed_box_does_not"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the worker does not install the rewrite: the generated page is verified with the idiom",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        install_offscreen(engine)",
+     "new": "        pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_offscreen_rtl.py"
+   ],
+   "expect_failed": [
+    "test_the_consistency_gate_judged_the_rewritten_page",
+    "test_the_rewrite_is_in_the_evidence_and_the_stored_page"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the generator is not given the platform's visually-hidden rule",
+   "mutations": [
+    {
+     "file": "omni_prod/skills_runtime.py",
+     "old": "        + VISUALLY_HIDDEN + '. Never hide anything by moving it off-screen",
+     "new": "        + '' + '. Never hide anything by moving it off-screen"
+    }
+   ],
+   "targets": [
+    "tests/test_offscreen_rtl.py"
+   ],
+   "expect_failed": [
+    "test_the_generator_is_given_the_rule"
+   ]
+  }
+ ]
+}

@@ -76,6 +76,7 @@ class OmniUniversalBrain:
         rights = self.rights.assess(prompt, target_markets=target_markets, synthetic_person_media=synthetic_person_media)
         capabilities = self.capability_planner.plan(
             prompt=prompt, unified_plan=plan, creative_plan=creative,
+            full_prompt=full_prompt,
             semantic_decisions=semantic_decisions
         )
         return BrainDecision(

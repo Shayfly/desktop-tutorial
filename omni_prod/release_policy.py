@@ -102,6 +102,24 @@ def _status_from(value) -> str:
     return UNKNOWN
 
 
+def kept_failing_ids(result) -> set[str]:
+    """The checks the kept version fails: its full failure list (AutonomousResult.full_failures), else its report's.
+    A check named in the post-build group's ALSO_FAILING line fails; the line itself is not a check
+    (bld_cb2d1b90a90f430c98603d14f8afa1a8: VISUAL, named only there, was a non-required row, and the line's own id
+    made the sandbox tests row read FAIL)."""
+    from .autonomous_core import SUMMARY_FAILURE_ID
+    from .verification_group import summarised_ids
+    failures = list(getattr(result, 'full_failures', ()) or ()) or list(getattr(result.report, 'failures', ()) or ())
+    ids: set[str] = set()
+    for f in failures:
+        aid = getattr(f, 'acceptance_id', '')
+        if aid == SUMMARY_FAILURE_ID:
+            ids.update(summarised_ids(getattr(f, 'message', '')))
+        else:
+            ids.add(aid)
+    return ids
+
+
 def build_report(*, build_id: str, artifact_sha256: str, result, evidence: dict, quality, security, rights,
                  author_models: set[str] | None = None) -> QualityReport:
     """QualityReport for an async web build from what the chain recorded.
@@ -112,7 +130,7 @@ def build_report(*, build_id: str, artifact_sha256: str, result, evidence: dict,
     mandatory set applies."""
     ev = evidence or {}
     chain_passed = bool(result.report.passed and result.status == 'ready')
-    failing_ids = {getattr(f, 'acceptance_id', '') for f in getattr(result.report, 'failures', ()) or ()}
+    failing_ids = kept_failing_ids(result)
     r = QualityReport(build_id=build_id, artifact_sha256=artifact_sha256, product_family='web_saas')
     add = r.checks.append
     authors = author_models or set()

@@ -223,11 +223,14 @@ QUESTIONS: tuple[Question, ...] = (
                       _o('blue', 'כחול', 'Blue'), _o('green', 'ירוק', 'Green'), _o('purple', 'סגול', 'Purple'),
                       _o('orange', 'כתום', 'Orange'), _o('teal', 'טורקיז', 'Teal'), _o('neutral', 'אפור/שחור', 'Neutral')),
              recommended='category'),   # warehouse 105: no single default blue; the category's palette (data file)
+    # The owner, 2026-11-25 ("א. צריך שיהיה את כל המגוון", DECISIONS.md): a content-only site is not asked which font --
+    # 148AI picks a pair that suits the business from its font-pair library (omni_prod/typography). Content-only is the
+    # content route's own test (fonts_by_platform). An app is asked, as before.
     Question('font', 'font', 'design', 'איזה גופן?', 'Which font?',
              'כל האפשרויות תומכות בעברית ורישיונן ידוע (Google Fonts, OFL).', 'All support Hebrew and have a known licence (OFL).',
              options=(_o('heebo', 'Heebo — נקי ומודרני', 'Heebo — clean'), _o('assistant', 'Assistant — רך וקריא', 'Assistant — soft'),
                       _o('rubik', 'Rubik — מעוגל וידידותי', 'Rubik — rounded'), _o('system', 'גופן המערכת (הכי מהיר)', 'System font')),
-             recommended='heebo'),
+             recommended='heebo', ask_if=lambda v: not fonts_by_platform(v)),
     Question('logo', 'logo', 'design', 'לוגו?', 'Logo?', 'אפשר להתחיל בלוגו טקסטואלי ולהחליף אחר כך.',
              'A text logo now can be replaced later.',
              options=(_o('text', 'לוגו טקסטואלי עם שם המוצר', 'Text logo with the product name'), _o('none', 'בלי לוגו', 'No logo'),
@@ -823,6 +826,23 @@ def _content_only(v: dict, login: str) -> bool:
             and v.get('personal_data') == 'no' and v.get('access_scope') != 'add_login')
 
 
+# The owner, 2026-11-25 (option א): on a content-only site the fonts are 148AI's choice. The Design line still names
+# one font -- the design contract (g_apple.contract) reads it -- and says it is the platform's; the content route then
+# locks a pair from the font-pair library for the business in its place (site_content.decide).
+PLATFORM_FONT = 'heebo'
+PLATFORM_FONT_NOTE = ("chosen by 148AI, not by the customer: a content-only site's fonts are the platform's choice, "
+                      'a pair from its font-pair library on the content route; load it from Google Fonts with a system '
+                      'fallback')
+
+
+def fonts_by_platform(v: Mapping) -> bool:
+    """The owner, 2026-11-25: True for a content-only site -- its font question is not asked, its Design line names no
+    customer font and its summary claims no font choice. Content-only is exactly what requirements_text writes
+    CONTENT_ONLY_LINE for (_content_only with the brief's own sign-in; _content_only itself refuses access_scope
+    add_login), the line the content route reads (product_architect.content_only_approved): one test, not two."""
+    return _content_only(v, v.get('login', 'none'))
+
+
 def stores_by_own_answer(brief) -> str | None:
     """The customer's OWN answer that already says the product stores records, or None. Each of these also makes the
     content_only question inapplicable, so without this the brief carried no persistence decision at all: the build
@@ -915,6 +935,42 @@ def note_customer_texts(brief: Brief, texts) -> bool:
         return False
     _store_facts(brief, facts)
     return True
+
+
+PICTURE_QUESTIONS = ('image_items', 'image_subject')     # the contract's picture questions (product_architect)
+
+
+def record_picture_answer(brief: Brief, qid: str, answer: str | None) -> bool:
+    """Record the customer's answer to a picture question of the build contract where the capability planner reads it
+    (release review S1: nothing did, and the question came back every turn). `answer` None records the stated default
+    (asked ASK_PICTURE_AT_MOST times with no answer the planner can read). requirements_text writes it into the approved
+    brief, so it changes the fingerprint and binds to the approval like any requirement. Returns whether it changed."""
+    if qid not in PICTURE_QUESTIONS:
+        raise ValueError(f'not a picture question: {qid!r}')
+    entry = {'default': True} if answer is None else {'answer': ' '.join(answer.split())[:300]}
+    if entry.get('answer') == '':
+        raise ValueError('an empty answer is not recorded')
+    current = dict(brief.assets.get('pictures') or {})
+    if current.get(qid) == entry:
+        return False
+    current[qid] = entry
+    brief.assets['pictures'] = current
+    return True
+
+
+def picture_lines(brief: Brief) -> list[str]:
+    """The approved brief's lines for the recorded picture answers and defaults (capability_planner reads them)."""
+    from .capability_planner import (PICTURE_ITEMS_ANSWER, PICTURE_ITEMS_DEFAULT, PICTURE_SUBJECT_ANSWER,
+                                     PICTURE_SUBJECT_DEFAULT)
+    out, recorded = [], brief.assets.get('pictures') or {}
+    for qid, prefix, default in (('image_items', PICTURE_ITEMS_ANSWER, PICTURE_ITEMS_DEFAULT),
+                                 ('image_subject', PICTURE_SUBJECT_ANSWER, PICTURE_SUBJECT_DEFAULT)):
+        entry = recorded.get(qid) or {}
+        if entry.get('answer'):
+            out.append(prefix + entry['answer'])
+        elif entry.get('default'):
+            out.append(default)
+    return out
 
 
 def customer_messages(messages) -> list[str]:
@@ -1077,6 +1133,7 @@ def requirements_text(brief: Brief) -> str:
                        ('references', 'Visual references (inspiration only)')):
         if v.get(fld):
             lines.append(f'{label}: {_label(BY_ID[fld], v[fld], "en")}')
+    lines.extend(picture_lines(brief))       # S1: the customer's answer to a picture question, where the planner reads
     lang = v.get('languages', 'he')
     lines.append('Language: ' + {'he': 'Hebrew, right-to-left', 'he_en': 'Hebrew (RTL) with an English switch',
                                  'en': 'English'}.get(lang, lang) + '; dates shown as DD/MM/YYYY.')
@@ -1096,8 +1153,11 @@ def requirements_text(brief: Brief) -> str:
     else:   # warehouse 105: no colour from the customer -> the business category's palette (vertical_palettes.json)
         from .vertical_palettes import design_colours
         colours = design_colours(brief.prompt + '\n' + customer_text(brief))
+    font_note = 'load it from Google Fonts with a system fallback'
+    if fonts_by_platform(v):          # the owner 2026-11-25: never a customer font on a content-only site
+        font, font_note = PLATFORM_FONT, PLATFORM_FONT_NOTE
     lines.append(f'Design: style {style}; {colours}; font {_FONT.get(font, font)} '
-                 '(load it from Google Fonts with a system fallback); define these as CSS custom properties.')
+                 f'({font_note}); define these as CSS custom properties.')
     if v.get('logo') == 'text':
         lines.append('Logo: a text logo with the product name in the header.')
     logo = brief.assets.get('logo')
@@ -1141,6 +1201,8 @@ def summary(brief: Brief, lang: str = 'he') -> dict:
     he = lang != 'en'
 
     def item(fld):
+        if fld == 'font' and fonts_by_platform(v):     # the owner 2026-11-25: the customer made no font choice here
+            return None
         f = brief.fields.get(fld)
         if not f:
             return None

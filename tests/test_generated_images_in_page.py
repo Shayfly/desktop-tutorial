@@ -96,8 +96,10 @@ class OnlyWhatThePlanAskedFor(unittest.TestCase):                               
     def test_a_verified_requested_image_is_collected_with_its_dimensions(self):
         ev = evidence_for(self.store, [('cap-media-image-generate', 'VERIFIED', [png(64, 36)])])
         [img] = G.collect(plan=CapabilityPlan((image_req(),), ()), evidence=ev, store=self.store, prompt=CAFE)
+        # image weight (2026-11-26): the page carries a conversion -- this flat PNG as a lossless WebP, never enlarged
         self.assertEqual((img.marker, img.mime, img.width, img.height, img.alt),
-                         ('148ai-asset://image/1', 'image/png', 64, 36, CUP))
+                         ('148ai-asset://image/1', 'image/webp', 64, 36, CUP))
+        self.assertEqual((img.rendition['original_mime'], img.rendition['format']), ('image/png', 'webp-lossless'))
 
     def test_no_image_in_the_plan_nothing_is_inserted(self):
         ev = evidence_for(self.store, [('cap-media-image-generate', 'VERIFIED', [png(8, 8)])])
@@ -195,7 +197,8 @@ class MarkerAndBytes(unittest.TestCase):
         [img] = e.core.generated_images
         repo = e.core.repository_transform({'index.html': f'<img src="{img.marker}" alt="a">'})
         # warehouse 118: the page references the image FILE; the file is in the repository as a checked envelope
-        self.assertEqual(repo['index.html'], '<img src="assets/148ai-image-1.png" alt="a">')
+        # (image weight, 2026-11-26: the file is the PNG's conversion, a WebP)
+        self.assertEqual(repo['index.html'], '<img src="assets/148ai-image-1.webp" alt="a">')
         self.assertNotIn('data:image', repo['index.html'])
         self.assertEqual(file_bytes(img.uri, repo[img.uri]), img.data)
         self.assertEqual(e.core.repository_transform.redact(repo), {'index.html': f'<img src="{img.marker}" alt="a">'})
@@ -249,7 +252,10 @@ class FromTheRealCapabilityStage(unittest.TestCase):
         e = engine()
         prompt = G.install(e, prompt=CAFE, plan=plan, evidence=ev, store=store)
         imgs = e.core.generated_images
-        self.assertEqual([i.data for i in imgs], [a, b])
+        # each verified artifact, in order: bound by its own digest; the page carries its conversion (2026-11-26)
+        self.assertEqual([i.sha256 for i in imgs], [hashlib.sha256(a).hexdigest(), hashlib.sha256(b).hexdigest()])
+        self.assertEqual([i.rendition['original_sha256'] for i in imgs], [i.sha256 for i in imgs])
+        self.assertEqual([i.source for i in imgs], [(a, 'image/png'), (b, 'image/png')])
         self.assertIn('148ai-asset://image/2', prompt)
         page = ''.join(f'<img src="{i.marker}" alt="{i.alt}">' for i in imgs)
         self.assertTrue(e.core.executor.execute(repository=e.core.repository_transform({'index.html': page}),

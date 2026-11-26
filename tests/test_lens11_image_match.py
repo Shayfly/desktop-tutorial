@@ -109,7 +109,10 @@ class TheWrongPictureStopsTheBuild(unittest.TestCase):
         r = run(EGGS)
         self.assertEqual(len(r.vision.calls), 1)
         call = r.vision.calls[0]
-        self.assertEqual(call['images'], (r.image,))
+        # image weight (2026-11-26): the page's copy of the stored image -- what the customer will see, converted from
+        # the stored artifact (its digest stays the image's own)
+        from omni_prod.web_rendition import rendition
+        self.assertEqual(call['images'], (rendition(r.image, 'image/png', place='hero')['data'],))
         self.assertIn(SUBJECT, call['user'])
         self.assertEqual(call.get('task'), 'review')
 
@@ -134,12 +137,15 @@ class TheWrongPictureStopsTheBuild(unittest.TestCase):
         with self.assertRaisesRegex(M.ImageDoesNotMatch, 'without the subject'):
             M.verify(Vision(BEEF), [img], {'cap-x': '  '})
 
-    def test_bounded(self):
-        imgs = [SimpleNamespace(requirement_id='r', sha256=str(i), data=png(8, 8)) for i in range(M.MAX_IMAGES + 1)]
+    def test_every_image_is_checked_however_many(self):
+        """The owner, 2026-11-26: no image cap. Until then a ninth image failed the build ("bounded at 8"); now every
+        image the plan generated is checked, the loop bounded by that list."""
+        imgs = [SimpleNamespace(requirement_id=f'r{i}', sha256=str(i), data=png(8, 8)) for i in range(12)]
         vision = Vision(BEEF)
-        with self.assertRaisesRegex(M.ImageDoesNotMatch, 'bounded'):
-            M.verify(vision, imgs, {'r': SUBJECT})
-        self.assertEqual(vision.calls, [])
+        verdicts = M.verify(vision, imgs, {f'r{i}': SUBJECT for i in range(12)})
+        self.assertEqual([v['status'] for v in verdicts], ['MATCH'] * 12)
+        self.assertEqual(len(vision.calls), 12)
+        self.assertFalse(hasattr(M, 'MAX_IMAGES'))
 
 
 class RolloutBeforeCustomers(unittest.TestCase):

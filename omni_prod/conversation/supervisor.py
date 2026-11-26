@@ -133,6 +133,62 @@ def _record_content(brief, message: str):
     return d.answer(brief, {'content': text})
 
 
+_PICTURE_NOTES = {
+    'he': {'items': 'תמונה לכל פריט: {v}.', 'subject': 'מה רואים בתמונה: {v}.',
+           'items_default': 'לא קיבלנו רשימת פריטים, ולכן לא תיווצר תמונה לכל פריט. הפריטים יוצגו כטקסט.',
+           'subject_default': 'לא קיבלנו תיאור לתמונה, ולכן היא לא תיווצר.',
+           'items_again': 'לא הצלחתי לקרוא מההודעה רשימת פריטים. אם גם הפעם לא תהיה רשימה, נבנה בלי תמונה לכל פריט '
+                          'והפריטים יוצגו כטקסט.',
+           'subject_again': 'לא הצלחתי לקרוא מההודעה מה רואים בתמונה. אם גם הפעם לא יהיה תיאור, נבנה בלי התמונה הזאת.',
+           'own': 'התמונות שהעליתם ({n}) יוצגו ליד הפריטים הראשונים: {covered}.', 'own_none': 'התמונות שהעליתם ({n}) יוצגו ליד הפריטים.',
+           'gen': 'תמונה תיווצר עבור: {generated}.', 'gen_none': 'לא תיווצר תמונה לפריטים.'},
+    'ar': {'items': 'صورة لكل عنصر: {v}.', 'subject': 'ما يظهر في الصورة: {v}.',
+           'items_default': 'لم نتلقَّ قائمة العناصر، لذلك لن تُنشأ صورة لكل عنصر. ستُعرض العناصر كنص.',
+           'subject_default': 'لم نتلقَّ وصفًا للصورة، لذلك لن تُنشأ.',
+           'items_again': 'لم أتمكن من قراءة قائمة عناصر من الرسالة. إذا لم تصل قائمة هذه المرة أيضًا، سنبني دون صورة لكل '
+                          'عنصر وستُعرض العناصر كنص.',
+           'subject_again': 'لم أتمكن من قراءة ما يظهر في الصورة من الرسالة. إذا لم يصل وصف هذه المرة أيضًا، سنبني دون '
+                            'هذه الصورة.',
+           'own': 'صوركم ({n}) ستُعرض بجانب العناصر الأولى: {covered}.', 'own_none': 'صوركم ({n}) ستُعرض بجانب العناصر.',
+           'gen': 'ستُنشأ صورة لـ: {generated}.', 'gen_none': 'لن تُنشأ صورة للعناصر.'},
+    'en': {'items': 'A picture of each item: {v}.', 'subject': 'The picture shows: {v}.',
+           'items_default': 'No list of items was given, so no picture is made per item. The items are shown as text.',
+           'subject_default': 'No description of the picture was given, so it is left out.',
+           'items_again': 'I could not read a list of items in that message. If there is no list this time either, the '
+                          'site is built without a picture per item, and the items are shown as text.',
+           'subject_again': 'I could not read what the picture shows in that message. If there is no description this '
+                            'time either, it is built without that picture.',
+           'own': 'Your {n} photo(s) go next to the first items: {covered}.', 'own_none': 'Your {n} photo(s) go next to the items.',
+           'gen': 'A picture is made for: {generated}.', 'gen_none': 'No picture is made for the items.'},
+}
+
+
+_ASK_ONE_AR = 'سؤال واحد قبل أن نتابع:'
+
+
+def _picture_notes(brief, lang: str) -> list[str]:
+    """S1: what the customer answered to a picture question, or the stated default after two questions -- said in the
+    summary they approve (never a silent fallback)."""
+    words = _PICTURE_NOTES[lang if lang in _PICTURE_NOTES else 'en']
+    out = []
+    for qid, key in (('image_items', 'items'), ('image_subject', 'subject')):
+        entry = (brief.assets.get('pictures') or {}).get(qid) or {}
+        if entry.get('answer'):
+            out.append(words[key].format(v=entry['answer']))
+        elif entry.get('default'):
+            out.append(words[key + '_default'])
+    # review SF1: the customer's own photos among the items, and which items they stand for -- said, not assumed
+    from ..capability_planner import _picture_per_item, item_pictures
+    full = (brief.prompt or '') + '\n' + d.requirements_text(brief)
+    split = item_pictures(full)
+    if split['own'] and _picture_per_item(full):
+        out.append(words['own'].format(n=split['own'], covered=', '.join(split['covered'])) if split['covered']
+                   else words['own_none'].format(n=split['own']))
+        out.append(words['gen'].format(generated=', '.join(split['generated'])) if split['generated']
+                   else words['gen_none'])
+    return out
+
+
 @dataclass
 class Turn:
     intent: str
@@ -613,7 +669,7 @@ class ConversationSupervisor:
             return []
         return list(contract.unresolved_questions)
 
-    def _open_question_instead_of_gate1(self, turn, row, lang):
+    def _open_question_instead_of_gate1(self, turn, row, lang, project_id=None):
         """When the contract still has an open question, gate 1 is not shown: the question is, with its card when the
         conversation has one, else in words. Returns the reply lines, or None when nothing is open."""
         open_qs = self._contract_open(row)
@@ -632,11 +688,22 @@ class ConversationSupervisor:
             return [T['ask_one']]
         turn.questions = []
         turn.actions.append({'type': 'edit_requirements', 'brief_revision': row.revision})
-        return [T['ask_one'], open_qs[0].question]
+        # S1 (release review of 550320c): the question asked in words is recorded, so the customer's next message is
+        # read as its answer (_picture_answer) and the times it was asked are counted (_times_contract_asked)
+        turn.interpretation['contract_asked'] = open_qs[0].id
+        again = []
+        if project_id is not None and open_qs[0].id in d.PICTURE_QUESTIONS and \
+                self._times_contract_asked(project_id, open_qs[0].id):
+            # asked before and not answered in words the planner reads: said, with what happens after this question
+            words = _PICTURE_NOTES[lang if lang in _PICTURE_NOTES else 'en']
+            again = [words[{'image_items': 'items', 'image_subject': 'subject'}[open_qs[0].id] + '_again']]
+        # nit (review of 49d61d3): an Arabic question gets an Arabic intro (the conversation's lang is he / en)
+        intro = _ASK_ONE_AR if re.search(r'[؀-ۿ]', open_qs[0].question) else T['ask_one']
+        return again + [intro, open_qs[0].question]
 
-    def _gate1(self, turn, row, lang):
+    def _gate1(self, turn, row, lang, project_id=None):
         """Step 1 of 2: the spec + the cost range, and the approve-spec control. No plan exists here."""
-        held = self._open_question_instead_of_gate1(turn, row, lang)
+        held = self._open_question_instead_of_gate1(turn, row, lang, project_id)
         if held is not None:
             return held
         from ..intake import approval_flow as AF
@@ -662,6 +729,7 @@ class ConversationSupervisor:
         excluded = [(f'{R.display_name(k, lang)} עדיין לא זמין, ולכן ייבנה בלעדיו.' if lang == 'he' else
                      f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
                     for k in d.customer_exclusions(row.brief)]      # 77: said in the spec the customer approves
+        excluded += _picture_notes(row.brief, lang)     # S1: a picture answer or its stated default, said here
         # the owner's example (2026-11-23, "זה מה שנבנה"): the same parts as a card the screen shows in place of one
         # paragraph; the message below stays the record (spec_card.py)
         from .spec_card import card as spec_card
@@ -846,6 +914,10 @@ class ConversationSupervisor:
         shown = {'he': AF.CONFIRM_BUTTON['he'], 'ar': 'وافقت على المواصفات'}.get(lang, AF.CONFIRM_BUTTON['en'])
         current = row is not None and row.complete and brief_fingerprint == row.fingerprint
         feasible = current and self._feasibility(row).get('buildable')
+        settled = self._picture_default(project_id, account_id, row) if feasible else None
+        if settled is not None:              # S1: asked its limit -- the default is recorded and shown as a new spec
+            row, current, feasible = settled, False, False
+            turn.brief_row = row
         if feasible and self._contract_open(row):
             # b5: an approve button from an earlier turn, for a spec whose contract still asks: the question, not a plan
             feasible = False
@@ -1234,12 +1306,25 @@ class ConversationSupervisor:
                 and agent.SUBJECT_ID in self._awaiting(project_id) and not agent.names_a_subject(new_brief.prompt)):
             # the answer to "what is this about?" is part of the request the build starts from, not a side remark
             new_brief.prompt = (new_brief.prompt.rstrip() + '\n' + message.strip()).strip()
-        if (agent.enabled() and row is not None and message and not answers
-                and agent.NAME_ID in self._awaiting(project_id) and not agent.declares_a_name(d.customer_text(new_brief))):
-            # the answer to "what is the business called?" joins the request as the customer's own "שם העסק:" line
-            line = agent.name_line(message)
-            if line:
-                new_brief.prompt = (new_brief.prompt.rstrip() + '\n' + line).strip()
+        name_choice, name_unclear = None, False
+        if agent.enabled() and message and not answers and d.is_website(new_brief):
+            # review SF2/SF3: a statement of the name that names two is asked which one; one whose words are not a name
+            # records nothing, and the reply says which name is kept
+            statement = agent.name_statement(message)
+            name_choice = statement[1] if statement and statement[0] == 'choice' else None
+            name_unclear = bool(statement) and statement[0] == 'unclear'
+            # the business name the customer stated, recognised once (rehearsals 45702506669 / 45702519795): their answer
+            # to the name question, or the one name they quoted, joins the request as their own "שם העסק:" line
+            line = agent.name_to_record(d.customer_text(new_brief), message,
+                                        answering=row is not None and agent.NAME_ID in self._awaiting(project_id))
+            if line:                       # S4: one "שם העסק:" line -- a stated name replaces one read earlier
+                new_brief.prompt = agent.with_name_line(new_brief.prompt, line)
+        if row is not None and message and not answers:
+            # S1: the answer to the contract's picture question is recorded where the planner reads it; after
+            # ASK_PICTURE_AT_MOST questions with no answer it can read, the stated default is recorded instead
+            # review B1: a reply the interpreter also took as a change of the request is not the answer
+            edited = [x['field'] for x in res.applied + res.corrected + res.conflicts if x.get('field') != 'content']
+            self._picture_answer(project_id, new_brief, message, edited=edited)
         if (agent.enabled() and row is not None and message and not answers
                 and agent.COLOUR_ID in self._awaiting(project_id) and agent.colour_unknown_business(row.brief)):
             # row.brief, not new_brief: the interpreter already read the colours in the order they were written
@@ -1344,6 +1429,15 @@ class ConversationSupervisor:
             turn.cost_usd = None if interp.cost_usd is None else Decimal(str(interp.cost_usd))
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
         turn.gaps = gaps
+        known_name = agent.stated_name(d.customer_text(row.brief)) if agent.enabled() and d.is_website(row.brief) else None
+        if known_name and interp is not None and (interp.reply or '').strip():
+            # a name the customer stated is never asked again, in the model's words either: the sentence that asks it
+            # becomes one that says it (rehearsals 45702506669 / 45702519795). The turn's record keeps the model's reply.
+            name_said = agent.without_name_question(interp.reply, known_name, lang)
+            if name_said != interp.reply:
+                import copy
+                interp = copy.copy(interp)
+                interp.reply = name_said
         parts = []
         if any(k.startswith('image_place_') for k in answers) and row.brief.hints.get('image_hero_taken') == 'yes':
             parts.append(T['image_hero_taken'])      # one main image per page: the place is asked again
@@ -1355,6 +1449,8 @@ class ConversationSupervisor:
         # questions, changes, blockers and approval controls below still apply.
         if interp is not None and interp.reply and not res.conflicts:
             parts.append(interp.reply)
+        kept = agent.stated_name(d.customer_text(row.brief)) if name_unclear else None
+        kept_said = agent.NAME_SAID[lang if lang in agent.NAME_SAID else 'en'].format(name=kept) if kept else ''
         stated = [x for x in res.applied if x['field'] not in {c['field'] for c in res.corrected}]
         # the owner, 2026-11-23: when the model already said what it understood in its own words, the list of field
         # labels ("הבנתי: צבע: ...") is not said again under it
@@ -1386,7 +1482,7 @@ class ConversationSupervisor:
         no_subject = agent.enabled() and not agent.names_a_subject(row.brief.prompt)
         # 2026-11-22: a website is not offered for approval before the customer named the business (see NAME_QUESTION)
         no_name = (agent.enabled() and not no_subject and d.is_website(row.brief)
-                   and not agent.declares_a_name(d.customer_text(row.brief))
+                   and (not agent.declares_a_name(d.customer_text(row.brief)) or bool(name_choice))
                    and self._times_asked(project_id, agent.NAME_ID) < agent.ASK_NAME_AT_MOST)
         # the owner, 2026-11-22: a business we do not know is asked about colours once (see COLOUR_QUESTION)
         no_colour = (agent.enabled() and not no_subject and not no_name and d.is_website(row.brief)
@@ -1403,7 +1499,7 @@ class ConversationSupervisor:
                     turn.actions.append({'type': 'show_plan', 'brief_revision': row.revision})
                 else:                                      # gate 1: the spec and the range; no plan yet
                     unpriced = self._unpriced_gate(project_id, account_id, row, lang, turn)   # 77
-                    parts.extend(unpriced if unpriced else self._gate1(turn, row, lang))
+                    parts.extend(unpriced if unpriced else self._gate1(turn, row, lang, project_id))
             else:
                 blocked = [f for f in feas.get('findings', []) if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
                 turn.blocked = [f['item'] for f in blocked]
@@ -1435,6 +1531,13 @@ class ConversationSupervisor:
         limit = self._turn_limit(project_id, interp, answers)
         if limit is not None:
             return self._closing_turn(project_id, turn, row, limit, parts, lang, T)
+        if (interp is not None and (interp.reply or '').strip()
+                and (any(a.get('type') == 'approve_spec' for a in turn.actions)
+                     or (turn.interpretation or {}).get('contract_asked'))):
+            # one message never both asks and shows the summary. The summary comes when nothing is left to ask, so the
+            # model's question goes and its other words stay (rehearsals 45702506669 / 45702519795: "...האם תרצו שנתחיל
+            # להכין את הסיכום? שלב 1 מתוך 2 — ..." asked a question and showed the summary in one message)
+            parts = [p for p in ((_no_question(p) if p == interp.reply else p) for p in parts) if p]
         if not parts:
             parts.append(T['nothing'])
         turn.reply = re.sub(r'\n +', '\n', ' '.join(parts)).strip()
@@ -1470,6 +1573,8 @@ class ConversationSupervisor:
             turn.reply, turn.questions = T['model_refused' if refused else 'model_unavailable'], []
             if refused:
                 logging.getLogger(__name__).error('INTAKE_PROVIDER_REFUSED project=%s reason=%s', project_id, refused)
+        if kept_said and kept_said not in turn.reply:      # review SF2: the name kept is said, never silently replaced
+            turn.reply = (kept_said + ' ' + turn.reply).strip()
         self._card_limit(project_id, account_id, turn, lang, T, request_key)
         if no_subject and not res.conflicts and not turn.blocked:
             base = _no_question(interp.reply.strip()) if model_reply else ''   # the model's own words, never a card list
@@ -1479,9 +1584,14 @@ class ConversationSupervisor:
         # never over a model failure: "the model refused / is busy" is the truth of this turn (found by
         # tests/test_venice_refusal_is_not_spend.py on this change)
         model_failed = turn.reply in (T['model_refused'], T['model_unavailable'])
+        if no_name and name_choice and not res.conflicts and not model_failed:
+            turn.questions = []      # review SF3: the choice exists only in this message -- asked now, the rest after
         if no_name and not res.conflicts and not turn.blocked and not turn.questions and not model_failed:
             said = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
-            turn.reply = ((said or '') + ' ' + agent.NAME_QUESTION['he' if lang == 'he' else 'en']).strip()
+            # two different names the customer wrote are asked back as a choice, quoting both (agent.name_question)
+            question = (agent.NAME_WHICH_QUESTION[lang if lang in agent.NAME_WHICH_QUESTION else 'en'].format(
+                a=name_choice[0], b=name_choice[1]) if name_choice else agent.name_question(d.customer_text(row.brief), lang))
+            turn.reply = ((said or '') + ' ' + question).strip()
             turn.asked_in_words = [agent.NAME_ID]
             return turn
         if no_colour and not model_failed and not res.conflicts and not turn.blocked and not turn.questions:
@@ -1670,6 +1780,73 @@ class ConversationSupervisor:
         except Exception:
             return 0
         return sum(1 for m in prev if m.get('role') == 'assistant' and qid in ((m.get('interpretation') or {}).get('asked') or ()))
+
+    def _contract_asked(self, project_id) -> str | None:
+        """The build contract's question the last assistant turn asked in words (_open_question_instead_of_gate1)."""
+        try:
+            prev = self.store.messages_for(project_id, limit=6)
+        except Exception:
+            logging.getLogger(__name__).error('CONTRACT_ASKED_UNREAD project=%s', project_id, exc_info=True)
+            return None
+        last = next((m for m in reversed(prev) if m.get('role') == 'assistant'), None)
+        return ((last or {}).get('interpretation') or {}).get('contract_asked')
+
+    def _times_contract_asked(self, project_id, qid: str) -> int:
+        """How many assistant turns asked the contract's question `qid`, within the last 60 messages. A store that
+        cannot be read is logged at ERROR and counts as never asked (the question is asked again, never defaulted)."""
+        try:
+            prev = self.store.messages_for(project_id, limit=60)
+        except Exception:
+            logging.getLogger(__name__).error('CONTRACT_ASKED_UNCOUNTED project=%s question=%s', project_id, qid,
+                                              exc_info=True)
+            return 0
+        return sum(1 for m in prev if m.get('role') == 'assistant'
+                   and (m.get('interpretation') or {}).get('contract_asked') == qid)
+
+    def _picture_answer(self, project_id, brief, message: str, *, edited=()) -> None:
+        """S1: when the last turn asked a picture question of the contract, this message may be its answer. Review B1
+        (49d61d3): only a reply that reads as one is recorded (capability_planner.read_picture_answer -- not a question,
+        a change to the request, a phone / address / labelled field, or an item that is not a short noun phrase), and
+        not one the interpreter also took as a change (`edited`: the fields it set). "I don't know / skip / you decide"
+        records the stated default at once. Anything else is not recorded: the question is asked once more, at most
+        ASK_PICTURE_AT_MOST times in all, and then the stated default is recorded (in the summary and the contract)."""
+        from ..capability_planner import ASK_PICTURE_AT_MOST, read_picture_answer
+        log = logging.getLogger(__name__)
+        qid = self._contract_asked(project_id)
+        if qid not in d.PICTURE_QUESTIONS:
+            return
+        kind, value = read_picture_answer(message, qid)
+        if kind == 'answer' and edited:
+            kind, value = 'unread', 'also read as a change of ' + ', '.join(sorted(set(edited)))
+        if kind == 'answer':
+            d.record_picture_answer(brief, qid, ' '.join(message.split()))
+            log.info('PICTURE_ANSWER_RECORDED project=%s question=%s', project_id, qid)
+        elif kind == 'decline':
+            d.record_picture_answer(brief, qid, None)
+            log.info('PICTURE_QUESTION_DECLINED project=%s question=%s: the stated default', project_id, qid)
+        elif self._times_contract_asked(project_id, qid) >= ASK_PICTURE_AT_MOST:
+            d.record_picture_answer(brief, qid, None)
+            log.warning('PICTURE_QUESTION_DEFAULTED project=%s question=%s asked=%d last_reply=%s', project_id, qid,
+                        ASK_PICTURE_AT_MOST, value)
+        else:
+            log.info('PICTURE_ANSWER_UNREAD project=%s question=%s: %s', project_id, qid, value)
+
+    def _picture_default(self, project_id, account_id, row):
+        """S1, the approve button of an earlier turn: a picture question the contract still asks after it was asked
+        ASK_PICTURE_AT_MOST times gets its stated default, saved as a new revision (returned), else None."""
+        from ..capability_planner import ASK_PICTURE_AT_MOST
+        due = {qid for qid in d.PICTURE_QUESTIONS if self._times_contract_asked(project_id, qid) >= ASK_PICTURE_AT_MOST}
+        if not due:                          # nothing asked its limit: no compile
+            return None
+        brief = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
+        changed = False
+        for q in self._contract_open(row):
+            if q.id in due:
+                changed = d.record_picture_answer(brief, q.id, None) or changed
+        if not changed:
+            return None
+        return self.briefs.save(project_id=project_id, account_id=account_id, brief=brief,
+                                expected_revision=row.revision, request_key=None)
 
     def _awaiting(self, project_id) -> set:
         """What the last assistant turn waits for: the question ids it showed (`asked`) and the fields it said were

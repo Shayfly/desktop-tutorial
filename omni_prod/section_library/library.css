@@ -264,6 +264,9 @@ bdi, .hours-seg { white-space: nowrap; }
 [data-display-weight="regular"] h1, [data-display-weight="regular"] h2, [data-display-weight="regular"] h3,
 [data-display-weight="regular"] .panel-figure, [data-display-weight="regular"] .stat dd,
 [data-display-weight="regular"] .member-initials { font-weight: var(--weight-regular); }
+/* the header's business name is set in the display face too: a face served in one weight has no bold to load, and a
+   bold weight here was drawn as a synthetic bold (found 2026-11-26 by tests/test_font_pair_range_live.py) */
+[data-display-weight="regular"] .brand b { font-weight: var(--weight-regular); }
 
 /* warm: food, nature -- a light panel, soft cards */
 [data-direction="warm"] .panel { background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg)); color: var(--color-text); }
