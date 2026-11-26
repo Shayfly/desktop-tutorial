@@ -35,6 +35,7 @@
     "tests/test_identity_declared.py"
    ],
    "expect_failed": [
+    "test_a_revert_is_signed_like_any_entry",
     "test_an_unsigned_or_self_signed_entry_is_refused"
    ]
   },
@@ -86,7 +87,155 @@
     "tests/test_identity_declared.py"
    ],
    "expect_failed": [
+    "test_a_repeat_without_revert_of_is_refused",
+    "test_a_revert_is_signed_like_any_entry",
+    "test_mismatched_path_sets_are_refused",
+    "test_revert_of_naming_a_missing_entry_is_refused",
+    "test_the_cli_passes_a_revert_and_refuses_it_without_revert_of",
     "test_a_new_digest_is_declared_once"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a repeated to_digest passes without revert_of (any signed entry is treated as a revert)",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "    return 'revert_of' in entry and not problems(entry) and not revert_problems(entry, entries)",
+     "new": "    return not problems(entry) and not revert_problems(entry, entries)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_new_digest_is_declared_once",
+    "test_a_repeat_without_revert_of_is_refused",
+    "test_a_revert_is_signed_like_any_entry",
+    "test_mismatched_path_sets_are_refused",
+    "test_revert_of_naming_a_missing_entry_is_refused",
+    "test_the_cli_passes_a_revert_and_refuses_it_without_revert_of"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a revert_of naming no entry (or two) is accepted as an exact revert",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "        return [f'revert_of {target_id}: names {len(targets)} entries, not exactly one']",
+     "new": "        return []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_revert_of_naming_a_missing_entry_is_refused"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a revert whose digests are not the swap of the reverted entry is accepted",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "    if (entry.get('from_digest'), entry.get('to_digest')) != (target.get('to_digest'), target.get('from_digest')):",
+     "new": "    if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_mismatched_digests_are_refused"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a revert whose path sets are not the swap of the reverted entry is accepted",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "        if _paths(entry.get(mine)) != _paths(target.get(theirs)):",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_mismatched_path_sets_are_refused"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a reverted entry still matches (a consumed entry is reused when the change is re-landed)",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "        if name in consumed:",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_reverted_entry_is_consumed"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "one entry may be reverted by two entries",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "    if any(e is not entry and e.get('revert_of') == target_id for e in entries):",
+     "new": "    if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_reverted_entry_is_consumed"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "an unsigned revert is exempt from the to_digest rule",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "    return 'revert_of' in entry and not problems(entry) and not revert_problems(entry, entries)",
+     "new": "    return 'revert_of' in entry and not revert_problems(entry, entries)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_revert_is_signed_like_any_entry"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "an exact revert is refused as a repeat (the rollback path is closed again)",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "        if exact_revert(entry, entries):\n            continue",
+     "new": "        if False:  # NEGATIVE CONTROL\n            continue"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_reverted_entry_is_consumed",
+    "test_a_to_b_then_b_to_a_with_revert_of_passes",
+    "test_the_cli_passes_a_revert_and_refuses_it_without_revert_of"
    ]
   }
  ]

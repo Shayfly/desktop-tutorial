@@ -1,5 +1,5 @@
 {
- "rule": "Michael 2026-11-13: while identity.yml blocks, a flag-off change passes only with ONE signed entry that matches it exactly -- from_digest/to_digest and the exact added/removed/changed/data_changed gate-closure paths. No wildcards. reviewer must not be the author. Checked by scripts/identity_declared.py. to_digest is unique in this file: a consumed entry is never used twice.",
+ "rule": "Michael 2026-11-13: while identity.yml blocks, a flag-off change passes only with ONE signed entry that matches it exactly -- from_digest/to_digest and the exact added/removed/changed/data_changed gate-closure paths. No wildcards. reviewer must not be the author. Checked by scripts/identity_declared.py. to_digest is unique in this file: a consumed entry is never used twice. The one exception (release review 2026-11-26, docs/ops/worker-rollback.md): an entry with revert_of naming one earlier entry, whose digests and path sets are exactly that entry's swapped, may repeat its from_digest as to_digest; the reverted entry is then consumed.",
  "changes": [
   {
     "id": "executed-skill-evidence-525",
