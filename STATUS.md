@@ -17,6 +17,16 @@ locally (tests and negative controls below); not verified in CI or production.
 - The conversation history is paged by a cursor (GET .../conversation/messages?before=).
 - 20 images a message (was 6), 200 a project (was 40); 3 MiB and the 4.5 MB body stay.
 - The public plan view no longer promises max_projects, seats, priority or 'priority builds'.
+- Tokens (the owner, 2026-11-26 ~16:10 UTC, "לבטל מגבלה על טוקנים כרגע רק מדידה"): the content path's
+  MAX_CONTENT_TOKENS (8,000) and MAX_REWRITE_TOKENS (3,000) are removed; each call asks for the model's own documented
+  maximum (catalogue `max_output_tokens`; claude-sonnet-5-5 64,000, gemini-3.8-flash 32,768) and the router sends each
+  model exactly its own. Every content call is measured into `site_route.content_usage` (model, input/output tokens,
+  metered cost, finish reason, per call and the build's totals; a total is null, never 0, when a call is unmeasured);
+  a stop on max_tokens is logged `SITE_CONTENT_TRUNCATED` and listed as `truncated_at_model_maximum` or
+  `truncated_at_budget_allowance`. The money caps stay: the router still authorizes every call against the build's
+  budget, and `fit_to_budget` may send less than the maximum (never below 12,000 for codegen). Verified by
+  tests/test_content_corrections.py::TheTokensAreMeasuredNotCapped (real RoutedModelGateway, scripted provider) and
+  controls content_corrections 13/13. Not verified: a real paid build (no paid call was made).
 - Evidence: see TASKS.md CAPS-A and the branch's commit messages. Open: the UI shell's part (visual-edit.js MAX_IMAGES,
   app.js notices, history paging, request_cut in the plan panel, the dead project_limit_reached branch).
 - **Follow-up of the apps bundle (the platform UI changes there; caps-a does not touch app.js or visual-edit.js).**
