@@ -38,3 +38,7 @@ Thumbs.db
 *.pid
 # the full system map: python -m omni_prod.system_map --write; CI keeps it as the artifact system-map
 /SYSTEM_MAP.json
+
+# Claude Code: personal settings and agent worktrees stay local (2026-11-26)
+.claude/settings.local.json
+.claude/worktrees/
