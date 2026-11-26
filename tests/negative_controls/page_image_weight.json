@@ -1,0 +1,164 @@
+{
+ "pr": "page-image-weight",
+ "sha256": [
+  "tests/test_page_image_weight.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the page's images are not fitted before the plan (the 20 production-size pictures go over the budget)",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    core.page_weight = _fit_page(core, uploaded, generated)\n",
+     "new": "    core.page_weight = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_they_are_fitted_before_any_code_and_the_build_goes_on",
+    "test_what_cannot_fit_is_carried_and_said_never_a_failure"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the plan raises on weight again (after the pictures were paid for; worker_exception)",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    slots.sort(key=lambda s: (PLACES.index(s['place']), s['source'] != 'upload', s['index']))\n",
+     "new": "    if sum(s['bytes'] for s in slots) > PAGE_IMAGE_BUDGET_BYTES:  # NEGATIVE CONTROL\n        raise AssetPlanError('the images weigh too much')\n    slots.sort(key=lambda s: (PLACES.index(s['place']), s['source'] != 'upload', s['index']))\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_the_plan_never_refuses_weight",
+    "test_what_cannot_fit_is_carried_and_said_never_a_failure"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the carried file keeps the old bytes: the transform installed before the fit writes the heavy image",
+   "mutations": [
+    {
+     "file": "omni_prod/repository_assets.py",
+     "old": "        self.envelope = envelope(data, self.mime)\n",
+     "new": "        return  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_they_are_fitted_before_any_code_and_the_build_goes_on"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "what does not fit is carried silently: no page-weight warning",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    out['warning'] = None if out['fits'] else (\n",
+     "new": "    out['warning'] = None if True else (  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_what_cannot_fit_is_carried_and_said_never_a_failure"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a step below the quality floor",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "PAGE_FIT_STEPS = ((1.0, 86), (1.0, 78), (0.85, 76), (0.75, 72), (0.62, 68), (0.5, 64), (0.4, 60))   # (scale, quality)\n",
+     "new": "PAGE_FIT_STEPS = ((1.0, 86), (1.0, 78), (0.85, 76), (0.75, 72), (0.62, 68), (0.5, 64), (0.3, 30))  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_at_most_one_encode_per_step_per_image",
+    "test_what_cannot_fit_is_carried_and_said_never_a_failure"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the page-fit record is not written: the ledger cannot attest a re-encoded image",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    if out['images']:\n        by_marker = {img.marker: img for img in images}\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n        by_marker = {img.marker: img for img in images}\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_they_are_fitted_before_any_code_and_the_build_goes_on"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the ledger does not accept a page-fit file as its artifact",
+   "mutations": [
+    {
+     "file": "omni_prod/part_ledger.py",
+     "old": "        return 'page_fit'\n",
+     "new": "        return None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_page_fit_state"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a heavier encode is taken",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "            if len(body) >= before[img.marker]:\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_a_heavier_encode_is_never_taken"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "no bound: the steps are tried past their list (an unbounded search)",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "            for scale, quality in PAGE_FIT_STEPS:                   # bounded: one encode per step\n",
+     "new": "            for scale, quality in PAGE_FIT_STEPS * 3:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_at_most_one_encode_per_step_per_image"
+   ]
+  }
+ ]
+}

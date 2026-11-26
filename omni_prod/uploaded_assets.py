@@ -126,6 +126,14 @@ class _MainImage:
         self.carried = CarriedImage(self.marker, asset_path('upload', index, self.mime), self.data, self.mime)
         self.uri = self.carried.path
 
+    def refit(self, r: dict) -> None:
+        """New bytes from the page fit (web_rendition.fit_page), in the same file: the type, and so the path, stay."""
+        if r['mime'] != self.mime:
+            raise ValueError(f'uploaded image {self.index}: the page fit made {r["mime"]} of a {self.mime} file')
+        self.data, self.width, self.height = r['data'], r['width'], r['height']
+        self.rendition = {**self.rendition, 'page_fit': True, 'bytes': len(r['data'])}
+        self.carried.rebind(r['data'])
+
 
 # The owner, 2026-11-16 00:18 / 00:49: a photo placed in "the story" must sit INSIDE a story section, not anywhere on
 # the page. Sections are recognised by the same words the reference extractor uses (a2.extract._SECTION_WORDS),

@@ -73,9 +73,10 @@ class ThePlan(unittest.TestCase):
         self.assertIn('two uploaded images claim the hero', str(two.exception))
         with self.assertRaises(a4.AssetPlanError):
             a4.plan([up(1, 'footer')], [])
-        with self.assertRaises(a4.AssetPlanError) as heavy:
-            a4.plan([], [gen(1, size=a4.PAGE_IMAGE_BUDGET_BYTES // 2 + 1), gen(2, size=a4.PAGE_IMAGE_BUDGET_BYTES // 2 + 1)])
-        self.assertIn('weigh', str(heavy.exception))
+        # S2 (the owner, 2026-11-26: no image cap): weight is not a reason -- install fits the page and says what does
+        # not fit (tests/test_page_image_weight.py); declared in docs/identity/allowed-deletions.json "weakening"
+        heavy = a4.plan([], [gen(1, size=a4.PAGE_IMAGE_BUDGET_BYTES // 2 + 1), gen(2, size=a4.PAGE_IMAGE_BUDGET_BYTES // 2 + 1)])
+        self.assertEqual(len(heavy), 2)
 
     def test_the_number_of_images_never_stops_the_plan(self):
         """The owner, 2026-11-26: no image cap. Until then a page with more than 12 images was refused."""
@@ -167,7 +168,10 @@ class OnTheBuild(unittest.TestCase):
     def test_a_page_with_no_platform_image_gets_no_rules_and_an_empty_plan(self):
         e, prompt, result = self.build(page())
         self.assertEqual(prompt, 'PROMPT')
-        self.assertEqual(a4.report(e), {'agent': 'A4', 'mode': 'warn', 'plan': [], 'check': None})
+        self.assertEqual(a4.report(e), {'agent': 'A4', 'mode': 'warn', 'plan': [], 'check': None,
+                                        'page_weight': {'budget': a4.PAGE_IMAGE_BUDGET_BYTES, 'bytes_before': 0,
+                                                        'bytes_after': 0, 'fits': True, 'count': 0, 'images': [],
+                                                        'warning': None}})
 
     def test_off_is_said_in_the_log_and_in_the_evidence(self):
         hero = gen(1)

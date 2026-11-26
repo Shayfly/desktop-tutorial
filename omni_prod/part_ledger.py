@@ -80,8 +80,9 @@ PLATFORM_FILES = ('app.py', 'tests/test_site.py', '.omni/project.json', 'README.
 RIGHTS_MANIFEST = 'rights/rights-manifest.json'
 ASSET_MANIFEST = 'assets/148ai-asset-manifest.json'
 ASSET_MANIFEST_ALIAS = 'assets/omni-asset-manifest.json'
+PAGE_FIT = 'assets/148ai-page-fit.json'     # a4.PAGE_FIT_PATH: the images the page fit re-encoded (release review S2)
 RECORD_FILES = (RIGHTS_MANIFEST, 'rights/README.md', 'rights/jurisdictions.json', ASSET_MANIFEST, ASSET_MANIFEST_ALIAS,
-                'assets/README.md', 'docs/CREATIVE_RIGHTS.md')
+                'assets/README.md', 'docs/CREATIVE_RIGHTS.md', PAGE_FIT)
 # Written by branding.BrandingEngine.decorate_repository AFTER the ledger (the ledger is one of them): never claimed,
 # never unresolved, so the ledger of a decorated repository equals the ledger written into it.
 SIGNING_FILES = ('.148ai/brand-manifest.json', '.148ai/provenance.json', PARTS_PATH, 'public/148ai-badge.svg')
@@ -252,13 +253,17 @@ def _manifest_artifacts(L: _Ledger) -> list[dict] | None:
     return found
 
 
-def _bytes_state(file_sha: str, mime: str, size: int, bound_sha: str, *, bound_over_budget: bool | None) -> str | None:
-    """'identical', 'web_rendition' (warehouse 114: a WebP under the budget, made from a file over it), or None (the
-    file is not what was bound). `bound_over_budget` is what is known of the bound file's size: True / False from the
-    manifest's size_bytes, None when nothing records it (the brief binds a photo by its digest only)."""
+def _bytes_state(file_sha: str, mime: str, size: int, bound_sha: str, *, bound_over_budget: bool | None,
+                 page_fit: dict | None = None) -> str | None:
+    """'identical', 'page_fit' (S2: re-encoded by the page fit from the bound bytes, as PAGE_FIT records), 'web_rendition'
+    (warehouse 114: a WebP under the budget, made from a file over it), or None (the file is not what was bound).
+    `bound_over_budget` is what is known of the bound file's size: True / False from the manifest's size_bytes, None when
+    nothing records it (the brief binds a photo by its digest only). `page_fit`: this file's PAGE_FIT row, if any."""
     from .web_rendition import BUDGET_BYTES
     if file_sha == bound_sha:
         return 'identical'
+    if isinstance(page_fit, dict) and page_fit.get('sha256') == file_sha and page_fit.get('from_sha256') == bound_sha:
+        return 'page_fit'
     if mime == 'image/webp' and size <= BUDGET_BYTES and bound_over_budget is not False:
         return 'web_rendition'
     return None
@@ -299,6 +304,8 @@ def _images(L: _Ledger, brief: _Brief | None) -> None:
         files[path] = (kind, n, hashlib.sha256(data).hexdigest(), mime, len(data))
 
     block = brief.block if brief else ''
+    fitted = L.json_file(PAGE_FIT)
+    fitted = fitted.get('files') if isinstance(fitted, dict) and isinstance(fitted.get('files'), dict) else {}
     logo = _BINDING.search(block)
     uploads = {int(x[1]): x for x in _IMAGE_BINDING.finditer(block)}
     generated = {}
@@ -312,7 +319,8 @@ def _images(L: _Ledger, brief: _Brief | None) -> None:
                 L.item('images', 'customer_upload', path=path, sha256=sha, bound_to='uploaded_logo', bytes='identical')
         elif kind == 'upload':
             line = uploads.get(n)
-            state = _bytes_state(sha, mime, size, line[3], bound_over_budget=None) if line else None
+            state = _bytes_state(sha, mime, size, line[3], bound_over_budget=None,
+                                 page_fit=fitted.get(path)) if line else None
             if line is None:
                 L.unresolve(path, f'an uploaded photo file, and the approved brief has no uploaded-image line {n}')
             elif state is None:
@@ -351,7 +359,8 @@ def _images(L: _Ledger, brief: _Brief | None) -> None:
             continue
         recorded = art.get('size_bytes')
         state = _bytes_state(sha, mime, size, art['sha256'], bound_over_budget=(
-            recorded > _budget() if isinstance(recorded, int) and not isinstance(recorded, bool) else False))
+            recorded > _budget() if isinstance(recorded, int) and not isinstance(recorded, bool) else False),
+            page_fit=fitted.get(path))
         if state is None:
             L.unresolve(path, 'the file is not its verified artifact (sha256 differs and it is not a web rendition)')
             continue

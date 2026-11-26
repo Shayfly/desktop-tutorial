@@ -163,6 +163,12 @@ class CarriedImage:
         self.envelope = envelope(data, mime)
         self.encoded = self.envelope.split(',', 1)[1]
 
+    def rebind(self, data: bytes) -> None:
+        """New bytes for the same file (the page fit, web_rendition.fit_page): the type, and so the path, stay. The
+        transforms installed before hold this object, so they carry the new bytes from the next round on."""
+        self.envelope = envelope(data, self.mime)
+        self.encoded = self.envelope.split(',', 1)[1]
+
     def _reference(self, holder: str) -> str:
         """What a file at `holder` writes to reach the image. Only a STYLESHEET resolves its url(...) against its own
         URL: one in a sub-directory (static/style.css) gets one `../` per directory, else the plain relative path is

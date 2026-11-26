@@ -17,8 +17,8 @@
       "mutations": [
         {
           "file": "omni_prod/a4/__init__.py",
-          "old": "    total = sum(s['bytes'] for s in slots)\n",
-          "new": "    if len(slots) > 12:\n        raise AssetPlanError(f'{len(slots)} images for one page; at most 12')\n    total = sum(s['bytes'] for s in slots)\n"
+          "old": "    slots.sort(key=lambda s: (PLACES.index(s['place']), s['source'] != 'upload', s['index']))\n",
+          "new": "    if len(slots) > 12:\n        raise AssetPlanError(f'{len(slots)} images for one page; at most 12')\n    slots.sort(key=lambda s: (PLACES.index(s['place']), s['source'] != 'upload', s['index']))\n"
         }
       ],
       "targets": ["tests/test_a4_asset_plan.py"],

@@ -64,6 +64,16 @@ class GeneratedImage:
     def marker(self) -> str:
         return f'{MARKER_PREFIX}{self.index}'
 
+    def refit(self, r: dict) -> None:
+        """New bytes from the page fit (web_rendition.fit_page), in the same file: the type, and so the path, stay.
+        `sha256` stays the verified artifact's digest (the page-fit record links the new bytes to it). The page fit is
+        the one writer of a bound image after collect, and it runs before any build round."""
+        if r['mime'] != self.mime:
+            raise ValueError(f'generated image {self.index}: the page fit made {r["mime"]} of a {self.mime} file')
+        for name in ('data', 'width', 'height'):
+            object.__setattr__(self, name, r[name])          # frozen dataclass: set here, and only here
+        self.carried.rebind(r['data'])
+
     @cached_property
     def carried(self):
         """The image as a file the page references (warehouse 118). Raises AssetCarryError if it cannot be carried."""
