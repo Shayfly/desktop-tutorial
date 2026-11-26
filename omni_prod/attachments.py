@@ -5,9 +5,14 @@ Founder directive 2026-10-11 ("Conversation UX + Visual Editing", task 2).
 - Types: PNG, JPEG, WebP only. The type is decided from the file's own bytes
   (magic numbers), never from the declared MIME or file name; SVG/GIF/HTML are
   refused (SVG can carry script). Dimensions come from the image header.
-- Size: at most 3 MiB per image after decoding (the workspace downsizes larger
-  photos in the browser first; a Vercel function body is capped at 4.5 MB),
-  at most 8000 px per side, at most 40 live attachments per project.
+- Size: at most 3 MiB per image after decoding and 8000 px per side. These stay (the owner, 2026-11-26): each image
+  is uploaded in its own request as base64 (3 MiB -> 4 MiB of text, under the 4.5 MB body Vercel accepts for a
+  function), and the workspace downsizes larger photos in the browser first (2000 px, JPEG 0.85).
+- Count (the owner, 2026-11-26, WAREHOUSE 136 option a: not money): up to MAX_PER_MESSAGE (20, was 6) images in one
+  message -- a message carries only their ids, about 37 characters each, so the count does not touch the body limit --
+  and MAX_LIVE_PER_PROJECT (200, was 40) live in a project. Storage, an ESTIMATE: at the 3 MiB cap 200 images are
+  600 MiB, about $0.009 a month at Cloudflare R2's $0.015/GB-month (PRICING_AND_UNIT_ECONOMICS_V28.md); a
+  browser-downsized photo is typically well under 1 MB (not measured here).
 - Isolation: every read and delete filters on BOTH the project and the owning
   account; the API resolves project ownership first (403 otherwise). Objects
   live under attachments/<account>/<project>/<id>.<ext> in the project
@@ -29,7 +34,8 @@ import uuid
 
 MAX_BYTES = 3 * 1024 * 1024
 MAX_SIDE = 8000
-MAX_LIVE_PER_PROJECT = 40
+MAX_LIVE_PER_PROJECT = 200
+MAX_PER_MESSAGE = 20
 MAX_REGIONS = 20
 KINDS = ('image', 'screenshot')
 EXT = {'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp'}
@@ -246,8 +252,8 @@ class AttachmentRepository:
 
     def many(self, *, project_id: str, account_id: str, ids) -> list[dict]:
         ids = list(dict.fromkeys(ids or []))
-        if len(ids) > 6:
-            raise AttachmentError('too_many', 'at most 6 images per message')
+        if len(ids) > MAX_PER_MESSAGE:
+            raise AttachmentError('too_many', f'at most {MAX_PER_MESSAGE} images per message')
         out = []
         for i in ids:
             try:

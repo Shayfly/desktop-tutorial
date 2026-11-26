@@ -569,7 +569,7 @@ class V28ModificationRequest(BaseModel):
     # Visual edit (directive 2026-10-11): the element picked in the preview and,
     # when locate() listed several, the candidate the person chose.
     target: dict | None = None
-    attachment_ids: list[str] = Field(default_factory=list, max_length=6)
+    attachment_ids: list[str] = Field(default_factory=list, max_length=20)   # = attachments.MAX_PER_MESSAGE
 
 class V28ModificationAcceptRequest(BaseModel):
     force: bool = False
@@ -2022,7 +2022,7 @@ class V28ConversationMessage(BaseModel):
     message: str = Field(default='', max_length=8000)
     answers: dict[str, str] = Field(default_factory=dict)
     request_key: str | None = Field(default=None, max_length=80)
-    attachment_ids: list[str] = Field(default_factory=list, max_length=6)
+    attachment_ids: list[str] = Field(default_factory=list, max_length=20)   # = attachments.MAX_PER_MESSAGE
     brief_revision: int | None = Field(default=None, ge=1)
     # Gate 1 is NOT a conversation message (2026-10-28): its own route is POST .../spec-approval; this field is kept
     # for older clients and is routed to the same action (an empty message is valid with it).
