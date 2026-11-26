@@ -158,9 +158,9 @@ RECOVERY_LINES = {
         'ar': 'انقطع البناء في منتصفه. نتابع من آخر نقطة محفوظة، دون البدء من جديد.',
     },
     'restarted': {
-        'he': 'השרת שעבד על זה הפסיק להגיב. מתחיל מחדש מהתחלה.',
-        'en': 'The server working on this stopped responding. Starting again from the beginning.',
-        'ar': 'توقف الخادم الذي كان يعمل على هذا عن الاستجابة. نبدأ من جديد من البداية.',
+        'he': 'הבנייה נתקעה אצלנו באמצע. מתחילים מחדש מהתחלה.',
+        'en': 'The build got stuck on our side. Starting again from the beginning.',
+        'ar': 'توقف البناء لدينا في المنتصف. نبدأ من جديد من البداية.',
     },
 }
 
