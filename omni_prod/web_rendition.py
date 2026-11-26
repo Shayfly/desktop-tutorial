@@ -390,14 +390,19 @@ def fit_page(images, *, budget: int, places: dict | None = None) -> dict:
     bad = sorted(f'{m}: {p!r}' for m, p in places.items() if p not in PLACE_SIDE)
     if bad:
         raise ValueError(f'unknown place(s) {bad}: one of {sorted(PLACE_SIDE)}')
-    unmade = sorted(img.marker for img in images if len(getattr(img, 'source', ()) or ()) != 2
-                    or getattr(img, 'rendition', {}).get('place') not in PLACE_SIDE)
-    if unmade:                       # an image this module did not make cannot be made again: said, not guessed
-        raise ValueError(f'no original or no conversion record to make these again from: {unmade}')
     before = {img.marker: len(img.data) for img in images}
     done = []
 
+    def made_for(img):
+        """The place an image was made for; an image this module did not make cannot be made again: said, never
+        guessed (checked only for an image that has to be made again)."""
+        was = (getattr(img, 'rendition', None) or {}).get('place')
+        if len(getattr(img, 'source', ()) or ()) != 2 or was not in PLACE_SIDE:
+            raise ValueError(f'{img.marker}: no original or no conversion record to make it again from')
+        return was
+
     def redo(img, place, max_bytes, why, search):
+        made_for(img)
         data, mime = img.source
         r = rendition(data, mime, place=place, max_bytes=max_bytes, keep_mime=img.mime, search=search,
                       label=f'{img.marker} ({why})')
@@ -407,14 +412,14 @@ def fit_page(images, *, budget: int, places: dict | None = None) -> dict:
                      'quality': r['quality'], 'similarity': r['similarity'], 'step': r['step']})
 
     for img in images:
-        place, was = places.get(img.marker), img.rendition.get('place')
-        if place is not None and PLACE_SIDE[place] < PLACE_SIDE[was]:
-            redo(img, place, BUDGET_BYTES, f'made for {was}, shown as {place}', True)
+        place = places.get(img.marker)
+        if place is not None and PLACE_SIDE[place] < PLACE_SIDE[made_for(img)]:
+            redo(img, place, BUDGET_BYTES, f'made for {made_for(img)}, shown as {place}', True)
     total = sum(len(img.data) for img in images)
     if total > budget:
         for img in images:
             share = max(1, budget * len(img.data) // total)
-            redo(img, img.rendition['place'], share, f'page over {budget:,} bytes: its share is {share:,}', False)
+            redo(img, made_for(img), share, f'page over {budget:,} bytes: its share is {share:,}', False)
     after = sum(len(img.data) for img in images)
     out = {'budget': budget, 'bytes_before': sum(before.values()), 'bytes_after': after, 'fits': after <= budget,
            'images': done}

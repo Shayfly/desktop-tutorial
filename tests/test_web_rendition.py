@@ -505,8 +505,9 @@ class ThePageFit(unittest.TestCase):
             W.fit_page(images, budget=0)
         made_elsewhere = G.GeneratedImage(index=1, requirement_id='r', purpose='hero', mime='image/webp', width=1,
                                           height=1, sha256='0' * 64, alt='x', data=b'RIFF')   # no source, no record
-        with self.assertRaises(ValueError) as ctx:
-            W.fit_page([made_elsewhere], budget=100_000)
+        self.assertTrue(W.fit_page([made_elsewhere], budget=100_000)['fits'])   # nothing to remake: nothing asked
+        with self.assertRaises(ValueError) as ctx:                               # to remake it: said, not guessed
+            W.fit_page([made_elsewhere], budget=1)
         self.assertIn('no original or no conversion record', str(ctx.exception))
 
 
