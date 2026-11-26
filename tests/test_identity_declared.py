@@ -109,7 +109,7 @@ class RevertEntries(unittest.TestCase):
         # step 1: A -> B is declared by ENTRY, after INTRO introduced A
         self.assertEqual(D.match([ENTRY, INTRO], FROM, TO, D.diff(BASE, HEAD))[0], ENTRY)
         # step 2: B -> A, declared by an exact revert of ENTRY; FROM is now INTRO's and REVERT's to_digest
-        entries = [REVERT, ENTRY, INTRO]
+        entries = [INTRO, ENTRY, REVERT]
         self.assertEqual(D.duplicates(entries), [])
         self.assertEqual(D.revert_problems(REVERT, entries), [])
         entry, why = back(entries)
@@ -117,26 +117,29 @@ class RevertEntries(unittest.TestCase):
 
     def test_a_repeat_without_revert_of_is_refused(self):
         plain = {k: v for k, v in REVERT.items() if k != 'revert_of'}
-        entry, why = back([plain, ENTRY, INTRO])
+        entry, why = back([INTRO, ENTRY, plain])
         self.assertIsNone(entry)
         self.assertEqual(why, ['to_digest declared more than once: ' + FROM[:12]])
 
     def test_revert_of_naming_a_missing_entry_is_refused(self):
-        for target in ('no-such-entry', '', '335-part-1-revert'):          # missing, empty, itself
+        for target, said in (('no-such-entry', 'revert_of no-such-entry: names 0 entries, not exactly one'),
+                             ('', 'revert_of is empty'),
+                             ('335-part-1-revert', 'revert_of 335-part-1-revert: that entry is not earlier in the file '
+                                                   'than this revert')):                      # missing, empty, itself
             bad = {**REVERT, 'revert_of': target}
-            self.assertTrue(D.revert_problems(bad, [bad, ENTRY, INTRO]), target)
-            entry, why = back([bad, ENTRY, INTRO])
+            self.assertEqual(D.revert_problems(bad, [INTRO, ENTRY, bad]), [said], target)
+            entry, why = back([INTRO, ENTRY, bad])
             self.assertIsNone(entry, target)
             self.assertIn('to_digest declared more than once', why[0])
         twice = {**ENTRY, 'id': '335-part-1', 'to_digest': 'b' * 64}       # an ambiguous id names no single entry
         self.assertIn('revert_of 335-part-1: names 2 entries, not exactly one',
-                      D.revert_problems(REVERT, [REVERT, ENTRY, twice, INTRO]))
+                      D.revert_problems(REVERT, [INTRO, ENTRY, twice, REVERT]))
 
     def test_mismatched_digests_are_refused(self):
         for bad in ({**REVERT, 'from_digest': 'f' * 64}, {**REVERT, 'to_digest': INTRO['from_digest']},
                     {**REVERT, 'from_digest': FROM, 'to_digest': TO}):     # another B, another A, not swapped
-            self.assertTrue(any('not the swap' in p for p in D.revert_problems(bad, [bad, ENTRY, INTRO])), bad)
-            self.assertIsNone(D.match([bad, ENTRY, INTRO], bad['from_digest'], bad['to_digest'],
+            self.assertTrue(any('not the swap' in p for p in D.revert_problems(bad, [INTRO, ENTRY, bad])), bad)
+            self.assertIsNone(D.match([INTRO, ENTRY, bad], bad['from_digest'], bad['to_digest'],
                                       D.diff(HEAD, BASE))[0])
 
     def test_mismatched_path_sets_are_refused(self):
@@ -144,14 +147,14 @@ class RevertEntries(unittest.TestCase):
                            ('changed', ['omni_prod/fact_canon.py']), ('data_changed', ['omni_prod/assets/app.js'])):
             bad = {**REVERT, key: value}
             self.assertTrue(any(p.startswith(f'revert_of 335-part-1: {key} ') for p in
-                                D.revert_problems(bad, [bad, ENTRY, INTRO])), key)
-            entry, why = back([bad, ENTRY, INTRO])
+                                D.revert_problems(bad, [INTRO, ENTRY, bad])), key)
+            entry, why = back([INTRO, ENTRY, bad])
             self.assertIsNone(entry, key)
             self.assertIn('to_digest declared more than once', why[0])
 
     def test_a_revert_is_signed_like_any_entry(self):
         for reviewer in ('', 'claude', 'pending', 'author'):
-            entry, why = back([{**REVERT, 'reviewer': reviewer}, ENTRY, INTRO])
+            entry, why = back([INTRO, ENTRY, {**REVERT, 'reviewer': reviewer}])
             self.assertIsNone(entry, reviewer)
             self.assertIn('to_digest declared more than once', why[0])       # an unsigned revert is a plain repeat
 
@@ -159,26 +162,77 @@ class RevertEntries(unittest.TestCase):
         # one revert per entry: two reverts of the same entry refuse the file
         again = {**REVERT, 'id': 'second-revert'}
         self.assertIn('revert_of 335-part-1: that entry is reverted by more than one entry',
-                      D.revert_problems(REVERT, [again, REVERT, ENTRY, INTRO]))
-        self.assertIsNone(back([again, REVERT, ENTRY, INTRO])[0])
+                      D.revert_problems(REVERT, [INTRO, ENTRY, REVERT, again]))
+        self.assertIsNone(back([INTRO, ENTRY, REVERT, again])[0])
         # re-landing A -> B after the revert: the consumed ENTRY never matches again ...
-        entry, why = D.match([REVERT, ENTRY, INTRO], FROM, TO, D.diff(BASE, HEAD))
+        entry, why = D.match([INTRO, ENTRY, REVERT], FROM, TO, D.diff(BASE, HEAD))
         self.assertIsNone(entry)
         self.assertIn('335-part-1: reverted by 335-part-1-revert, consumed (never matches again)', why)
         # ... only a revert of the revert does, and it consumes the revert in turn
         reland = {**ENTRY, 'id': 'reland', 'revert_of': '335-part-1-revert', 'reviewer': 'shai'}
-        entries = [reland, REVERT, ENTRY, INTRO]
+        entries = [INTRO, ENTRY, REVERT, reland]
         self.assertEqual(D.duplicates(entries), [])
         self.assertEqual(D.match(entries, FROM, TO, D.diff(BASE, HEAD))[0], reland)
         self.assertIsNone(back(entries)[0])
+
+    def test_revert_of_is_the_id_exactly(self):
+        # review of #537: " 335-part-1" and "335-part-1 " were two exact reverts of one entry
+        for spaced in (' 335-part-1', '335-part-1 ', '\t335-part-1'):
+            bad = {**REVERT, 'id': 'spaced', 'revert_of': spaced}
+            self.assertEqual(D.revert_problems(bad, [INTRO, ENTRY, bad]),
+                             [f'revert_of {spaced!r} is not an id exactly (a string without surrounding white space)'])
+        two = [INTRO, ENTRY, {**REVERT, 'id': 'r1', 'revert_of': '335-part-1 '}, {**REVERT, 'id': 'r2', 'revert_of': ' 335-part-1'}]
+        self.assertIsNone(back(two)[0])
+        # an exact revert sees a spaced second revert of the same entry (compared stripped)
+        spaced = {**REVERT, 'id': 'spaced', 'revert_of': '335-part-1 '}
+        self.assertIn('revert_of 335-part-1: that entry is reverted by more than one entry',
+                      D.revert_problems(REVERT, [INTRO, ENTRY, REVERT, spaced]))
+        self.assertIsNone(back([INTRO, ENTRY, REVERT, spaced])[0])
+
+    def test_the_reverted_entry_must_be_valid_and_earlier(self):
+        # review of #537: the target was never validated
+        unsigned = {**ENTRY, 'reviewer': 'claude'}
+        self.assertIn('revert_of 335-part-1: the reverted entry is not a valid signed entry (no reviewer other than '
+                      'the author)', D.revert_problems(REVERT, [INTRO, unsigned, REVERT]))
+        self.assertIsNone(back([INTRO, unsigned, REVERT])[0])
+        # a target that is a revert must be the exact revert of its own target
+        badrev = {**REVERT, 'changed': ['omni_prod/fact_canon.py']}               # not the swap of ENTRY
+        reland = {**ENTRY, 'id': 'reland', 'revert_of': '335-part-1-revert', 'reviewer': 'shai',
+                  'changed': ['omni_prod/fact_canon.py']}                           # the exact swap of badrev
+        entries = [INTRO, ENTRY, badrev, reland]
+        self.assertEqual(D.revert_problems(reland, entries), ['revert_of 335-part-1-revert: the reverted entry is a '
+                                                              'revert but not the exact revert of its own target'])
+        self.assertIsNone(D.match(entries, FROM, TO, {**D.diff(BASE, HEAD), 'changed': ['omni_prod/fact_canon.py']})[0])
+        # the target stands earlier in the file: a revert above its target is refused
+        self.assertEqual(D.revert_problems(REVERT, [INTRO, REVERT, ENTRY]),
+                         ['revert_of 335-part-1: that entry is not earlier in the file than this revert'])
+        self.assertIsNone(back([INTRO, REVERT, ENTRY])[0])
+
+    def test_only_an_exact_revert_consumes(self):
+        # review of #537: reverted_by() reading any revert_of passed every test. A revert that is not exact (here: not
+        # the swap, and a digest of its own, so the file is not refused whole) consumes nothing: ENTRY still matches.
+        stray = {**REVERT, 'id': 'stray', 'to_digest': 'c' * 64}
+        entries = [INTRO, ENTRY, stray]
+        self.assertEqual(D.duplicates(entries), [])
+        self.assertTrue(D.revert_problems(stray, entries))
+        self.assertEqual(D.reverted_by(entries), {})
+        self.assertEqual(D.match(entries, FROM, TO, D.diff(BASE, HEAD))[0], ENTRY)
+
+    def test_a_plain_entry_may_not_repeat_a_reverts_digest(self):
+        # review of #537: with no plain entry introducing FROM, a plain entry below the revert repeated its to_digest
+        self.assertEqual(D.duplicates([ENTRY, REVERT]), [])                     # FROM predates the file: fine
+        self.assertEqual(back([ENTRY, REVERT])[0], REVERT)
+        plain = {**ENTRY, 'id': 'plain-to-from', 'from_digest': 'e' * 64, 'to_digest': FROM}
+        self.assertEqual(D.duplicates([ENTRY, REVERT, plain]), [FROM])
+        self.assertIsNone(back([ENTRY, REVERT, plain])[0])
 
     def test_the_cli_passes_a_revert_and_refuses_it_without_revert_of(self):
         plain = {k: v for k, v in REVERT.items() if k != 'revert_of'}
         with tempfile.TemporaryDirectory() as tmp:
             b, h, decl = Path(tmp, 'b.json'), Path(tmp, 'h.json'), Path(tmp, 'd.json')
             b.write_text(json.dumps(HEAD)); h.write_text(json.dumps(BASE))   # base is B, head is A
-            for entries, code, title in (([REVERT, ENTRY, INTRO], 0, 'identity change declared'),
-                                         ([plain, ENTRY, INTRO], 1, 'identity change not declared')):
+            for entries, code, title in (([INTRO, ENTRY, REVERT], 0, 'identity change declared'),
+                                         ([INTRO, ENTRY, plain], 1, 'identity change not declared')):
                 decl.write_text(json.dumps({'changes': entries}))
                 out = subprocess.run([sys.executable, '-c', (
                     'import sys; sys.path.insert(0, sys.argv[1]); import identity_declared as D; from pathlib import Path; '

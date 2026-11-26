@@ -14,13 +14,17 @@ A revert (release review 2026-11-26, docs/ops/worker-rollback.md): deploy-worker
 rollback is a fix-forward PR that restores the code of before a release, i.e. the change B -> A undoing an entry
 A -> B. Digest A is already the to_digest of the entry that introduced it, so B -> A could not be declared at all.
 An entry with "revert_of": "<id>" may repeat a to_digest only when it is the EXACT revert of that one entry:
-  * revert_of names exactly one other entry, and no other entry reverts that entry too;
+  * revert_of is the id exactly (no surrounding white space) of one entry that stands EARLIER in the file, and no
+    other entry reverts that entry too;
+  * that entry is itself valid: signed, and, when it is a revert too, the exact revert of its own target;
   * from_digest / to_digest are that entry's to_digest / from_digest (swapped);
   * added / removed are that entry's removed / added, changed / data_changed are equal to its own;
   * signed like any entry (the reviewer rule above is unchanged); an unsigned revert is a repeat like any other.
 A reverted entry is consumed: it never matches again (re-landing the reverted change needs its own revert_of entry,
-naming the revert). Any other repeat -- without revert_of, revert_of naming no entry, other digests, other paths --
-still refuses the whole file.
+naming the revert); only an exact revert consumes. File order is the order of declaration here: a revert is appended
+at the END of "changes", and the to_digest rule reads the file from the top -- a plain entry whose to_digest an entry
+above it (a revert included) already declared is a repeat. Any other repeat -- without revert_of, revert_of naming no
+entry or a later one, other digests, other paths -- still refuses the whole file.
 
 CLI (identity.yml): identity_declared.py BASE_DIGEST HEAD_DIGEST BASE_MANIFEST HEAD_MANIFEST
 prints one ::notice / ::error line and exits 0 only on an exact signed match.
@@ -72,16 +76,24 @@ def revert_problems(entry: dict, entries: list) -> list[str]:
     no revert_of). The swap is checked against the named entry, never against the change at hand."""
     if 'revert_of' not in entry:
         return []
-    target_id = str(entry.get('revert_of') or '').strip()
+    raw = entry.get('revert_of')
+    if not isinstance(raw, str) or raw != raw.strip():
+        return [f'revert_of {raw!r} is not an id exactly (a string without surrounding white space)']
+    target_id = raw
     if not target_id:
         return ['revert_of is empty']
-    if target_id == entry.get('id'):
-        return ['revert_of names the entry itself']
-    targets = [e for e in entries if e.get('id') == target_id]
+    targets = [i for i, e in enumerate(entries) if e.get('id') == target_id]
     if len(targets) != 1:
         return [f'revert_of {target_id}: names {len(targets)} entries, not exactly one']
-    target, out = targets[0], []
-    if any(e is not entry and e.get('revert_of') == target_id for e in entries):
+    here = [i for i, e in enumerate(entries) if e is entry]
+    if len(here) != 1 or targets[0] >= here[0]:   # also an entry naming itself; the chain below only goes up the file
+        return [f'revert_of {target_id}: that entry is not earlier in the file than this revert']
+    target, out = entries[targets[0]], []
+    if problems(target):
+        out.append(f'revert_of {target_id}: the reverted entry is not a valid signed entry ({"; ".join(problems(target))})')
+    if 'revert_of' in target and revert_problems(target, entries):
+        out.append(f'revert_of {target_id}: the reverted entry is a revert but not the exact revert of its own target')
+    if any(e is not entry and str(e.get('revert_of') or '').strip() == target_id for e in entries):
         out.append(f'revert_of {target_id}: that entry is reverted by more than one entry')
     if (entry.get('from_digest'), entry.get('to_digest')) != (target.get('to_digest'), target.get('from_digest')):
         out.append(f'revert_of {target_id}: declares {str(entry.get("from_digest"))[:8]} -> '
@@ -108,12 +120,14 @@ def reverted_by(entries: list) -> dict[str, str]:
 def duplicates(entries: list) -> list[str]:
     """to_digest values that appear more than once. Michael 2026-11-13: declarations accumulate in main forever; each
     new digest is declared ONCE, so an entry that was consumed can never match a later change by accident. The one
-    exception is an exact, signed revert (exact_revert()): it restores an earlier digest, so it may repeat it."""
+    exception is an exact, signed revert (exact_revert()): it restores an earlier digest, so it may repeat it. Read
+    from the top: a plain entry repeating any to_digest above it, a revert's included, is a repeat."""
     seen, dup = set(), []
     for entry in entries:
-        if exact_revert(entry, entries):
-            continue
         to = str(entry.get('to_digest') or '')
+        if exact_revert(entry, entries):   # it may repeat; a plain entry below it may not repeat what it declares
+            seen.add(to)
+            continue
         if to in seen and to not in dup:
             dup.append(to)
         seen.add(to)

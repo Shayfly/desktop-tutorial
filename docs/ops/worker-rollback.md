@@ -18,17 +18,38 @@ Found by the release review of 2026-11-26: there was no worker rollback that cou
 
 ## The rule that makes it declarable
 
-`scripts/identity_declared.py` accepts an explicit revert entry (tests: `tests/test_identity_declared.py`, class
-`RevertEntries`; negative controls NC6-NC13 in `tests/negative_controls/identity_declared.json`):
+`scripts/identity_declared.py` accepts an explicit revert entry. Tests: `tests/test_identity_declared.py`, class
+`RevertEntries`. Negative controls: NC6-NC20 in `tests/negative_controls/identity_declared.json`.
 
-- the entry carries `"revert_of": "<id of the entry it undoes>"`, and that id names exactly one entry;
-- `from_digest` / `to_digest` are that entry's `to_digest` / `from_digest` (swapped);
-- `added` / `removed` are that entry's `removed` / `added`; `changed` and `data_changed` are equal to its own;
-- it is signed like any entry (reviewer rules unchanged, CLAUDE.md section 8);
-- only such an entry may repeat a `to_digest`. A repeat without `revert_of`, a `revert_of` naming no entry, other
-  digests or other path sets still refuse the whole file;
-- one entry is reverted at most once, and a reverted entry is consumed: it never matches again. Re-landing the
-  reverted change later needs its own entry with `revert_of` naming the revert.
+- The entry carries `"revert_of": "<id>"`. The value is the id exactly, with no surrounding white space, and it names
+  exactly one entry that stands **earlier in the file** (above the revert).
+- The named entry is itself valid: signed, and, if it is a revert too, the exact revert of its own target.
+- `from_digest` / `to_digest` are that entry's `to_digest` / `from_digest` (swapped).
+- `added` / `removed` are that entry's `removed` / `added`; `changed` and `data_changed` are equal to its own.
+- It is signed like any entry (reviewer rules unchanged, CLAUDE.md section 8).
+- Only such an entry may repeat a `to_digest`. The file is read from the top. A plain entry that repeats any
+  `to_digest` above it, a revert's included, refuses the whole file. So do a repeat without `revert_of`, a
+  `revert_of` naming no entry or a later one, other digests, and other path sets.
+- One entry is reverted at most once. A reverted entry is consumed and never matches again, and only an exact revert
+  consumes. Re-landing the reverted change later needs its own entry, with `revert_of` naming the revert.
+
+Remaining risk: the check proves that a revert is the exact swap of a signed entry in the file. It cannot prove that
+the entry describes a release that really happened. An author and a reviewer who both sign could declare a made-up
+target and its revert together. The reviewer's signature on both entries is the only control there.
+
+### When the revert entry is needed, and when it cannot help
+
+- `identity_declared.py` decides only when `identity.yml` runs in blocking mode (lines 52-60). Blocking mode means
+  the gate freeze is active (`docs/gate-freeze.json`), or the PR touches one of `SITE_AUTH_FILES`. Lines 103-112 run
+  the check only when the digest differs and the job blocks. Otherwise a digest change is published as a notice and
+  does not block, so the PR passes without the entry. Add the entry anyway: whether the job blocks is only known when
+  CI runs, and the entry records the rollback.
+- The entry declares B -> A, where B is the `to_digest` of the reverted entry. It works only while main's digest is
+  still B, that is, while R is the latest change of the flag-off pipeline.
+  - A rollback across two releases (C -> A) matches no single entry.
+  - Neither does a rollback after any later digest change on main.
+  - Both need their own plain, signed entry for the actual change. Its `to_digest` then repeats one already in the
+    file, which the rule refuses. That case is not solved here: stop and ask the owner.
 
 ## Procedure
 
@@ -41,17 +62,24 @@ Let R be the release to undo, `PRE` the main commit just before R merged, and E 
      grow.
    - Leave out shared state and evidence (`STATUS.md`, `TASKS.md`, `DECISIONS.md`, `docs/evidence/**`, `smoke/**`).
      Record the rollback there as a new entry instead.
-   - Keep any migration file R added. Migrations are additive, and the old code runs against the newer schema
-     (`infra/worker-host/recover.sh`, header). If the restored package is older than the database, the strict
-     migration check fails. In that case, run deploy-worker by hand on `main` with `accept_newer_migrations` set to
-     the exact versions (input at lines 14-17, used at lines 216-229).
+   - **Keep every migration file R added.** Migrations are additive, and the old code runs against the newer schema
+     (`infra/worker-host/recover.sh`, header).
+   - If the restored package is older than the database, the strict migration step fails. The deploy has already
+     drained the workers: `drain` (line 213) runs before `migrate` (line 219). The recovery step then restores
+     `omni-rollback/<svc>:prev`, which are the images of the release being rolled back. The run is red, and the
+     worker is back on the code you wanted to remove.
+   - If a migration file must go anyway, do not rely on the push. Run deploy-worker by hand on `main` with
+     `accept_newer_migrations` set to the exact versions (input at lines 14-17, used at lines 216-230).
    - Check: `OMNI_SITE_AUTH_V2=0 python3 -m omni_prod.pipeline_identity` prints A, the `from_digest` of E.
 3. **Declare every deleted line with a signed record.** Restoring code deletes lines. Each file with deletions against
    main needs a record in `docs/identity/allowed-deletions.json`, bound to its digest:
    `python3 scripts/deletions_declared.py origin/main --digest <path>`. The reviewer signs (CLAUDE.md section 8). The
    number of records only goes up, by exactly the number added. Also run
    `python3 scripts/weakening_declared.py origin/main` for any test line the restore brings back.
-4. **Add the revert identity entry** at the top of `changes` in `docs/identity/allowed-identity-changes.json`:
+4. **Add the revert identity entry at the END of `changes`** in `docs/identity/allowed-identity-changes.json`.
+   Placing it at the end puts the revert below its target and below the entry that introduced A. The last entry's
+   `}` gains a comma; git shows that as an added line, but if `deletions_declared.py` lists the file, declare it as
+   in step 3.
    ```json
    {"id": "<E.id>-revert", "revert_of": "<E.id>", "from_digest": "<B>", "to_digest": "<A>",
     "added": <E.removed>, "removed": <E.added>, "changed": <E.changed>, "data_changed": <E.data_changed>,
@@ -66,13 +94,16 @@ Let R be the release to undo, `PRE` the main commit just before R merged, and E 
    (CLAUDE.md section 2).
 7. **deploy-worker rolls forward to the old behaviour** on the merge push, like any release.
 
-Simulated on 2026-11-26 for the sites bundle (E = `sites-bundle-2026-11-26`, f2fd495d -> fd3a45bf):
+Simulated on 2026-11-26 in a scratch clone, for the sites bundle (E = `sites-bundle-2026-11-26`, f2fd495d ->
+fd3a45bf). E exists only on the branch `claude/practical-hopper-oi3qj2-sites-bundle` (1d84272), not on main: the
+simulation took that branch as the released main.
 
-- restoring 33 added and 61 modified paths gave digest f2fd495d, with a source manifest byte-equal to main's;
-- with the revert entry, `identity_declared.py` exited 0;
-- without `revert_of`, it exited 1 with `to_digest declared more than once: f2fd495d7d48`. The main script of
-  cb403c0 gives the same result even with `revert_of`;
-- the deletion guard then listed the 94 files with deleted lines that step 3 declares.
+- Restoring 33 added and 61 modified paths gave digest f2fd495d, with a source manifest byte-equal to main's.
+- With the revert entry appended at the end of `changes`, `identity_declared.py` exited 0.
+- Without `revert_of`, it exited 1: `to_digest declared more than once: f2fd495d7d48`. The main script of cb403c0
+  gives the same result even with `revert_of`.
+- With the revert placed at the top, above its target, it exited 1 as well.
+- The deletion guard then listed the 94 files with deleted lines that step 3 declares.
 
 ## Automatic recovery inside one deploy
 
