@@ -84,14 +84,14 @@
    "VERIFIED": 4,
    "LIVE": 0
   },
-  "endpoints": 191,
+  "endpoints": 193,
   "tables": 84,
   "migrations": 41,
   "rollback_files": 4,
   "services": 10,
   "queues": 4,
   "workflows": 65,
-  "environment_names": 121
+  "environment_names": 122
  },
  "agents": [
   {
@@ -4017,6 +4017,12 @@
   },
   {
    "method": "GET",
+   "path": "/api/v28/owner/costs",
+   "handler": "v28_owner_costs",
+   "file": "omni_prod/investor_app.py"
+  },
+  {
+   "method": "GET",
    "path": "/api/v28/pricing",
    "handler": "v28_pricing",
    "file": "omni_prod/investor_app.py"
@@ -4505,6 +4511,12 @@
    "method": "GET",
    "path": "/manifest.webmanifest",
    "handler": "pwa_manifest",
+   "file": "omni_prod/investor_app.py"
+  },
+  {
+   "method": "GET",
+   "path": "/owner/costs",
+   "handler": "owner_costs_page",
    "file": "omni_prod/investor_app.py"
   },
   {
@@ -6145,6 +6157,7 @@
   {
    "name": "OMNI_FOUNDER_ACCOUNT_IDS",
    "read_in": [
+    "omni_prod/investor_app.py",
     "omni_prod/pricing.py"
    ]
   },
@@ -6164,6 +6177,12 @@
    "name": "OMNI_FOUNDER_DRAFT_VERSIONS",
    "read_in": [
     "omni_prod/worker_tasks.py"
+   ]
+  },
+  {
+   "name": "OMNI_FOUNDER_NO_BUILD_LIMIT",
+   "read_in": [
+    "omni_prod/pricing.py"
    ]
   },
   {

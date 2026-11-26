@@ -20,7 +20,7 @@ Counts: BLOCKED 3, IMPLEMENTED 12, INTEGRATION_TESTED 3, NOT_IMPLEMENTED 5, REAL
 |---|---|---|---|---|---|---|---|
 | Describe the product in natural language (Hebrew/English) | discovery_agent | skill:requirement_extraction=IMPLEMENTED; skill:acceptance_criteria_generation=IMPLEMENTED | **IMPLEMENTED** | yes |  | $0 |  |
 | Clarifying questions only when needed | discovery_agent | skill:smart_question_generation=IMPLEMENTED; skill:safe_default_selection=IMPLEMENTED | **IMPLEMENTED** | yes |  | $0 |  |
-| Plan and cost quote before the build | product_planner | skill:build_plan_generation=IMPLEMENTED; skill:build_quote=REAL_SERVER_VERIFIED | **IMPLEMENTED** | yes | postdeploy-checks run 37961193099 | $0 |  |
+| Plan and cost quote before the build | product_planner | skill:build_plan_generation=IMPLEMENTED; skill:build_quote=IMPLEMENTED | **IMPLEMENTED** | yes |  | $0 |  |
 | Approval binds the build to the approved contract | executive_orchestrator | platform:contract_bound_approval=IMPLEMENTED | **IMPLEMENTED** | yes |  | $0 |  |
 | Sign up / sign in to 148AI | security_agent | platform:platform_accounts=UNIT_TESTED | **UNIT_TESTED** | yes | tests/test_m5_identity_lifecycle.py | $0 |  |
 | Generate the product code | coding_agent | skill:file_create=IMPLEMENTED | **IMPLEMENTED** | yes |  | metered per call |  |
