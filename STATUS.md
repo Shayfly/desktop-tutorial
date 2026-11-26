@@ -1,3 +1,9 @@
+# 2026-11-26 — S4.2 re-review fixes (re-review of 73ed4b7; Claude Code; local commits, not pushed)
+
+- A stale worker is stopped, not left running: its refused heartbeat raises `StaleWorker` (STALE_WORKER_STOPPED), and its settle/release (`subscription_store.fence_build`, row lock then epoch) and its attempt rows (`persist_attempts(epoch=...)`) are refused in the claim's epoch. PostgreSQL test from probe P4: nothing of the old worker changes the build, the reservation or the ledger; the continuing worker settles at the ledger's metered total (settled = actual = evidence provider_spend_usd = the plan's provider_spend_usd). Controls NC16-NC18.
+- One ledger snapshot for prior_metered and the carried budget (`resume_budget`): test from probe P2, settled <= 1.00 (two reads gave 1.28); NC19. Image verdicts replay only for the same subject and the same bytes, any other image is asked of the real model (probe D); NC20. Nits: NULL-trace rows with worker=None; prefix cases bld_<id>x/, /../, ./, //.
+- Evidence: `tests/test_crash_resume_pg.py` 20 passed, `tests/test_crash_resume.py` 20 passed; controls `crash_resume` 15/15 pg + 6/6 default. The reviewer's probe files still call the old two-step API and the unfenced billing directly, so P2/P4/D there report the old behaviour by construction.
+
 # 2026-11-26 — S4.2 review fixes (review of 1edee7b; Claude Code; local commits, not pushed)
 
 - Blocker fixed: a continued build could settle above its reservation (reservation 1.00, settled 1.118852): the carried budget now also excludes the lost worker's unanswered call's authorized amount, which the settlement adds. `test_a_continued_build_never_settles_above_its_reservation` (real PostgreSQL, the reviewer's numbers): settled <= 1.00; control NC11.

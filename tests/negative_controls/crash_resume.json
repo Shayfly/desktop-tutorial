@@ -203,6 +203,7 @@
     "tests/test_crash_resume_pg.py"
    ],
    "expect_failed": [
+    "test_a_stale_worker_is_stopped_and_the_continuing_worker_settles_true",
     "test_the_record_names_the_checkpoint_it_continued_from"
    ]
   },
@@ -224,6 +225,7 @@
    ],
    "expect_failed": [
     "test_a_continued_build_never_settles_above_its_reservation",
+    "test_one_ledger_snapshot_even_when_the_lost_worker_completes_its_call_in_between",
     "test_the_record_names_the_checkpoint_it_continued_from"
    ]
   },
@@ -236,8 +238,8 @@
    "mutations": [
     {
      "file": "omni_prod/build_checkpoint.py",
-     "old": "AND trace_id IS DISTINCT FROM %s\",",
-     "new": "AND (trace_id IS DISTINCT FROM %s OR TRUE)\",  # NEGATIVE CONTROL"
+     "old": "columns + ' AND trace_id IS DISTINCT FROM %s', (build_id, worker)",
+     "new": "columns + ' AND (trace_id IS DISTINCT FROM %s OR TRUE)', (build_id, worker)"
     }
    ],
    "targets": [
