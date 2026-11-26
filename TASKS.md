@@ -2,6 +2,7 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| FONT-RANGE | Claude Code | Implemented locally; not pushed (the coordinator's instruction). Branch `claude/practical-hopper-oi3qj2-font-range`, code head `210e687`, merge-base `18dba53` | DECISIONS.md (closed, 2026-11-25, option א); `tests/test_font_question_content_only.py`, `tests/test_font_pair_range.py`, `tests/test_font_pair_range_live.py`, `tests/test_font_range_in_ci.py`; controls `font_range` 17/17 + 5/5 (browser); 37 pairs, 62 OFL families; STATUS.md 2026-11-26 |
 | AGENT-SKILLS-525-APPROVAL | Codex | Owner approved exact declarations; HOLD for CI and independent merge review | #525, approved candidate `e1c8a7d7`, base `042253f5`; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525-REVIEW | Codex, independent automated reviewer | HOLD — follow-up verified locally, pending refreshed declarations, CI and independent review | #525 head `2cda8073`, base `042253f5`; `test_terminal_skill_execution_evidence.py`, `test_repair_request_fidelity_routes.py`, `test_intake_checklist_priority.py`; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525 | chatgpt-integration | Owner declarations approved; exact-head CI and independent review pending | #525; prior head `4edde619`, main `042253f`; STATUS.md 2026-11-25 |
