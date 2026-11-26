@@ -30,6 +30,14 @@ class TheRulesAreTheOwnersOnly(unittest.TestCase):
         with mock.patch.dict(os.environ, {'OMNI_FOUNDER_ACCOUNT_IDS': 'usr_partner'}):
             self.assertTrue(founder_no_build_limit(OWNER))               # and removing him from it changes nothing
 
+    def test_an_unknown_founder_flag_value_fails_loudly(self):
+        # moved from tests/test_worker_budget_binding.py (a fast-suite file may not touch the environment)
+        from omni_prod.worker_tasks import bind_model_budget_to_reservation
+        with mock.patch.dict(os.environ, {'OMNI_FOUNDER_NO_BUILD_LIMIT': 'yes'}):
+            with self.assertRaises(ValueError):
+                bind_model_budget_to_reservation(_gateway(_unpriced_catalog()), {'user_id': OWNER, 'economics_quote': {
+                    'components': {'llm_maximum_usd': '25', 'cost_class': 'heavy', 'founder_test': True}}})
+
     def test_a_listed_partner_keeps_the_worker_budget_for_change_requests(self):
         from omni_prod.worker_tasks import bind_founder_change_request
         with mock.patch.dict(os.environ, {'OMNI_FOUNDER_ACCOUNT_IDS': f'{OWNER},usr_partner'}):

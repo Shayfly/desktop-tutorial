@@ -99,9 +99,8 @@ class BudgetBindingTests(unittest.TestCase):
         # CEO 2026-11-08 20:09: founder test builds may spend up to $2 (measured, paid by us)
         # Since the owner's word of 2026-11-26 this cap holds only with OMNI_FOUNDER_NO_BUILD_LIMIT=0 (the default is
         # the safety bound: test_the_owner_2026_11_26_founder_build_is_bounded_by_the_safety_bound_only).
-        from unittest import mock
-        import os
-        self.enterContext(mock.patch.dict(os.environ, {"OMNI_FOUNDER_NO_BUILD_LIMIT": "0"}))
+        from unittest import mock         # the rule switched off without touching the process environment
+        self.enterContext(mock.patch("omni_prod.pricing.founder_no_build_limit_enabled", return_value=False))
         req = {"user_id": "usr_GCWlMxENgr9vpwph", "economics_quote": {"components": {
             "llm_maximum_usd": "2.00", "cost_class": "light", "founder_test": True}}}
         self.assertEqual(bind_model_budget_to_reservation(_gw("0.5"), req)["effective_budget_usd"], "2.00")
@@ -133,14 +132,6 @@ class BudgetBindingTests(unittest.TestCase):
         ev_other = bind_model_budget_to_reservation(gw_other, other)               # the flag alone grants nothing
         self.assertEqual(gw_other.policy.max_external_calls_per_build, 50)
         self.assertNotIn("founder_no_build_limit", ev_other)
-
-    def test_an_unknown_founder_flag_value_fails_loudly(self):
-        from unittest import mock
-        import os
-        with mock.patch.dict(os.environ, {"OMNI_FOUNDER_NO_BUILD_LIMIT": "yes"}):
-            with self.assertRaises(ValueError):
-                bind_model_budget_to_reservation(_gw("0.5"), {"user_id": "usr_GCWlMxENgr9vpwph", "economics_quote": {
-                    "components": {"llm_maximum_usd": "25", "cost_class": "heavy", "founder_test": True}}})
 
     def test_standard_class_cap_clamps_oversized_reservation(self):
         gw = _gw("5")
