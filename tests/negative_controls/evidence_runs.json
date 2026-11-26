@@ -1,0 +1,1151 @@
+{
+ "pr": "evidence-runs",
+ "sha256": [
+  "tests/test_resolve_evidence_runs.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a run whose conclusion is not success counts as green",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    if run.get('conclusion') != 'success':\n        problems.append(f\"conclusion {run.get('conclusion')}\")\n",
+     "new": "    pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_listed_run_that_expired_is_still_shown_not_passed",
+    "test_a_listed_run_that_turned_green_fails_so_the_list_only_shrinks",
+    "test_a_run_that_is_not_green_fails[None]",
+    "test_a_run_that_is_not_green_fails[cancelled]",
+    "test_a_run_that_is_not_green_fails[failure]",
+    "test_a_run_that_is_not_green_fails[skipped]",
+    "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared",
+    "test_an_empty_list_makes_every_red_run_an_error",
+    "test_each_listed_red_run_is_a_warning_that_says_what_it_is",
+    "test_every_failing_id_has_its_own_error_line",
+    "test_the_job_summary_shows_the_known_red_section_and_every_run",
+    "test_the_real_request_carries_the_token_in_the_header_only",
+    "test_the_summary_comes_first_and_names_every_failure",
+    "test_today_every_unlisted_run_is_green_and_the_listed_ones_are_shown_red"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a run that has not completed counts as green",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    if run.get('status') != 'completed':\n        problems.append(f\"not completed (status {run.get('status')})\")\n",
+     "new": "    pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_run_in_progress_fails"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the cited commit is not compared with the run's head_sha",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        if c.commit and not head.startswith(c.commit.lower()):\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_run_on_another_commit_fails",
+    "test_an_answer_without_head_sha_fails_the_commit_check",
+    "test_every_citing_record_is_checked_against_its_commit",
+    "test_the_cited_commit_is_a_prefix_not_a_substring"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a run GitHub no longer has (HTTP 404) counts as green",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        if exc.code == 404:\n            return 'expired',",
+     "new": "        if exc.code == 404:\n            return 'green', [], {'id': int(run_id)}  # NEGATIVE CONTROL\n            return 'expired',"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_listed_run_that_expired_is_still_shown_not_passed",
+    "test_a_run_github_no_longer_has_is_expired_and_fails",
+    "test_the_summary_comes_first_and_names_every_failure"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a network error, a timeout or a non-JSON answer passes silently",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    except Exception as exc:                 # network, timeout, bad JSON: unverified, never a pass\n        return 'unverified', [f'API error: {type(exc).__name__}: {exc}'], {}\n",
+     "new": "    except Exception as exc:  # NEGATIVE CONTROL\n        return 'green', [], {'id': int(run_id)}\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_listed_run_github_could_not_be_asked_about_is_not_a_pass",
+    "test_an_api_error_is_unverified_never_a_pass[network]",
+    "test_an_api_error_is_unverified_never_a_pass[not-json]",
+    "test_an_api_error_is_unverified_never_a_pass[timeout]",
+    "test_the_summary_comes_first_and_names_every_failure"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "an HTTP error other than 404 (500, 403 rate limit) passes silently",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        return 'unverified', [f'API error: HTTP {exc.code} {exc.reason}'], {}\n",
+     "new": "        return 'green', [], {'id': int(run_id)}  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_an_api_error_is_unverified_never_a_pass[http403]",
+    "test_an_api_error_is_unverified_never_a_pass[http500]"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the exit code ignores red, expired, unverified and listed-but-green runs",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    if by['unverified']:\n        return 2\n    return 1 if (red or expired or turned_green or problems) else 0\n",
+     "new": "    return 0  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_listed_run_github_could_not_be_asked_about_is_not_a_pass",
+    "test_a_listed_run_that_turned_green_fails_so_the_list_only_shrinks",
+    "test_a_run_github_no_longer_has_is_expired_and_fails",
+    "test_a_run_in_progress_fails",
+    "test_a_run_on_another_commit_fails",
+    "test_a_run_that_is_not_green_fails[None]",
+    "test_a_run_that_is_not_green_fails[cancelled]",
+    "test_a_run_that_is_not_green_fails[failure]",
+    "test_a_run_that_is_not_green_fails[skipped]",
+    "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared",
+    "test_an_answer_for_another_run_is_unverified",
+    "test_an_answer_without_head_sha_fails_the_commit_check",
+    "test_an_api_error_is_unverified_never_a_pass[http403]",
+    "test_an_api_error_is_unverified_never_a_pass[http500]",
+    "test_an_api_error_is_unverified_never_a_pass[network]",
+    "test_an_api_error_is_unverified_never_a_pass[not-json]",
+    "test_an_api_error_is_unverified_never_a_pass[timeout]",
+    "test_an_empty_list_makes_every_red_run_an_error",
+    "test_an_entry_no_longer_cited_fails",
+    "test_an_entry_that_is_not_complete_fails[empty]",
+    "test_an_entry_that_is_not_complete_fails[missing]",
+    "test_an_entry_that_is_not_complete_fails[not-an-id]",
+    "test_an_entry_that_is_not_complete_fails[twice]",
+    "test_an_entry_that_is_not_complete_fails[unknown]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[CLAUDE]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[claude]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[pending]",
+    "test_cited_in_must_be_where_the_code_cites_the_run",
+    "test_every_citing_record_is_checked_against_its_commit",
+    "test_every_failing_id_has_its_own_error_line",
+    "test_the_cited_commit_is_a_prefix_not_a_substring",
+    "test_the_job_summary_shows_the_known_red_section_and_every_run",
+    "test_the_listed_workflow_must_be_the_runs",
+    "test_the_run_must_be_of_the_workflow_the_text_names",
+    "test_the_summary_comes_first_and_names_every_failure"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "an answer about another run is accepted",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    if not isinstance(run, dict) or str(run.get('id')) != run_id:\n",
+     "new": "    if not isinstance(run, dict):  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_an_answer_for_another_run_is_unverified"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the collector drops a source (intelligence/inventory.py)",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    'omni_prod.intelligence.inventory',\n)\n",
+     "new": ")  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_list_that_cannot_be_read_is_never_a_pass[missing]",
+    "test_a_list_that_cannot_be_read_is_never_a_pass[not-a-list]",
+    "test_a_list_that_cannot_be_read_is_never_a_pass[not-an-object]",
+    "test_a_list_that_cannot_be_read_is_never_a_pass[not-entries]",
+    "test_a_list_that_cannot_be_read_is_never_a_pass[not-json]",
+    "test_a_listed_run_github_could_not_be_asked_about_is_not_a_pass",
+    "test_a_listed_run_that_expired_is_still_shown_not_passed",
+    "test_a_listed_run_that_turned_green_fails_so_the_list_only_shrinks",
+    "test_a_run_github_no_longer_has_is_expired_and_fails",
+    "test_a_run_in_progress_fails",
+    "test_a_run_on_another_commit_fails",
+    "test_a_run_that_is_not_green_fails[None]",
+    "test_a_run_that_is_not_green_fails[cancelled]",
+    "test_a_run_that_is_not_green_fails[failure]",
+    "test_a_run_that_is_not_green_fails[skipped]",
+    "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared",
+    "test_an_answer_for_another_run_is_unverified",
+    "test_an_answer_without_head_sha_fails_the_commit_check",
+    "test_an_api_error_is_unverified_never_a_pass[http403]",
+    "test_an_api_error_is_unverified_never_a_pass[http500]",
+    "test_an_api_error_is_unverified_never_a_pass[network]",
+    "test_an_api_error_is_unverified_never_a_pass[not-json]",
+    "test_an_api_error_is_unverified_never_a_pass[timeout]",
+    "test_an_empty_list_makes_every_red_run_an_error",
+    "test_an_entry_no_longer_cited_fails",
+    "test_an_entry_that_is_not_complete_fails[empty]",
+    "test_an_entry_that_is_not_complete_fails[missing]",
+    "test_an_entry_that_is_not_complete_fails[not-an-id]",
+    "test_an_entry_that_is_not_complete_fails[twice]",
+    "test_an_entry_that_is_not_complete_fails[unknown]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[CLAUDE]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[claude]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[pending]",
+    "test_cited_in_must_be_where_the_code_cites_the_run",
+    "test_each_listed_red_run_is_a_warning_that_says_what_it_is",
+    "test_every_citing_record_is_checked_against_its_commit",
+    "test_every_failing_id_has_its_own_error_line",
+    "test_every_file_that_builds_evidence_is_a_source",
+    "test_live_records_without_a_run_id_are_listed_not_dropped",
+    "test_the_cited_commit_is_a_prefix_not_a_substring",
+    "test_the_collector_finds_the_ids_present_today",
+    "test_the_job_summary_shows_the_known_red_section_and_every_run",
+    "test_the_listed_workflow_must_be_the_runs",
+    "test_the_real_request_carries_the_token_in_the_header_only",
+    "test_the_run_must_be_of_the_workflow_the_text_names",
+    "test_the_summary_comes_first_and_names_every_failure",
+    "test_the_unchecked_live_records_are_said_in_the_output",
+    "test_today_every_unlisted_run_is_green_and_the_listed_ones_are_shown_red",
+    "test_without_a_token_nothing_is_verified_and_the_exit_is_2"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the guard no longer reports a file that builds evidence",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    return [f\"{rel} builds records ({', '.join(how)})\" for rel, how in _builders(root) if rel not in declared]\n",
+     "new": "    return []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_each_way_of_building_a_record_is_seen[absolute_module]",
+    "test_each_way_of_building_a_record_is_seen[alias]",
+    "test_each_way_of_building_a_record_is_seen[direct]",
+    "test_each_way_of_building_a_record_is_seen[module_alias]",
+    "test_each_way_of_building_a_record_is_seen[reexport]",
+    "test_each_way_of_building_a_record_is_seen[relative_module]",
+    "test_each_way_of_building_a_record_is_seen[replace]",
+    "test_each_way_of_building_a_record_is_seen[replace_name]",
+    "test_each_way_of_building_a_record_is_seen[star]",
+    "test_each_way_of_building_a_record_is_seen[star_reexport]",
+    "test_every_file_that_builds_evidence_is_a_source"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "an undeclared evidence file no longer stops the check",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    if undeclared:\n        return 2\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n        return 2\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_an_undeclared_evidence_file_stops_the_check"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "nothing collected passes vacuously",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "no run id was collected from the evidence records; nothing was verified')\n        return 2\n",
+     "new": "no run id was collected from the evidence records; nothing was verified')\n        return 0  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_nothing_collected_is_never_a_pass"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "only the first run id of a text is collected",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    for i, m in enumerate(ids):\n",
+     "new": "    for i, m in enumerate(ids[:1]):  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_later_id_in_a_record_is_a_supporting_run_without_a_commit",
+    "test_a_run_that_is_not_green_fails[None]",
+    "test_a_run_that_is_not_green_fails[cancelled]",
+    "test_a_run_that_is_not_green_fails[failure]",
+    "test_a_run_that_is_not_green_fails[skipped]",
+    "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared",
+    "test_a_ten_and_a_twelve_digit_run_are_collected_from_strings",
+    "test_the_collector_finds_the_ids_present_today",
+    "test_the_job_summary_shows_the_known_red_section_and_every_run",
+    "test_the_run_must_be_of_the_workflow_the_text_names",
+    "test_the_summary_comes_first_and_names_every_failure",
+    "test_the_workflow_named_before_an_id_is_recorded",
+    "test_today_every_unlisted_run_is_green_and_the_listed_ones_are_shown_red",
+    "test_without_a_token_nothing_is_verified_and_the_exit_is_2"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "a supporting run is held to the record's commit (a false red)",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        out.append(Citation(run_id, text, commit if i == 0 else '', i == 0, kind, where,\n",
+     "new": "        out.append(Citation(run_id, text, commit, i == 0, kind, where,  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_later_id_in_a_record_is_a_supporting_run_without_a_commit",
+    "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "the check step may fail and the job still passes (continue-on-error)",
+   "mutations": [
+    {
+     "file": ".github/workflows/evidence-runs.yml",
+     "old": "      - name: Every cited evidence run is green on its commit\n",
+     "new": "      - name: Every cited evidence run is green on its commit\n        continue-on-error: true  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_nothing_lets_a_failure_through"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "the script's failure is swallowed by || true",
+   "mutations": [
+    {
+     "file": ".github/workflows/evidence-runs.yml",
+     "old": "--repo \"$GITHUB_REPOSITORY\"\n",
+     "new": "--repo \"$GITHUB_REPOSITORY\" || true  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_nothing_lets_a_failure_through"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "the token is put in the command line instead of the step env",
+   "mutations": [
+    {
+     "file": ".github/workflows/evidence-runs.yml",
+     "old": "        env:\n          GITHUB_TOKEN: ${{ github.token }}\n        run: python scripts/resolve_evidence_runs.py",
+     "new": "        run: GITHUB_TOKEN=${{ github.token }} python scripts/resolve_evidence_runs.py"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_nothing_lets_a_failure_through",
+    "test_the_workflow_reads_only_and_passes_the_token_through_env"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "the workflow may write to the repository",
+   "mutations": [
+    {
+     "file": ".github/workflows/evidence-runs.yml",
+     "old": "  contents: read\n\njobs:",
+     "new": "  contents: write\n\njobs:"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_the_workflow_reads_only_and_passes_the_token_through_env"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "a change to inventory.py no longer runs the check",
+   "mutations": [
+    {
+     "file": ".github/workflows/evidence-runs.yml",
+     "old": "      - omni_prod/intelligence/inventory.py\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_the_workflow_runs_when_a_citing_file_changes_daily_and_by_hand"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "the daily run is gone",
+   "mutations": [
+    {
+     "file": ".github/workflows/evidence-runs.yml",
+     "old": "  schedule:\n    - cron: '23 5 * * *'\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_the_workflow_runs_when_a_citing_file_changes_daily_and_by_hand"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "the live records that cite no run id are no longer reported as unchecked",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    if uncited:\n        print('::warning title=evidence runs::'",
+     "new": "    if False:  # NEGATIVE CONTROL\n        print('::warning title=evidence runs::'"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_the_unchecked_live_records_are_said_in_the_output"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "only the first failing id gets its ::error line",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "                + f' | cited by: {_cited_by(cited[run_id])}'))\n    for problem in problems:\n",
+     "new": "                + f' | cited by: {_cited_by(cited[run_id])}'))\n            break  # NEGATIVE CONTROL\n    for problem in problems:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_an_empty_list_makes_every_red_run_an_error",
+    "test_every_failing_id_has_its_own_error_line"
+   ]
+  },
+  {
+   "id": "NC23",
+   "what": "a run id needs 11 or more digits (a 10-digit id falls out)",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "RUN_ID = re.compile(r'\\b\\d{10,}\\b')\n",
+     "new": "RUN_ID = re.compile(r'\\b\\d{11,}\\b')  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_run_id_is_ten_or_more_digits",
+    "test_an_entry_no_longer_cited_fails",
+    "test_docstrings_and_comments_are_not_evidence"
+   ]
+  },
+  {
+   "id": "NC24",
+   "what": "a run id is exactly 11 digits (a 10- or 12-digit id falls out)",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "RUN_ID = re.compile(r'\\b\\d{10,}\\b')\n",
+     "new": "RUN_ID = re.compile(r'\\b\\d{11}\\b')  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_run_id_is_ten_or_more_digits",
+    "test_a_ten_and_a_twelve_digit_run_are_collected_from_strings",
+    "test_an_entry_no_longer_cited_fails",
+    "test_docstrings_and_comments_are_not_evidence"
+   ]
+  },
+  {
+   "id": "NC25",
+   "what": "a run named in a string needs 11 or more digits",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "NAMED_RUN = re.compile(r'\\brun\\s+(\\d{10,})\\b', re.IGNORECASE)",
+     "new": "NAMED_RUN = re.compile(r'\\brun\\s+(\\d{11,})\\b', re.IGNORECASE)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_run_id_is_ten_or_more_digits",
+    "test_a_ten_and_a_twelve_digit_run_are_collected_from_strings",
+    "test_docstrings_and_comments_are_not_evidence"
+   ]
+  },
+  {
+   "id": "NC26",
+   "what": "the cited commit may appear anywhere in head_sha (substring, not prefix)",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        if c.commit and not head.startswith(c.commit.lower()):\n",
+     "new": "        if c.commit and c.commit.lower() not in head:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_the_cited_commit_is_a_prefix_not_a_substring"
+   ]
+  },
+  {
+   "id": "NC27",
+   "what": "an answer without head_sha skips the commit check",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        if c.commit and not head.startswith(c.commit.lower()):\n",
+     "new": "        if c.commit and head and not head.startswith(c.commit.lower()):  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_an_answer_without_head_sha_fails_the_commit_check"
+   ]
+  },
+  {
+   "id": "NC28",
+   "what": "the job summary table loses its rows",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        for run_id, (verdict, why, run) in results.items():\n            shown = (",
+     "new": "        for run_id, (verdict, why, run) in {}.items():  # NEGATIVE CONTROL\n            shown = ("
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_the_job_summary_shows_the_known_red_section_and_every_run"
+   ]
+  },
+  {
+   "id": "NC29",
+   "what": "a run cited in a plain string (vision_models._PROBE) is not collected",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    for rel, line, text, _ in string_citations(root):\n",
+     "new": "    for rel, line, text, _ in ():  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_later_id_in_a_record_is_a_supporting_run_without_a_commit",
+    "test_a_listed_run_github_could_not_be_asked_about_is_not_a_pass",
+    "test_a_listed_run_that_expired_is_still_shown_not_passed",
+    "test_a_run_named_in_a_plain_string_is_collected",
+    "test_a_run_that_is_not_green_fails[None]",
+    "test_a_run_that_is_not_green_fails[cancelled]",
+    "test_a_run_that_is_not_green_fails[failure]",
+    "test_a_run_that_is_not_green_fails[skipped]",
+    "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared",
+    "test_a_ten_and_a_twelve_digit_run_are_collected_from_strings",
+    "test_a_text_that_names_no_workflow_is_not_held_to_one",
+    "test_an_empty_list_makes_every_red_run_an_error",
+    "test_an_entry_no_longer_cited_fails",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[CLAUDE]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[claude]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[pending]",
+    "test_cited_in_must_be_where_the_code_cites_the_run",
+    "test_docstrings_and_comments_are_not_evidence",
+    "test_each_listed_red_run_is_a_warning_that_says_what_it_is",
+    "test_every_failing_id_has_its_own_error_line",
+    "test_the_collector_finds_the_ids_present_today",
+    "test_the_job_summary_shows_the_known_red_section_and_every_run",
+    "test_the_list_holds_exactly_the_runs_red_today_and_says_what_each_backs",
+    "test_the_listed_workflow_must_be_the_runs",
+    "test_the_real_request_carries_the_token_in_the_header_only",
+    "test_the_summary_comes_first_and_names_every_failure",
+    "test_the_workflow_runs_when_a_citing_file_changes_daily_and_by_hand",
+    "test_today_every_unlisted_run_is_green_and_the_listed_ones_are_shown_red",
+    "test_without_a_token_nothing_is_verified_and_the_exit_is_2"
+   ]
+  },
+  {
+   "id": "NC30",
+   "what": "docstrings are read as evidence",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "isinstance(node.value, str) and id(node) not in docs:\n",
+     "new": "isinstance(node.value, str):  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_listed_run_that_expired_is_still_shown_not_passed",
+    "test_a_run_that_is_not_green_fails[None]",
+    "test_a_run_that_is_not_green_fails[cancelled]",
+    "test_a_run_that_is_not_green_fails[failure]",
+    "test_a_run_that_is_not_green_fails[skipped]",
+    "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared",
+    "test_an_entry_no_longer_cited_fails",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[CLAUDE]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[claude]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[pending]",
+    "test_docstrings_and_comments_are_not_evidence",
+    "test_each_listed_red_run_is_a_warning_that_says_what_it_is",
+    "test_every_failing_id_has_its_own_error_line",
+    "test_the_collector_finds_the_ids_present_today",
+    "test_the_job_summary_shows_the_known_red_section_and_every_run",
+    "test_the_list_holds_exactly_the_runs_red_today_and_says_what_each_backs",
+    "test_the_listed_workflow_must_be_the_runs",
+    "test_the_real_request_carries_the_token_in_the_header_only",
+    "test_the_summary_comes_first_and_names_every_failure",
+    "test_the_workflow_runs_when_a_citing_file_changes_daily_and_by_hand",
+    "test_today_every_unlisted_run_is_green_and_the_listed_ones_are_shown_red",
+    "test_without_a_token_nothing_is_verified_and_the_exit_is_2"
+   ]
+  },
+  {
+   "id": "NC31",
+   "what": "the guard does not see a record class reached through a module (rb.Evidence)",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "            if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_each_way_of_building_a_record_is_seen[absolute_module]",
+    "test_each_way_of_building_a_record_is_seen[module_alias]",
+    "test_each_way_of_building_a_record_is_seen[relative_module]"
+   ]
+  },
+  {
+   "id": "NC32",
+   "what": "the guard does not follow re-exports (a class imported from a module that imported it)",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "                        if exports[name].get(local) != cls:\n",
+     "new": "                        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_each_way_of_building_a_record_is_seen[alias]",
+    "test_each_way_of_building_a_record_is_seen[direct]",
+    "test_each_way_of_building_a_record_is_seen[reexport]",
+    "test_each_way_of_building_a_record_is_seen[replace]",
+    "test_each_way_of_building_a_record_is_seen[replace_name]",
+    "test_each_way_of_building_a_record_is_seen[star]",
+    "test_each_way_of_building_a_record_is_seen[star_reexport]",
+    "test_every_file_that_builds_evidence_is_a_source"
+   ]
+  },
+  {
+   "id": "NC33",
+   "what": "the guard counts only calls of the class name (an alias builds unseen)",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "            cls = record_class(node)\n",
+     "new": "            cls = record_class(node.func) if isinstance(node, ast.Call) else None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_each_way_of_building_a_record_is_seen[alias]"
+   ]
+  },
+  {
+   "id": "NC34",
+   "what": "the guard does not see dataclasses.replace",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "                how.add('dataclasses.replace')\n",
+     "new": "                pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_each_way_of_building_a_record_is_seen[replace]",
+    "test_each_way_of_building_a_record_is_seen[replace_name]"
+   ]
+  },
+  {
+   "id": "NC35",
+   "what": "the guard does not follow import *",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "                    found = (dict(exports.get(base, {})) if a.name == '*' else\n",
+     "new": "                    found = ({} if a.name == '*' else  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_each_way_of_building_a_record_is_seen[star]",
+    "test_each_way_of_building_a_record_is_seen[star_reexport]"
+   ]
+  },
+  {
+   "id": "NC36",
+   "what": "the guard counts an annotation or an isinstance check as building a record",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "            if id(node) in exempt:\n                continue\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n                continue\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_list_that_cannot_be_read_is_never_a_pass[missing]",
+    "test_a_list_that_cannot_be_read_is_never_a_pass[not-a-list]",
+    "test_a_list_that_cannot_be_read_is_never_a_pass[not-an-object]",
+    "test_a_list_that_cannot_be_read_is_never_a_pass[not-entries]",
+    "test_a_list_that_cannot_be_read_is_never_a_pass[not-json]",
+    "test_a_listed_run_github_could_not_be_asked_about_is_not_a_pass",
+    "test_a_listed_run_that_expired_is_still_shown_not_passed",
+    "test_a_listed_run_that_turned_green_fails_so_the_list_only_shrinks",
+    "test_a_run_github_no_longer_has_is_expired_and_fails",
+    "test_a_run_in_progress_fails",
+    "test_a_run_on_another_commit_fails",
+    "test_a_run_that_is_not_green_fails[None]",
+    "test_a_run_that_is_not_green_fails[cancelled]",
+    "test_a_run_that_is_not_green_fails[failure]",
+    "test_a_run_that_is_not_green_fails[skipped]",
+    "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared",
+    "test_an_answer_for_another_run_is_unverified",
+    "test_an_answer_without_head_sha_fails_the_commit_check",
+    "test_an_api_error_is_unverified_never_a_pass[http403]",
+    "test_an_api_error_is_unverified_never_a_pass[http500]",
+    "test_an_api_error_is_unverified_never_a_pass[network]",
+    "test_an_api_error_is_unverified_never_a_pass[not-json]",
+    "test_an_api_error_is_unverified_never_a_pass[timeout]",
+    "test_an_empty_list_makes_every_red_run_an_error",
+    "test_an_entry_no_longer_cited_fails",
+    "test_an_entry_that_is_not_complete_fails[empty]",
+    "test_an_entry_that_is_not_complete_fails[missing]",
+    "test_an_entry_that_is_not_complete_fails[not-an-id]",
+    "test_an_entry_that_is_not_complete_fails[twice]",
+    "test_an_entry_that_is_not_complete_fails[unknown]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[CLAUDE]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[claude]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[pending]",
+    "test_cited_in_must_be_where_the_code_cites_the_run",
+    "test_each_listed_red_run_is_a_warning_that_says_what_it_is",
+    "test_every_citing_record_is_checked_against_its_commit",
+    "test_every_failing_id_has_its_own_error_line",
+    "test_every_file_that_builds_evidence_is_a_source",
+    "test_reading_a_record_or_a_class_of_the_same_name_is_not_building",
+    "test_the_cited_commit_is_a_prefix_not_a_substring",
+    "test_the_job_summary_shows_the_known_red_section_and_every_run",
+    "test_the_listed_workflow_must_be_the_runs",
+    "test_the_real_request_carries_the_token_in_the_header_only",
+    "test_the_run_must_be_of_the_workflow_the_text_names",
+    "test_the_summary_comes_first_and_names_every_failure",
+    "test_the_unchecked_live_records_are_said_in_the_output",
+    "test_today_every_unlisted_run_is_green_and_the_listed_ones_are_shown_red",
+    "test_without_a_token_nothing_is_verified_and_the_exit_is_2"
+   ]
+  },
+  {
+   "id": "NC37",
+   "what": "a 404 is a plain red, not the expired verdict",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        if exc.code == 404:\n            return 'expired',",
+     "new": "        if exc.code == 404:\n            return 'red', ['missing: GitHub has no such run (HTTP 404)'], {}  # NEGATIVE CONTROL\n            return 'expired',"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_listed_run_that_expired_is_still_shown_not_passed",
+    "test_a_run_github_no_longer_has_is_expired_and_fails",
+    "test_the_summary_comes_first_and_names_every_failure"
+   ]
+  },
+  {
+   "id": "NC38",
+   "what": "the workflow the text names is not compared with the run",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        if c.workflows and stem not in c.workflows:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_the_run_must_be_of_the_workflow_the_text_names"
+   ]
+  },
+  {
+   "id": "NC39",
+   "what": "a listed id that turned green no longer fails the check (the list can grow stale)",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    return 1 if (red or expired or turned_green or problems) else 0\n",
+     "new": "    return 1 if (red or expired or problems) else 0  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_listed_run_that_turned_green_fails_so_the_list_only_shrinks"
+   ]
+  },
+  {
+   "id": "NC40",
+   "what": "the list is an allowlist: a listed id is a warning whatever GitHub says",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    known = [r for r in results if r in listed and results[r][0] in ('red', 'expired')]\n",
+     "new": "    known = [r for r in results if r in listed]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_listed_run_github_could_not_be_asked_about_is_not_a_pass",
+    "test_a_listed_run_that_turned_green_fails_so_the_list_only_shrinks"
+   ]
+  },
+  {
+   "id": "NC41",
+   "what": "a listed red id is no longer shown as its own ::warning",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        if run_id in known:\n            e = listed[run_id]\n",
+     "new": "        if run_id in known:\n            continue  # NEGATIVE CONTROL\n            e = listed[run_id]\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_listed_run_that_expired_is_still_shown_not_passed",
+    "test_each_listed_red_run_is_a_warning_that_says_what_it_is"
+   ]
+  },
+  {
+   "id": "NC42",
+   "what": "the known-red summary warning is gone",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "    if known:\n        print(f'::warning title=evidence runs: known red::",
+     "new": "    if False:  # NEGATIVE CONTROL\n        print(f'::warning title=evidence runs: known red::"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_each_listed_red_run_is_a_warning_that_says_what_it_is"
+   ]
+  },
+  {
+   "id": "NC43",
+   "what": "an entry signed by its author (or pending) passes",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        if who.lower() in NOT_A_REVIEWER or who == e['author']:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[CLAUDE]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[claude]",
+    "test_an_entry_without_a_reviewer_other_than_the_author_fails[pending]"
+   ]
+  },
+  {
+   "id": "NC44",
+   "what": "an entry whose id is no longer cited passes",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        if run_id not in cited:\n            problems.append(",
+     "new": "        if run_id not in cited:\n            continue  # NEGATIVE CONTROL\n            problems.append("
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_an_entry_no_longer_cited_fails"
+   ]
+  },
+  {
+   "id": "NC45",
+   "what": "an entry's cited_in is not compared with the code",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        if sorted(e['cited_in'] or []) != actual:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_cited_in_must_be_where_the_code_cites_the_run"
+   ]
+  },
+  {
+   "id": "NC46",
+   "what": "a list that cannot be read counts as an empty list",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        raise ValueError(f'{type(exc).__name__}: {exc}') from exc\n",
+     "new": "        return []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_a_list_that_cannot_be_read_is_never_a_pass[missing]",
+    "test_a_list_that_cannot_be_read_is_never_a_pass[not-json]"
+   ]
+  },
+  {
+   "id": "NC47",
+   "what": "the known-red section is missing from the job summary",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "            rows += ['### Known red: capabilities marked verified on a failed run', '',\n",
+     "new": "            rows += ['### (section dropped)', '',  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_the_job_summary_shows_the_known_red_section_and_every_run"
+   ]
+  },
+  {
+   "id": "NC48",
+   "what": "an entry's workflow is not compared with the run's",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        if run and e.get('workflow') != str(run.get('path') or '').rsplit('/', 1)[-1]:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_the_listed_workflow_must_be_the_runs"
+   ]
+  },
+  {
+   "id": "NC49",
+   "what": "a change to vision_models.py no longer runs the check",
+   "mutations": [
+    {
+     "file": ".github/workflows/evidence-runs.yml",
+     "old": "      - omni_prod/vision_models.py\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_the_workflow_runs_when_a_citing_file_changes_daily_and_by_hand"
+   ]
+  },
+  {
+   "id": "NC50",
+   "what": "an entry listed twice passes",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        if run_id in seen:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_an_entry_that_is_not_complete_fails[twice]"
+   ]
+  },
+  {
+   "id": "NC51",
+   "what": "an entry with fields the list does not know passes",
+   "mutations": [
+    {
+     "file": "scripts/resolve_evidence_runs.py",
+     "old": "        missing, extra = ENTRY_KEYS - set(e), set(e) - ENTRY_KEYS - ENTRY_OPTIONAL\n",
+     "new": "        missing, extra = ENTRY_KEYS - set(e), set()  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_an_entry_that_is_not_complete_fails[unknown]"
+   ]
+  },
+  {
+   "id": "NC52",
+   "what": "the tests' job summary points somewhere other than their own temp file (as the real one would)",
+   "mutations": [
+    {
+     "file": "tests/test_resolve_evidence_runs.py",
+     "old": "    monkeypatch.setenv('GITHUB_STEP_SUMMARY', str(tmp_path / 'summary.md'))\n",
+     "new": "    monkeypatch.setenv('GITHUB_STEP_SUMMARY', os.devnull)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_resolve_evidence_runs.py"
+   ],
+   "expect_failed": [
+    "test_no_test_writes_the_real_job_summary",
+    "test_the_job_summary_shows_the_known_red_section_and_every_run"
+   ]
+  }
+ ]
+}

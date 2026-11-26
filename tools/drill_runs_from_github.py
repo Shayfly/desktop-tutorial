@@ -35,13 +35,19 @@ def drill_entries(control_id: str, workflow: str, runs: list[dict]) -> list[dict
     return out
 
 
-def fetch_runs(repo: str, workflow: str, token: str, urlopen=urllib.request.urlopen) -> list[dict]:
-    url = (f'https://api.github.com/repos/{repo}/actions/workflows/{workflow}/runs'
-           f'?branch=main&status=completed&per_page={PER_PAGE}')
+def github_get(url: str, token: str, urlopen=urllib.request.urlopen):
+    """One GET of the GitHub REST API, answered as JSON. The token goes in the header only. Shared with
+    scripts/resolve_evidence_runs.py (Law 2, 2026-11-25); any error propagates to the caller, never a default."""
     req = urllib.request.Request(url, headers={'Accept': 'application/vnd.github+json',
                                                'Authorization': f'Bearer {token}', 'X-GitHub-Api-Version': '2022-11-28'})
     with urlopen(req, timeout=20) as resp:
-        body = json.loads(resp.read().decode('utf-8'))
+        return json.loads(resp.read().decode('utf-8'))
+
+
+def fetch_runs(repo: str, workflow: str, token: str, urlopen=urllib.request.urlopen) -> list[dict]:
+    url = (f'https://api.github.com/repos/{repo}/actions/workflows/{workflow}/runs'
+           f'?branch=main&status=completed&per_page={PER_PAGE}')
+    body = github_get(url, token, urlopen)
     runs = body.get('workflow_runs')
     if not isinstance(runs, list):
         raise ValueError(f'{workflow}: the GitHub answer has no workflow_runs list')

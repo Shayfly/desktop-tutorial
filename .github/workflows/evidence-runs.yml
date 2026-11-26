@@ -1,0 +1,48 @@
+name: Evidence runs
+
+# Law 2 -- no capability is marked active without proof of execution (2026-11-25). A verified status rests on GitHub
+# Actions run ids typed into the evidence records and into string constants of omni_prod/ ("run <id>");
+# scripts/resolve_evidence_runs.py asks GitHub about every one of them and fails, one error per id, on a run that GitHub
+# no longer has (expired: run again and cite the new run), not completed, not green, not on the commit the record cites,
+# or not of the workflow the text names. A network or API error is unverified, never a pass.
+# Runs that were red when the check was written are in docs/evidence-runs-known-red.json: each prints a ::warning
+# ("capability marked verified on a failed run") and the list only shrinks (a listed id that is green fails the check).
+# It runs when a file that cites a run changes (tests/test_resolve_evidence_runs.py derives this list from the code),
+# daily, and by hand. Not a required check; the job may not hide a failure (no continue-on-error, the exit code decides).
+on:
+  pull_request:
+    paths:
+      - .github/workflows/evidence-runs.yml
+      - docs/evidence-runs-known-red.json
+      - omni_prod/agent_os/agents.py
+      - omni_prod/agent_os/evidence.py
+      - omni_prod/agent_os/skills.py
+      - omni_prod/agent_os/truth_matrix.py
+      - omni_prod/intelligence/inventory.py
+      - omni_prod/runtime_bindings.py
+      - omni_prod/skill_catalog.py
+      - omni_prod/vision_models.py
+      - scripts/resolve_evidence_runs.py
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Every cited evidence run is green on its commit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/resolve_evidence_runs.py --repo "$GITHUB_REPOSITORY"
