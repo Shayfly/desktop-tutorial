@@ -149,14 +149,18 @@ GitHub rule. "Not required" means a red result does not block a merge.
    - *Enforced today:* **PARTIAL.**
      - Every deleted line needs a declaration bound to the sha256 of exactly those lines (`scripts/deletions_declared.py`,
        job `light`, `v24-ci.yml:53-63`). `light` is not required, and the reviewer field is a string (law 7).
-     - The negative controls run in job `negative-controls` (`v24-ci.yml:129-144`), which is not required. The required
-       `test` job only checks that the specs still apply (`tests/test_negative_controls_apply.py`).
+     - The negative controls run in job `negative-controls` (`v24-ci.yml:162-187`), as three parallel shards since the
+       change of 2026-11-26: the checks `negative-controls (1)`, `negative-controls (2)` and `negative-controls (3)`.
+       None of them is required. The required `test` job only checks that the specs still apply
+       (`tests/test_negative_controls_apply.py`).
      - The regression guardian keeps a minimum test count per area, but reads the minimum from the branch itself
        (`omni_prod/agent_os/meta.py:69`).
      - A weakening that only adds lines passes every check: a new `skip`, `xfail`, `continue-on-error` or `|| true`.
    - *Missing:* a required check that diffs the PR against main and fails on new skip or xfail markers,
      `continue-on-error` or `|| true`, unless declared and signed. The regression floor should be read from main
-     (CLAUDE.md §4). `light` and `negative-controls` should be required.
+     (CLAUDE.md §4). `light` and the three checks `negative-controls (1)`, `(2)` and `(3)` should be required. A rule
+     that required the old single check `negative-controls` would block every pull request: no job reports a check by
+     that name any more.
 
 6. **No hiding of failures, deleting of evidence or inventing of results.**
    - *Forbidden:* a failure that does not surface, evidence that is removed, or a result that no run produced.
