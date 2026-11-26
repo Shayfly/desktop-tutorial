@@ -22,6 +22,7 @@ review round with production's recorded findings, in order).
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import unittest
@@ -32,8 +33,18 @@ from unittest import mock
 from omni_prod import investor_app
 from omni_prod.autonomous_core import (SUMMARY_FAILURE_ID, AcceptanceFailure as F, AutonomousProductEngine,
                                        ExecutionReport as R)
+from omni_prod.product_spec import AcceptanceCriterion, ProductSpec, Requirement
 from omni_prod.repository_patch import FilePatch, parse_patch
-from tests.test_verification_group import BEHAVIOUR_PASS, BROWSER_OK, Architect, Generator
+from tests.test_verification_group import BEHAVIOUR_PASS, BROWSER_OK, Generator
+
+SPEC = ProductSpec(title='Landing page', summary='A Hebrew landing page with an English switch', stack=('python',),
+                   requirements=(Requirement('R1', 'GET / returns the full page'),),
+                   acceptance=(AcceptanceCriterion('A1', 'R1', 'the page opens'),))
+
+
+class Architect:
+    def create_spec(self, prompt):
+        return SPEC
 
 FIXTURE = json.loads((Path(__file__).resolve().parent / 'fixtures' / 'repair_converge' / 'bld_cb2d1b90_rounds.json')
                      .read_text(encoding='utf-8'))
@@ -46,7 +57,8 @@ def visual_output(viewport: str) -> str:
                                            'controls': 5, 'text_elements': 39}, ensure_ascii=False)
 
 
-def fake_sandbox(calls: list):
+def fake_sandbox(calls: list, browser=None):
+    """`browser`: {app.py version: probe stdout} for rounds whose browser check production did not record as passed."""
     class FakeRemote:
         def __init__(self, config, **_):
             pass
@@ -62,7 +74,7 @@ def fake_sandbox(calls: list):
             if build_id == 'behavior-acceptance':
                 return {'returncode': 0, 'stdout': BEHAVIOUR_PASS, 'stderr': ''}
             if build_id == 'browser-probe':
-                return {'returncode': 0, 'stdout': BROWSER_OK, 'stderr': ''}
+                return {'returncode': 0, 'stdout': (browser or {}).get(repository.get('app.py'), BROWSER_OK), 'stderr': ''}
             if build_id.startswith('visual-'):
                 return {'returncode': 0, 'stdout': visual_output(build_id.split('-', 1)[1]), 'stderr': ''}
             return {'returncode': 0, 'stdout': '', 'stderr': ''}
@@ -94,18 +106,31 @@ ENV = {'OMNI_SANDBOX_RUNNER_URL': 'http://sandbox.invalid', 'OMNI_SANDBOX_SHARED
        'OMNI_MIN_QUALITY_SCORE': '0', 'OMNI_MAX_REVIEW_ROUNDS': '2'}
 
 
-def replay(reviews=None, *, max_rounds: int = 6, retries: int = 1):
-    """The production build's rounds on the real chain and loop. Returns (result, engine, repairer, snapshots)."""
-    calls, snapshots = [], []
+@contextlib.contextmanager
+def production_env(calls: list, browser=None):
+    """The environment of the replay: production's enforced visual rules (the default), the faked sandbox transport."""
     env = {k: v for k, v in os.environ.items() if k != 'OMNI_VISUAL_QA_ENFORCE'}
     env.update(ENV)
     with mock.patch.dict(os.environ, env, clear=True), \
-            mock.patch.object(investor_app, 'RemoteSandboxRepositoryExecutor', fake_sandbox(calls)):
-        executor = investor_app._verification_executor(RecordedReviewer(reviews or FIXTURE['reviews']))
-        repairer = Repairer()
-        engine = AutonomousProductEngine(architect=Architect(), generator=Generator(), repairer=repairer,
-                                         executor=executor, max_repair_rounds=max_rounds, repair_ceiling=6)
-        engine.no_progress_retries = retries                    # production: OMNI_NO_PROGRESS_RETRIES=1
+            mock.patch.object(investor_app, 'RemoteSandboxRepositoryExecutor', fake_sandbox(calls, browser)):
+        yield
+
+
+def production_engine(reviews=None, *, max_rounds: int = 6, retries: int = 1):
+    """The real engine on the real chain, as production builds it (call inside production_env)."""
+    executor = investor_app._verification_executor(RecordedReviewer(reviews or FIXTURE['reviews']))
+    repairer = Repairer()
+    engine = AutonomousProductEngine(architect=Architect(), generator=Generator(), repairer=repairer,
+                                     executor=executor, max_repair_rounds=max_rounds, repair_ceiling=6)
+    engine.no_progress_retries = retries                        # production: OMNI_NO_PROGRESS_RETRIES=1
+    return engine, repairer
+
+
+def replay(reviews=None, *, max_rounds: int = 6, retries: int = 1):
+    """The production build's rounds on the real chain and loop. Returns (result, engine, repairer, snapshots)."""
+    calls, snapshots = [], []
+    with production_env(calls):
+        engine, repairer = production_engine(reviews, max_rounds=max_rounds, retries=retries)
         engine.round_hook = lambda i, repo, report, decision, progress: snapshots.append(
             {'round': i, 'decision': decision, 'progress': list(progress),
              'failing': sorted({f.acceptance_id for f in report.failures})})

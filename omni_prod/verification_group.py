@@ -122,6 +122,63 @@ class VerificationGroup:
         if len(failed) > 1:                                     # + ONE line about everything else that failed
             failures.append(AcceptanceFailure(
                 SUMMARY_FAILURE_ID,
-                'also failing in this round: ' + ' | '.join(_summary_line(r) for _, _, r in failed[1:]),
+                SUMMARY_PREFIX + ' | '.join(_summary_line(r) for _, _, r in failed[1:]),
                 'Fix the failure above first; these other checks also failed on the same version.'))
-        return ExecutionReport(False, tuple(failures), worst.build_log)
+        # The threshold passed, so its test count is this version's (the release policy's tests row reads it; without
+        # it a version whose sandbox tests passed showed UNKNOWN, or FAIL when ALSO_FAILING was read as a test).
+        return ExecutionReport(False, tuple(failures), worst.build_log, tests_executed=base.tests_executed)
+
+
+SUMMARY_PREFIX = 'also failing in this round: '
+_SUMMARISED = re.compile(r'([A-Za-z][\w-]*): ')
+
+
+def summarised_ids(message: str) -> list[str]:
+    """The check ids an ALSO_FAILING line names ('<id>: <first failure>[ (+N more)]' joined by ' | '), in order. A
+    segment that does not start with an id (a ' | ' inside a quoted message) belongs to the one before it."""
+    text = str(message or '')
+    if text.startswith(SUMMARY_PREFIX):
+        text = text[len(SUMMARY_PREFIX):]
+    out = []
+    for segment in text.split(' | '):
+        m = _SUMMARISED.match(segment)
+        if m and m.group(1) not in out:
+            out.append(m.group(1))
+    return out
+
+
+def kept_failures(result) -> list:
+    """Every failure of the version a build ended on, lowest stage first (the order in which they block). From the
+    engine's full list (AutonomousResult.full_failures); a result without one gives its report's failures, the
+    ALSO_FAILING line kept -- never cut -- and placed by the lowest stage it names."""
+    from .autonomous_core import AutonomousProductEngine as E
+    report = getattr(result, 'report', None)
+    if report is None or getattr(report, 'passed', False):
+        return []
+    failures = list(getattr(result, 'full_failures', ()) or ()) or list(getattr(report, 'failures', ()) or ())
+
+    def stage(f):
+        if f.acceptance_id == SUMMARY_FAILURE_ID:
+            named = [E.stage_rank(AcceptanceFailure(i, '')) for i in summarised_ids(f.message)]
+            return min(named, default=11)
+        return E.stage_rank(f)
+    return [f for _, _, f in sorted((stage(f), i, f) for i, f in enumerate(failures))]
+
+
+def failure_list(failures, budget: int, item_chars: int = 240) -> str:
+    """'<id>: <message>' for each failure, '; '-joined, within `budget` characters. When they do not all fit, the
+    ones left out are counted in a closing '(+N more: <id> <count>, ...)' that is never cut (bld_cb2d1b90: the
+    message kept four items and dropped the fifth, the one that carried VISUAL)."""
+    items = [f'{f.acceptance_id}: {f.message}'[:item_chars] for f in failures]
+    text = '; '.join(items)
+    if len(text) <= budget:
+        return text
+    for keep in range(len(items) - 1, -1, -1):
+        counts: dict[str, int] = {}
+        for f in failures[keep:]:
+            counts[f.acceptance_id] = counts.get(f.acceptance_id, 0) + 1
+        tail = f'(+{len(items) - keep} more: ' + ', '.join(f'{k} {n}' for k, n in counts.items()) + ')'
+        text = '; '.join(items[:keep] + [tail])
+        if len(text) <= budget:
+            return text
+    return tail[:budget]
