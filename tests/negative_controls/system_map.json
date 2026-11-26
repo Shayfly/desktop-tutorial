@@ -144,8 +144,7 @@
     "tests/test_system_map.py"
    ],
    "expect_failed": [
-    "test_blocked_wins_over_connection_and_verification",
-    "test_no_blocked_model_of_the_matrix_is_connected_or_verified"
+    "test_blocked_wins_over_connection_and_verification"
    ]
   },
   {

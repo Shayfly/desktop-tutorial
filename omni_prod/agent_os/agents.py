@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from ..runtime_bindings import Evidence
 from .contracts import AgentContract
-from .evidence import BACKUP, CRASH, DEPLOY, FREE, PAID, REHEARSAL_ACCEPT
+from .evidence import BACKUP, DEPLOY, FREE, PAID, REHEARSAL_ACCEPT
 
 U = lambda path: Evidence('unit', path)  # noqa: E731
 
@@ -34,7 +34,7 @@ _SPECS = [
      'decides the order of agents and stops the run on failure or cancel',
      ('build_plan_generation', 'task_decomposition', 'agent_assignment', 'job_cancel'), 'quality_gate_agent',
      ('omni_prod.autonomous_core:AutonomousProductEngine', 'omni_prod.worker_tasks:_run_live_build_job', 'omni_prod.agent_os.runtime:AgentRuntime'),
-     (PAID, CRASH), {}),
+     (PAID,), {}),
     ('discovery_agent', 'Discovery Agent', 'management', 'professional discovery conversation',
      'asks only what is missing, records delegated choices and contradictions',
      ('intent_classification', 'ambiguity_detection', 'smart_question_generation', 'safe_default_selection'),
@@ -113,10 +113,10 @@ _SPECS = [
      ('omni_prod.routed_gateway:RoutedModelGateway',), (PAID, REHEARSAL_ACCEPT), {}),
     ('cost_economics_agent', 'Cost & Economics Agent', 'platform', 'quote, reserve, meter, settle',
      'never charges more than measured usage when usage is known', ('build_quote', 'credit_reservation', 'actual_cost_calculation', 'credit_settlement'),
-     'quality_gate_agent', ('omni_prod.worker_tasks:resolve_m5_billing', 'omni_prod.worker_tasks:metered_llm_cost'), (CRASH, PAID), {}),
+     'quality_gate_agent', ('omni_prod.worker_tasks:resolve_m5_billing', 'omni_prod.worker_tasks:metered_llm_cost'), (PAID,), {}),
     ('infrastructure_agent', 'Infrastructure Agent', 'platform', 'workers, queue, storage health',
      'keeps the build infrastructure healthy and recovers stranded work', ('worker_health_check', 'queue_health_check', 'stale_job_recovery'),
-     'sre_reliability_agent', ('omni_prod.maintenance:run_once', 'omni_prod.maintenance:recover_lost_running'), (CRASH, DEPLOY), {}),
+     'sre_reliability_agent', ('omni_prod.maintenance:run_once', 'omni_prod.maintenance:recover_lost_running'), (DEPLOY,), {}),
     ('deployment_agent', 'Deployment Agent', 'platform', 'previews of generated products', 'private, persistent previews on the host',
      ('preview_deploy', 'preview_health_check', 'preview_access_protect'), 'release_agent',
      ('omni_prod.preview_runtime:DockerPreviewProvider', 'omni_prod.preview_router:make_handler'), (FREE,), {}),
@@ -129,7 +129,7 @@ _SPECS = [
      ('omni_prod.build_control:BuildControl', 'omni_prod.attempt_ledger:persist_attempts'), (FREE, PAID), {}),
     ('sre_reliability_agent', 'SRE / Reliability Agent', 'platform', 'no work lost', 'drain on deploy, crash recovery, lost-queue redispatch',
      ('job_resume', 'stale_job_recovery'), 'quality_gate_agent', ('path:.github/workflows/deploy-worker.yml', 'omni_prod.maintenance:recover_lost_running'),
-     (CRASH, DEPLOY), {}),
+     (DEPLOY,), {}),
     ('backup_recovery_agent', 'Backup & Recovery Agent', 'platform', 'backups proven by restore', 'daily backup + restore drill',
      ('database_backup', 'project_backup', 'restore_verification'), 'quality_gate_agent', ('omni_prod.backup:verify',), (BACKUP,), {}),
     ('migration_agent', 'Migration Agent', 'platform', 'platform schema changes', 'additive migrations with checksum ledger',
@@ -177,13 +177,13 @@ _SPECS = [
      'quality_gate_agent', ('omni_prod.agent_os.meta:regression_guardian',), (U('tests/test_agent_os.py'),), {}),
     ('golden_path_verifier', 'Golden Path Verifier', 'meta', 'end-to-end journeys on the real system',
      'runs the golden journeys against the deployed platform and records the results', ('deployment_verification', 'cancellation_test', 'resume_test'),
-     'quality_gate_agent', ('omni_prod.postdeploy_checks:main', 'path:.github/workflows/postdeploy-checks.yml'), (FREE, PAID, CRASH), {}),
+     'quality_gate_agent', ('omni_prod.postdeploy_checks:main', 'path:.github/workflows/postdeploy-checks.yml'), (FREE, PAID), {}),
     ('system_test_orchestrator', 'System Test Orchestrator', 'meta', 'which test layers a change needs',
      'maps changed files to the required layers; unit-only evidence never completes a feature', ('regression_test', 'requirement_traceability_test'), 'quality_gate_agent',
      ('omni_prod.agent_os.meta:required_layers',), (U('tests/test_agent_os.py'),), {}),
     ('failure_injection_agent', 'Failure Injection Agent', 'meta', 'prove graceful failure',
      'injects provider/DB/queue/worker/budget/token/artifact failures; real kill and drain on the host', ('provider_failure_test',),
-     'quality_gate_agent', ('omni_prod.agent_os.meta:failure_injection',), (CRASH, U('tests/test_failure_injection.py')), {}),
+     'quality_gate_agent', ('omni_prod.agent_os.meta:failure_injection',), (U('tests/test_failure_injection.py'),), {}),
     ('quality_gate_agent', 'Quality Gate Agent', 'meta', 'final platform gate',
      'a milestone is VERIFIED only with tests, no regressions, security, acceptance, cost, recovery and truthful registries',
      ('security_release_gate', 'release_gate'), '', ('omni_prod.agent_os.meta:quality_gate',), (U('tests/test_agent_os.py'),), {}),

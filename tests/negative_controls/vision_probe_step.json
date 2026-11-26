@@ -1,0 +1,62 @@
+{
+ "pr": "red-evidence",
+ "sha256": [
+  "tests/test_vision_probe_step.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the stderr pipeline of the step is unwrapped again, as in run 43657047045: an empty stderr ends the step red with every model passing",
+   "mutations": [
+    {
+     "file": ".github/workflows/vision-probe.yml",
+     "old": "          { tr -d '\\r' < err.txt | grep -v '^[[:space:]]*$' | tail -n 5 | while IFS= read -r l; do echo \"::warning title=vision probe stderr::$l\"; done; } || true",
+     "new": "          tr -d '\\r' < err.txt | grep -v '^[[:space:]]*$' | tail -n 5 | while IFS= read -r l; do echo \"::warning title=vision probe stderr::$l\"; done"
+    }
+   ],
+   "targets": [
+    "tests/test_vision_probe_step.py"
+   ],
+   "expect_failed": [
+    "test_the_current_step_ends_green_when_every_model_passed",
+    "test_the_current_step_still_ends_red_when_a_routed_model_fails"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the step is made green by swallowing the probe's exit code (a routed model that fails would pass)",
+   "mutations": [
+    {
+     "file": ".github/workflows/vision-probe.yml",
+     "old": "          exit $rc\n",
+     "new": "          exit 0  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_vision_probe_step.py"
+   ],
+   "expect_failed": [
+    "test_the_current_step_still_ends_red_when_a_routed_model_fails"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the probe's report no longer prints each model's verdict as a notice (the fixture would no longer be the logged run)",
+   "mutations": [
+    {
+     "file": "omni_prod/vision_probe.py",
+     "old": "        print(f\"::notice title=vision probe {r['model']}::{'PASS' if r['passed'] else 'FAIL'} \"",
+     "new": "        print(f\"::debug title=vision probe {r['model']}::{'PASS' if r['passed'] else 'FAIL'} \""
+    }
+   ],
+   "targets": [
+    "tests/test_vision_probe_step.py"
+   ],
+   "expect_failed": [
+    "test_the_fixture_is_the_logged_run",
+    "test_the_old_step_ends_red_with_every_model_passing",
+    "test_the_current_step_ends_green_when_every_model_passed"
+   ]
+  }
+ ]
+}
