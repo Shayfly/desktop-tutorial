@@ -1,0 +1,88 @@
+{
+ "pr": "caps-a-content-corrections",
+ "sha256": [
+  "tests/test_content_corrections.py",
+  "tests/test_site_content_agents.py",
+  "omni_prod/site_content/agents.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the old limit is back: one correction, and then the build fails",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "MAX_CORRECTIONS = 3\n",
+     "new": "MAX_CORRECTIONS = 1\n"
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py"
+   ],
+   "expect_failed": [
+    "test_the_bound_is_three_and_stated_in_the_evidence",
+    "test_a_document_fixed_by_its_third_correction_is_built",
+    "test_a_document_still_invalid_after_three_corrections_fails_loudly",
+    "test_a_copy_finding_is_rewritten_until_it_passes_within_the_bound",
+    "test_validation_and_copy_rounds_share_the_one_bound",
+    "test_a_rewrite_that_breaks_the_document_gets_a_correction_not_a_failure"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a correction round is logged without what it was asked to fix",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "                               'asked': [{'path': p.path, 'code': p.code} for p in block]})",
+     "new": "                               'asked': []})"
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py"
+   ],
+   "expect_failed": [
+    "test_a_document_fixed_by_its_third_correction_is_built"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the build evidence carries no correction rounds",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        report.update(correction_bound=MAX_CORRECTIONS, correction_rounds=rounds)\n",
+     "new": "        report.update(correction_bound=MAX_CORRECTIONS)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py"
+   ],
+   "expect_failed": [
+    "test_the_bound_is_three_and_stated_in_the_evidence",
+    "test_a_document_fixed_by_its_third_correction_is_built",
+    "test_a_document_still_invalid_after_three_corrections_fails_loudly",
+    "test_a_copy_finding_is_rewritten_until_it_passes_within_the_bound",
+    "test_validation_and_copy_rounds_share_the_one_bound",
+    "test_a_rewrite_that_breaks_the_document_gets_a_correction_not_a_failure"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a copy finding is rewritten past the bound: the copy rounds do not share the three corrections",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            if len(rounds) >= MAX_CORRECTIONS:\n                report['prepass'] = found\n",
+     "new": "            if False:\n                report['prepass'] = found\n"
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py"
+   ],
+   "expect_failed": [
+    "test_validation_and_copy_rounds_share_the_one_bound"
+   ]
+  }
+ ]
+}

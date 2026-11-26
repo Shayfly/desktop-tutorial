@@ -2,10 +2,13 @@
 
   ContentSpecArchitect   no model call: the content-only floor spec (ProductArchitect._content_only_spec); the worker's
                          wrappers add CUSTOMER-FACTS, the outline, PLATFORM-CHECKS and DESIGN-CONTRACT as today
-  ContentSiteGenerator   one ContentAgent call (copy only, one JSON document), validated; ONE corrective call for a
-                         blocking validation problem or a blocking gate finding inside the copy; then the platform
-                         renders, runs the gates that judge a page before any sandbox time (each in its own mode:
-                         a warn finding goes to the evidence), and writes the repository
+  ContentSiteGenerator   one ContentAgent call (copy only, one JSON document), validated; up to MAX_CORRECTIONS (3)
+                         corrective calls in all -- a whole-document correction for a blocking validation problem, or
+                         a rewrite of the named paths for a blocking gate finding inside the copy -- each one logged
+                         in the build evidence (site_route.correction_rounds); then the platform renders, runs the
+                         gates that judge a page before any sandbox time (each in its own mode: a warn finding goes to
+                         the evidence), and writes the repository. The owner, 2026-11-26 (WAREHOUSE 136, option a):
+                         one correction and then a failed build was a limit that is not money; it became three
   ContentSiteRepairer    after a failed round: attribute every failure with the OWNER table. Platform -> RepairDeclined
                          ('platform_render_defect'), zero model calls. Customer -> needs_customer_input. Content -> one
                          ContentRepairAgent call that may set ONLY the JSON paths the findings point at; validated,
@@ -15,9 +18,14 @@
   SiteParityExecutor     the served GET / is the rendered page (cut where the preview cuts it), and the repository
                          holds no other page; a new check, so it enters gate.CALIBRATING (SITE_PARITY) at warn
 
-Every loop is bounded (one corrective call per generation, one rewrite call per repair round, the engine's own round
-bounds), every failure is loud (SiteContentInvalid, SiteRenderDefect, RepairDeclined), and there is no fallback to
-the legacy generator once the route was chosen.
+Every loop is bounded (at most MAX_CORRECTIONS corrective calls per generation, one rewrite call per repair round, the
+engine's own round bounds), every failure is loud (SiteContentInvalid, SiteRenderDefect, RepairDeclined), and there is
+no fallback to the legacy generator once the route was chosen.
+
+What a correction costs: one model call on the build's own model budget (a money limit, unchanged) -- the content
+document again (input: the request, the schema, the previous document and the problems; output at most
+MAX_CONTENT_TOKENS) or a rewrite of the named paths (output at most MAX_REWRITE_TOKENS). The estimate in dollars is
+measured from a real payload in tests/test_content_corrections.py and reported there, labelled as an estimate.
 """
 from __future__ import annotations
 
@@ -41,10 +49,15 @@ PREVIEW_CUT = 45_000                  # preview_smoke keeps the first 45,000 cha
 PREPASS_GATES = ('G1', 'G3', 'G10', 'G11', 'HE', 'BRAND', 'SHARE', 'PRO')
 MAX_CONTENT_TOKENS = 8000
 MAX_REWRITE_TOKENS = 3000
+# The owner, 2026-11-26 (WAREHOUSE 136, option a): corrective calls per generation -- a fixed, stated bound (CLAUDE.md
+# section 3). It was 1. Each round is logged in the build evidence (site_route.correction_rounds) and the bound is
+# said there (site_route.correction_bound) and in the failure message.
+MAX_CORRECTIONS = 3
 
 
 class SiteContentInvalid(RuntimeError):
-    """The model's content document is still invalid after its one correction. failure_code 'site_content_invalid'."""
+    """The model's content document is still invalid after its corrections (at most MAX_CORRECTIONS). failure_code
+    'site_content_invalid'."""
 
     def __init__(self, message: str, problems=()):
         super().__init__(message)
@@ -118,7 +131,8 @@ def _complete(gateway, *, system: str, user: str, max_tokens: int, guard) -> dic
 
 
 class ContentAgent:
-    """Writes the content document: one call, and at most one corrective call (counted in `calls`)."""
+    """Writes the content document: one call, and corrective calls within the generator's MAX_CORRECTIONS (counted in
+    `calls`)."""
 
     def __init__(self, gateway):
         self.gateway = gateway
@@ -355,52 +369,57 @@ class ContentSiteGenerator:
         offered, skipped = K.offered_sections(sheet, route.palette_entry, route.order, route.outline_titles)
         payload = self._payload(route, sheet, offered)
         report = core.site_report
+        rounds: list[dict] = []                            # every corrective call of this generation, in order
+        report.update(correction_bound=MAX_CORRECTIONS, correction_rounds=rounds)
         doc = self.agent.write(payload)
-        problems = V.validate(doc, sheet, offered, route.outline_titles)
-        corrections = 1                                    # the one corrective call of this generation
-        if V.blocking(problems):
-            corrections -= 1
-            report['corrected'] = [p.to_dict() for p in V.blocking(problems)]
-            doc = self.agent.correct(payload, doc, V.blocking(problems))
+        # Bounded: a pass that neither breaks nor raises spends one correction, and at most MAX_CORRECTIONS are spent,
+        # so the loop body runs at most MAX_CORRECTIONS + 1 times; the `else` below is unreachable and raises.
+        for _ in range(MAX_CORRECTIONS + 1):
             problems = V.validate(doc, sheet, offered, route.outline_titles)
-            if V.blocking(problems):
-                report['problems'] = [p.to_dict() for p in problems]
-                raise SiteContentInvalid(f'{len(V.blocking(problems))} problem(s) after the one correction: '
-                                         + '; '.join(f'{p.path} {p.code}' for p in V.blocking(problems)[:6]), problems)
-        html, lib_skipped = self._render(doc, sheet, route)
-        found = prepass(core, route, html, sheet)
-        blocking = found['block']
-        if any(f['owner'] != 'content' for f in blocking):
-            report['prepass'] = found
-            raise SiteRenderDefect('a check failed outside the model\'s copy before the sandbox: '
-                                   + '; '.join(f"{f['acceptance_id']}: {f['message'][:160]}"
-                                               for f in blocking if f['owner'] != 'content')[:1500])
-        if blocking:
+            block = V.blocking(problems)
+            if block:
+                if len(rounds) >= MAX_CORRECTIONS:
+                    report['problems'] = [p.to_dict() for p in problems]
+                    raise SiteContentInvalid(f'{len(block)} problem(s) after {MAX_CORRECTIONS} corrections: '
+                                             + '; '.join(f'{p.path} {p.code}' for p in block[:6]), problems)
+                report.setdefault('corrected', [p.to_dict() for p in block])     # what the first correction was asked
+                rounds.append({'round': len(rounds) + 1, 'kind': 'validation', 'call': 'content',
+                               'asked': [{'path': p.path, 'code': p.code} for p in block]})
+                _LOG.info('SITE_CONTENT_CORRECTION round=%s/%s kind=validation problems=%s', len(rounds),
+                          MAX_CORRECTIONS, len(block))
+                doc = self.agent.correct(payload, doc, block)
+                continue
+            html, lib_skipped = self._render(doc, sheet, route)
+            found = prepass(core, route, html, sheet)
+            blocking = found['block']
+            if any(f['owner'] != 'content' for f in blocking):
+                report['prepass'] = found
+                raise SiteRenderDefect('a check failed outside the model\'s copy before the sandbox: '
+                                       + '; '.join(f"{f['acceptance_id']}: {f['message'][:160]}"
+                                                   for f in blocking if f['owner'] != 'content')[:1500])
+            if not blocking:
+                break
             paths, missed = attribute(blocking, doc, sheet)
             if missed:
                 report['prepass'] = found
                 raise SiteRenderDefect('a copy finding points at no model-written text: '
                                        + '; '.join(f['message'][:160] for f in missed)[:1500])
-            if corrections < 1:
+            if len(rounds) >= MAX_CORRECTIONS:
                 report['prepass'] = found
-                raise SiteContentInvalid('a copy finding remains after the one correction: '
+                raise SiteContentInvalid(f'a copy finding remains after {MAX_CORRECTIONS} corrections: '
                                          + '; '.join(f['message'][:160] for f in blocking)[:1500])
-            corrections -= 1
+            rounds.append({'round': len(rounds) + 1, 'kind': 'copy_check', 'call': 'rewrite',
+                           'asked': [{'path': p, 'findings': [m[:300] for m in ms]} for p, ms in sorted(paths.items())]})
+            _LOG.info('SITE_CONTENT_CORRECTION round=%s/%s kind=copy_check paths=%s', len(rounds), MAX_CORRECTIONS,
+                      len(paths))
             current = dict(V.leaves(doc))
             changes = self.repair_agent.rewrite(doc, {p: current[p] for p in paths},
                                                 [m for ms in paths.values() for m in ms], sheet)
             report['prepass_rewrite'] = sorted(changes)
             for path, text in changes.items():
                 doc = set_path(doc, path, text)
-            problems = V.validate(doc, sheet, offered, route.outline_titles)
-            if V.blocking(problems):
-                raise SiteContentInvalid('the rewrite made the document invalid', problems)
-            html, lib_skipped = self._render(doc, sheet, route)
-            found = prepass(core, route, html, sheet)
-            if found['block']:
-                report['prepass'] = found
-                raise SiteContentInvalid('the copy still fails a blocking check after the one correction: '
-                                         + '; '.join(f['message'][:160] for f in found['block'])[:1500])
+        else:
+            raise RuntimeError(f'the content corrections ran past their bound of {MAX_CORRECTIONS}')
         report.update(prepass=found, warnings=[p.to_dict() for p in problems if p.severity == 'warn'],
                       skipped=skipped_report(skipped, lib_skipped, offered, doc),
                       content_calls=self.agent.calls + self.repair_agent.calls,
