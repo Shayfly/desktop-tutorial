@@ -45,8 +45,10 @@ MAX_COST_USD = _D('0.15')
 # offer luna. The ceiling stays Sonnet's list price so the fallback is never refused; a turn settles at its actual cost.
 # Owner 2026-11-24, issue #523 (A1): Gemini Flash-Lite first; Haiku when the primary is ineligible. Measured on the
 # deployed worker ac10e94, 2026-11-25, three scripted conversations each (conversation-rehearsal, path=agent):
-# Flash-Lite 3/3 passed, $0.0288 in all, 2 of 16 calls answered invalid JSON (run 45702506669); Haiku 3/3 passed,
-# $0.0059, no failed call (run 45702519795). The owner chose this order after the numbers ("א נבדוק אותו", 21:30 UTC).
+# Flash-Lite 3/3 passed in 16 turns, $0.0288 in all (run 45702506669); its job log shows one failed call (call 7 of the
+# first conversation, VeniceOutputInvalid: the answer was not JSON) and the reply "הסוכן לא הספיק לענות הפעם" in 2 of
+# the 16 turns (turns 1 and 4 of that conversation). Haiku 3/3 passed in 15 turns, $0.0059, no failed call
+# (run 45702519795). The owner chose this order after the numbers ("א נבדוק אותו", 21:31 UTC).
 # Recorded Venice prices, not direct Google prices; the ceiling is Flash-Lite's, above Haiku's ('0.10', '0.50').
 VENICE_MODELS = ('gemini-3-5-flash-lite', 'claude-haiku-5-5')
 VENICE_CEILING_USD_PER_M = ('0.38', '3.13')
