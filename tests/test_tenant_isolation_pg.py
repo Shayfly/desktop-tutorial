@@ -33,6 +33,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.evidence_notice import notice
+
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = json.loads((ROOT / 'tests' / 'tenant_isolation_routes.json').read_text(encoding='utf-8'))
 DATABASE_URL = os.environ.get('M4D2_DATABASE_URL', '')
@@ -61,14 +63,15 @@ pytestmark = pytest.mark.skipif(_SKIP is not None, reason=str(_SKIP))
 
 if _SKIP is None:
     for name in ('OMNI_INTAKE_MODEL', 'OMNI_INTAKE_VIA_WORKER', 'OMNI_S3_ENDPOINT', 'OMNI_S3_BUCKET', 'OMNI_MEDIA_READER',
-                 'VERCEL_ENV'):
-        os.environ.pop(name, None)
+                 'VERCEL_ENV', *[n for n in os.environ if n.endswith(('_API_KEY', '_API_TOKEN'))]):
+        os.environ.pop(name, None)             # no provider key: no route can reach a provider from here
     os.environ.update({
         'OMNI_ENV': 'production', 'OMNI_CREATOR_PERSISTENCE': 'postgres', 'OMNI_DATABASE_URL': DATABASE_URL,
         'OMNI_SECRET_KEY': 'tenant-isolation-control-plane-' + 'k' * 40,
         'OMNI_GENERATED_APP_TOKEN_SECRET': 'tenant-isolation-generated-apps-' + 'g' * 40,
         'OMNI_ALLOWED_ORIGINS': 'https://app.148ai.test', 'OMNI_LIVE_ENABLED': '1',
         'OMNI_BILLING_ADMIN_KEY': 'tenant-isolation-billing-admin-key',
+        'OMNI_RIGHTS_REVIEW_KEY': 'tenant-isolation-rights-review-key',
         'PREVIEW_DOMAIN_TEMPLATE': 'https://{preview_id}.preview.148ai.test',
         'OMNI_REDIS_URL': 'redis://127.0.0.1:1/0',
     })
@@ -77,12 +80,14 @@ if _SKIP is None:
     import app as served                       # the Vercel entrypoint: investor_app + the live_core router
     from omni_prod import investor_app as IA
     from omni_prod.memory_adapters import MemoryArtifactStore
+    from omni_prod.storage import StoredObject
     from omni_prod.workspace import PostgresProjectWorkspace
 
     class ExactKeyStore(MemoryArtifactStore):
         """omni_prod.memory_adapters.MemoryArtifactStore with S3ArtifactStore's signatures: get_bytes(key, verify=),
-        an identical re-put is a no-op (S3 overwrites; a content-addressed key always carries the same bytes) and
-        delete(key). No prefix match, no default: a key that is not there raises KeyError."""
+        put_bytes returns the StoredObject (key, sha256, size), an identical re-put is a no-op (S3 overwrites; a
+        content-addressed key always carries the same bytes) and delete(key). No prefix match, no default: a key that
+        is not there raises KeyError."""
 
         def __init__(self):
             super().__init__()
@@ -93,9 +98,9 @@ if _SKIP is None:
             return self.objects[key]
 
         def put_bytes(self, key, data):
-            if self.objects.get(key) == bytes(data):
-                return None
-            return super().put_bytes(key, data)
+            if self.objects.get(key) != bytes(data):
+                super().put_bytes(key, data)
+            return StoredObject(key=key, sha256=hashlib.sha256(bytes(data)).hexdigest(), size=len(data))
 
         def delete(self, key):
             del self.objects[key]
@@ -120,11 +125,28 @@ class Customer:
         self.name = name
         self.marker = f'{name}-secret-{uuid.uuid4().hex[:12]}'
         self.ids: dict[str, str] = {}
+        self.gen_ids: dict[str, dict[str, str]] = {}
         self.tokens: dict[str, str] = {}
         self.account: dict[str, str] = {}
 
+    def objects(self) -> set[str]:
+        """This customer's objects now: the repositories of every version of the project, and the attachments."""
+        with IA._v28_pool.connection() as conn:
+            repositories = {r[0] for r in conn.execute('SELECT artifact_key FROM project_versions WHERE project_id = %s',
+                                                       (self.ids['internal_key'],)).fetchall()}
+        return repositories | {k for k in STORE.objects if k.startswith(f"attachments/{self.account['id']}/")}
+
     def headers(self, gen: str = 'v28') -> dict:
         return {'Authorization': 'Bearer ' + self.tokens[gen]}
+
+    def ids_for(self, gen: str) -> dict[str, str]:
+        """The identifiers of this customer's rows in one generation (legacy routes take v28 ids)."""
+        return {**self.ids, **self.gen_ids.get(gen, {})} if gen in ('v26', 'v27', 'live') else dict(self.ids)
+
+    def traces(self) -> list[str]:
+        """Strings that only this customer's own data contains (never an identifier a caller sends)."""
+        return [self.marker, self.account['id'], self.account['email'], self.ids['internal_key'],
+                self.ids['attachment_sha256'], self.account['live_id'], *self.account['other_ids']]
 
 
 def _ok(response, *codes):
@@ -140,11 +162,14 @@ def _register(client, customer: Customer) -> None:
     customer.account = {'id': reg['user']['id'], 'email': email}
     _ok(client.post('/api/v28/admin/subscription', json={'user_id': reg['user']['id'], 'plan': 'business'},
                     headers={**customer.headers(), 'X-148AI-Billing-Admin-Key': 'tenant-isolation-billing-admin-key'}))
+    customer.account['other_ids'] = []
     for gen in ('v26', 'v27'):
-        customer.tokens[gen] = _ok(client.post(f'/api/{gen}/auth/register',
-                                               json={'email': f'{gen}-{email}', 'password': password}))['token']
-    customer.tokens['live'] = _ok(client.post('/api/live/auth/register',
-                                              json={'email': f'live-{email}', 'password': password}))['token']
+        other = _ok(client.post(f'/api/{gen}/auth/register', json={'email': f'{gen}-{email}', 'password': password}))
+        customer.tokens[gen] = other['token']
+        customer.account['other_ids'].append(other['user']['id'])
+    live = _ok(client.post('/api/live/auth/register', json={'email': f'live-{email}', 'password': password}))
+    customer.tokens['live'] = live['token']
+    customer.account['live_id'] = live['user']['id']
 
 
 def _seed_v28(client, customer: Customer) -> None:
@@ -222,6 +247,44 @@ def _seed_v28(client, customer: Customer) -> None:
     customer.ids['session_id'] = sessions[0]['session_id']
 
 
+def _zip(files: dict[str, str]) -> bytes:
+    import io
+    import zipfile
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, 'w') as archive:
+        for name, text in files.items():
+            archive.writestr(name, text)
+    return out.getvalue()
+
+
+def _seed_other_generations(client, customer: Customer, *, with_evidence: bool) -> None:
+    """v26 and v27 (in-memory control planes, still mounted) and live_core (/api/live/*, its own Postgres tables)."""
+    from live_core.postgres_store import PostgresStore
+    for gen in ('v26', 'v27'):
+        h = customer.headers(gen)
+        customer.gen_ids[gen] = {'project_id': _ok(client.post(f'/api/{gen}/projects', headers=h,
+                                                               json={'title': f'{gen} {customer.marker}'}))['id'],
+                                 'version_id': _fresh('version_id')}   # every build of v26/v27 is refused: no version
+    if with_evidence:   # evidence ids are a per-project sequence (evidence-001...), so only A has one
+        evidence = _ok(client.post(f"/api/v27/projects/{customer.gen_ids['v27']['project_id']}/rights/evidence",
+                                   headers=customer.headers('v27'),
+                                   json={'right_kind': 'copyright', 'subject': f'logo {customer.marker}',
+                                         'evidence_type': 'license', 'scope': 'web'}))
+        customer.gen_ids['v27']['evidence_id'] = evidence['record']['id']
+    store = PostgresStore(DATABASE_URL)
+    uid = customer.account['live_id']
+    project = store.create_project(uid, f'Live {customer.marker}')
+    blob = _zip({'index.html': f'<h1>{customer.marker}</h1>', 'app.js': 'console.log(1)'})
+    artifact = store.create_artifact(uid, project.id, hashlib.sha256(blob).hexdigest(), blob)
+    version = store.create_version(uid, project.id, artifact.id, f'first {customer.marker}')
+    store.set_active_version(project.id, uid, version.id)
+    build = store.create_build(uid, project.id, f'build {customer.marker}')
+    handle = _ok(client.post(f'/api/live/projects/{project.id}/versions/{version.id}/preview',
+                             headers=customer.headers('live')))['preview_id']
+    customer.gen_ids['live'] = {'project_id': project.id, 'version_id': version.id, 'build_id': build.id,
+                                'artifact_id': artifact.id, 'live_preview_handle': handle}
+
+
 @pytest.fixture(scope='module')
 def world():
     client = TestClient(served.app, raise_server_exceptions=False)
@@ -229,18 +292,61 @@ def world():
     for customer in (a, b):
         _register(client, customer)
         _seed_v28(client, customer)
+        _seed_other_generations(client, customer, with_evidence=customer is a)
+        customer.ids['bare_project_id'] = _ok(client.post('/api/v28/projects', headers=customer.headers(),
+                                                          json={'title': 'Nothing in it yet'}))['id']
+        customer.ids['draft_fingerprint'] = secrets.token_hex(32)   # no reading draft exists (the reader is off)
+        customer.ids['deployment_id'] = f'dep_{uuid.uuid4().hex[:12]}'
+        customer.ids['account_id'] = customer.account['id']
+    assert a.objects() and b.objects() and not a.objects() & b.objects()
     yield {'client': client, 'A': a, 'B': b}
     IA._v28_pool.close()
 
 
-def _fresh(name: str) -> str:
+_SHAPES = {
+    'project_id': lambda gen: str(uuid.uuid4()) if gen == 'live' else 'prj_' + secrets.token_urlsafe(10),
+    'version_id': lambda gen: str(uuid.uuid4()) if gen == 'live' else f'v_{uuid.uuid4().hex[:16]}',
+    'first_version_id': lambda gen: f'v_{uuid.uuid4().hex[:16]}',
+    'build_id': lambda gen: str(uuid.uuid4()) if gen == 'live' else f'bld_{uuid.uuid4().hex}',
+    'preview_id': lambda gen: f'prv_{uuid.uuid4().hex}', 'modification_id': lambda gen: f'mod_{uuid.uuid4().hex}',
+    'attachment_id': lambda gen: f'att_{uuid.uuid4().hex}', 'build_contract_id': lambda gen: 'bc_' + uuid.uuid4().hex[:24],
+    'session_id': lambda gen: 'ses_' + secrets.token_urlsafe(18), 'draft_fingerprint': lambda gen: secrets.token_hex(32),
+    'evidence_id': lambda gen: f'evidence-{secrets.randbelow(10 ** 6):06d}', 'account_id': lambda gen: 'usr_' + secrets.token_urlsafe(12),
+    'deployment_id': lambda gen: f'dep_{uuid.uuid4().hex[:12]}',
+    'live_preview_handle': lambda gen: base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('='),
+}
+
+
+def _fresh(name: str, gen: str = 'v28') -> str:
     """An identifier of the same shape that names nothing."""
-    shapes = {'project_id': lambda: 'prj_' + secrets.token_urlsafe(10), 'version_id': lambda: f'v_{uuid.uuid4().hex[:16]}',
-              'first_version_id': lambda: f'v_{uuid.uuid4().hex[:16]}', 'build_id': lambda: f'bld_{uuid.uuid4().hex}',
-              'preview_id': lambda: f'prv_{uuid.uuid4().hex}', 'modification_id': lambda: f'mod_{uuid.uuid4().hex}',
-              'attachment_id': lambda: f'att_{uuid.uuid4().hex}', 'build_contract_id': lambda: 'bc_' + uuid.uuid4().hex[:24],
-              'session_id': lambda: 'ses_' + secrets.token_urlsafe(18)}
-    return shapes[name]()
+    return _SHAPES[name](gen)
+
+
+# Read only from production (Neon 148ai-db-v2, 2026-11-26, SET TRANSACTION READ ONLY, aggregates only -- no row, no
+# personal data): the prefix and the length of every identifier kind; 37/37 version artifacts are
+# repositories/<sha256>.zip; 28/28 attachments lie under attachments/<account>/<project>/; the md5 of the column list of
+# the ten tables the routes read was 962bd37ea6d59c17f7a029345ac71868, the same as this migrated database's.
+PRODUCTION_SHAPES = {'project_id': ('prj_', 18), 'session_id': ('ses_', 28), 'version_id': ('v_', 18),
+                     'internal_key': ('tenant_', 31), 'build_id': ('bld_', 36), 'preview_id': ('prv_', 36),
+                     'modification_id': ('mod_', 36), 'build_contract_id': ('bc_', 27), 'attachment_id': ('att_', 36)}
+PRODUCTION_COLUMNS_MD5 = '962bd37ea6d59c17f7a029345ac71868'
+_COLUMNS_SQL = ("SELECT md5(string_agg(t, ',' ORDER BY t)) FROM (SELECT table_name || '.' || column_name t FROM "
+                "information_schema.columns WHERE table_schema='public' AND table_name IN ('creator_projects',"
+                "'project_versions','build_jobs','project_previews','preview_access_tokens','conversation_attachments',"
+                "'m5_build_contracts','modification_requests','intake_messages','project_briefs')) s")
+
+
+def test_the_identifiers_have_the_shape_production_uses(world):
+    """An unknown id is only a fair comparison if it looks like a real one: every seeded id and every fresh id has the
+    prefix and length production's rows have."""
+    for name, (prefix, length) in PRODUCTION_SHAPES.items():
+        for value in (world['A'].ids[name], *((_fresh(name),) if name in _SHAPES else ())):
+            assert value.startswith(prefix) and len(value) == length, (name, value, prefix, length)
+    with IA._v28_pool.connection() as conn:
+        columns = conn.execute(_COLUMNS_SQL).fetchone()[0]
+    # A migration that adds a column changes this before production has it: said out loud, not failed.
+    notice('tenant isolation schema', f'columns md5 {columns}, production on 2026-11-26 {PRODUCTION_COLUMNS_MD5}: '
+                                      f'{"equal" if columns == PRODUCTION_COLUMNS_MD5 else "DIFFERENT"}')
 
 
 def _normalized(response, supplied: dict[str, str]):
@@ -288,3 +394,426 @@ def test_the_contract_repositories_do_not_tell_a_foreign_contract_from_a_missing
             outcomes.append((type(caught.value), str(caught.value).replace(contract_id, '<id>')))
         assert outcomes[0] == outcomes[1], (type(repo).__name__, outcomes)
     assert postgres.get(a.ids['build_contract_id'], project_id=a.ids['project_id']).id == a.ids['build_contract_id']
+
+
+# ------------------------------------------------------------------------------------------- the route matrix
+
+def _canonical(name: str, spec: dict) -> str:
+    return (spec.get('param_map') or {}).get(name) or REGISTRY['aliases'].get(name, name)
+
+
+def _fill(value, ids: dict[str, str]):
+    extra = {'png_base64': base64.b64encode(_png()).decode(), 'rights_review_key': os.environ['OMNI_RIGHTS_REVIEW_KEY']}
+    if isinstance(value, str):
+        return re.sub(r'\{(\w+)\}', lambda m: ids[m.group(1)] if m.group(1) in ids else extra[m.group(1)], value)
+    if isinstance(value, list):
+        return [_fill(v, ids) for v in value]
+    if isinstance(value, dict):
+        return {k: _fill(v, ids) for k, v in value.items()}
+    return value
+
+
+_NOT_AN_ID = {'engine': 'godot', 'platform': 'android', 'collection': 'items', 'path': 'index.html'}
+
+
+def _request(client, key: str, spec: dict, ids: dict[str, str], headers: dict):
+    method, template = key.split(' ', 1)
+    path = re.sub(r'\{(\w+)(?::\w+)?\}',
+                  lambda m: ids.get(_canonical(m.group(1), spec)) or _NOT_AN_ID[m.group(1)], template)
+    return client.request(method, path, params=_fill(spec.get('query'), ids), json=_fill(spec.get('body'), ids),
+                          headers={**headers, **_fill(spec.get('headers') or {}, ids)})
+
+
+def _assert_no_trace(owner: Customer, response, what: str) -> None:
+    body = response.content
+    for trace in owner.traces():
+        assert trace.encode() not in body, f'{what}: the answer carries {owner.name}\'s data ({trace[:24]}...)'
+
+
+_STATE_SQL = {
+    'creator_projects': 'owner_id = %(account)s', 'creator_sessions': 'user_id = %(account)s',
+    'project_briefs': 'project_id = %(project)s', 'intake_messages': 'project_id = %(project)s',
+    'execution_plans': 'project_id = %(project)s', 'conversation_attachments': 'account_id = %(account)s',
+    'project_versions': 'project_id = %(key)s', 'project_version_specs': 'project_id = %(key)s',
+    'build_jobs': 'project_id = %(key)s', 'project_previews': 'project_id = %(key)s',
+    'preview_access_tokens': 'preview_id IN (SELECT id FROM project_previews WHERE project_id = %(key)s)',
+    'modification_requests': 'project_id = %(key)s', 'credit_reservations': 'project_id = %(key)s',
+    'm5_build_contracts': 'project_id = %(project)s', 'build_approvals': 'project_id = %(project)s',
+    'live_projects': 'owner_id = %(live)s', 'live_versions': 'owner_id = %(live)s',
+    'live_builds': 'owner_id = %(live)s', 'live_artifacts': 'owner_id = %(live)s', 'live_sessions': 'user_id = %(live)s',
+}
+
+
+def _state(owner: Customer) -> dict:
+    """Every row and object that belongs to `owner`, as digests: a request by anyone else must leave it equal."""
+    args = {'account': owner.account['id'], 'project': owner.ids['project_id'], 'key': owner.ids['internal_key'],
+            'live': owner.account['live_id']}
+    out = {}
+    with IA._v28_pool.connection() as conn:
+        for table, where in _STATE_SQL.items():
+            out[table] = conn.execute(f"SELECT count(*), md5(coalesce(string_agg(t::text, '|' ORDER BY t::text), '')) "
+                                      f"FROM {table} t WHERE {where}", args).fetchone()
+    mine = owner.objects()
+    out['objects'] = sorted((k, hashlib.sha256(v).hexdigest()) for k, v in STORE.objects.items() if k in mine)
+    for gen, platform in (('v26', IA._v26), ('v27', IA._v27)):
+        account = platform.account(owner.tokens[gen])
+        out[gen] = sorted(repr(p) for p in platform.accounts.list_projects(owner_id=account.id))
+        key = platform.accounts.internal_project_key(owner_id=account.id, project_id=owner.gen_ids[gen]['project_id'])
+        out[gen + '_evidence'] = repr(getattr(platform, '_rights_evidence', {}).get(key))
+    return out
+
+
+MATRIX = sorted(k for k, e in REGISTRY['routes'].items()
+                if e['kind'] in ('tenant', 'admin', 'legacy_refused', 'legacy_demo'))
+
+
+def _validation_error(response) -> bool:
+    """FastAPI's own 422 (the body never reached the route), not a route's 422."""
+    try:
+        return response.status_code == 422 and isinstance(response.json().get('detail'), list)
+    except ValueError:
+        return False
+
+
+@pytest.mark.parametrize('key', MATRIX)
+def test_another_account_gets_the_unknown_id_answer(world, key):
+    """B sends A's identifiers, then identifiers that name nothing, and must get the same answer (no existence leak)
+    with nothing of A's in it; then B's own project with A's child identifier (version, build, preview, ...) against an
+    unknown one. A's rows and objects are unchanged and B's requests read none of A's objects. Last, A's own request is
+    served (the refusals are not every route being broken)."""
+    spec = REGISTRY['routes'][key]
+    gen, names = spec['world'], spec['ids']
+    client, a, b = world['client'], world['A'], world['B']
+    a_ids, b_ids = a.ids_for(gen), b.ids_for(gen)
+    before, reads = _state(a), len(STORE.reads)
+
+    foreign = {n: a_ids[n] for n in names}
+    missing = {n: _fresh(n, gen) for n in names}
+    got_foreign = _request(client, key, spec, foreign, b.headers(gen))
+    got_missing = _request(client, key, spec, missing, b.headers(gen))
+    seen = [f'B with A ids {got_foreign.status_code} {_short(got_foreign)}']
+    assert not _validation_error(got_foreign), f'{key}: the probe body never reaches the route ({got_foreign.text[:300]})'
+    assert _normalized(got_foreign, foreign) == _normalized(got_missing, missing), \
+        f'{key}: A\'s identifiers are answered differently from unknown ones'
+    _assert_no_trace(a, got_foreign, key)
+
+    for child in spec.get('child', []):
+        own = {n: b_ids[n] for n in names if n != child}
+        if spec.get('own_parent') == 'bare':
+            own['project_id'] = b_ids['bare_project_id']
+        with_foreign, with_missing = {**own, child: a_ids[child]}, {**own, child: _fresh(child, gen)}
+        got_foreign = _request(client, key, spec, with_foreign, b.headers(gen))
+        got_missing = _request(client, key, spec, with_missing, b.headers(gen))
+        assert not _validation_error(got_foreign), f'{key} ({child}): {got_foreign.text[:300]}'
+        assert _normalized(got_foreign, {child: a_ids[child]}) == _normalized(got_missing, {child: with_missing[child]}), \
+            f'{key}: B\'s own project with A\'s {child} is answered differently from an unknown {child}'
+        _assert_no_trace(a, got_foreign, f'{key} ({child})')
+        seen.append(f'B own project + A {child} {got_foreign.status_code} {_short(got_foreign)}')
+
+    assert _state(a) == before, f'{key}: a request by B changed A\'s rows or objects'
+    touched = sorted(set(STORE.reads[reads:]) & a.objects())
+    assert not touched, f'{key}: B\'s requests read A\'s objects {touched}'
+
+    if spec['kind'] == 'legacy_refused':
+        for who in (a, b):
+            got = _request(client, key, spec, foreign, who.headers(gen))
+            assert got.status_code == spec['refused'], (key, who.name, got.status_code, got.text[:300])
+        seen.append(f'owner refused too {got.status_code}')
+    elif spec['kind'] == 'legacy_demo':
+        got = _request(client, key, spec, foreign, a.headers(gen))
+        assert _normalized(got, foreign) == _normalized(_request(client, key, spec, foreign, b.headers(gen)), foreign)
+        _assert_no_trace(a, got, f'{key} (the demo store never holds a customer project)')
+        seen.append(f'owner gets the same empty answer {got.status_code}')
+    elif isinstance(spec.get('owner'), list):
+        got = _request(client, key, spec, foreign, a.headers(gen))
+        assert got.status_code in spec['owner'], (key, 'owner', got.status_code, got.text[:300])
+        refused = _request(client, key, spec, foreign, b.headers(gen))
+        assert (got.status_code, got.content) != (refused.status_code, refused.content), \
+            f'{key}: the owner gets the refusal another account gets'
+        seen.append(f'owner {got.status_code} {_short(got)}')
+    notice('tenant isolation', f'{key}: ' + ' | '.join(seen))
+
+
+def _short(response) -> str:
+    kind = response.headers.get('content-type', '')
+    if not kind.startswith('application/json'):
+        return f'[{kind.split(";")[0] or "no type"} {len(response.content)} bytes]'
+    return re.sub(r'\s+', ' ', response.text)[:90]
+
+
+# ------------------------------------------------------------- the owner's destructive calls, on rows of their own
+
+def _ready_modification(customer: Customer, *, status: str = 'READY_FOR_REVIEW') -> str:
+    from omni_prod.modification_repository import PostgresModificationRepository
+    from omni_prod.spec_repository import PostgresSpecRepository
+    pool, key, source = IA._v28_pool, customer.ids['internal_key'], customer.ids['version_id']
+    mods = PostgresModificationRepository(pool)
+    modification_id = f'mod_{uuid.uuid4().hex}'
+    with pool.connection() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                mods.create(cur, modification_id=modification_id, project_id=key, user_id=customer.account['id'],
+                            source_version_id=source, followup='Make the heading bigger')
+                mods.create_outbox(cur, modification_id=modification_id)
+    if status == 'QUEUED':
+        return modification_id
+    repo = IA._v28.engine.workspace.get(project_id=key, version_id=source).repository()
+    assert mods.transition_running(modification_id)
+    assert mods.complete(modification_id, project_id=key, status='READY_FOR_REVIEW', classification='change_request',
+                         classification_reason='tenant isolation', billable=True,
+                         candidate_repository={**repo, 'extra.html': '<p>more</p>'},
+                         candidate_spec=PostgresSpecRepository(pool).get(source, key))
+    return modification_id
+
+
+DESTRUCTIVE = sorted(k for k, e in REGISTRY['routes'].items() if e.get('owner') == 'destructive')
+NOT_RUN_FOR_THE_OWNER = {'POST /api/live/builds/{build_id}/run': 'runs the generator (a model call); another account '
+                                                                  'is refused before it in the matrix'}
+
+
+def test_the_destructive_routes_work_for_their_owner(world):
+    """The matrix leaves A's rows alone, so the routes that delete, cancel, revoke or change state are shown to work for
+    their owner here, on a third customer's own fresh rows -- the refusals are not routes that refuse everyone."""
+    client = world['client']
+    c = Customer('Carol')
+    _register(client, c)
+    _seed_v28(client, c)
+    h, pid = c.headers(), c.ids['project_id']
+    done = {}
+
+    def call(key, path, expect, **kw):
+        method = key.split(' ', 1)[0]
+        got = client.request(method, path, headers=kw.pop('headers', h), **kw)
+        assert got.status_code in expect, (key, got.status_code, got.text[:300])
+        done[key] = got
+        return got
+
+    call('POST /api/v28/projects/{project_id}/builds/{build_id}/cancel',
+         f"/api/v28/projects/{pid}/builds/{c.ids['build_id']}/cancel", (200,))
+    assert done['POST /api/v28/projects/{project_id}/builds/{build_id}/cancel'].json()['outcome'] in ('cancelled', 'cancel_requested')
+    call('DELETE /api/v28/projects/{project_id}/previews/{preview_id}',
+         f"/api/v28/projects/{pid}/previews/{c.ids['preview_id']}", (200, 202, 503))
+    assert _ok(client.get(f"/api/v28/projects/{pid}/previews/{c.ids['preview_id']}", headers=h))['status'] == 'STOPPED'
+    call('POST /api/v28/projects/{project_id}/modifications/{modification_id}/reject',
+         f"/api/v28/projects/{pid}/modifications/{c.ids['modification_id']}/reject", (200,), json={'reason': 'no'})
+    call('POST /api/v28/projects/{project_id}/modifications/{modification_id}/accept',
+         f"/api/v28/projects/{pid}/modifications/{_ready_modification(c)}/accept", (200,), json={'message': 'yes'})
+    call('POST /api/v28/projects/{project_id}/modifications/{modification_id}/cancel',
+         f"/api/v28/projects/{pid}/modifications/{_ready_modification(c, status='QUEUED')}/cancel", (200,))
+    key_before = {k for k in STORE.objects if k.startswith(f"attachments/{c.account['id']}/")}
+    call('DELETE /api/v28/projects/{project_id}/attachments/{attachment_id}',
+         f"/api/v28/projects/{pid}/attachments/{c.ids['attachment_id']}", (200,))
+    assert key_before and not key_before & set(STORE.objects), 'the attachment\'s object is not gone'
+    second = _ok(client.post('/api/v28/auth/login', json={'email': c.account['email'], 'password': 'Tenant-isolation-123!'}))
+    session = [s for s in _ok(client.get('/api/v28/auth/sessions', headers=h))['sessions']
+               if s['session_id'] != c.ids['session_id']][0]['session_id']
+    call('POST /api/v28/auth/sessions/{session_id}/revoke', f'/api/v28/auth/sessions/{session}/revoke', (200,))
+    assert client.get('/api/v28/me', headers={'Authorization': 'Bearer ' + second['token']}).status_code == 401
+    call('PATCH /api/v28/projects/{project_id}', f'/api/v28/projects/{pid}', (200,), json={'title': 'Carol renamed'})
+    call('POST /api/v28/projects/{project_id}/archive', f'/api/v28/projects/{pid}/archive', (200,))
+    call('POST /api/v28/projects/{project_id}/unarchive', f'/api/v28/projects/{pid}/unarchive', (200,))
+    call('DELETE /api/v28/projects/{project_id}', f'/api/v28/projects/{pid}', (202,))
+    assert client.get(f'/api/v28/projects/{pid}/state', headers=h).json()['deleted_at']
+    assert set(done) | set(NOT_RUN_FOR_THE_OWNER) == set(DESTRUCTIVE), sorted(set(DESTRUCTIVE) ^ (set(done) | set(NOT_RUN_FOR_THE_OWNER)))
+
+
+# --------------------------------------------------------------------------- listings and the caller's own account
+
+def _gen_of(path: str) -> str:
+    return next((g for g in ('v26', 'v27', 'live') if path.startswith(f'/api/{g}/')), 'v28')
+
+
+def test_account_and_public_routes_never_show_another_customer(world):
+    client, a, b = world['client'], world['A'], world['B']
+    fixed = {'platform': 'android', 'engine': 'godot', 'asset_name': '148ai-logo-64.png', 'department_id': 'engineering'}
+    scanned = []
+    for key, entry in REGISTRY['routes'].items():
+        method, template = key.split(' ', 1)
+        if method != 'GET' or entry['kind'] not in ('account', 'public'):
+            continue
+        path = re.sub(r'\{(\w+)\}', lambda m: fixed[m.group(1)], template)
+        got = client.get(path, headers=b.headers(_gen_of(path)))
+        _assert_no_trace(a, got, key)
+        scanned.append(key)
+    assert len(scanned) >= 40, scanned
+    for gen, listing in (('v28', '/api/v28/projects'), ('v26', '/api/v26/projects'), ('v27', '/api/v27/projects'),
+                         ('live', '/api/live/projects')):
+        mine = {p['id'] for p in _ok(client.get(listing, headers=a.headers(gen)))['projects']}
+        theirs = {p['id'] for p in _ok(client.get(listing, headers=b.headers(gen)))['projects']}
+        assert a.ids_for(gen)['project_id'] in mine and not mine & theirs, (gen, mine, theirs)
+    search = '/api/v28/projects/search'
+    assert _ok(client.get(search, headers=b.headers(), params={'q': a.marker, 'include_archived': True}))['projects'] == []
+    assert [p['id'] for p in _ok(client.get(search, headers=a.headers(), params={'q': a.marker}))['projects']] == [a.ids['project_id']]
+    sessions = _ok(client.get('/api/v28/auth/sessions', headers=b.headers()))['sessions']
+    assert a.ids['session_id'] not in {s['session_id'] for s in sessions}
+
+
+def test_legacy_websockets_authorize_nothing(world):
+    from starlette.websockets import WebSocketDisconnect
+    client, a, b = world['client'], world['A'], world['B']
+    for key, entry in REGISTRY['routes'].items():
+        if entry['kind'] != 'legacy_ws':
+            continue
+        for deployment in (a.ids['project_id'], a.ids['deployment_id'], _fresh('deployment_id')):
+            path = key.split(' ', 1)[1].replace('{deployment_id}', deployment)
+            with pytest.raises(WebSocketDisconnect) as closed:
+                with client.websocket_connect(f"{path}?token={b.tokens['v28']}") as ws:
+                    ws.receive_json()
+            assert closed.value.code == 4401, (key, closed.value.code)
+
+
+# ------------------------------------------------------------------------------- previews: links, tokens, router
+
+def _handle(version_id: str, artifact_id: str) -> str:
+    return base64.urlsafe_b64encode(uuid.UUID(version_id).bytes + uuid.UUID(artifact_id).bytes).decode().rstrip('=')
+
+
+def test_live_preview_handles_open_only_the_archive_they_name(world):
+    """A live_core preview link is a capability: whoever holds it sees that version, and nothing else. A handle that
+    pairs one account's version with the other's artifact, an unknown handle, and a path outside the archive are all
+    the same 404."""
+    client, a, b = world['client'], world['A'], world['B']
+    la, lb = a.gen_ids['live'], b.gen_ids['live']
+    page = client.get(f"/preview/live/{la['live_preview_handle']}/")
+    assert page.status_code == 200 and a.marker in page.text and b.marker not in page.text
+    unknown = client.get(f"/preview/live/{_fresh('live_preview_handle')}/")
+    for handle in (_handle(la['version_id'], lb['artifact_id']), _handle(lb['version_id'], la['artifact_id'])):
+        got = client.get(f'/preview/live/{handle}/')
+        assert (got.status_code, got.text) == (unknown.status_code, unknown.text) == (404, '{"detail":"Preview not found"}')
+    missing = client.get(f"/preview/live/{la['live_preview_handle']}/no-such-file.txt")
+    for escape in ('..%2f..%2f..%2fetc%2fpasswd', '%2e%2e/%2e%2e/app.py', '/etc/passwd', '..\\..\\app.py'):
+        got = client.get(f"/preview/live/{la['live_preview_handle']}/{escape}")
+        assert got.status_code == 404 and b.marker not in got.text, (escape, got.status_code, got.text[:200])
+        assert got.text == missing.text, escape
+
+
+class _App:
+    """The generated app behind the router (not the boundary): it answers with its owner's name."""
+
+    def __init__(self, name: str):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        import threading
+        seen = self.seen = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                seen.append((self.path, self.headers.get('Cookie'), self.headers.get('X-148ai-Preview-Access')))
+                body = f'app of {name}'.encode()
+                self.send_response(200)
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        self.port = self.server.server_address[1]
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+
+def test_the_preview_router_lets_each_token_open_only_its_own_preview(world):
+    """The worker host's router (omni_prod.preview_router) with the real PreviewAccess and route table on PostgreSQL;
+    each token is issued by the real API route to the preview's owner. An owner link never opens another account's
+    preview, a share link opens only the preview it was made for and only while it is SHARED, and nothing opens a
+    PRIVATE preview anonymously."""
+    import threading
+    from http.server import ThreadingHTTPServer
+    from urllib import error, parse, request as urlrequest
+    from omni_prod import preview_router
+    from omni_prod.preview_access import HEADER, PreviewAccess
+    from omni_prod.preview_repository import PostgresPreviewRepository
+    client, a, b = world['client'], world['A'], world['B']
+    previews, apps, tokens = PostgresPreviewRepository(IA._v28_pool), {}, {}
+    for who in (a, b):
+        apps[who.name] = _App(who.name)
+        prv = f'prv_{uuid.uuid4().hex}'
+        previews.create(prv, who.ids['internal_key'], who.ids['version_id'], ttl_seconds=3600)
+        assert previews.record_runtime(prv, container_id=f'c-{prv}', runtime_host='router-test',
+                                       host_port=apps[who.name].port, workdir=f'/tmp/{prv}', data_storage='temporary')
+        assert previews.mark_running(prv, url=f'https://{prv.replace("_", "-")}.preview.148ai.test')
+        base = f"/api/v28/projects/{who.ids['project_id']}/previews/{prv}"
+        owner_url = _ok(client.post(base + '/access', headers=who.headers()))['url']
+        share_url = _ok(client.post(base + '/sharing', headers=who.headers(), json={'mode': 'SHARED'}))['share_url']
+        tokens[who.name] = {'preview': prv, 'base': base,
+                            'owner': parse.parse_qs(parse.urlsplit(owner_url).query)['__148ai_access'][0],
+                            'share': parse.parse_qs(parse.urlsplit(share_url).query)['__148ai_access'][0]}
+    clock = [1000.0]
+    access = PreviewAccess(IA._v28_pool, clock=lambda: clock[0])
+    table = preview_router.RouteTable(previews.get_route, 'router-test', clock=lambda: clock[0])
+    router = ThreadingHTTPServer(('127.0.0.1', 0), preview_router.make_handler(table, 'preview.148ai.test', access=access))
+    threading.Thread(target=router.serve_forever, daemon=True).start()
+
+    def get(owner: Customer, token: str | None = None):
+        host = tokens[owner.name]['preview'].replace('_', '-') + '.preview.148ai.test'
+        req = urlrequest.Request(f'http://127.0.0.1:{router.server_address[1]}/',
+                                 headers={'Host': host, **({HEADER: token} if token else {})})
+        try:
+            with urlrequest.urlopen(req, timeout=5) as r:
+                return r.status, r.read().decode()
+        except error.HTTPError as exc:
+            return exc.code, exc.read().decode()
+    try:
+        assert get(a, tokens['Alice']['owner']) == (200, 'app of Alice')
+        assert get(b, tokens['Bob']['owner']) == (200, 'app of Bob')
+        for owner, token in ((b, tokens['Alice']['owner']), (b, tokens['Alice']['share']),
+                             (a, tokens['Bob']['owner']), (a, tokens['Bob']['share']), (a, None), (b, None),
+                             (a, 'not-a-token')):
+            status, body = get(owner, token)
+            assert status == 401 and 'app of' not in body, (owner.name, token and token[:6], status)
+        assert get(a, tokens['Alice']['share']) == (200, 'app of Alice')        # SHARED: the share link works
+        _ok(client.post(tokens['Alice']['base'] + '/sharing', headers=a.headers(), json={'mode': 'PRIVATE'}))
+        clock[0] += 60                                                            # past both router caches
+        assert get(a, tokens['Alice']['share'])[0] == 401                        # PRIVATE revoked the share link
+        assert get(a, tokens['Alice']['owner']) == (200, 'app of Alice')        # the owner's link still works
+        _ok(client.post(tokens['Bob']['base'] + '/sharing', headers=b.headers(), json={'mode': 'PUBLIC'}))
+        clock[0] += 60
+        assert get(b) == (200, 'app of Bob') and get(a)[0] == 401                 # PUBLIC is Bob's preview alone
+        assert all(seen[1] is None and seen[2] is None for app in apps.values() for seen in app.seen), \
+            'a token reached the generated app'
+    finally:
+        router.shutdown()
+        for app in apps.values():
+            app.server.shutdown()
+
+
+# ----------------------------------------------------------------------------------------- files and workers
+
+def test_object_keys_carry_their_tenant_and_are_reached_only_through_owned_rows(world):
+    """Attachments live under attachments/<account>/<project>/ (the key is built from server ids only). A version's
+    repository is content-addressed (repositories/<sha256>.zip, shared when two repositories are byte-identical) and is
+    reached only through its project_versions row, which is read under the owner-bound internal key."""
+    a, b = world['A'], world['B']
+    with IA._v28_pool.connection() as conn:
+        rows = conn.execute('SELECT account_id, project_id, storage_key FROM conversation_attachments '
+                            'WHERE account_id = ANY(%s)', ([a.account['id'], b.account['id']],)).fetchall()
+        versions = conn.execute('SELECT project_id, artifact_key FROM project_versions WHERE project_id = ANY(%s)',
+                                ([a.ids['internal_key'], b.ids['internal_key']],)).fetchall()
+    assert rows and versions
+    for account, project, key in rows:
+        assert key.startswith(f'attachments/{account}/{project}/') and '..' not in key.split('/'), key
+    for project, key in versions:
+        assert re.fullmatch(r'repositories/[0-9a-f]{64}\.zip', key), key
+        assert key in STORE.objects
+    a_repos = {k for p, k in versions if p == a.ids['internal_key']}
+    b_repos = {k for p, k in versions if p == b.ids['internal_key']}
+    assert a_repos and b_repos and not a_repos & b_repos     # different content, different objects
+    assert IA._v28.accounts.internal_project_key(owner_id=b.account['id'], project_id=a.ids['project_id']) \
+        != a.ids['internal_key']                             # B's key for A's project id names nothing of A's
+
+
+def test_a_preview_worker_given_another_projects_version_starts_nothing(world):
+    """worker_tasks.execute_preview_launch reads the version under the key it is given (the API enqueues the caller's
+    own key after its ownership check). Given B's key with A's version id it fails before a container or a work
+    directory exists, and reads none of A's objects."""
+    from omni_prod import worker_tasks
+    from omni_prod.preview_repository import PostgresPreviewRepository
+    a, b = world['A'], world['B']
+    prv = f'prv_{uuid.uuid4().hex}'
+    previews = PostgresPreviewRepository(IA._v28_pool)
+    previews.create(prv, b.ids['internal_key'], a.ids['version_id'], ttl_seconds=600)
+    reads = len(STORE.reads)
+    with pytest.raises(KeyError):
+        worker_tasks.execute_preview_launch(prv, b.ids['internal_key'], a.ids['version_id'])
+    row = previews.get(prv, b.ids['internal_key'])
+    assert row['status'] == 'FAILED' and not row.get('container_id'), row
+    assert not set(STORE.reads[reads:]) & a.objects()
