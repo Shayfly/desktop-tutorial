@@ -97,6 +97,9 @@ jobs:
       - name: PostgreSQL files no job ran before (warehouse 112), each in its own process
         if: always()
         timeout-minutes: 12
+        env:
+          # S4.5: the tenant-isolation evidence (one line per route, the schema md5) reaches the next step's printout
+          OMNI_EVIDENCE_NOTICES: ${{ github.workspace }}/evidence-notices.txt
         run: |
           fail=0
           for f in tests/test_actual_cost_settlement.py tests/test_agent_os.py tests/test_build_cancel_and_log.py \

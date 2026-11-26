@@ -334,6 +334,7 @@ def world():
         customer.ids['account_id'] = customer.account['id']
     assert a.objects() and b.objects() and not a.objects() & b.objects()
     yield {'client': client, 'A': a, 'B': b, 'anonymous': _browser()}
+    notice('tenant isolation summary', ', '.join(f'{n} {k}' for k, n in PASSED.items()) + ' passed')
     IA._v28_pool.close()
 
 
@@ -476,6 +477,7 @@ _STATE_SQL = {
     'project_versions': 'project_id = %(key)s', 'project_version_specs': 'project_id = %(key)s',
     'build_jobs': 'project_id = %(key)s', 'project_previews': 'project_id = %(key)s',
     'preview_access_tokens': 'preview_id IN (SELECT id FROM project_previews WHERE project_id = %(key)s)',
+    'preview_access_audit': 'preview_id IN (SELECT id FROM project_previews WHERE project_id = %(key)s)',
     'modification_requests': 'project_id = %(key)s', 'credit_reservations': 'project_id = %(key)s',
     'm5_build_contracts': 'project_id = %(project)s', 'build_approvals': 'project_id = %(project)s',
     'live_projects': 'owner_id = %(live)s', 'live_versions': 'owner_id = %(live)s',
@@ -530,6 +532,7 @@ def _validation_error(response) -> bool:
 
 
 CONFIGS = ('deployed', 'strict')
+PASSED = {'matrix probes': 0, 'anonymous probes': 0, 'account/public sweeps': 0}   # summary
 
 
 @contextmanager
@@ -607,6 +610,7 @@ def _matrix(world, key, config):
             f'{key}: the owner gets the refusal another account gets'
         seen.append(f'owner {got.status_code} {_short(got)}')
     notice('tenant isolation', f'{config} {key}: ' + ' | '.join(seen))
+    PASSED['matrix probes'] += 1
 
 
 def _short(response) -> str:
@@ -800,6 +804,7 @@ def test_account_and_public_routes_never_show_another_customer(world, key):
     assert _state(a) == before, f'{key}: a call by another account changed A\'s rows'
     if client is world['anonymous']:
         client.cookies.clear()
+    PASSED['account/public sweeps'] += 1
 
 
 def test_listings_and_search_show_only_the_callers_own_projects(world):
@@ -857,7 +862,7 @@ def test_an_anonymous_caller_gets_only_the_unauthenticated_answer(world, key):
     a, b, anon = world['A'], world['B'], world['anonymous']
     anon.cookies.clear()
     method, template = key.split(' ', 1)
-    before = _state(a)
+    before, reads = _state(a), len(STORE.reads)
     if method == 'MOUNT':
         got = anon.get(template + '/index.html')
     elif 'ids' in spec:
@@ -872,9 +877,14 @@ def test_an_anonymous_caller_gets_only_the_unauthenticated_answer(world, key):
     for owner in (a, b):
         _assert_no_trace(owner, got, f'{key} (anonymous)')
     assert _state(a) == before, f'{key}: an anonymous call changed A\'s rows'
+    touched = sorted(set(STORE.reads[reads:]) & a.objects())
+    assert not touched, f'{key}: an anonymous call read A\'s objects {touched}'
+    PASSED['anonymous probes'] += 1
 
 
 def test_legacy_websockets_authorize_nothing(world):
+    """The four /runtime websockets (the HTTP legacy guard does not see a websocket) close 4401 for an anonymous
+    caller, for B's token and for B's cookie, whatever deployment id is named: no deployment exists to authorize."""
     from starlette.websockets import WebSocketDisconnect
     client, a, b = world['client'], world['A'], world['B']
     for key, entry in REGISTRY['routes'].items():
@@ -882,10 +892,11 @@ def test_legacy_websockets_authorize_nothing(world):
             continue
         for deployment in (a.ids['project_id'], a.ids['deployment_id'], _fresh('deployment_id')):
             path = key.split(' ', 1)[1].replace('{deployment_id}', deployment)
-            with pytest.raises(WebSocketDisconnect) as closed:
-                with client.websocket_connect(f"{path}?token={b.tokens['v28']}") as ws:
-                    ws.receive_json()
-            assert closed.value.code == 4401, (key, closed.value.code)
+            for who, url in ((world['anonymous'], path), (client, f"{path}?token={b.tokens['v28']}"), (b.browser, path)):
+                with pytest.raises(WebSocketDisconnect) as closed:
+                    with who.websocket_connect(url) as ws:
+                        ws.receive_json()
+                assert closed.value.code == 4401, (key, url, closed.value.code)
 
 
 # ------------------------------------------------------------------------------- previews: links, tokens, router
