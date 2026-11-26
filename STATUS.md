@@ -1,3 +1,13 @@
+# 2026-11-26 — Repair loop keeps the repair that works (Claude Code, branch claude/practical-hopper-oi3qj2-repair-converge; LOCAL, not pushed)
+
+- The owner's failed build bld_cb2d1b90a90f430c98603d14f8afa1a8 (2026-11-24) failed because the round ranking used only the head stage of a round. Every repair fixed the four review findings but still failed the layout check, so all six repairs were thrown away. The customer was then told about the four findings that had been fixed, and never about the real blocker: the page was 9,999 px too wide.
+- Implemented and verified locally:
+  - The loop ranks a round by all its failing checks, and a strict subset of the best version's failures is always adopted (part 1).
+  - The message, the announcement and the stage rows describe the version that was kept (part 2).
+  - An element parked off-screen on a right-to-left page is rewritten or blocked; the visual QA names the element and reads the meta viewport tag itself (part 3).
+- Evidence. The replay harness in tests/test_repair_converge.py runs production's recorded stage outputs and reviewer findings through the real chain. On main's code it reproduces production's seven round_snapshots exactly. On the branch, rounds 1 to 3 are adopted and the loop stops on the repeated failure. Real Chromium reproduces 11439/10389 for one `left:-9999px` skip link and names `a.skip-link`. Controls: 25 new, each caught. In the 42 existing control sets that touch the changed files, 297 controls pass; 7 pg-only controls did not run here, the same as on main.
+- Not verified: the round zips were not opened, so the off-screen element in production is inferred, not observed. Whether the new loop would have converged is not verified (no paid model was called). The identity declaration `repair-converge` is prepared; the owner's signature is pending.
+
 # 2026-11-25 — Skills #525 follow-up declarations approved by the owner (Codex, HOLD for CI and independent review)
 
 - Shai approved the six-path source identity declaration and exact intake deletion digest `e7d7be5a4c04c90ca07719c7e49a74657d680e34c0837a3717be2f35679c7ac8` for candidate `e1c8a7d77fbb96a844d2947d8a6749e3024fd2ec`. The authorization covers these two declarations.
