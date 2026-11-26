@@ -2316,13 +2316,16 @@ def v28_conversation_get(project_id: str, request: Request) -> dict:
 
 
 @app.get('/api/v28/projects/{project_id}/conversation/messages')
-def v28_conversation_history(project_id: str, request: Request, before: int | None = None, limit: int = 100) -> dict:
+def v28_conversation_history(project_id: str, request: Request, before: str | None = None, limit: str = '100') -> dict:
     """The owner, 2026-11-26: older messages, a page at a time. `before` is the cursor the last page gave (the oldest id
-    it read); the answer carries the next one ('before', 'has_older'). Same owner check as the conversation itself."""
+    it read); the answer carries the next one ('before', 'has_older'). Same owner check as the conversation itself.
+    A cursor or a size that is not a whole number is the same 422 invalid_history_page as one out of range."""
     from .conversation.store import history_page
     _discovery_account(request, project_id)
     try:
-        return history_page(_conversation_store(), project_id, before=before, limit=limit, shape=_conversation_message)
+        cursor = None if before is None else int(before) if re.fullmatch(r'-?\d{1,18}', before) else before
+        size = int(limit) if re.fullmatch(r'-?\d{1,6}', limit) else limit
+        return history_page(_conversation_store(), project_id, before=cursor, limit=size, shape=_conversation_message)
     except ValueError as exc:
         raise HTTPException(422, detail={'error': 'invalid_history_page', 'message': str(exc)}) from exc
 

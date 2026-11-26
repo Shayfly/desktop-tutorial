@@ -89,5 +89,59 @@ class TheHistoryIsPaged(unittest.TestCase):
         self.assertIn('_discovery_account(request, project_id)', route)       # the owner of the project only
 
 
+class TheRoute(unittest.TestCase):
+    """Review S2 (2026-11-26): the real route through the app (TestClient); only the account resolution and the store
+    are the seams. Another account's project is a 403, never its messages; a bad cursor or size is
+    invalid_history_page."""
+
+    def setUp(self):
+        from unittest import mock
+        from fastapi.testclient import TestClient
+        import omni_prod.investor_app as ia
+        s = MemoryConversationStore()
+        for i in range(5):
+            s.add_message(project_id='pA', account_id='A', role='customer', content=f'A{i}')
+        for i in range(5):
+            s.add_message(project_id='pB', account_id='B', role='customer', content=f'SECRET-B{i}')
+        own = {('tokA', 'pA'): 'A', ('tokB', 'pB'): 'B'}
+
+        def resolve(*, token, project_id):
+            if (token, project_id) not in own:
+                raise PermissionError('project not owned')
+            return type('Acc', (), {'id': own[(token, project_id)]})(), None
+        for p in (mock.patch.object(ia, '_conversation_store', lambda: s),
+                  mock.patch.object(ia._v28, 'resolve_project_key', resolve, create=True)):
+            p.start()
+            self.addCleanup(p.stop)
+        self.client = TestClient(ia.app)
+
+    def get(self, token, query=''):
+        return self.client.get(f'/api/v28/projects/{"pB" if token == "tokA-on-B" else "pA"}/conversation/messages{query}',
+                               headers={'Authorization': f'Bearer {"tokA" if token == "tokA-on-B" else token}'})
+
+    def test_the_owner_reads_the_pages(self):
+        r = self.get('tokA', '?limit=2')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual([m['content'] for m in r.json()['messages']], ['A3', 'A4'])
+        older = self.get('tokA', f"?before={r.json()['before']}&limit=2").json()
+        self.assertEqual([m['content'] for m in older['messages']], ['A1', 'A2'])
+
+    def test_another_accounts_project_is_refused(self):
+        r = self.get('tokA-on-B')
+        self.assertEqual(r.status_code, 403)
+        self.assertNotIn('SECRET', r.text)
+
+    def test_a_cursor_never_reaches_another_projects_messages(self):
+        r = self.get('tokA', '?before=10')                                # 10 is one of B's ids
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('SECRET', r.text)
+
+    def test_a_bad_cursor_or_size_is_invalid_history_page(self):
+        for q in ('?before=abc', '?before=0', '?before=-5', '?limit=0', '?limit=1000', '?limit=x'):
+            with self.subTest(q):
+                r = self.get('tokA', q)
+                self.assertEqual((r.status_code, r.json()['detail']['error']), (422, 'invalid_history_page'))
+
+
 if __name__ == '__main__':
     unittest.main()

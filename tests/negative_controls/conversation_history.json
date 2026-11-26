@@ -1,28 +1,99 @@
 {
  "pr": "caps-a-conversation-history",
- "sha256": ["tests/test_conversation_history.py", "omni_prod/conversation/store.py", "omni_prod/investor_app.py"],
+ "sha256": [
+  "tests/test_conversation_history.py",
+  "omni_prod/conversation/store.py",
+  "omni_prod/investor_app.py"
+ ],
  "controls": [
   {
    "id": "NC1",
    "what": "the old limit is back: the last 100 messages and no way to the ones before",
-   "mutations": [{"file": "omni_prod/conversation/store.py", "old": "            'has_older': has_older, 'before':", "new": "            'has_older': False, 'before':"}],
-   "targets": ["tests/test_conversation_history.py"],
-   "expect_failed": ["test_every_message_is_reached_by_following_the_cursor", "test_the_first_page_is_the_latest_hundred"]
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/store.py",
+     "old": "            'has_older': has_older, 'before':",
+     "new": "            'has_older': False, 'before':"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_history.py"
+   ],
+   "expect_failed": [
+    "test_every_message_is_reached_by_following_the_cursor",
+    "test_the_first_page_is_the_latest_hundred"
+   ]
   },
   {
    "id": "NC2",
    "what": "the cursor is ignored: every page is the latest one",
-   "mutations": [{"file": "omni_prod/conversation/store.py", "old": "                and (before is None or m['id'] < before)][-limit:]", "new": "][-limit:]"}],
-   "targets": ["tests/test_conversation_history.py"],
-   "expect_failed": ["test_every_message_is_reached_by_following_the_cursor"]
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/store.py",
+     "old": "                and (before is None or m['id'] < before)][-limit:]",
+     "new": "][-limit:]"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_history.py"
+   ],
+   "expect_failed": [
+    "test_every_message_is_reached_by_following_the_cursor",
+    "test_the_owner_reads_the_pages"
+   ]
   },
   {
    "id": "NC3",
    "what": "the view keeps its own last-100 list and gives no cursor",
-   "mutations": [{"file": "omni_prod/investor_app.py", "old": "    page = history_page(store, project_id, shape=_conversation_message)\n",
-                  "new": "    page = {'messages': [_conversation_message(m) for m in store.messages_for(project_id, limit=100)], 'has_older': False, 'before': None}\n"}],
-   "targets": ["tests/test_conversation_history.py"],
-   "expect_failed": ["test_the_view_and_the_route_use_it"]
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    page = history_page(store, project_id, shape=_conversation_message)\n",
+     "new": "    page = {'messages': [_conversation_message(m) for m in store.messages_for(project_id, limit=100)], 'has_older': False, 'before': None}\n"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_history.py"
+   ],
+   "expect_failed": [
+    "test_the_view_and_the_route_use_it"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "review S2: the history route no longer checks who owns the project (another account reads its messages)",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    _discovery_account(request, project_id)\n    try:\n        cursor = ",
+     "new": "    try:\n        cursor = "
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_history.py::TheRoute"
+   ],
+   "expect_failed": [
+    "test_another_accounts_project_is_refused"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a cursor that is not a number is FastAPI's own 422, not invalid_history_page",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "request: Request, before: str | None = None, limit: str = '100') -> dict:",
+     "new": "request: Request, before: int | None = None, limit: int = 100) -> dict:"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_history.py::TheRoute"
+   ],
+   "expect_failed": [
+    "test_a_bad_cursor_or_size_is_invalid_history_page",
+    "test_a_cursor_never_reaches_another_projects_messages",
+    "test_the_owner_reads_the_pages"
+   ]
   }
  ]
 }
