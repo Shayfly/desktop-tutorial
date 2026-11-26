@@ -304,7 +304,106 @@
     "tests/test_crash_resume_pg.py"
    ],
    "expect_failed": [
+    "test_a_stale_worker_is_stopped_and_the_continuing_worker_settles_true",
     "test_a_worker_of_an_earlier_epoch_cannot_keep_the_build_alive"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "a stale worker's refused heartbeat says 'not cancelled' and the worker goes on spending",
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "            raise StaleWorker(f'build {build_id}: the heartbeat of epoch {epoch} was refused')\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_stale_worker_is_stopped_and_the_continuing_worker_settles_true",
+    "test_a_worker_of_an_earlier_epoch_cannot_keep_the_build_alive"
+   ],
+   "envs": [
+    "pg"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "a stale worker settles or releases the build (the billing is not fenced)",
+   "mutations": [
+    {
+     "file": "omni_prod/subscription_store.py",
+     "old": "        raise StaleWorker(f'build {build_id}: billing of epoch {epoch} refused (the build is at {row[0] if row else None})')\n",
+     "new": "        return  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_stale_worker_is_stopped_and_the_continuing_worker_settles_true"
+   ],
+   "envs": [
+    "pg"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "a stale worker's attempt rows are written into the ledger",
+   "mutations": [
+    {
+     "file": "omni_prod/attempt_ledger.py",
+     "old": "                        raise StaleWorker(f'build {build_id}: attempt rows of epoch {epoch} refused')\n",
+     "new": "                        pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_stale_worker_is_stopped_and_the_continuing_worker_settles_true"
+   ],
+   "envs": [
+    "pg"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "the settlement's earlier workers and the carried budget come from two ledger reads",
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "    return carry_budget(gateway, spend)\n",
+     "new": "    return carry_budget(gateway, recorded_spend(pool, build_id, worker=worker))  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_one_ledger_snapshot_even_when_the_lost_worker_completes_its_call_in_between"
+   ],
+   "envs": [
+    "pg"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "a verdict is replayed for any image with the same subject, whatever its bytes",
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "            if (digest is not None and question.get('sha256') == digest and question.get('subject', '').strip() == subject\n",
+     "new": "            if (question.get('subject', '').strip() == subject  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_other_bytes_under_the_same_subject_are_asked_of_the_model"
    ]
   }
  ]

@@ -282,12 +282,16 @@ class CheckpointIsTrustedOnlyByItsBytes(unittest.TestCase):
             self.load(self.round2)
 
     def test_a_key_outside_this_builds_prefix_is_refused(self):
+        keys = ('build-checkpoints/bld_other/x.json', 'build-checkpoints/bld_unitx/x.json',
+                'build-checkpoints/bld_unit/../bld_other/x.json', 'build-checkpoints/bld_unit/./x.json',
+                'build-checkpoints/bld_unit//x.json', 'build-checkpoints/bld_unit/..\\x')
         for part in ('spec', 'snapshot', 'state'):
-            with self.subTest(part):
-                record = {**self.round2, part: {**self.round2[part], 'key': 'build-checkpoints/bld_other/x.json'}}
-                with self.assertRaises(C.CheckpointUnusable) as ctx:
-                    self.load(record)
-                self.assertIn('not under build-checkpoints/bld_unit/', str(ctx.exception))
+            for key in keys:
+                with self.subTest(part=part, key=key):
+                    record = {**self.round2, part: {**self.round2[part], 'key': key}}
+                    with self.assertRaises(C.CheckpointUnusable) as ctx:
+                        self.load(record)
+                    self.assertIn('not under build-checkpoints/bld_unit/', str(ctx.exception))
 
     def test_usable_names_why_not(self):
         cases = ((None, 'no checkpoint'), ({**self.round2, 'version': 2}, 'version'),
@@ -349,22 +353,50 @@ class TheVerificationHistoryIsCarried(unittest.TestCase):
 
 
 class TheImageCheckIsReplayed(unittest.TestCase):
-    def ask(self, vision, subject):
-        from omni_prod.image_match import _ask
-        return _ask(vision, SimpleNamespace(data=b'img'), subject)
+    """S4 (re-review of 73ed4b7): a verdict is replayed only for the same subject AND the same image bytes; any other
+    image is asked of the real model (fail closed), never given the old verdict."""
+    BAKERY, OTHER = b'the bakery picture the lost worker checked', b'a different picture, never shown to a model'
 
-    def test_the_lost_workers_verdicts_answer_the_same_questions_in_order_and_nothing_else(self):
-        verdicts = [{'requirement_id': 'r1', 'subject': 'a bakery', 'status': 'MATCH', 'shows': 'bread', 'reason': 'ok'},
-                    {'requirement_id': 'hero', 'subject': '', 'status': 'DROPPED', 'reason': 'no subject recorded'},
-                    {'requirement_id': 'r2', 'subject': 'a cake', 'status': 'DROPPED', 'shows': 'a pie', 'reason': 'no'}]
-        vision = C.ReplayVision(verdicts)
-        self.assertEqual(self.ask(vision, 'a bakery'), {'matches': True, 'shows': 'bread', 'reason': 'ok'})
-        self.assertFalse(self.ask(vision, 'a cake')['matches'])
-        with self.assertRaises(ValueError):                       # more questions than the checkpoint answered
-            self.ask(vision, 'a cake')
-        with self.assertRaises(ValueError):                       # another question than the one answered
-            self.ask(C.ReplayVision(verdicts), 'a shop')
-        self.assertEqual(vision.replayed, 2)
+    def verdicts(self):
+        import hashlib
+        return ([{'requirement_id': 'r1', 'sha256': 'artifact', 'subject': 'a bakery', 'status': 'MATCH',
+                  'shows': 'bread', 'reason': 'ok'},
+                 {'requirement_id': 'hero', 'subject': '', 'status': 'DROPPED', 'reason': 'no subject recorded'}],
+                [{'subject': 'a bakery', 'sha256': hashlib.sha256(self.BAKERY).hexdigest()}])
+
+    def model(self):
+        model = SimpleNamespace(calls=[])
+        model.complete_json = lambda **kw: model.calls.append(kw['images'][0]) or {'matches': False, 'shows': 'a pie',
+                                                                                   'reason': 'not bread'}
+        return model
+
+    def test_the_same_bytes_are_replayed_with_no_model_call(self):
+        from omni_prod.image_match import verify
+        verdicts, questions = self.verdicts()
+        model = self.model()
+        replay = C.ReplayVision(verdicts, questions, fallback=model)
+        out = verify(replay, [SimpleNamespace(requirement_id='r1', sha256='artifact', data=self.BAKERY)], {'r1': 'a bakery'})
+        self.assertEqual((out[0]['status'], replay.replayed, model.calls), ('MATCH', 1, []))
+
+    def test_other_bytes_under_the_same_subject_are_asked_of_the_model(self):
+        from omni_prod.image_match import ImageDoesNotMatch, verify
+        verdicts, questions = self.verdicts()
+        model = self.model()
+        replay = C.ReplayVision(verdicts, questions, fallback=model)
+        with self.assertRaises(ImageDoesNotMatch):                 # the real model saw a pie: the check fails closed
+            verify(replay, [SimpleNamespace(requirement_id='r1', sha256='artifact', data=self.OTHER)], {'r1': 'a bakery'})
+        self.assertEqual((replay.replayed, replay.asked_again, model.calls), (0, 1, [self.OTHER]))
+        with self.assertRaises(ValueError):                        # and with no model behind it, it raises
+            C.ReplayVision(verdicts, questions).complete_json(user='{"customer_asked_to_see": "a bakery"}',
+                                                              images=(self.OTHER,))
+
+    def test_a_first_run_records_each_question_with_its_bytes(self):
+        import hashlib
+        engine = SimpleNamespace()
+        vision = C.vision_for(engine, self.model(), None)
+        vision.complete_json(user='{"customer_asked_to_see": "a bakery"}', images=(self.BAKERY,), task='review')
+        self.assertEqual(engine.image_questions, [{'subject': 'a bakery',
+                                                   'sha256': hashlib.sha256(self.BAKERY).hexdigest()}])
 
 
 class TheSameBudgets(unittest.TestCase):

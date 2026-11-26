@@ -264,8 +264,12 @@ def ledger_rows(records: Iterable[AttemptRecord], *, build_id: str, tenant_id: s
 
 def persist_attempts(pool, records: list[AttemptRecord], *, build_id: str, tenant_id: str | None = None,
                      project_id: str | None = None, reservation_id: str | None = None,
-                     final_outcome: str | None = None, require_active_reservation: bool = False) -> int:
-    """Insert records idempotently (attempt_id primary key). Returns rows offered."""
+                     final_outcome: str | None = None, require_active_reservation: bool = False,
+                     epoch: int | None = None) -> int:
+    """Insert records idempotently (attempt_id primary key). Returns rows offered. `epoch` (S4.2, re-review of
+    73ed4b7): the recovery epoch the writing worker claimed the build in; when given, the rows are written only while
+    build_jobs.recovery_attempts is still that epoch -- a stale worker's rows are refused, logged and not written, and
+    StaleWorker is raised."""
     rows = ledger_rows(records, build_id=build_id, tenant_id=tenant_id, project_id=project_id,
                        reservation_id=reservation_id, final_outcome=final_outcome)
     if not rows:
@@ -284,6 +288,15 @@ def persist_attempts(pool, records: list[AttemptRecord], *, build_id: str, tenan
     with pool.connection() as conn:
         with conn.transaction():
             with conn.cursor() as cur:
+                if epoch is not None:
+                    # job first, as below and as recovery: the janitor cannot hand the build over mid-write
+                    cur.execute('SELECT recovery_attempts FROM build_jobs WHERE id=%s FOR UPDATE', (build_id,))
+                    row = cur.fetchone()
+                    if row is None or int(row[0]) != int(epoch):
+                        from .job_repository import StaleWorker
+                        log.warning('STALE_WORKER_REFUSED build=%s epoch=%s: %d attempt row(s) not written (the build '
+                                    'is at epoch %s)', build_id, epoch, len(rows), row[0] if row else None)
+                        raise StaleWorker(f'build {build_id}: attempt rows of epoch {epoch} refused')
                 if require_active_reservation:
                     # Same order as recovery: job first, reservation second.
                     cur.execute('SELECT status FROM build_jobs WHERE id=%s FOR UPDATE', (build_id,))

@@ -229,6 +229,9 @@ class KilledWorkersContinue(unittest.TestCase):
                 basis = run['evidence']['economics_settlement']['cost_basis']
                 self.assertEqual(basis['external_calls'], sum(run['second']['calls'].values()))
                 self.assertEqual(basis['earlier_workers']['calls'], str(len(first)))
+                metered = self.db.one("SELECT sum(metered_cost_usd) FROM task_attempts WHERE build_id=%s AND "
+                                      "kind='provider_call'", run['build_id'])[0]
+                self.assertEqual(Decimal(run['evidence']['provider_spend_usd']), Decimal(str(metered)))
                 self.assertEqual(run['events'][-1], __import__('omni_prod.maintenance', fromlist=['x'])
                                  .RECOVERY_LINES['resumed']['he'])
 
@@ -417,14 +420,13 @@ class FencesAndTheSameBudget(unittest.TestCase):
         adds the unanswered call's authorization -- the whole must stay within 1.00 (it was 1.118852)."""
         from omni_prod import build_checkpoint as C
         from omni_prod.subscription_store import PostgresSubscriptionService
-        from omni_prod.worker_tasks import prior_worker_metered_cost, resolve_m5_billing
+        from omni_prod.worker_tasks import resolve_m5_billing
         bid = self.build(attempts=1)
         self.ledger(bid, ('trc_lost', 'architecture', 'ok', '0.022406', '0.000203'),
                     ('trc_lost', 'codegen', 'unknown', '0.11227', None))
         gw = self.gateway()
         gw.bind_budget(Decimal('1.00'))
-        gw.prior_metered = prior_worker_metered_cost(self.db.pool, bid)
-        carried = C.carry_budget(gw, C.recorded_spend(self.db.pool, bid, worker=gw.recorder.trace_id))
+        carried = C.resume_budget(gw, self.db.pool, bid, worker=gw.recorder.trace_id)
         self.assertEqual(Decimal(carried['budget_left_usd']), Decimal('1.00') - Decimal('0.000203') - Decimal('0.11227'))
         calls = 0
         while calls < 200:
@@ -440,6 +442,111 @@ class FencesAndTheSameBudget(unittest.TestCase):
                                       'WHERE build_id=%s', bid)
         self.assertEqual(status, 'SETTLED')
         self.assertLessEqual(Decimal(str(settled)), Decimal('1.00'))
+
+    def spend_all(self, gw):
+        calls = 0
+        while calls < 400:
+            try:
+                gw.complete_json(system='s', user='u', max_tokens=12, task='repair')
+            except Exception:
+                break                                              # the budget refuses the next call
+            calls += 1
+        return calls
+
+    def test_one_ledger_snapshot_even_when_the_lost_worker_completes_its_call_in_between(self):
+        """Re-review of 73ed4b7 (S1, probe P2): the lost worker, still alive, records its in-flight call's answer right
+        after the continuing worker read the ledger. Both numbers come from the one read, so the settlement stays within
+        the reservation (two reads gave 1.29 on 1.00)."""
+        from unittest import mock
+        from omni_prod import build_checkpoint as C
+        from omni_prod.attempt_ledger import AttemptRecord, persist_attempts
+        from omni_prod.subscription_store import PostgresSubscriptionService
+        from omni_prod.worker_tasks import resolve_m5_billing
+        bid = self.build(attempts=1)
+        inflight = AttemptRecord(task_type='codegen', attempt_seq=1, kind='provider_call', outcome='unknown',
+                                 trace_id='trc_lost', authorized_cost_usd=Decimal('0.30'))
+        persist_attempts(self.db.pool, [inflight], build_id=bid)
+        real = C.recorded_spend
+
+        def read_then_the_zombie_answers(*a, **kw):
+            snapshot = real(*a, **kw)
+            if not inflight.metered_cost_usd:                     # the zombie's answer lands after the first read
+                inflight.outcome, inflight.metered_cost_usd = 'ok', Decimal('0.01')
+                persist_attempts(self.db.pool, [inflight], build_id=bid)
+            return snapshot
+        gw = self.gateway()
+        gw.bind_budget(Decimal('1.00'))
+        with mock.patch.object(C, 'recorded_spend', side_effect=read_then_the_zombie_answers):
+            C.resume_budget(gw, self.db.pool, bid, worker=gw.recorder.trace_id)
+        self.assertGreater(self.spend_all(gw), 20)
+        resolve_m5_billing(PostgresSubscriptionService(pool=self.db.pool), build_id=bid, ready=True, gateway=gw,
+                           capability_evidence=None, economics_quote={'components': {'llm_maximum_usd': '1.00'}})
+        settled = self.db.one('SELECT settled_provider_cost_usd FROM credit_reservations WHERE build_id=%s', bid)[0]
+        self.assertLessEqual(Decimal(str(settled)), Decimal('1.00'))
+
+    def test_a_stale_worker_is_stopped_and_the_continuing_worker_settles_true(self):
+        """Re-review of 73ed4b7 (S2, S3, probe P4): the janitor gave the build to epoch 1 while the epoch-0 worker still
+        runs. The old worker's heartbeat, its settlement and its attempt rows are each refused with StaleWorker and change
+        nothing; the continuing worker settles, and the build's spend equals the ledger's metered total (CLAUDE.md 5)."""
+        from omni_prod import build_checkpoint as C
+        from omni_prod.attempt_ledger import persist_attempts
+        from omni_prod.job_repository import PostgresBuildRepository, StaleWorker
+        from omni_prod.subscription_store import PostgresSubscriptionService
+        from omni_prod.worker_tasks import build_spend, resolve_m5_billing
+        quote = {'components': {'llm_maximum_usd': '1.00'}}
+        bid = self.build(attempts=0)
+        old_jobs = PostgresBuildRepository(self.db.pool)
+        old_jobs.fence(bid, 0)
+        zombie = self.gateway()
+        zombie.bind_budget(Decimal('1.00'))
+        for _ in range(3):
+            zombie.complete_json(system='s', user='u', max_tokens=12, task='repair')
+        persist_attempts(self.db.pool, zombie.recorder.records, build_id=bid, epoch=0)
+        with self.db.pool.connection() as conn:                  # the janitor's requeue; the new worker claimed it
+            conn.execute('UPDATE build_jobs SET recovery_attempts = 1 WHERE id = %s', (bid,))
+            conn.commit()
+        new = self.gateway()
+        new.bind_budget(Decimal('1.00'))
+        C.resume_budget(new, self.db.pool, bid, worker=new.recorder.trace_id)
+        for _ in range(5):
+            new.complete_json(system='s', user='u', max_tokens=12, task='repair')
+        persist_attempts(self.db.pool, new.recorder.records, build_id=bid, require_active_reservation=True, epoch=1)
+        # the stale worker: its heartbeat, its settlement and its next ledger write are refused and raise
+        zombie.complete_json(system='s', user='u', max_tokens=12, task='repair')
+        rows = self.db.one('SELECT count(*) FROM task_attempts WHERE build_id=%s', bid)[0]
+        with self.assertRaises(StaleWorker):
+            old_jobs.checkpoint(bid)
+        with self.assertRaises(StaleWorker):
+            resolve_m5_billing(C.FencedBilling(PostgresSubscriptionService(pool=self.db.pool), 0), build_id=bid,
+                               ready=True, gateway=zombie, capability_evidence=None, economics_quote=quote)
+        with self.assertRaises(StaleWorker):
+            persist_attempts(self.db.pool, zombie.recorder.records, build_id=bid, epoch=0)
+        self.assertEqual(self.db.one('SELECT status FROM credit_reservations WHERE build_id=%s', bid)[0], 'RESERVED')
+        self.assertEqual(self.db.one('SELECT count(*) FROM task_attempts WHERE build_id=%s', bid)[0], rows)
+        # the continuing worker settles; its spend and the plan's meter are the ledger's metered total
+        billing, evidence, actual = resolve_m5_billing(C.FencedBilling(PostgresSubscriptionService(pool=self.db.pool), 1),
+                                                       build_id=bid, ready=True, gateway=new, capability_evidence=None,
+                                                       economics_quote=quote)
+        ledger = Decimal(str(self.db.one('SELECT sum(metered_cost_usd) FROM task_attempts WHERE build_id=%s', bid)[0]))
+        status, settled = self.db.one('SELECT status, settled_provider_cost_usd FROM credit_reservations '
+                                      'WHERE build_id=%s', bid)
+        meter = self.db.one('SELECT s.provider_spend_usd FROM creator_subscriptions s JOIN credit_reservations r '
+                            'ON r.account_id = s.user_id WHERE r.build_id=%s', bid)[0]
+        self.assertEqual((billing, status), ('settled', 'SETTLED'))
+        self.assertEqual((Decimal(str(settled)), actual, build_spend(new, new.state.external_spend_usd),
+                          Decimal(str(meter))), (ledger, ledger, ledger, ledger))
+
+    def test_with_no_trace_of_its_own_every_row_is_an_earlier_workers(self):
+        """Re-review nit N1: worker=None keeps a row whose trace is NULL (it was dropped by IS DISTINCT FROM NULL)."""
+        from omni_prod import build_checkpoint as C
+        bid = self.build(attempts=1)
+        with self.db.pool.connection() as conn:
+            conn.execute("INSERT INTO task_attempts(attempt_id, build_id, task_id, task_type, attempt_seq, kind, outcome, "
+                         "authorized_cost_usd, metered_cost_usd, trace_id) VALUES (%s, %s, %s, 'codegen', 0, "
+                         "'provider_call', 'ok', 0.4, 0.4, NULL)", ('att_' + bid, bid, bid + ':codegen'))
+            conn.commit()
+        self.assertEqual(C.recorded_spend(self.db.pool, bid, worker=None)['metered_usd'], Decimal('0.4'))
+        self.assertEqual(C.recorded_spend(self.db.pool, bid, worker='trc_x')['metered_usd'], Decimal('0.4'))
 
     def test_only_the_earlier_workers_come_off_the_budget(self):
         """The earlier worker metered 0.05; this worker's own 0.03 is already in its gateway's state: the headroom the
@@ -489,8 +596,9 @@ class FencesAndTheSameBudget(unittest.TestCase):
             conn.execute("UPDATE build_jobs SET recovery_attempts = 1, heartbeat_at = now() - interval '1 hour' "
                          "WHERE id = %s", (bid,))
             conn.commit()
-        with self.assertLogs('omni_prod.job_repository', 'WARNING') as logs:
-            self.assertFalse(old.checkpoint(bid))
+        from omni_prod.job_repository import StaleWorker
+        with self.assertLogs('omni_prod.job_repository', 'WARNING') as logs, self.assertRaises(StaleWorker):
+            old.checkpoint(bid)                                    # stopped, never "not cancelled: keep going"
         self.assertIn('the heartbeat', logs.output[0])
         self.assertTrue(self.db.one("SELECT heartbeat_at < now() - interval '30 minutes' FROM build_jobs WHERE id=%s",
                                     bid)[0])

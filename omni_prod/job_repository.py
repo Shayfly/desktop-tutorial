@@ -6,6 +6,13 @@ from dataclasses import asdict, dataclass
 from .models import BuildStatus
 
 
+class StaleWorker(BaseException):
+    """S4.2 (re-review of 73ed4b7): this worker claimed the build in an earlier recovery epoch; the janitor has given it
+    to another worker. Raised by the heartbeat, the billing and the attempt ledger when the epoch no longer matches.
+    A BaseException on purpose: no `except Exception` on the way may turn it into a failed build, a settlement or a
+    transition -- the run stops where it is (worker_tasks.execute_live_build_job logs STALE_WORKER_STOPPED)."""
+
+
 @dataclass
 class BuildJobDetails:
     build_id: str
@@ -53,6 +60,10 @@ class PostgresBuildRepository:
         heartbeats change nothing -- a live old worker can no longer end, or keep alive, the continuing worker's build.
         A refused write is logged (STALE_WORKER_REFUSED)."""
         self._fences[build_id] = int(epoch)
+
+    def fenced_epoch(self, build_id: str) -> int | None:
+        """The epoch this repository's worker fenced `build_id` in (None: not fenced)."""
+        return getattr(self, '_fences', {}).get(build_id)
 
     def _stale(self, build_id: str, what: str) -> None:
         import logging
@@ -438,7 +449,9 @@ class PostgresBuildRepository:
                                 "RETURNING cancel_requested_at IS NOT NULL", (build_id, epoch, epoch))
                     row = cur.fetchone()
         if row is None and epoch is not None:
+            # re-review of 73ed4b7: "not cancelled" would keep a stale worker spending; it is stopped instead
             self._stale(build_id, 'the heartbeat')
+            raise StaleWorker(f'build {build_id}: the heartbeat of epoch {epoch} was refused')
         return bool(row and row[0])
 
     def cancel_requested(self, build_id: str) -> bool:

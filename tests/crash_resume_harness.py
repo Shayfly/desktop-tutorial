@@ -247,7 +247,7 @@ def worker(args) -> int:
     from omni_prod.autonomous_agents import ArchitectAgent, GeneratorAgent, RepairAgent
     from omni_prod.autonomous_core import AutonomousProductEngine
     from omni_prod.db import DatabasePool
-    from omni_prod.job_repository import PostgresBuildRepository
+    from omni_prod.job_repository import PostgresBuildRepository, StaleWorker
     from omni_prod.subscription_store import PostgresSubscriptionService
     from omni_prod.v28_platform import V28Platform
     from omni_prod.worker_tasks import _persist_build_attempts, _run_live_build_job
@@ -265,7 +265,7 @@ def worker(args) -> int:
     platform = V28Platform(token_secret='crash-resume-harness-' + 'x' * 32,
                            subscription_service=PostgresSubscriptionService(pool=pool))
     recorder = recorder_for(pool, args.build_id, None)
-    outcome = None
+    outcome, stale = None, False
     try:
         outcome = _run_live_build_job(
             args.build_id, jobs=jobs, platform=platform,
@@ -274,11 +274,17 @@ def worker(args) -> int:
             quality_fn=lambda **kw: _passing(score=100, minimum_score=80, blockers=()),
             security_fn=lambda repo: _passing(findings=()),
             agent_recorder=recorder, attempt_pool=pool)
+    except StaleWorker as exc:                                  # as execute_live_build_job: stop, nothing else
+        stale = True
+        print(f'STALE_WORKER_STOPPED {exc}', flush=True)
     except Exception as exc:
         print(f'WORKER_RAISED {type(exc).__name__}: {exc}', flush=True)
     finally:
-        _persist_build_attempts(pool, jobs, args.build_id, gateway)
-        if recorder.run_id is not None:
+        try:
+            _persist_build_attempts(pool, jobs, args.build_id, gateway)
+        except StaleWorker:
+            stale = True
+        if recorder.run_id is not None and not stale:
             with pool.connection() as conn:
                 row = conn.execute('SELECT status, evidence_json FROM build_jobs WHERE id = %s',
                                    (args.build_id,)).fetchone()

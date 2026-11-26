@@ -117,32 +117,67 @@ def not_resumable_reason(engine) -> str:
     return ''
 
 
-class ReplayVision:
-    """The image check of a build that continues (lens 11, generated_images.install): the lost worker asked the vision
-    model about every generated image before any code was written, and its checkpoints keep those verdicts. The same
-    images, asked in the same order, get the same answers from the checkpoint; no vision call is paid again. Any
-    difference -- another subject asked, more questions than verdicts -- raises, so the image check fails closed (an
-    optional image is dropped, which changes the prompt, which check_prompt then refuses)."""
+class AskedVision:
+    """The vision gateway of a run, recording every question it passes on: the subject and the sha256 of the exact image
+    bytes sent (image_match._ask). The checkpoint keeps them next to the verdicts, so a continued build can tell the
+    same image from another one with the same subject (re-review of 73ed4b7, S4)."""
 
     accepts_task_tag = False
 
-    def __init__(self, verdicts):
-        # the questions image_match._ask really sent: a row with a subject (a row without one never reached the model)
-        self.pending = [dict(v) for v in (verdicts or ()) if isinstance(v, dict) and str(v.get('subject') or '').strip()]
-        self.replayed = 0
+    def __init__(self, gateway, asked: list):
+        self._gateway, self.asked = gateway, asked
 
-    def complete_json(self, *, user: str = '', **_):
-        subject = str(json.loads(user or '{}').get('customer_asked_to_see') or '')
-        if not self.pending:
-            raise ValueError('the checkpoint holds no image verdict for this question')
-        verdict = self.pending.pop(0)
-        if verdict['subject'].strip() != subject.strip():
-            raise ValueError(f"the checkpoint's verdict is for {verdict['subject']!r}, the question is for {subject!r}")
-        if 'shows' not in verdict:          # the lost worker's question could not be answered then either
-            raise ValueError(str(verdict.get('reason') or 'the image could not be checked'))
-        self.replayed += 1
-        return {'matches': verdict.get('status') == 'MATCH', 'shows': verdict.get('shows', ''),
-                'reason': verdict.get('reason', '')}
+    def complete_json(self, **kwargs):
+        images = kwargs.get('images') or ()
+        self.asked.append({'subject': str(json.loads(kwargs.get('user') or '{}').get('customer_asked_to_see') or ''),
+                           'sha256': sha256_hex(bytes(images[0])) if images else None})
+        return self._gateway.complete_json(**kwargs)
+
+
+class ReplayVision:
+    """The image check of a build that continues (lens 11, generated_images.install). The lost worker asked the vision
+    model about every generated image before any code; its checkpoint keeps each question (subject, sha256 of the bytes)
+    with its verdict. A question with the same subject AND the same bytes gets that verdict back, with no vision call.
+    Any other question -- another image under the same subject, or one the checkpoint never answered -- is asked of the
+    real model (`fallback`), so the check fails closed; with no fallback it raises."""
+
+    accepts_task_tag = False
+
+    def __init__(self, verdicts, questions, fallback=None, asked: list | None = None):
+        # the verdict rows image_match wrote after a real answer, in the order the questions were sent
+        answered = [dict(v) for v in (verdicts or ()) if isinstance(v, dict) and str(v.get('subject') or '').strip()]
+        questions = [dict(q) for q in (questions or ()) if isinstance(q, dict)]
+        self.pairs = list(zip(questions, answered)) if len(questions) == len(answered) else []
+        self.fallback, self.asked = fallback, asked if asked is not None else []
+        self.replayed = self.asked_again = 0
+
+    def complete_json(self, **kwargs):
+        images = kwargs.get('images') or ()
+        subject = str(json.loads(kwargs.get('user') or '{}').get('customer_asked_to_see') or '').strip()
+        digest = sha256_hex(bytes(images[0])) if images else None
+        self.asked.append({'subject': subject, 'sha256': digest})
+        for i, (question, verdict) in enumerate(self.pairs):
+            if (digest is not None and question.get('sha256') == digest and question.get('subject', '').strip() == subject
+                    and verdict['subject'].strip() == subject and 'shows' in verdict):
+                del self.pairs[i]
+                self.replayed += 1
+                return {'matches': verdict.get('status') == 'MATCH', 'shows': verdict.get('shows', ''),
+                        'reason': verdict.get('reason', '')}
+        if self.fallback is None:
+            raise ValueError('the checkpoint holds no verdict for these image bytes and no model may be asked')
+        self.asked_again += 1
+        return self.fallback.complete_json(**kwargs)
+
+
+def vision_for(engine, gateway, recorded: dict | None):
+    """The vision gateway the image check of this run uses: a recording one on a first run, a replaying one (with the
+    real gateway behind it) on a continued run. The questions it sends are kept on the engine for the checkpoints."""
+    core = getattr(engine, 'core', engine)
+    asked: list = []
+    core.image_questions = asked
+    if recorded is None:
+        return AskedVision(gateway, asked)
+    return ReplayVision(recorded.get('image_match'), recorded.get('image_questions'), fallback=gateway, asked=asked)
 
 
 # ---------------------------------------------------------------------------------------------------------- database
@@ -212,15 +247,32 @@ def recorded_spend(pool, build_id: str, *, worker: str | None) -> dict:
     what the settlement adds for such a call (worker_tasks.computed_provider_cost, unknown_exposure_usd, the same
     rows as prior_worker_metered_cost), so the budget that is left must not include it either: otherwise a continued
     build could settle above its reservation (review of 1edee7b: reservation 1.00, settled 1.118852)."""
+    columns = ("SELECT count(*) FILTER (WHERE COALESCE(authorized_cost_usd, 0) > 0 OR COALESCE(metered_cost_usd, 0) > 0), "
+               "COALESCE(sum(metered_cost_usd), 0), "
+               "COALESCE(sum(authorized_cost_usd) FILTER (WHERE metered_cost_usd IS NULL AND outcome IN ('ok', 'unknown')), 0), "
+               "count(*), count(*) FILTER (WHERE metered_cost_usd IS NULL AND outcome IN ('ok', 'unknown') "
+               "AND COALESCE(authorized_cost_usd, 0) > 0) FROM task_attempts WHERE build_id = %s AND kind = 'provider_call'")
     with pool.connection() as conn:
-        row = conn.execute(
-            "SELECT count(*) FILTER (WHERE COALESCE(authorized_cost_usd, 0) > 0 OR COALESCE(metered_cost_usd, 0) > 0), "
-            "COALESCE(sum(metered_cost_usd), 0), "
-            "COALESCE(sum(authorized_cost_usd) FILTER (WHERE metered_cost_usd IS NULL AND outcome IN ('ok', 'unknown')), 0) "
-            "FROM task_attempts WHERE build_id = %s AND kind = 'provider_call' AND trace_id IS DISTINCT FROM %s",
-            (build_id, worker)).fetchone()
+        if worker is None:        # no trace of its own (nothing called yet): every row is an earlier worker's
+            row = conn.execute(columns, (build_id,)).fetchone()
+        else:
+            row = conn.execute(columns + ' AND trace_id IS DISTINCT FROM %s', (build_id, worker)).fetchone()
     return {'external_calls': int(row[0] or 0), 'metered_usd': Decimal(str(row[1] or 0)),
-            'unanswered_authorized_usd': Decimal(str(row[2] or 0))}
+            'unanswered_authorized_usd': Decimal(str(row[2] or 0)), 'calls': int(row[3] or 0),
+            'unknown_calls': int(row[4] or 0)}
+
+
+def resume_budget(gateway, pool, build_id: str, *, worker: str | None) -> dict:
+    """ONE ledger snapshot (re-review of 73ed4b7, S1) for both numbers a continued build needs of its earlier workers:
+    what the settlement adds for them (gateway.prior_metered, the shape of worker_tasks.prior_worker_metered_cost) and
+    what comes off the budget (carry_budget). Two reads let a row change in between -- the lost worker, still alive,
+    completing its unanswered call -- and the settlement could then exceed the reservation."""
+    spend = recorded_spend(pool, build_id, worker=worker)
+    gateway.prior_metered = ({'calls': spend['calls'], 'metered_usd': spend['metered_usd'],
+                              'unknown_calls': spend['unknown_calls'],
+                              'unknown_exposure_usd': spend['unanswered_authorized_usd']}
+                             if spend['calls'] else None)
+    return carry_budget(gateway, spend)
 
 
 def carry_budget(gateway, spend: dict) -> dict:
@@ -373,6 +425,8 @@ class CheckpointWriter:
         verdicts = getattr(getattr(self.engine, 'core', self.engine), 'image_match', None)
         if isinstance(verdicts, list):      # the image check ran before the architect; a resume replays it (ReplayVision)
             record['image_match'] = json.loads(dumps_evidence(verdicts))
+            record['image_questions'] = [dict(q) for q in getattr(getattr(self.engine, 'core', self.engine),
+                                                                  'image_questions', None) or ()]
         if stage != 'spec':
             state = {'loop': loop, 'executors': capture_executors(self.engine),
                      'round_snapshots': [dict(e) for e in self.round_snapshots]}
@@ -464,7 +518,9 @@ def load(record: dict, *, store, unzip, contract_fingerprint, build_id: str, pro
     prefix = f'{KEY_PREFIX}/{build_id}/'
     for part in ('spec', 'snapshot', 'state'):
         key = (record.get(part) or {}).get('key')
-        if key is not None and (not str(key).startswith(prefix) or '..' in str(key).split('/')):
+        parts = str(key).split('/') if key is not None else []
+        if key is not None and (not str(key).startswith(prefix) or '\\' in str(key)
+                                or any(p in ('', '.', '..') for p in parts)):
             raise CheckpointUnusable(f'the checkpoint names {part} {key!r}, which is not under {prefix}')
     spec_ref = record['spec']
     raw = _read(store, spec_ref['key'], spec_ref['sha256'], 'spec')
@@ -495,6 +551,21 @@ def load(record: dict, *, store, unzip, contract_fingerprint, build_id: str, pro
     if int(state['loop']['rounds']) != int(record['round']):
         raise CheckpointUnusable(f"the loop state is of round {state['loop']['rounds']}, the record of {record['round']}")
     return Loaded(resume, record, dict(state.get('executors') or {}), list(state.get('round_snapshots') or ()))
+
+
+class FencedBilling:
+    """The subscriptions of one run, settling and releasing only in the run's recovery epoch (re-review of 73ed4b7):
+    settle, release and release_failed get `epoch`, and subscription_store.fence_build refuses a stale one with
+    StaleWorker. Every other call passes through unchanged."""
+
+    def __init__(self, subscriptions, epoch: int):
+        self._subscriptions, self.epoch = subscriptions, int(epoch)
+
+    def __getattr__(self, name):
+        attr = getattr(self._subscriptions, name)
+        if name in ('settle', 'release', 'release_failed'):
+            return lambda **kw: attr(**kw, epoch=self.epoch)
+        return attr
 
 
 # ---------------------------------------------------------------------------------------- the terminal evidence

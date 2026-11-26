@@ -493,6 +493,15 @@ def provider_usage_evidence(gateway) -> dict:
 # M1: durable async build
 # --------------------------------------------------------------------------
 
+def build_spend(gateway, spent) -> Decimal:
+    """The build's provider spend for its evidence: this worker's (`spent`) and, on a recovered build, the metered cost
+    the earlier workers' calls left in the ledger (prior_metered) -- the ledger's metered total when every call was
+    metered (S4.2, re-review of 73ed4b7). A call with no metered cost adds nothing here, as in the ledger."""
+    prior = getattr(gateway, 'prior_metered', None)
+    extra = Decimal(str(prior.get('metered_usd') or 0)) if isinstance(prior, dict) else Decimal('0')
+    return Decimal(str(spent)) + extra
+
+
 def spend_snapshot(gateway) -> tuple[Decimal, int]:
     state = getattr(gateway, 'state', None) if gateway is not None else None
     if state is None:
@@ -1055,6 +1064,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             fence = getattr(jobs, 'fence', None)
             if callable(fence):           # this run's transitions and heartbeats change the row only in its epoch
                 fence(build_id, claim['epoch'])
+            # ...and its settlement or release too (re-review of 73ed4b7): a stale epoch raises StaleWorker
+            subscriptions = build_checkpoint.FencedBilling(subscriptions, claim['epoch'])
         _report_phase(jobs, build_id, 'PLANNING', 'validating the build contract and product plan')
         # M5 Task 6: a contract-bound product cannot become READY without its
         # required generated-app infrastructure. Checked before any paid model
@@ -1122,9 +1133,10 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                                                unzip=getattr(workspace, '_unzip_repo', None), build_id=build_id,
                                                contract_fingerprint=request.get('build_contract_fingerprint'))
                 # the same budgets: what the earlier workers recorded (their metered cost and the authorized amount of
-                # their unanswered call, which the settlement adds) comes off the build's reserved budget and call limit
-                carried_budget = build_checkpoint.carry_budget(gateway, build_checkpoint.recorded_spend(
-                    attempt_pool, build_id, worker=getattr(getattr(gateway, 'recorder', None), 'trace_id', None)))
+                # their unanswered call, which the settlement adds) comes off the build's reserved budget and call limit,
+                # read in ONE snapshot that also becomes the settlement's prior_metered (re-review of 73ed4b7, S1)
+                carried_budget = build_checkpoint.resume_budget(
+                    gateway, attempt_pool, build_id, worker=getattr(getattr(gateway, 'recorder', None), 'trace_id', None))
         if capability_stage is not None:
             _report_phase(jobs, build_id, 'ASSETS', 'generating and verifying required assets')
             # #324 (Michael 2026-11-13): an image is generated from an ENGLISH prompt translated once from the brief
@@ -1177,9 +1189,10 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             build_prompt = install_generated_images(
                 engine, prompt=prompt, plan=capability_plan, evidence=capability_evidence,
                 store=getattr(getattr(capability_stage, 'executor', None), 'artifact_store', None),
-                # lens 11 / I-01, before code; a continued build replays the lost worker's verdicts (no vision call)
-                vision=(None if not image_match_enabled(request) else gateway if recorded is None
-                        else build_checkpoint.ReplayVision(recorded.get('image_match'))))
+                # lens 11 / I-01, before code. The questions are recorded for the checkpoint; a continued build
+                # replays a verdict only for the same image bytes and asks the model again for any other (S4)
+                vision=(None if not image_match_enabled(request) else build_checkpoint.vision_for(
+                    engine, gateway, recorded)))
             image_match = getattr(getattr(engine, 'core', engine), 'image_match', None)
             if image_match is None and getattr(getattr(engine, 'core', engine), 'generated_images', None):
                 # not run by rollout: said in the evidence and the log, never a silent pass
@@ -1376,7 +1389,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'build_log_tail': result.report.build_log[-4000:],
             'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
             'provider_usage': provider_usage_evidence(gateway),
-            'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
+            'provider_spend_usd': str(build_spend(gateway, spent)), 'external_model_calls': calls,
+            'provider_spend_basis': SPEND_BASIS,
             'model_budget_binding': model_budget_binding,
             'design_review': {'enabled': bool(design_review_on), 'reviews': _design_reviews(engine)},
             'agentic_repair': {'enabled': bool(agentic_repair),
@@ -1423,7 +1437,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
-                           'provider_spend_usd': str(spent), 'external_model_calls': calls,
+                           'provider_spend_usd': str(build_spend(gateway, spent)), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS, 'model_budget_binding': model_budget_binding},
             actual_provider_cost_usd=actual_cost,
         )
@@ -1449,7 +1463,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
-                           'provider_spend_usd': str(spent), 'external_model_calls': calls,
+                           'provider_spend_usd': str(build_spend(gateway, spent)), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
         )
@@ -1477,7 +1491,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
-                           'provider_spend_usd': str(spent), 'external_model_calls': calls,
+                           'provider_spend_usd': str(build_spend(gateway, spent)), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
         )
@@ -1502,7 +1516,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
-                           'provider_spend_usd': str(spent),
+                           'provider_spend_usd': str(build_spend(gateway, spent)),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
                            'site_route': _site_route_evidence(engine),
                            'model_budget_binding': model_budget_binding},
@@ -1579,12 +1593,22 @@ def execute_live_build_job(build_id: str) -> None:
         from .agent_os.recorder import recorder_for
         recorder = recorder_for(_v28_pool, build_id, execution_plan_binding(_v28_pool, build_id),
                                 enforce=os.getenv('OMNI_PLAN_DRIVEN') == '1')
+    from .job_repository import StaleWorker
+    stale = False
     try:
         _run_live_build_job_with_components(build_id, jobs=jobs, workspace=workspace,
                                             components_factory=components_factory, agent_recorder=recorder)
+    except StaleWorker as exc:
+        # S4.2 (re-review of 73ed4b7): the janitor gave this build to another worker; this run stops where it is --
+        # no further paid call, no billing, no transition (each of them is fenced and raised this)
+        stale = True
+        logging.getLogger(__name__).error('STALE_WORKER_STOPPED build=%s: %s', build_id, exc)
     finally:
-        _persist_build_attempts(_v28_pool, jobs, build_id, captured.get('gateway'))
-        if recorder is not None and recorder.run_id is not None:
+        try:
+            _persist_build_attempts(_v28_pool, jobs, build_id, captured.get('gateway'))
+        except StaleWorker:
+            stale = True                      # refused and logged by the ledger itself
+        if recorder is not None and recorder.run_id is not None and not stale:
             try:
                 with _v28_pool.connection() as conn:
                     row = conn.execute('SELECT status, evidence_json FROM build_jobs WHERE id = %s', (build_id,)).fetchone()
@@ -1620,10 +1644,12 @@ def _persist_build_attempts(pool, jobs, build_id: str, gateway, *, required: boo
             request = jobs.get_request(build_id)
         except Exception:
             request = {}
+        fenced = getattr(jobs, 'fenced_epoch', None)
+        epoch = fenced(build_id) if callable(fenced) else None
         persist_attempts(pool, recorder.records, build_id=build_id,
                          tenant_id=request.get('user_id'), project_id=request.get('internal_project_id'),
                          reservation_id=build_id, final_outcome=getattr(status, 'value', None),
-                         require_active_reservation=required)
+                         require_active_reservation=required, epoch=epoch)
     except Exception as exc:
         logging.getLogger(__name__).exception('attempt ledger write failed for %s', build_id)
         if required:
