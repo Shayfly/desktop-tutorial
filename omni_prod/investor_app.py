@@ -63,6 +63,7 @@ from .storage import S3ArtifactStore
 from .job_repository import PostgresBuildRepository
 from .build_contract import BuildContractStatus
 from .build_contract_repository import MemoryBuildContractRepository, PostgresBuildContractRepository
+from .build_contract_repository import BuildContractNotFound
 from .idempotency import request_fingerprint, validate_key
 from .creator_plan import build_plan_preview
 from .browser_session import SessionTokenError, browser_session_readiness, cookie_settings, extract_session_token
@@ -357,7 +358,10 @@ def _m5_resolve_build_contract(*, repository, architect, project_id: str, prompt
     if requested_contract_id:
         try:
             contract = repository.get(requested_contract_id, project_id=project_id)
-        except ValueError as exc:
+        except (ValueError, BuildContractNotFound) as exc:
+            # S4.5 (2026-11-26): an id that names no contract of THIS project (unknown, or another project's) is the
+            # same refusal as a stored plan that no longer verifies -- it used to be a 500 (unknown) and a 403 that
+            # confirmed the id existed elsewhere (another project's).
             # A stored contract that no longer verifies (e.g. saved before the
             # 2026-10-08 title-normalisation fix) is never built; the client
             # asks for a fresh plan instead of getting an HTTP 500.

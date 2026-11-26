@@ -39,10 +39,10 @@ class MemoryBuildContractRepository:
 
     def get(self, contract_id: str, *, project_id: str) -> BuildContract:
         contract = self._by_id.get(contract_id)
-        if contract is None:
+        # S4.5 (2026-11-26): another project's contract is answered exactly like a missing one -- a separate
+        # "does not belong to project" told a caller which contract ids exist in other projects.
+        if contract is None or contract.project_id != project_id:
             raise BuildContractNotFound(contract_id)
-        if contract.project_id != project_id:
-            raise PermissionError("build contract does not belong to project")
         return contract
 
     def latest(self, project_id: str) -> BuildContract | None:
@@ -131,10 +131,7 @@ class PostgresBuildContractRepository:
                 row = cur.fetchone()
                 if row:
                     return self._decode(row)
-                cur.execute("SELECT project_id FROM m5_build_contracts WHERE id=%s", (contract_id,))
-                owner = cur.fetchone()
-        if owner:
-            raise PermissionError("build contract does not belong to project")
+        # S4.5 (2026-11-26): no second lookup by id alone -- another project's contract is not found, like a missing one.
         raise BuildContractNotFound(contract_id)
 
     def latest(self, project_id: str) -> BuildContract | None:
