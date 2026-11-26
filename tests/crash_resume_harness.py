@@ -283,6 +283,7 @@ def worker(args) -> int:
                 row = conn.execute('SELECT status, evidence_json FROM build_jobs WHERE id = %s',
                                    (args.build_id,)).fetchone()
             recorder.finish(status=row[0] if row else 'failed', evidence=row[1] if row else None)
+        pool.close()
     print(f'WORKER_DONE {outcome}', flush=True)
     return 0
 

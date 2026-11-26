@@ -1,0 +1,190 @@
+{
+ "pr": "crash-resume",
+ "sha256": [
+  "tests/test_crash_resume.py",
+  "tests/test_crash_resume_pg.py",
+  "tests/crash_resume_harness.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the worker ignores the checkpoint it was requeued to continue from: the build starts over",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        result = engine.build(build_prompt, resume=resume) if resume is not None else engine.build(build_prompt)",
+     "new": "        result = engine.build(build_prompt)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_each_continued_build_ends_as_the_uninterrupted_one",
+    "test_resume_verdict_passes_every_continued_build_and_still_fails_the_logged_ledger",
+    "test_the_agent_run_carries_the_lost_workers_finished_tasks",
+    "test_the_continued_worker_never_calls_a_stage_the_checkpoint_covers"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the engine ignores the resume point: the architect is called again",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "        if resume is None:\n            spec = self.architect.create_spec(prompt)",
+     "new": "        if True:  # NEGATIVE CONTROL\n            spec = self.architect.create_spec(prompt)"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_each_checkpoint_continues_to_the_same_result_without_calling_a_covered_stage_again"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the stored bytes' sha256 is not checked",
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "    if actual != sha256:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py",
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_changed_byte_in_any_stored_object_is_refused"
+   ],
+   "expect_failed_pg": [
+    "test_a_changed_byte_in_any_stored_object_is_refused",
+    "test_a_checkpoint_whose_bytes_changed_fails_by_name_and_never_starts_over"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a covered stage is called again: a round checkpoint generates the code again",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "        loop = resume.loop if resume is not None and resume.stage != 'spec' else None",
+     "new": "        loop = None  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_each_checkpoint_continues_to_the_same_result_without_calling_a_covered_stage_again",
+    "test_the_round_budget_is_the_builds_not_a_new_one"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a lost build with a usable checkpoint is still failed (the janitor never continues)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/maintenance.py",
+     "old": "                    resumed = resumable and not stop and attempts < max_recovery",
+     "new": "                    resumed = False  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_checkpoint_whose_bytes_changed_fails_by_name_and_never_starts_over",
+    "test_a_lost_build_with_a_usable_checkpoint_is_requeued_to_continue_even_after_a_paid_call",
+    "test_each_continued_build_ends_as_the_uninterrupted_one",
+    "test_resume_verdict_passes_every_continued_build_and_still_fails_the_logged_ledger",
+    "test_the_agent_run_carries_the_lost_workers_finished_tasks",
+    "test_the_continued_worker_never_calls_a_stage_the_checkpoint_covers",
+    "test_the_record_names_the_checkpoint_it_continued_from"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the agent recorder re-runs every task instead of carrying the finished ones",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/agent_os/recorder.py",
+     "old": "            if resume is not None:\n                self._carry(resume)\n                return\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n                return\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_agent_run_carries_the_lost_workers_finished_tasks"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the plan's task graph does not carry the checkpoint's stages",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/agent_os/recorder.py",
+     "old": "        if resume is not None:\n            self._carry_plan(resume)\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n            self._carry_plan(resume)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_plan_admits_the_next_repair_round_and_not_the_architect"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the earlier workers' recorded spend does not count against the build's budget",
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "    state.external_spend_usd += Decimal(str(spend['metered_usd']))\n    return {'carried': True,",
+     "new": "    return {'carried': False,"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_the_earlier_workers_recorded_calls_and_cost_count_against_the_build_budget"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the screen shows the janitor's Hebrew line to every customer",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "h('time', {}, fmt(e.at)), ' ', serverLine(e.message))",
+     "new": "h('time', {}, fmt(e.at)), ' ', e.message)"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_the_build_log_shows_a_janitor_line_in_the_customers_language"
+   ]
+  }
+ ]
+}

@@ -105,6 +105,7 @@ jobs:
                    tests/test_contract_scope_lineage_pg.py \
                    tests/test_media_reading_128_pg.py \
                    tests/test_crash_recovery_and_change_parity.py tests/test_golden_mod_path_live_postgres.py \
+                   tests/test_crash_resume_pg.py \
                    tests/test_intelligence_plane.py tests/test_janitor_redispatch.py tests/test_m4d2_live_fastapi_redis.py \
                    tests/test_m4d2_live_postgres.py \
                    tests/test_maintenance_live_postgres.py tests/test_preview_access.py tests/test_release_policy.py; do
