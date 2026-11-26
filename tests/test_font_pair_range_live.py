@@ -21,6 +21,7 @@ import unittest
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 from omni_prod import section_library as L
 from omni_prod import typography as T
@@ -117,8 +118,8 @@ class TheAllowedListLive(unittest.TestCase):
             for p in T.pairs(script):
                 for role in ('display', 'body'):
                     used.setdefault(p[role]['family'], (script, set()))[1].update(p[role]['weights'])
-        for family, entry in families.items():
-            script, weights = used[family]
+        def observe(family):
+            entry, (script, weights) = families[family], used[family]
             meta = fetch(METADATA.format(entry['source'].split(' ', 1)[1].rsplit('/', 1)[0]))
             live = {'name': re.search(r'^name: "([^"]+)"', meta, re.M).group(1),
                     'licence': re.search(r'^license: "([^"]+)"', meta, re.M).group(1),
@@ -129,8 +130,13 @@ class TheAllowedListLive(unittest.TestCase):
             recorded = {'name': family, **{k: entry[k] for k in ('licence', 'categories', 'classifications', 'scripts',
                                                                  'weights')}}
             letters = served(family, script, T.script(script)['sample'])
-            if live != recorded or not weights <= set(letters):
-                wrong[family] = {'recorded': recorded, 'live': live, 'served_for_the_sample': letters}
+            return family, live, recorded, letters, weights
+
+        # three requests a family, 62 families: eight at a time (measured locally: 21 s to 106 s one after another)
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            for family, live, recorded, letters, weights in pool.map(observe, sorted(families)):
+                if live != recorded or not weights <= set(letters):
+                    wrong[family] = {'recorded': recorded, 'live': live, 'served_for_the_sample': letters}
         self.assertEqual(wrong, {})
         self.assertEqual(sorted({e['licence'] for e in families.values()} - set(T.LICENCES)), [])
 
