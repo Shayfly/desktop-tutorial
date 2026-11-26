@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 import re
 from typing import Callable
 
+from .offscreen import VISUALLY_HIDDEN
+
 ROLE_ARCHITECT = 'architect'
 ROLE_GENERATOR = 'generator'
 ROLE_REPAIR = 'repair'
@@ -798,7 +800,10 @@ ACCESSIBILITY = Skill(
         'area is role="status" aria-live="polite". Everything works with the keyboard alone in a logical order, with a '
         'visible focus ring; dialogs (if any) trap and return focus and close on Escape. Images have alt text (empty for '
         'decoration). Colour is never the only signal (badges have text), contrast is at least 4.5:1, and the layout '
-        'survives 200% zoom and 320px width without horizontal page scroll.'),
+        'survives 200% zoom and 320px width without horizontal page scroll. To hide something from the eye but keep it '
+        'for screen readers (a skip link, a field label), give it class="visually-hidden" with exactly this rule: '
+        + VISUALLY_HIDDEN + '. Never hide anything by moving it off-screen (left, right, margin or text-indent of '
+        '-999px or more): on a right-to-left page the whole page then scrolls sideways by that much.'),
     checklist=('Every input has a label; status messages are announced (role="status").',
                'All actions are reachable and usable with the keyboard; focus is visible.'),
     static_checks=(_unlabelled_inputs, _images_without_alt),
