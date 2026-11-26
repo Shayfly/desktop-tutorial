@@ -55,6 +55,20 @@ OUTLINE_MAP = {
 }
 _TITLE_TO_KEY = {t: k for k, titles in OUTLINE_MAP.items() for t in titles}
 
+# A palette's own sections are the page structure of ITS trade (counsel, the neutral palette: a process and a FAQ).
+# For a business whose category the brief does not name, only the sections the customer's own words fill are
+# required; the palette's others are offered as optional ("include it only with real content"), never demanded --
+# demanded, the model invents them (bld_3938e570: a fee in sections.process.lead). The customer's outline, when given,
+# is still the page (map_outline): this applies only without one.
+UNNAMED_REQUIRED = ('hero', 'services', 'about', 'cta', 'contact')
+
+
+def unnamed_entry(entry: dict) -> dict:
+    """A library palette entry for a business with no named category: its required sections cut to UNNAMED_REQUIRED,
+    the rest listed in 'optional_sections' (schema.offered_sections offers them as optional)."""
+    return {**entry, 'sections': [s for s in entry['sections'] if s in UNNAMED_REQUIRED],
+            'optional_sections': [s for s in entry['sections'] if s not in UNNAMED_REQUIRED]}
+
 
 def mode() -> str:
     """OMNI_SITE_LIBRARY: off | accounts | on. Any other value raises; never a silent default."""
@@ -95,6 +109,9 @@ class Route:
     domain: str | None = None
     domain_facts: list = field(default_factory=list)
     domain_words: list = field(default_factory=list)       # the trade's verified Hebrew words (warehouse 127)
+    # route-honesty (2026-11-25): `category` is the business, set only when the brief names it ('named'); the palette,
+    # art direction and fonts come from `palette_category` ('nearest', or 'none': the neutral NO_SIGNAL palette)
+    palette_category: str | None = None
     windows: tuple[str, ...] = ()          # the approved windows the library renders on this route
     # Warehouse 129/126: the page's script and the font pair locked into its contract (None off the route).
     script: str | None = None
@@ -105,6 +122,7 @@ class Route:
                 'contract': self.contract_fp, 'contract_source': self.contract_source, 'canon_hash': self.canon_hash,
                 'order': self.order, 'outline_titles': self.outline_titles, 'category': self.category,
                 'category_found': self.category_found, 'domain': self.domain, 'domain_facts': self.domain_facts,
+                'palette_category': self.palette_category,
                 'windows': list(self.windows),
                 'script': self.script, 'font_pair': self.font_pair,
                 'fonts': (self.contract or {}).get('fonts')}
@@ -179,20 +197,31 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
     from ..a4 import pictures
     if pictures(prompt)['asked'] > 1:
         return Route(LEGACY, 'several_pictures')
+    # route-honesty (bld_3938e570): a picture per item, a page per item or separate pages, or the owner adding content
+    # later is more than this route's one page holds -- the legacy path writes the site's code (its own routes and
+    # pages), so the build goes there, by name, with the customer's words that asked for it (one_page.beyond)
+    from .one_page import beyond
+    asked = beyond(Fx.customer_text(prompt))
+    if asked:
+        return Route(LEGACY, ('beyond_one_page: ' + '; '.join(f'{kind} "{words}"' for kind, words in asked))[:200])
     from .. import vertical_palettes as VP
     from ..section_library import DIRECTIONS
-    named = VP.category_of(request_text)
-    category = named or VP.nearest_category(request_text)[0]
+    # The business is only a category the brief NAMES; the palette may come from a near one or the neutral one
+    # (VP.identify). bld_3938e570 (2026-11-25): a smoke shop with no signal took the neutral palette's category
+    # ('lawyers') as its business -- the lawyer domain, its facts and trade words, and the lawyer palette's required
+    # process and FAQ sections -- and the build died on an invented fee in sections.process.lead.
+    who = VP.identify(request_text)
+    category, palette_category = who['category'], who['palette_category']
     from ..domain_registry import domain_for, trade_words
     domain = domain_for(category)
-    domain_kw = dict(category=category, category_found='named' if named else 'nearest',
+    domain_kw = dict(category=category, category_found=who['found'], palette_category=palette_category,
                      domain=domain['slug'] if domain else None,
                      domain_facts=[f['fact'] for f in domain['mandatory_facts'] if f['when'] is None] if domain else [],
                      domain_words=trade_words(domain))
-    palette, colours = VP.palette_for(category)
+    palette, colours = VP.palette_for(palette_category)
     if palette not in DIRECTIONS['palettes']:
         return Route(LEGACY, f'palette_not_in_library: {palette}')
-    entry = DIRECTIONS['palettes'][palette]
+    entry = DIRECTIONS['palettes'][palette] if category else unnamed_entry(DIRECTIONS['palettes'][palette])
     # Warehouse 126/129: the page's script follows the customer's language, and its fonts are a pair from the library
     # -- the category's art direction allows two pairs, the business (its name, or the name the customer quoted)
     # picks one -- locked into the design contract in place of the Design line's one font (Heebo by default).
@@ -200,7 +229,9 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
     script = T.script_for_language(lang)
     sheet = Fx.fact_sheet(prompt)
     business = sheet.name or next(iter(sheet.name_candidates), None)
-    pair = T.pair_for(script, category=category, tone=entry['direction'], business=business) if business else None
+    # the pair's key is the palette's category: fonts are design, like the colours (the same pair as before this split)
+    pair = (T.pair_for(script, category=palette_category, tone=entry['direction'], business=business)
+            if business else None)
     from ..g_apple.contract import ContractError
     from .render import render_contract
     try:

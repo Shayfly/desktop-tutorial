@@ -162,19 +162,19 @@
     },
     {
       "id": "M11",
-      "what": "The direct image adapter accepts more than three images.",
+      "what": "The direct image adapter refuses a fourth image again (the owner, 2026-11-26: there is no image cap).",
       "mutations": [
         {
           "file": "omni_prod/providers/google_image.py",
-          "old": "if int(requirement.quantity) != requirement.quantity or not 1 <= requirement.quantity <= 3:",
-          "new": "if int(requirement.quantity) != requirement.quantity or requirement.quantity < 1:  # negative control"
+          "old": "if int(requirement.quantity) != requirement.quantity or requirement.quantity < 1:",
+          "new": "if int(requirement.quantity) != requirement.quantity or not 1 <= requirement.quantity <= 3:  # negative control"
         }
       ],
       "targets": [
-        "tests/test_google_image_direct.py::test_reject_four_images_before_quote_or_provider_contact"
+        "tests/test_google_image_direct.py::test_four_images_are_quoted_and_made_one_call_each"
       ],
       "expect_failed": [
-        "test_reject_four_images_before_quote_or_provider_contact"
+        "test_four_images_are_quoted_and_made_one_call_each"
       ]
     },
     {

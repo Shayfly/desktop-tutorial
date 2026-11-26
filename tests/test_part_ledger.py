@@ -28,7 +28,7 @@ from omni_prod.customer_views import is_internal_key
 from omni_prod.fact_canon import decode_entities
 from omni_prod.media_pipeline import CreativeDirector
 from omni_prod.rehearsal import approved_prompt
-from omni_prod.repository_assets import envelope, zip_bytes
+from omni_prod.repository_assets import envelope, file_bytes, zip_bytes
 from omni_prod.rights_ip import RightsEngine
 from omni_prod.site_content import facts as Fx
 from omni_prod.site_content import render as R
@@ -43,7 +43,8 @@ BUTCHER = json.loads((ROOT / 'tests' / 'fixtures' / 'butcher_served_page_2026_11
 TITLES = {'services': 'תחומי התמחות', 'about': 'על המשרד', 'process': 'איך זה עובד', 'faq': 'שאלות נפוצות',
           'contact': 'צור קשר'}
 ORDER = ['hero', 'services', 'about', 'process', 'faq', 'contact']
-SMALL_PNG = (ROOT / 'BRAND_PACK' / '148AI-logo-64.png').read_bytes()        # carried byte for byte
+SMALL_PNG = (ROOT / 'BRAND_PACK' / '148AI-logo-64.png').read_bytes()        # a logo: carried byte for byte
+GEN_FILE = 'assets/148ai-image-1.webp'   # image weight (2026-11-26): a generated image is carried as its conversion
 OTHER_PNG = (ROOT / 'BRAND_PACK' / '148AI-logo-128.png').read_bytes()
 LARGE_PNG = (ROOT / 'BRAND_PACK' / '148AI-logo-master-transparent.png').read_bytes()   # over the budget: a rendition
 RID = 'cap-media-image-generate'
@@ -195,11 +196,12 @@ class TheProductionRowThroughTheWorkersChain(unittest.TestCase):
         self.assertTrue(design[0]['brief_primary_on_page'])
 
     def test_the_generated_image_is_linked_to_its_verified_requirement(self):
-        image = by_path(self.full, 'images')['assets/148ai-image-1.png']
+        image = by_path(self.full, 'images')[GEN_FILE]
         self.assertEqual((image['origin'], image['requirement_id'], image['index'], image['bytes']),
-                         ('ai_generated', RID, 1, 'identical'))
-        self.assertEqual(image['sha256'], hashlib.sha256(SMALL_PNG).hexdigest())
-        self.assertEqual(image['artifact_sha256'], image['sha256'])
+                         ('ai_generated', RID, 1, 'web_rendition'))
+        self.assertEqual(image['sha256'], hashlib.sha256(file_bytes(GEN_FILE, self.before[GEN_FILE])).hexdigest())
+        self.assertEqual(image['artifact_sha256'], hashlib.sha256(SMALL_PNG).hexdigest())
+        self.assertNotEqual(image['artifact_sha256'], image['sha256'])       # the page's file is the conversion
 
     def test_the_route_files_have_the_routes_origins(self):
         code, page, copy_ = (by_path(self.parts, p) for p in ('code', 'page', 'copy'))
@@ -250,7 +252,7 @@ class TheCustomerViewLeaksNothing(unittest.TestCase):
 
     def test_the_owner_view_carries_each_images_cost(self):
         owner = PL.owner_view(self.decorated)
-        image = by_path(owner, 'images')['assets/148ai-image-1.png']
+        image = by_path(owner, 'images')[GEN_FILE]
         self.assertEqual((image['provider'], image['pricing_version'], image['estimated_cost_usd'],
                           image['maximum_cost_usd'], image['actual_cost_usd'], image['cost_truth']),
                          ('replicate', 'replicate-flux-schnell-2026-11', '0.003', '0.01', '0.003', 'ACTUAL'))
@@ -325,14 +327,15 @@ class NothingDefaultsSilently(unittest.TestCase):
         self.assertEqual(led['unresolved'], [{'path': 'assets/148ai-image-2.png',
                                               'reason': 'a generated image with no verified artifact in the asset '
                                                         'manifest'}])
-        self.assertEqual(list(by_path(led, 'images')), ['assets/148ai-image-1.png'])
+        self.assertEqual(list(by_path(led, 'images')), [GEN_FILE])
 
     def test_a_verified_artifact_without_its_file_and_a_file_that_is_not_its_artifact(self):
-        missing = {k: v for k, v in self.before.items() if k != 'assets/148ai-image-1.png'}
+        missing = {k: v for k, v in self.before.items() if k != GEN_FILE}
         led = parts(decorate(missing))
         self.assertEqual(led['unresolved'], [{'path': 'assets/148ai-image-1.*', 'reason': 'verified generated image 1 '
                                               'of the asset manifest has no file in the repository'}])
-        swapped = parts(decorate({**self.before, 'assets/148ai-image-1.png': envelope(OTHER_PNG, 'image/png')}))
+        # in its place, a PNG that is not its artifact: a converted image is WebP or JPEG, never a PNG (2026-11-26)
+        swapped = parts(decorate({**missing, 'assets/148ai-image-1.png': envelope(OTHER_PNG, 'image/png')}))
         self.assertEqual([u['path'] for u in swapped['unresolved']], ['assets/148ai-image-1.png'])
         self.assertIn('not its verified artifact', swapped['unresolved'][0]['reason'])
         self.assertFalse(led['complete'] or swapped['complete'])
@@ -395,10 +398,13 @@ class TheCustomersOwnFiles(unittest.TestCase):
         self.assertEqual(swapped['unresolved'], [{'path': 'assets/148ai-logo.png',
                                                   'reason': "the logo file's sha256 is not the one the approved brief "
                                                             'bound'}])
-        # a valid WebP file next to the generated image's PNG: two files for generated image 1
-        twice = parts(decorate({**self.before, 'assets/148ai-image-1.webp': self.before[self.photo.uri]}))
-        self.assertEqual([u['path'] for u in twice['unresolved']], ['assets/148ai-image-1.webp'])
-        self.assertIn('a second file for the same image', twice['unresolved'][0]['reason'])
+        # a valid PNG file next to the generated image's WebP (its conversion since 2026-11-26): two files for
+        # generated image 1, and neither is taken for it
+        twice = parts(decorate({**self.before, 'assets/148ai-image-1.png': envelope(OTHER_PNG, 'image/png')}))
+        self.assertEqual([u['path'] for u in twice['unresolved']],
+                         ['assets/148ai-image-1.png', 'assets/148ai-image-1.webp'])
+        self.assertIn('not its verified artifact', twice['unresolved'][0]['reason'])
+        self.assertIn('a second file for the same image', twice['unresolved'][1]['reason'])
         self.assertFalse(swapped['complete'] or twice['complete'])
 
 

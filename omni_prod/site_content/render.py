@@ -90,6 +90,14 @@ def _sub(text: str, sheet) -> str:
     return _REF.sub(one, text)
 
 
+def shown(text: str, sheet) -> str:
+    """A copy string as the page will show it, before the render: each @price:N the sheet holds becomes what _sub
+    writes in its place (the customer's own span), so the validator measures a field on the text the section library
+    measures (site_content/validate.py). A reference the sheet does not hold stays as written: the validator reports
+    it (REF_UNKNOWN) and the renderer never receives it."""
+    return _REF.sub(lambda m: _sub(m.group(0), sheet) if sheet.price(m.group(0)) is not None else m.group(0), text)
+
+
 def _head(s: dict, key: str, sheet, outline_titles: dict) -> dict:
     out = {'title': _sub(s['title'], sheet)}
     eyebrow = outline_titles.get(key) or s.get('eyebrow')

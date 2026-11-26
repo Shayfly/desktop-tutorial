@@ -110,6 +110,27 @@ def nearest_category(text: str) -> tuple[str, float]:
     return (best[1], round(best[0], 3)) if best[0] >= 0.55 else (NO_SIGNAL, 0.0)
 
 
+def identify(text: str) -> dict:
+    """The business and the palette of a brief, kept apart (route-honesty; the owner's build bld_3938e570, 2026-11-25):
+
+      category          the catalogue category the brief NAMES (category_of), or None -- the business
+      palette_category  the category whose palette, art direction and fonts the page takes: the named one, else the
+                        nearest (nearest_category), else NO_SIGNAL
+      found             'named' | 'nearest' | 'none' (no signal at all)
+      score             1.0 named; nearest_category's score otherwise (0.0: none)
+
+    NO_SIGNAL names a palette, never a business: a smoke shop that nothing was near took 'lawyers' as its business,
+    read the lawyer domain and was written as a law firm (an invented fee in a 'how it works' section the lawyer
+    palette required). A near word is a declaration of COLOUR nearness ("near" in the data file: a tattoo studio is
+    near photographers, an insurance agent near accountants, a greengrocer near delis) and a trigram match is a guess
+    at an inflection: both lend the palette only, never the business."""
+    named = category_of(text)
+    if named:
+        return {'category': named, 'palette_category': named, 'found': 'named', 'score': 1.0}
+    near, score = nearest_category(text)
+    return {'category': None, 'palette_category': near, 'found': 'nearest' if score else 'none', 'score': score}
+
+
 def palette_for(category: str) -> tuple[str, dict]:
     """(palette name, {primary, accent, background, ink}) of a catalogue category. An unknown category raises."""
     data = load()

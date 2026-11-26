@@ -28,7 +28,13 @@ _STREET = re.compile(r"(?:רחוב|רח['\u05F3]|ר[\"\u05F4]ח|שדרות|שד[
                      r"(?:\s*,\s*(?:" + _CITY2 + r"|[\u0590-\u05FF]{2,})"
                      r"|\s+(?:" + _CITY2 + r"|[\u0590-\u05FF]{2,})(?=\s*[,.;\n]|$))?")
 _HOURS = re.compile(r"(?:[א-ת]['\u05F3]?\s*(?:[-–]\s*[א-ת]['\u05F3]?\s*)?)?\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}")
-_NAME = re.compile(r"(?:^|\n|\s)(?:שם העסק|שם המקום|business name)\s*:\s*([^\n,.–—:]{2,40}?)(?=\s*(?:[–—,.\n]|כתובת|טלפון|$))", re.I)
+# A name also ends where the next label of a one-line form starts. The doors rehearsal (runs 45702506669 and 45702519795,
+# 2026-11-25) wrote "שם העסק: 148 דלתות בהנהלת: נסים אוחנה טלפון: ...": no comma came before "בהנהלת:", so no name was
+# read and the agent asked for it twice. The labels are a closed list: an unknown word before a colon never cuts a name.
+_NEXT_LABEL = (r'בהנהלת|בניהול|בעלים|הבעלים|איש קשר|נייד|וואטסאפ|ווטסאפ|מייל|אימייל|דוא["״]?ל|אזור(?:י)?\s+(?:שירות|פעילות)|'
+               r'אזור|שעות(?:\s+(?:פעילות|פתיחה))?|מה זה|תחום|תיאור|מבצע|המבצע|owner|phone|mobile|e-?mail|address|hours|area')
+_NAME = re.compile(r"(?:^|\n|\s)(?:שם העסק|שם המקום|business name)\s*:\s*([^\n,.–—:]{2,40}?)"
+                   r"(?=\s*(?:[–—,.\n]|כתובת|טלפון|$)|\s+(?:" + _NEXT_LABEL + r")\s*:)", re.I)
 
 
 # ---- normalisation (Michael 2026-11-10: pure functions, a reason on failure, Hebrew/Arabic edge cases) ----
@@ -442,17 +448,24 @@ def canon_view(request_text: str, *, family: str | None = None, lang: str = 'he'
     lang = lang if lang in _TEXT else 'en'
     canon = build_canon(request_text)
     shown = [f for f in canon.facts if f.key in ('phone', 'address', 'email', 'hours')]
+    # the business name the customer declared is shown first (rehearsals 45702506669 / 45702519795: the summary had no
+    # name line), as its value: its span is the whole "שם העסק: ..." label
+    named = [f for f in canon.facts if f.key == 'name']
+    shown = named + shown
     labels = _LABELS.get(lang, _LABELS['en'])
+
+    def said(f):
+        return f.value if f.key == 'name' else f.source_ref
     lines = []
     if shown:
         lines.append(_TEXT[lang]['facts'].format(
-            facts='; '.join(f'{labels[f.key]}: {f.source_ref}' for f in shown)))
+            facts='; '.join(f'{labels[f.key]}: {said(f)}' for f in shown)))
     # #335 (Michael 2026-11-13): the hours shown are the customer's own hours statements -- every one, a closed day
     # included. The 'hours' fact needs a time range, so "שבת סגור" was missing from the approval screen (production,
     # "מאפייה") while the truth gate already held it as an hours_day fact. One entry per statement, in order.
     stated = list(dict.fromkeys(f.source_ref for f in canon.facts if f.key == 'hours_day'))
     if stated:
-        items = [f'{labels[f.key]}: {f.source_ref}' for f in shown if f.key != 'hours']
+        items = [f'{labels[f.key]}: {said(f)}' for f in shown if f.key != 'hours']
         items.append(f"{labels['hours']}: " + ', '.join(stated))
         lines[:1 if shown else 0] = [_TEXT[lang]['facts'].format(facts='; '.join(items))]
     status = 'OK'

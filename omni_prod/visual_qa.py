@@ -21,6 +21,11 @@ a DOM audit runs. Findings are measured, never inferred from pixels alone:
   positive_tabindex tabindex > 0 (breaks keyboard order)
   console_error     console error or uncaught exception on load
 
+Since bld_cb2d1b90a90f430c98603d14f8afa1a8 (2026-11-24): no_mobile_viewport reads the meta tag itself -- a page that
+overflows is zoomed out WITH one, and "no meta viewport" sent six repairs to the wrong place -- and h_overflow names the
+element that sticks out furthest (tag, class, x range, size; not one inside a clipping box or a fixed one) and, on a
+phone with a meta viewport, measures the page against the phone's own width.
+
 Screenshots (JPEG) are returned for evidence and stored by the caller; they
 are never sent to any third party. Only rules proven free of false positives on
 stored working products block (DEFAULT_ENFORCED; OMNI_VISUAL_QA_ENFORCE
@@ -65,8 +70,24 @@ AUDIT = r"""(mobile) => {
   const vis = (el) => { const s = getComputedStyle(el), r = el.getBoundingClientRect();
     return s.display !== 'none' && s.visibility !== 'hidden' && parseFloat(s.opacity || '1') > 0.05 && r.width > 0 && r.height > 0; };
   const doc = document.documentElement;
-  if (mobile && vw > screen.width + 2) add('no_mobile_viewport', null, 'layout width ' + vw + 'px on a ' + screen.width + 'px phone (no meta viewport): the page is shown zoomed out');
-  if (doc.scrollWidth > vw + 2) add('h_overflow', null, 'page width ' + doc.scrollWidth + 'px > viewport ' + vw + 'px');
+  const meta = document.querySelector('meta[name="viewport" i]');
+  const metaOk = !!(meta && /width|initial-scale/i.test(meta.getAttribute('content') || ''));
+  if (mobile && !metaOk) add('no_mobile_viewport', meta, (meta ? 'meta viewport "' + (meta.getAttribute('content') || '') + '" sets no width' : 'no meta viewport in the page') + ': the phone shows it zoomed out (layout width ' + vw + 'px on a ' + screen.width + 'px phone)');
+  const limit = (mobile && metaOk) ? Math.min(vw, screen.width) : vw;
+  if (doc.scrollWidth > limit + 2) {
+    const sx = window.scrollX;
+    const clipped = (el) => { for (let a = el; a && a !== document.body && a !== doc; a = a.parentElement) { const s = getComputedStyle(a);
+      if (s.position === 'fixed') return true; if (a !== el && ['hidden', 'clip', 'auto', 'scroll'].includes(s.overflowX)) return true; } return false; };
+    let worst = null, out = 0, box = null;
+    const all = document.querySelectorAll('body *');
+    for (let i = 0; i < all.length && i < 4000; i++) {
+      const r = all[i].getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue;
+      const left = r.left + sx, right = r.right + sx, beyond = Math.max(right - limit, -left);
+      if (beyond > out + 0.5 && !clipped(all[i])) { worst = all[i]; out = beyond; box = [left, right, r.width, r.height].map(Math.round); }
+    }
+    add('h_overflow', worst, 'page width ' + doc.scrollWidth + 'px > viewport ' + limit + 'px' + (box ? '; it sticks out at x ' + box[0] + '..' + box[1] + ' (' + box[2] + 'x' + box[3] + ')' : ''));
+  }
   if (!doc.getAttribute('lang')) add('missing_lang', doc, '');
   const text = document.body ? document.body.innerText : '';
   const heb = (text.match(/[֐-׿]/g) || []).length, lat = (text.match(/[A-Za-z]/g) || []).length;

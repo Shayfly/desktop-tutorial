@@ -1,0 +1,133 @@
+{
+ "pr": "page-image-weight",
+ "sha256": [
+  "tests/test_page_image_weight.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the page's pictures are not fitted before the plan (26 production-size pictures stay over the budget)",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    core.image_fit = _fit_page(core, uploaded, generated)      # S2: before the plan; in image_weight.page_fit\n",
+     "new": "    core.image_fit = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_a_fit_that_cannot_run_is_said_and_the_build_goes_on",
+    "test_a_fit_that_fails_half_way_says_what_it_did",
+    "test_a_page_over_the_budget_is_fitted_before_any_code_and_the_build_goes_on",
+    "test_what_cannot_fit_is_carried_and_said_never_a_failure"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the plan raises on weight again (after the pictures were paid for; worker_exception)",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    slots.sort(key=lambda s: (PLACES.index(s['place']), s['source'] != 'upload', s['index']))\n",
+     "new": "    if sum(s['bytes'] for s in slots) > PAGE_IMAGE_BUDGET_BYTES:  # NEGATIVE CONTROL\n        raise AssetPlanError('the images weigh too much')\n    slots.sort(key=lambda s: (PLACES.index(s['place']), s['source'] != 'upload', s['index']))\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_the_plan_never_refuses_weight",
+    "test_what_cannot_fit_is_carried_and_said_never_a_failure"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "what does not fit is carried silently: no page-weight warning",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    out['warning'] = None if out['fits'] else (\n",
+     "new": "    out['warning'] = None if True else (  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_a_fit_that_fails_half_way_says_what_it_did",
+    "test_what_cannot_fit_is_carried_and_said_never_a_failure"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a page fit that cannot run fails the build (worker_exception)",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    except (RenditionError, ValueError) as exc:\n",
+     "new": "    except ZeroDivisionError as exc:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_a_fit_that_cannot_run_is_said_and_the_build_goes_on",
+    "test_a_fit_that_fails_half_way_says_what_it_did"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "review SF4 (the reviewer's M4): a fit that fails with ValueError (an image with no original) fails the build",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    except (RenditionError, ValueError) as exc:\n",
+     "new": "    except RenditionError as exc:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_a_fit_that_fails_half_way_says_what_it_did"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "review SF4: a fit that fails half way says it fits and changed nothing",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "               'fits': False, 'images': changed, 'partial': bool(changed),\n",
+     "new": "               'fits': True, 'images': [], 'partial': False,  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_a_fit_that_fails_half_way_says_what_it_did"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "review nit: the converter's step list as the page fit runs it is unbounded",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        for scale, q in STEPS:\n",
+     "new": "        for scale, q in STEPS * 50:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_a_target_nothing_reaches_runs_every_step_once_and_is_said"
+   ]
+  }
+ ]
+}

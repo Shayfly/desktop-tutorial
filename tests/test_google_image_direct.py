@@ -88,15 +88,28 @@ def test_collect_checks_checksum_of_image_in_durable_storage():
         provider.collect(handle)
 
 
-def test_reject_four_images_before_quote_or_provider_contact():
+def test_four_images_are_quoted_and_made_one_call_each():
+    """The owner, 2026-11-26: no image cap. Until then a fourth image was refused ("1 to 3 images per requirement");
+    now each image is its own call, the loop bounded by the requirement's quantity, and the quote covers them all."""
+    calls, store, journal = [], MemoryArtifactStore(), DurableTestJournal()
+    provider = build_image_provider(ENV, journal=journal, artifact_store=store, urlopen=transport(calls))
+    requirement = replace(REQ, quantity=4)
+    assert str(provider.quote(requirement).maximum_cost_usd) == '1.00'
+    handle = provider.submit(requirement, idempotency_key='build:four-images')
+    assert len(calls) == 4
+    assert len(provider.collect(handle).payloads) == 4
+
+
+def test_reject_a_count_that_is_not_a_whole_number_before_provider_contact():
+    # a count below 1 never reaches the adapter: CapabilityRequirement refuses it when it is made
     send = mock.Mock(side_effect=AssertionError('network forbidden'))
     provider = build_image_provider(ENV, journal=DurableTestJournal(),
                                     artifact_store=MemoryArtifactStore(), urlopen=send)
-    requirement = replace(REQ, quantity=4)
-    with pytest.raises(ValueError, match='1 to 3 images'):
+    requirement = replace(REQ, quantity=1.5)
+    with pytest.raises(ValueError, match='whole number of images, at least 1'):
         provider.quote(requirement)
-    with pytest.raises(ValueError, match='1 to 3 images'):
-        provider.submit(requirement, idempotency_key='build:too-many-images')
+    with pytest.raises(ValueError, match='whole number of images, at least 1'):
+        provider.submit(requirement, idempotency_key='build:half-an-image')
     send.assert_not_called()
 
 

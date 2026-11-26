@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from omni_prod.capability_executor import CapabilityExecutionAssignment, CapabilityExecutor
 from omni_prod.capability_planner import CapabilityPlanner
+from omni_prod.capability_planner import IMAGE_SUBJECT_UNRESOLVED
 from omni_prod.capability_registry import CapabilityRegistry
 from omni_prod.capability_repository import MemoryCapabilityRepository
 from omni_prod.capability_worker import DurableCapabilityBuildStage, DEFAULT_NATIVE_BUILD_CAPABILITIES
@@ -114,9 +115,14 @@ class M495GoldenAcceptanceTests(unittest.TestCase):
         keys = {requirement.key for requirement in plan.requirements}
         required = {
             'software.code.generate', 'software.build', 'software.test', 'target.game.3d',
-            'media.image.generate', 'media.3d.mesh.generate', 'media.3d.texture', 'media.audio.sfx', 'media.audio.music',
+            'media.3d.mesh.generate', 'media.3d.texture', 'media.audio.sfx', 'media.audio.music',
         }
         self.assertTrue(required.issubset(keys))
+        # The owner, 2026-11-26: a game's icon is required (media_pipeline), but nothing in this prompt says what it
+        # shows, so it is never generated from a generic sentence: it is left out and the contract asks the customer
+        # (tests/test_image_subject.py). The rest of the vertical slice is unchanged.
+        self.assertNotIn('media.image.generate', keys)
+        self.assertIn(IMAGE_SUBJECT_UNRESOLVED, plan.notes)
 
         provider = GoldenMultimodalProvider()
         provider_registry = ProviderRegistry((provider,))

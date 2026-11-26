@@ -1,0 +1,153 @@
+{
+ "pr": "repair-converge (part 2: the kept version's message and stage rows, bld_cb2d1b90a90f430c98603d14f8afa1a8)",
+ "sha256": [
+  "tests/test_kept_version_report.py",
+  "tests/test_repair_converge.py",
+  "tests/fixtures/repair_converge/bld_cb2d1b90_rounds.json",
+  "omni_prod/worker_tasks.py",
+  "omni_prod/release_policy.py",
+  "omni_prod/verification_group.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the customer's message takes the first four items of the report again: the summary line that carried VISUAL is cut",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        last = failure_list(kept_failures(result), 2000 - len(head) - len('; still failing: '))",
+     "new": "        last = '; '.join(f'{f.acceptance_id}: {f.message}'[:240] for f in report_failures[:4])  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_kept_version_report.py"
+   ],
+   "expect_failed": [
+    "test_a_report_without_the_full_list_keeps_its_summary_line",
+    "test_every_failure_is_named_lowest_stage_first"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the job's evidence (what the announcement reads) holds the report's failures again, VISUAL folded into the summary line the announcement skips",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "                                               'evidence': f.evidence} for f in kept_failures(result)],",
+     "new": "                                               'evidence': f.evidence} for f in result.report.failures],  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_kept_version_report.py"
+   ],
+   "expect_failed": [
+    "test_every_failure_is_named_lowest_stage_first",
+    "test_the_announcement_says_both_the_layout_and_the_review"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the stage rows read the executors' last state (the last candidate, possibly discarded) instead of the kept round",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        elif isinstance(tracker, RoundEvidence):",
+     "new": "        elif False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_kept_version_report.py"
+   ],
+   "expect_failed": [
+    "test_the_rows_are_the_kept_rounds"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a round that did not run a stage is lent the evidence of an earlier round",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "            ev[name] = obj if obj is not None and obj is not self._seen.get(name) else None",
+     "new": "            ev[name] = obj  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_kept_version_report.py"
+   ],
+   "expect_failed": [
+    "test_an_unchanged_result_is_not_this_rounds"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the release policy reads the report's ids again: VISUAL named only in ALSO_FAILING is not required, and ALSO_FAILING reads as a failed sandbox test",
+   "mutations": [
+    {
+     "file": "omni_prod/release_policy.py",
+     "old": "    failing_ids = kept_failing_ids(result)",
+     "new": "    failing_ids = {getattr(f, 'acceptance_id', '') for f in getattr(result.report, 'failures', ()) or ()}  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_kept_version_report.py"
+   ],
+   "expect_failed": [
+    "test_a_check_named_in_also_failing_fails_and_the_line_is_not_a_test",
+    "test_the_rows_are_round_zeros_not_the_last_candidates"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the group's failed report drops the threshold's test count: the tests row of a version whose sandbox tests passed says UNKNOWN",
+   "mutations": [
+    {
+     "file": "omni_prod/verification_group.py",
+     "old": "        return ExecutionReport(False, tuple(failures), worst.build_log, tests_executed=base.tests_executed)",
+     "new": "        return ExecutionReport(False, tuple(failures), worst.build_log)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_kept_version_report.py"
+   ],
+   "expect_failed": [
+    "test_the_rows_are_round_zeros_not_the_last_candidates",
+    "test_the_stage_rows_read_the_kept_round"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a list that does not fit is cut without counting what was left out",
+   "mutations": [
+    {
+     "file": "omni_prod/verification_group.py",
+     "old": "        text = '; '.join(items[:keep] + [tail])",
+     "new": "        text = '; '.join(items[:keep])  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_kept_version_report.py"
+   ],
+   "expect_failed": [
+    "test_a_long_list_ends_with_the_count_of_what_was_left_out"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a result without the full list drops its report's summary line",
+   "mutations": [
+    {
+     "file": "omni_prod/verification_group.py",
+     "old": "    failures = list(getattr(result, 'full_failures', ()) or ()) or list(getattr(report, 'failures', ()) or ())",
+     "new": "    failures = list(getattr(result, 'full_failures', ()) or ()) or [f for f in getattr(report, 'failures', ()) if f.acceptance_id != SUMMARY_FAILURE_ID]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_kept_version_report.py"
+   ],
+   "expect_failed": [
+    "test_a_report_without_the_full_list_keeps_its_summary_line"
+   ]
+  }
+ ]
+}

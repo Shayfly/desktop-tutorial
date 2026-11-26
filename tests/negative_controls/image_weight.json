@@ -1,0 +1,449 @@
+{
+ "pr": "image-weight",
+ "sha256": [
+  "omni_prod/web_rendition.py",
+  "omni_prod/uploaded_assets.py",
+  "omni_prod/generated_images.py",
+  "omni_prod/repository_assets.py",
+  "omni_prod/part_ledger.py",
+  "omni_prod/worker_tasks.py",
+  "tests/test_web_rendition.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "main's rule comes back: a light file (360,000 bytes or less) is carried byte for byte, its GPS block too",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "    started = time.perf_counter()\n    img = _open(data, mime)\n",
+     "new": "    if len(data) <= BUDGET_BYTES:   # NEGATIVE CONTROL: main's rule, a light file carried byte for byte\n        return {'data': data, 'mime': mime, 'width': None, 'height': None, 'changed': False, 'step': None, 'place': place, 'sha256': hashlib.sha256(data).hexdigest(), 'original_sha256': hashlib.sha256(data).hexdigest(), 'original_bytes': len(data), 'bytes': len(data), 'removed': {}}\n    started = time.perf_counter()\n    img = _open(data, mime)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_16_bit_grey_picture_keeps_its_brightness",
+    "test_a_budget_that_cannot_be_met_is_said_not_refused",
+    "test_a_decompression_bomb_is_refused_before_it_is_decoded",
+    "test_a_file_that_is_not_an_image",
+    "test_a_light_phone_photo_reaches_the_page_and_the_export_without_its_gps",
+    "test_a_malformed_file_is_refused_by_name",
+    "test_a_phone_jpeg_with_a_second_picture_is_a_still_photo",
+    "test_a_png_with_an_exif_chunk_and_text_is_cleaned_too",
+    "test_a_wide_gamut_profile_is_converted_to_srgb",
+    "test_an_animated_image_is_refused",
+    "test_an_odd_rotation_tag_type_cannot_wipe_the_build_evidence",
+    "test_bytes_that_are_not_the_type_they_say",
+    "test_it_never_enlarges",
+    "test_the_build_evidence_has_every_image_with_both_digests_and_the_measure",
+    "test_the_page_fits_its_budget_and_every_file_is_the_new_bytes",
+    "test_the_search_never_goes_below_quality_60",
+    "test_transparency_is_kept"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "main's rule comes back: past the last step the build stops on the photo's weight (RenditionError)",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        carried, chosen, step = last\n",
+     "new": "        if last[1]['bytes'] > max_bytes:   # NEGATIVE CONTROL: main's rule, the build stops on weight\n            raise RenditionError(f'the photo is still over {max_bytes:,} bytes at the last step; it cannot be carried in the page')\n        carried, chosen, step = last\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_budget_that_cannot_be_met_is_said_not_refused",
+    "test_past_the_last_step_the_last_step_is_carried_and_said"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the conversion keeps the original's EXIF, GPS block included, in the file the page carries",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "    clean.paste(out)\n    return clean, note\n",
+     "new": "    clean.paste(out)\n    clean.info['exif'] = img.info.get('exif', b'')   # NEGATIVE CONTROL: the EXIF goes along\n    return clean, note\n"
+    },
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        img.save(out, 'WEBP', quality=quality, method=4)\n",
+     "new": "        img.save(out, 'WEBP', quality=quality, method=4, exif=img.info.get('exif', b''))\n"
+    },
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        img.save(out, 'WEBP', lossless=True, method=4)\n",
+     "new": "        img.save(out, 'WEBP', lossless=True, method=4, exif=img.info.get('exif', b''))\n"
+    },
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        img.save(out, 'JPEG', quality=quality, optimize=True, progressive=True)\n",
+     "new": "        img.save(out, 'JPEG', quality=quality, optimize=True, progressive=True, exif=img.info.get('exif', b''))\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_light_phone_photo_reaches_the_page_and_the_export_without_its_gps",
+    "test_a_png_with_an_exif_chunk_and_text_is_cleaned_too",
+    "test_nothing_of_the_file_but_the_picture_is_left"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the similarity check is skipped: every try passes, so the lowest quality is taken whatever it looks like",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        if c['score'] >= THRESHOLD:\n            if best is None or c['bytes'] < best['bytes']:\n",
+     "new": "        if True:   # NEGATIVE CONTROL: the similarity is not checked\n            if best is None or c['bytes'] < best['bytes']:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_the_lowest_bytes_that_pass_are_chosen_and_the_smaller_format_wins",
+    "test_the_similarity_passes_the_threshold_and_is_measured_again"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the rotation tag is ignored: a phone photo stored sideways reaches the page sideways",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        upright = ImageOps.exif_transpose(img)              # a phone photo is stored sideways with a rotation tag\n",
+     "new": "        upright = img   # NEGATIVE CONTROL: the rotation tag is ignored\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_phone_photo_stored_sideways_comes_out_upright",
+    "test_it_fits_the_budget_and_the_screen",
+    "test_the_similarity_passes_the_threshold_and_is_measured_again"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "transparency is flattened",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        out.putalpha(alpha)                                  # transparency is kept; an all-opaque alpha is dropped\n",
+     "new": "        pass   # NEGATIVE CONTROL: the alpha is dropped\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_transparency_is_kept"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a small picture is enlarged to its place",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "    upright.thumbnail((side, side), Image.Resampling.LANCZOS)        # keeps the proportions; never enlarges\n",
+     "new": "    upright = upright.resize((round(upright.width * side / max(upright.size)), round(upright.height * side / max(upright.size))), Image.Resampling.LANCZOS)   # NEGATIVE CONTROL: enlarged\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_phone_jpeg_with_a_second_picture_is_a_still_photo",
+    "test_it_never_enlarges",
+    "test_transparency_is_kept"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the page fit changes the customer's photo but not the file the transform writes",
+   "mutations": [
+    {
+     "file": "omni_prod/uploaded_assets.py",
+     "old": "        self.carried.rebind(r['data'])\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_the_page_fits_its_budget_and_every_file_is_the_new_bytes"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the page fit changes the generated image but not the file the transform writes",
+   "mutations": [
+    {
+     "file": "omni_prod/generated_images.py",
+     "old": "        self.carried.rebind(r['data'])\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_generated_picture_the_plan_puts_in_the_gallery_is_made_for_the_gallery"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "an animated image is accepted and silently reduced to one frame",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "    if getattr(img, 'is_animated', False) and img.format != 'MPO':\n",
+     "new": "    if False:   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_an_animated_image_is_refused"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the converter's own bomb bound is gone (only Pillow's, at 89 million pixels, is left)",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "    if img.width * img.height > MAX_PIXELS:\n",
+     "new": "    if False:   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_decompression_bomb_is_refused_before_it_is_decoded"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "a phone JPEG with a second picture in it (MPO) is refused as animated",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "    if getattr(img, 'is_animated', False) and img.format != 'MPO':\n",
+     "new": "    if getattr(img, 'is_animated', False):   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_phone_jpeg_with_a_second_picture_is_a_still_photo"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the conversion record is missing from the build evidence",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "    from .web_rendition import report as image_weight_report\n    evidence['image_weight'] = image_weight_report(engine)    # every image: both digests, bytes, format, size, similarity\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_writes_it_into_the_build_evidence"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "a JPEG original is not compared with its clean re-encode (only WebP is tried)",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "            formats.append('jpeg')   # the clean re-encode of a JPEG original, in its own format\n",
+     "new": "            pass   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_the_lowest_bytes_that_pass_are_chosen_and_the_smaller_format_wins"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "the customer's photo is made for the hero whatever its place",
+   "mutations": [
+    {
+     "file": "omni_prod/uploaded_assets.py",
+     "old": "        r = rendition(data, mime, place=place, label=f'upload {index}')\n",
+     "new": "        r = rendition(data, mime, label=f'upload {index}')   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_uploaded_main_image.py",
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_installs_every_placed_photo_from_the_brief"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "a generated icon is made for the hero",
+   "mutations": [
+    {
+     "file": "omni_prod/generated_images.py",
+     "old": "        light = rendition(data, mime, place='icon' if _kind(purposes.get(rid, 'image')) == 'icon' else 'hero',\n",
+     "new": "        light = rendition(data, mime, place='hero',   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_an_icon_is_made_for_the_header"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "over the budget, the first step is taken whatever its bytes (warehouse 114 NC6, in the new code)",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "            if last[1]['bytes'] <= max_bytes:\n                break\n",
+     "new": "            break   # NEGATIVE CONTROL: the first step is taken whatever its bytes\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_over_its_budget_it_steps_down_until_it_fits",
+    "test_past_the_last_step_the_last_step_is_carried_and_said",
+    "test_the_page_fits_its_budget_and_every_file_is_the_new_bytes",
+    "test_the_small_entry_point_takes_bytes_and_a_target"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "fit_bytes ignores the byte target it is given (the one-image budget is used instead)",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "    r = rendition(data, mime, place=place, max_bytes=max_bytes, label='fit_bytes')\n",
+     "new": "    r = rendition(data, mime, place=place, label='fit_bytes')   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_the_small_entry_point_takes_bytes_and_a_target"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "the record keeps the raw rotation tag (bytes or a rational): the build evidence cannot be serialised",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "    return {'exif': len(exif) > 0, 'gps': gps, 'orientation': _orientation(exif.get(0x0112)),\n",
+     "new": "    return {'exif': len(exif) > 0, 'gps': gps, 'orientation': exif.get(0x0112),   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_an_odd_rotation_tag_type_cannot_wipe_the_build_evidence"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "a broken metadata block escapes as OSError / SyntaxError instead of a named RenditionError",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        gps = bool(exif.get_ifd(0x8825))\n    except Exception as exc:\n",
+     "new": "        gps = bool(exif.get_ifd(0x8825))\n    except ZeroDivisionError as exc:   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_malformed_file_is_refused_by_name"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "the colours are not converted to sRGB from the embedded profile",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "    if icc:\n        try:\n",
+     "new": "    if False:   # NEGATIVE CONTROL\n        try:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_wide_gamut_profile_is_converted_to_srgb",
+    "test_nothing_of_the_file_but_the_picture_is_left"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "the quality floor is gone (QUALITY_FLOOR = 1)",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "QUALITY_FLOOR = 60 ",
+     "new": "QUALITY_FLOOR = 1 "
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_the_search_never_goes_below_quality_60"
+   ]
+  },
+  {
+   "id": "NC23",
+   "what": "a 16-bit grey picture is not scaled to 8 bits (it clips to white)",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        factor = 255 / top if top > 255 or (upright.mode == 'F' and 0 < top <= 1) else 1\n",
+     "new": "        factor = 1   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_a_16_bit_grey_picture_keeps_its_brightness"
+   ]
+  }
+ ]
+}

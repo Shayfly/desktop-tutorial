@@ -39,7 +39,8 @@ ASSET_DIR = 'assets'
 MIME_EXT = {'image/webp': '.webp', 'image/jpeg': '.jpg', 'image/png': '.png'}
 EXT_MIME = {'.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png'}
 _HEAD = re.compile(r'148ai-binary:v1;mime=(image/(?:webp|jpeg|png));sha256=([0-9a-f]{64});base64,')
-# One image. The web rendition keeps a photo under 360,000 bytes; a logo is carried as uploaded, so the bound is the
+# One image. The web rendition keeps a photo under 360,000 bytes (or, when even its last step is heavier, carries
+# that step and says so; at most 640 px on its long side then); a logo is carried as uploaded, so the bound is the
 # upload limit itself (review 2026-11-21: a 2.4 MB logo the upload accepted failed the build under a 2,000,000 bound).
 from .attachments import MAX_BYTES as MAX_ASSET_BYTES   # noqa: E402
 
@@ -161,6 +162,12 @@ class CarriedImage:
     def __init__(self, marker: str, path: str, data: bytes, mime: str):
         self.marker, self.path, self.mime = marker, path, mime
         self.envelope = envelope(data, mime)
+        self.encoded = self.envelope.split(',', 1)[1]
+
+    def rebind(self, data: bytes) -> None:
+        """New bytes for the same file (the page fit, web_rendition.fit_page): the path and the type stay, so every
+        transform that already holds this image writes the new envelope from now on. Checked like the first bytes."""
+        self.envelope = envelope(data, self.mime)
         self.encoded = self.envelope.split(',', 1)[1]
 
     def _reference(self, holder: str) -> str:

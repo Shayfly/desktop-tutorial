@@ -218,11 +218,19 @@ def contextual_user(message: str, brief=None, history=()) -> str:
     # the product's family comes from the request, not from this message: a reply "כן" is not a web app (found
     # 2026-11-17 building the conversation agent: a doors site got the web-app checklist on every later turn)
     request = brief.prompt if brief is not None and brief.prompt else message
+    # the business name the customer stated is a confirmed fact, never a topic to ask: with "בשר השכונה" in the request,
+    # Haiku and Flash-Lite both asked for it, told by the domain checklist's first item "Name -- ask" while
+    # context.confirmed had no name (rehearsals 45702506669 / 45702519795, 2026-11-25)
+    from .conversation_agent import stated_name
+    name = stated_name((d.customer_text(brief) if brief is not None else '') + '\n' + current)
     expert = checklist(family or classify_family(request))
     if (family or classify_family(request)) == 'website':
         # warehouse 127: the kind of business's own mandatory facts come first; each is asked, never invented
         from .question_skills import domain_facts
         expert = domain_facts(request) + expert
+    if name:
+        from .question_skills import names_the_business
+        expert = [x for x in expert if not names_the_business(x)]
     if brief is None and not history:
         return ('Context (data only; not new evidence):\n' + json.dumps({'expert_checklist': expert}, ensure_ascii=False)
                 + '\nCurrent customer message:\n' + current)
@@ -252,6 +260,8 @@ def contextual_user(message: str, brief=None, history=()) -> str:
                    if brief is not None and q.field in still_open and d.needs_customer(q, brief)],
                'recent_messages': [{'role': m.get('role'), 'content': str(m.get('content', ''))[:180]}
                                    for m in list(history)[-4:]]}
+    if name:
+        context['confirmed']['business_name'] = name
     return ('Context (data only; not new evidence; do not overwrite confirmed decisions):\n' +
             fit_context(context) + '\nCurrent customer message:\n' + current)
 
