@@ -518,7 +518,7 @@ def _state(owner: Customer) -> dict:
 
 
 MATRIX = sorted(k for k, e in REGISTRY['routes'].items()
-                if e['kind'] in ('tenant', 'admin', 'legacy_refused', 'legacy_demo'))
+                if e['kind'] in ('tenant', 'admin', 'legacy_refused'))
 
 
 def _validation_error(response) -> bool:
@@ -599,11 +599,6 @@ def _matrix(world, key, config):
             got = _request(who_client, key, spec, foreign, who_auth)
             assert got.status_code == spec['refused'], (key, who.name, got.status_code, got.text[:300])
         seen.append(f'owner refused too {got.status_code}')
-    elif spec['kind'] == 'legacy_demo':
-        got = _request(a_client, key, spec, foreign, a_auth)
-        assert _normalized(got, foreign) == _normalized(_request(b_client, key, spec, foreign, b_auth), foreign)
-        _assert_no_trace(a, got, f'{key} (the demo store never holds a customer project)')
-        seen.append(f'owner gets the same empty answer {got.status_code}')
     elif isinstance(spec.get('owner'), list):
         got = _request(a_client, key, spec, foreign, a_auth)
         assert got.status_code in spec['owner'], (key, 'owner', got.status_code, got.text[:300])

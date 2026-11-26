@@ -161,13 +161,19 @@ class V27HTTPTests(unittest.TestCase):
         self.assertEqual(denied.status_code,403)
 
     def test_company_os_endpoint(self):
-        d=self.c.get('/api/v27/company-os').json()
+        # S4.5 (2026-11-26): the company-os routes check the caller's session themselves (they relied on
+        # production_auth, which Vercel production does not run, and answered anyone).
+        self.assertEqual(self.c.get('/api/v27/company-os').status_code,401)
+        h=self._auth(self._register('v27-company-os@example.com'))
+        d=self.c.get('/api/v27/company-os',headers=h).json()
         self.assertGreaterEqual(len(d['departments']),13)
         self.assertIn('release_council',d)
 
 
     def test_company_os_operating_endpoints(self):
-        triage=self.c.post('/api/v27/company-os/triage',json={'signals':[
+        h=self._auth(self._register('v27-company-os-ops@example.com'))   # S4.5: signed in (see above)
+        self.assertEqual(self.c.post('/api/v27/company-os/triage',json={'signals':[]}).status_code,401)
+        triage=self.c.post('/api/v27/company-os/triage',headers=h,json={'signals':[
             {'kind':'rights_alert','title':'Unlicensed celebrity voice','severity':'critical'},
             {'kind':'build_failure','title':'Android build failed','severity':'high'},
         ]})
@@ -175,7 +181,7 @@ class V27HTTPTests(unittest.TestCase):
         tasks=triage.json()['tasks']
         self.assertEqual(tasks[0]['department_id'],'legal')
         self.assertEqual(tasks[0]['priority'],'P0')
-        brief=self.c.post('/api/v27/company-os/ceo-brief',json={
+        brief=self.c.post('/api/v27/company-os/ceo-brief',headers=h,json={
             'signals':[{'kind':'cost_alert','title':'GPU cost increased','severity':'high'}],
             'metrics':{'accepted_build_rate':0.82,'runway_months':12}
         })
@@ -184,7 +190,7 @@ class V27HTTPTests(unittest.TestCase):
         gates={k:True for k in (
             'product_acceptance','engineering_regression','qa_evals','security_tenant_isolation',
             'rights_ip','infrastructure_readiness','backup_restore')}
-        council=self.c.post('/api/v27/company-os/release-council/evaluate',json={'gates':gates,'founder_public_launch_approved':True})
+        council=self.c.post('/api/v27/company-os/release-council/evaluate',headers=h,json={'gates':gates,'founder_public_launch_approved':True})
         self.assertEqual(council.status_code,200,council.text)
         self.assertTrue(council.json()['public_launch_ready'])
 

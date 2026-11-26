@@ -709,7 +709,8 @@ def agent_team(target:str='web',mobile:bool=False,game:bool=False)->dict:
     return plan_team(target=target,has_ui=True,has_mobile=mobile,has_game=game).to_dict()
 
 @app.post('/api/billing/classify')
-def billing_classify(req:ChangeRequest)->dict:
+def billing_classify(req:ChangeRequest,request:Request)->dict:
+    _signed_in(request)
     d=classify_charge(category=req.category,estimated_compute_units=req.estimated_compute_units)
     return {'billable':d.billable,'credits':d.credits,'reason':d.reason.value}
 
@@ -736,10 +737,12 @@ def demo_build(req:PromptRequest)->dict:
 
 @app.get('/api/projects/{project_id}/history')
 def project_history(project_id:str)->dict:
+    _reject_demo_store()
     return {'project_id':project_id,'versions':[{'id':v.id,'parent_id':v.parent_id,'created_at':v.created_at,'message':v.message,'checksum':v.checksum,'file_count':len(v.files)} for v in _workspace.history(project_id)]}
 
 @app.get('/api/projects/{project_id}/versions/{version_id}/download')
 def download_version(project_id:str,version_id:str):
+    _reject_demo_store()
     from .repository_assets import zip_bytes
     try: version=_workspace.get(project_id=project_id,version_id=version_id)
     except KeyError as exc: raise HTTPException(404,'version not found') from exc
@@ -753,6 +756,7 @@ def download_version(project_id:str,version_id:str):
 
 @app.get('/api/projects/{project_id}/memory')
 def project_memory(project_id:str)->dict:
+    _reject_demo_store()
     return {'project_id':project_id,'context':_memory.context(project_id),'entries':[x.__dict__ for x in _memory.list(project_id)]}
 
 
@@ -914,6 +918,24 @@ def _clear_session_cookie(response: Response) -> None:
     response.delete_cookie(settings['key'], path=settings['path'], secure=settings['secure'],
                            httponly=True, samesite=settings['samesite'])
 
+def _signed_in(request: Request, platform=None):
+    """S4.5 (2026-11-26): a route that is not public checks the caller's session itself -- the cookie the web app sends,
+    or a Bearer token -- against the account store of its generation (v28 unless one is given). production_auth runs
+    only with OMNI_ENV=production, which Vercel production does not set, and it accepts a Bearer token only while the
+    web app signs in with the cookie: no route may rely on it."""
+    try:
+        return (platform or _v28).account(_v26_bearer(request))
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+
+def _reject_demo_store() -> None:
+    """S4.5 (2026-11-26): the in-process demo store (_workspace, _memory, _unified) is written only by the demo, live and
+    v25 builds, which a durable deployment refuses; there its readers are refused too, for every caller, instead of
+    answering anyone -- signed in or not -- from a store that never holds a customer project."""
+    if _legacy_refused():
+        raise HTTPException(410, {'error': 'legacy_path_disabled',
+                                  'message': 'This legacy demo path is not part of the verified pipeline and is disabled here.'})
+
 @app.post('/api/v26/auth/register')
 def v26_register(req:V26AuthRequest)->dict:
     try: return _v26.register(email=req.email,password=req.password)
@@ -1007,7 +1029,8 @@ def v26_live_build(project_id:str,req:V26BuildRequest,request:Request)->dict:
             'truth':'This route uses a configured local/self-hosted model and sandbox. If those services are absent it fails closed with 503.'}
 
 @app.get('/api/v26/capabilities')
-def v26_capabilities()->dict:
+def v26_capabilities(request:Request)->dict:
+    _signed_in(request, _v26)
     return {'release':'V26 Universal Pro','creator_security':['signup/login','PBKDF2 password hashing','signed session tokens','owner-scoped project IDs','cross-user denial'],
             'creation':['web','android-source','ios-source','godot','unity','unreal','repository versioning','patch/restore/export/deploy'],
             'creative':['image','icon','audio','music','voice','video','3D model','PBR texture'],
@@ -1062,7 +1085,8 @@ async def v26_runtime_ws(websocket:WebSocket,deployment_id:str,token:str=''):
 
 
 @app.get('/api/v25/parity')
-def v25_parity()->dict:
+def v25_parity(request:Request)->dict:
+    _signed_in(request)
     return {
         'baseline':'Omni Creator V10 validation behavior',
         'release':'V25 Unified Core',
@@ -1079,6 +1103,7 @@ def v25_build(req:PromptRequest)->dict:
 
 @app.get('/api/v25/projects/{project_id}/export')
 def v25_export(project_id:str,version_id:str|None=None):
+    _reject_demo_store()
     try: payload=_unified.export_zip(project_id=project_id,version_id=version_id)
     except KeyError as exc: raise HTTPException(404,'project/version not found') from exc
     return Response(payload,media_type='application/zip',headers={'Content-Disposition':f'attachment; filename="{project_id}.zip"'})
@@ -1292,28 +1317,34 @@ def v27_brain_plan(req:V27BuildRequest,request:Request)->dict:
     return _v27.brain.decide(req.prompt,target_markets=tuple(req.target_markets)).to_dict()
 
 @app.get('/api/v27/rights/jurisdictions')
-def v27_jurisdictions()->dict:
+def v27_jurisdictions(request:Request)->dict:
+    _signed_in(request, _v27)
     return {'profiles':{k:v.to_dict() for k,v in JURISDICTIONS.items()},'truth':'Profiles are a maintained risk-policy baseline, not exhaustive legal advice.'}
 
 @app.get('/api/v27/company-os')
-def v27_company_os()->dict:
+def v27_company_os(request:Request)->dict:
+    _signed_in(request, _v27)
     return _v27.company_operating_system()
 
 @app.get('/api/v27/company-os/departments/{department_id}')
-def v27_company_department(department_id:str)->dict:
+def v27_company_department(department_id:str,request:Request)->dict:
+    _signed_in(request, _v27)
     try:return _v27.company_os.department(department_id)
     except KeyError as exc: raise HTTPException(404,'department not found') from exc
 
 @app.post('/api/v27/company-os/triage')
-def v27_company_triage(req:V27CompanyTriageRequest)->dict:
+def v27_company_triage(req:V27CompanyTriageRequest,request:Request)->dict:
+    _signed_in(request, _v27)
     return {'tasks':_v27.company_os.triage([x.model_dump() for x in req.signals])}
 
 @app.post('/api/v27/company-os/ceo-brief')
-def v27_company_ceo_brief(req:V27CEOBriefRequest)->dict:
+def v27_company_ceo_brief(req:V27CEOBriefRequest,request:Request)->dict:
+    _signed_in(request, _v27)
     return _v27.company_os.ceo_brief(signals=[x.model_dump() for x in req.signals],metrics=req.metrics,max_priorities=req.max_priorities)
 
 @app.post('/api/v27/company-os/release-council/evaluate')
-def v27_release_council_evaluate(req:V27ReleaseCouncilRequest)->dict:
+def v27_release_council_evaluate(req:V27ReleaseCouncilRequest,request:Request)->dict:
+    _signed_in(request, _v27)
     return _v27.company_os.evaluate_release(req.gates,founder_public_launch_approved=req.founder_public_launch_approved)
 
 @app.post('/api/v27/projects/{project_id}/live-build')
@@ -1518,6 +1549,8 @@ def v28_request_email_verification(request: Request) -> dict:
         account = _v28.account(token)
         _m5_identity_service().request_email_verification(account.id)
         return {'accepted': True}
+    except HTTPException:
+        raise                  # S4.5: a missing session is 401 (it was caught below and said as 400 "401: ...")
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
     except Exception as exc:
@@ -3739,7 +3772,8 @@ def v28_build_capability_truth(project_id: str, build_id: str, request: Request)
     }
 
 @app.get('/api/v28/m5/status')
-def v28_m5_status() -> dict:
+def v28_m5_status(request: Request) -> dict:
+    _signed_in(request)
     return _m5_status_payload()
 
 

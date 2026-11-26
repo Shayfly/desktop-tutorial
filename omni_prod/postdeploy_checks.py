@@ -130,7 +130,8 @@ def start_api() -> None:
     threading.Thread(target=server.run, daemon=True).start()
     for _ in range(120):
         try:
-            if http('GET', BASE + '/api/v28/m5/status', timeout=3)[0] == 200:
+            # /api/status is public; /api/v28/m5/status needs a signed-in caller since S4.5 (2026-11-26)
+            if http('GET', BASE + '/api/status', timeout=3)[0] == 200:
                 return
         except Exception:
             pass
