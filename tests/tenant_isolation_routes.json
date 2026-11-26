@@ -1,1 +1,2081 @@
-{"routes": {}}
+{
+ "about": "S4.5 (the owner's plan v3): every route the served app (app.py) answers, and how it is kept to its own customer. tests/test_tenant_isolation_registry.py derives the routes from the app and fails on a route that is missing here, on an identifier parameter that is not declared, and on a gate the endpoint does not call; tests/test_tenant_isolation_pg.py runs every tenant, admin, legacy and demo route with two real accounts on PostgreSQL.",
+ "kinds": {
+  "tenant": "takes a customer identifier; another account gets the unknown-id answer (pg matrix)",
+  "admin": "names an account, and only the billing admin key may; a customer token gets the unknown-id answer",
+  "legacy_refused": "refused in the production configuration (410/501) for every caller",
+  "legacy_demo": "the in-process demo store; it never holds a customer project",
+  "legacy_ws": "a legacy websocket; no deployment exists to authorize",
+  "capability_url": "the unguessable link is the access",
+  "account": "the caller's own account only; takes no identifier of another customer",
+  "public": "no authentication and no customer data"
+ },
+ "identifiers": {
+  "project_id": "creator_projects.id (v28), the in-memory project (v26/v27) or live_projects.id",
+  "version_id": "project_versions.id under the internal key, or live_versions.id",
+  "first_version_id": "an earlier version of the same project (restore, rollback)",
+  "build_id": "build_jobs.id under the internal key, or live_builds.id",
+  "preview_id": "project_previews.id under the internal key",
+  "modification_id": "modification_requests.id under the internal key",
+  "attachment_id": "conversation_attachments.id (project and account)",
+  "draft_fingerprint": "a reading draft in the project's conversation",
+  "build_contract_id": "m5_build_contracts.id (public project id)",
+  "session_id": "creator_sessions.session_id (account)",
+  "evidence_id": "v27 rights evidence under the internal key",
+  "account_id": "creator_accounts.id",
+  "deployment_id": "a legacy in-memory deployment",
+  "live_preview_handle": "base64(live version uuid + live artifact uuid), returned to the owner by POST .../preview"
+ },
+ "aliases": {
+  "user_id": "account_id",
+  "target_version_id": "first_version_id",
+  "attachment_ids": "attachment_id"
+ },
+ "not_identifiers": {
+  "platform": "a fixed list of client platforms",
+  "engine": "a fixed list of game engines",
+  "asset_name": "an allowlist of brand files",
+  "department_id": "the fixed company-os catalogue",
+  "collection": "a collection name inside a legacy deployment",
+  "path": "a file inside a capability-url archive",
+  "request_key": "the caller's retry key, stored per project",
+  "idempotency_key": "stored per account and project",
+  "brief_fingerprint": "checked against the caller's own project brief",
+  "token": "a single-use secret (verify-email, reset) or the websocket runtime token",
+  "brief_revision": "a revision number of the caller's own brief",
+  "revision": "the same",
+  "key": "a structure row of the caller's own brief (proposal edit)",
+  "approval_id": "consumed only for the caller's project and account (PostgresBriefRepository.consume)"
+ },
+ "routes": {
+  "GET /openapi.json": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "HEAD /openapi.json": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /docs": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "HEAD /docs": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /docs/oauth2-redirect": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "HEAD /docs/oauth2-redirect": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /redoc": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "HEAD /redoc": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /_omni/metrics": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/status": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/international/readiness": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/integrations": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/benchmark/catalog": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/targets/mobile/{platform}": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/targets/game/{engine}": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/source/mobile/{platform}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": []
+  },
+  "GET /api/source/game/{engine}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": []
+  },
+  "GET /api/agent-team": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "POST /api/billing/classify": {
+   "kind": "account",
+   "gate": "production_auth",
+   "note": "any signed-in caller; the answer is the same for everyone (catalogues and calculators, no stored customer data)"
+  },
+  "POST /api/demo/build": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "_reject_legacy_sync_build",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "Build a page now",
+    "project_id": "{project_id}"
+   }
+  },
+  "GET /api/projects/{project_id}/history": {
+   "kind": "legacy_demo",
+   "world": "v28",
+   "gate": "none",
+   "ids": [
+    "project_id"
+   ],
+   "note": "the in-process demo store (_workspace/_memory/_unified), written only by the demo/live/v25 builds, which the production configuration refuses (410); it never holds a customer project, so every id reads empty"
+  },
+  "GET /api/projects/{project_id}/versions/{version_id}/download": {
+   "kind": "legacy_demo",
+   "world": "v28",
+   "gate": "none",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "note": "the in-process demo store (_workspace/_memory/_unified), written only by the demo/live/v25 builds, which the production configuration refuses (410); it never holds a customer project, so every id reads empty"
+  },
+  "GET /api/projects/{project_id}/memory": {
+   "kind": "legacy_demo",
+   "world": "v28",
+   "gate": "none",
+   "ids": [
+    "project_id"
+   ],
+   "note": "the in-process demo store (_workspace/_memory/_unified), written only by the demo/live/v25 builds, which the production configuration refuses (410); it never holds a customer project, so every id reads empty"
+  },
+  "POST /api/live/build": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "_reject_legacy_sync_build",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "Build a page now",
+    "project_id": "{project_id}"
+   }
+  },
+  "POST /api/v26/auth/register": {
+   "kind": "public",
+   "gate": "credentials",
+   "note": "signs in or creates the caller's own account"
+  },
+  "POST /api/v26/auth/login": {
+   "kind": "public",
+   "gate": "credentials",
+   "note": "signs in or creates the caller's own account"
+  },
+  "GET /api/v26/me": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "POST /api/v26/projects": {
+   "kind": "account",
+   "gate": "create_project"
+  },
+  "GET /api/v26/projects": {
+   "kind": "account",
+   "gate": "list_projects"
+  },
+  "POST /api/v26/projects/{project_id}/build": {
+   "kind": "legacy_refused",
+   "world": "v26",
+   "refused": 410,
+   "gate": "_reject_legacy_sync_build",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "Build a page now"
+   }
+  },
+  "GET /api/v26/projects/{project_id}/history": {
+   "kind": "tenant",
+   "world": "v26",
+   "gate": "history",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v26/projects/{project_id}/patch": {
+   "kind": "legacy_refused",
+   "world": "v26",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "files": [
+     {
+      "path": "index.html",
+      "content": "x"
+     }
+    ],
+    "message": "edit"
+   }
+  },
+  "POST /api/v26/projects/{project_id}/restore": {
+   "kind": "tenant",
+   "world": "v26",
+   "gate": "restore",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "body": {
+    "version_id": "{version_id}"
+   },
+   "owner": [
+    404
+   ],
+   "note": "the production configuration refuses every build of this generation, so its projects hold no version; the owner gets version not found"
+  },
+  "GET /api/v26/projects/{project_id}/export": {
+   "kind": "tenant",
+   "world": "v26",
+   "gate": "export",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "query": {
+    "version_id": "{version_id}"
+   },
+   "owner": [
+    404
+   ]
+  },
+  "POST /api/v26/projects/{project_id}/promote": {
+   "kind": "legacy_refused",
+   "world": "v26",
+   "refused": 501,
+   "gate": "_reject_unbacked_publish",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "query": {
+    "version_id": "{version_id}"
+   }
+  },
+  "POST /api/v26/brain/plan": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "POST /api/v26/projects/{project_id}/live-build": {
+   "kind": "legacy_refused",
+   "world": "v26",
+   "refused": 410,
+   "gate": "_reject_legacy_sync_build",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "Build a page now"
+   }
+  },
+  "GET /api/v26/capabilities": {
+   "kind": "account",
+   "gate": "production_auth",
+   "note": "any signed-in caller; the answer is the same for everyone (catalogues and calculators, no stored customer data)"
+  },
+  "GET /hosted/v26/{deployment_id}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ]
+  },
+  "POST /runtime/v26/{deployment_id}/register": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ],
+   "body": {
+    "email": "someone@example.com",
+    "password": "Long-password-1"
+   }
+  },
+  "POST /runtime/v26/{deployment_id}/login": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ],
+   "body": {
+    "email": "someone@example.com",
+    "password": "Long-password-1"
+   }
+  },
+  "GET /runtime/v26/{deployment_id}/data/{collection}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ]
+  },
+  "POST /runtime/v26/{deployment_id}/data/{collection}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ],
+   "body": {
+    "payload": {
+     "a": 1
+    }
+   }
+  },
+  "WS /runtime/v26/{deployment_id}/ws": {
+   "kind": "legacy_ws",
+   "world": "v28",
+   "gate": "websocket_authorize",
+   "ids": [
+    "deployment_id"
+   ],
+   "note": "the HTTP legacy guard does not see a websocket; it closes 4401 because the production configuration refuses every promote, so no deployment exists"
+  },
+  "GET /api/v25/parity": {
+   "kind": "account",
+   "gate": "production_auth",
+   "note": "any signed-in caller; the answer is the same for everyone (catalogues and calculators, no stored customer data)"
+  },
+  "POST /api/v25/build": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "_reject_legacy_sync_build",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "Build a page now",
+    "project_id": "{project_id}"
+   }
+  },
+  "GET /api/v25/projects/{project_id}/export": {
+   "kind": "legacy_demo",
+   "world": "v28",
+   "gate": "none",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "note": "the in-process demo store (_workspace/_memory/_unified), written only by the demo/live/v25 builds, which the production configuration refuses (410); it never holds a customer project, so every id reads empty",
+   "query": {
+    "version_id": "{version_id}"
+   }
+  },
+  "POST /api/v25/projects/{project_id}/patch": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "files": [
+     {
+      "path": "index.html",
+      "content": "x"
+     }
+    ],
+    "message": "edit"
+   }
+  },
+  "POST /api/v25/projects/{project_id}/promote": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 501,
+   "gate": "_reject_unbacked_publish",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "query": {
+    "version_id": "{version_id}"
+   }
+  },
+  "GET /api/v25/source/omni-android": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": []
+  },
+  "GET /hosted/v25/{deployment_id}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ]
+  },
+  "POST /runtime/v25/{deployment_id}/register": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ],
+   "body": {
+    "email": "someone@example.com",
+    "password": "Long-password-1"
+   }
+  },
+  "POST /runtime/v25/{deployment_id}/login": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ],
+   "body": {
+    "email": "someone@example.com",
+    "password": "Long-password-1"
+   }
+  },
+  "GET /runtime/v25/{deployment_id}/data/{collection}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ]
+  },
+  "POST /runtime/v25/{deployment_id}/data/{collection}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ],
+   "body": {
+    "payload": {
+     "a": 1
+    }
+   }
+  },
+  "WS /runtime/v25/{deployment_id}/ws": {
+   "kind": "legacy_ws",
+   "world": "v28",
+   "gate": "websocket_authorize",
+   "ids": [
+    "deployment_id"
+   ],
+   "note": "the HTTP legacy guard does not see a websocket; it closes 4401 because the production configuration refuses every promote, so no deployment exists"
+  },
+  "GET /assets/app.css": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /assets/app.js": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /assets/visual-edit.js": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /manifest.webmanifest": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /sw.js": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "POST /api/v27/auth/register": {
+   "kind": "public",
+   "gate": "credentials",
+   "note": "signs in or creates the caller's own account"
+  },
+  "POST /api/v27/auth/login": {
+   "kind": "public",
+   "gate": "credentials",
+   "note": "signs in or creates the caller's own account"
+  },
+  "GET /api/v27/me": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "POST /api/v27/projects": {
+   "kind": "account",
+   "gate": "create_project"
+  },
+  "GET /api/v27/projects": {
+   "kind": "account",
+   "gate": "list_projects"
+  },
+  "POST /api/v27/projects/{project_id}/build": {
+   "kind": "legacy_refused",
+   "world": "v27",
+   "refused": 410,
+   "gate": "_reject_legacy_sync_build",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "Build a page now"
+   },
+   "unused": [
+    "build_contract_id"
+   ],
+   "unused_note": "the request model (V27BuildRequest) is shared with the async build route; this endpoint never reads the field"
+  },
+  "GET /api/v27/projects/{project_id}/history": {
+   "kind": "tenant",
+   "world": "v27",
+   "gate": "history",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v27/projects/{project_id}/patch": {
+   "kind": "legacy_refused",
+   "world": "v27",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "files": [
+     {
+      "path": "index.html",
+      "content": "x"
+     }
+    ],
+    "message": "edit"
+   }
+  },
+  "POST /api/v27/projects/{project_id}/restore": {
+   "kind": "tenant",
+   "world": "v27",
+   "gate": "restore",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "body": {
+    "version_id": "{version_id}"
+   },
+   "owner": [
+    404
+   ],
+   "note": "the production configuration refuses every build of this generation, so its projects hold no version; the owner gets version not found"
+  },
+  "GET /api/v27/projects/{project_id}/export": {
+   "kind": "tenant",
+   "world": "v27",
+   "gate": "export",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "query": {
+    "version_id": "{version_id}"
+   },
+   "owner": [
+    404
+   ]
+  },
+  "GET /api/v27/projects/{project_id}/rights": {
+   "kind": "tenant",
+   "world": "v27",
+   "gate": "rights_status",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v27/projects/{project_id}/rights/evidence": {
+   "kind": "tenant",
+   "world": "v27",
+   "gate": "add_rights_evidence",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "right_kind": "copyright",
+    "subject": "logo",
+    "evidence_type": "license",
+    "scope": "web"
+   },
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v27/projects/{project_id}/rights/review": {
+   "kind": "tenant",
+   "world": "v27",
+   "gate": "verify_rights_evidence",
+   "ids": [
+    "project_id",
+    "evidence_id"
+   ],
+   "child": [
+    "evidence_id"
+   ],
+   "body": {
+    "evidence_id": "{evidence_id}",
+    "reviewer_note": "checked"
+   },
+   "owner": [
+    200
+   ],
+   "headers": {
+    "x-omni-rights-review-key": "{rights_review_key}"
+   },
+   "note": "sent with the rights reviewer key, so the probe reaches the evidence lookup"
+  },
+  "POST /api/v27/projects/{project_id}/rights/original-alternative": {
+   "kind": "tenant",
+   "world": "v27",
+   "gate": "original_alternative",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "An original page for a bakery"
+   },
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v27/projects/{project_id}/promote": {
+   "kind": "legacy_refused",
+   "world": "v27",
+   "refused": 501,
+   "gate": "_reject_unbacked_publish",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "query": {
+    "version_id": "{version_id}"
+   }
+  },
+  "POST /api/v27/brain/plan": {
+   "kind": "account",
+   "gate": "account",
+   "unused": [
+    "build_contract_id"
+   ],
+   "unused_note": "the request model (V27BuildRequest) is shared with the async build route; this endpoint never reads the field"
+  },
+  "GET /api/v27/rights/jurisdictions": {
+   "kind": "account",
+   "gate": "production_auth",
+   "note": "any signed-in caller; the answer is the same for everyone (catalogues and calculators, no stored customer data)"
+  },
+  "GET /api/v27/company-os": {
+   "kind": "account",
+   "gate": "production_auth",
+   "note": "any signed-in caller; the answer is the same for everyone (catalogues and calculators, no stored customer data)"
+  },
+  "GET /api/v27/company-os/departments/{department_id}": {
+   "kind": "account",
+   "gate": "production_auth",
+   "note": "any signed-in caller; the answer is the same for everyone (catalogues and calculators, no stored customer data)"
+  },
+  "POST /api/v27/company-os/triage": {
+   "kind": "account",
+   "gate": "production_auth",
+   "note": "any signed-in caller; the answer is the same for everyone (catalogues and calculators, no stored customer data)"
+  },
+  "POST /api/v27/company-os/ceo-brief": {
+   "kind": "account",
+   "gate": "production_auth",
+   "note": "any signed-in caller; the answer is the same for everyone (catalogues and calculators, no stored customer data)"
+  },
+  "POST /api/v27/company-os/release-council/evaluate": {
+   "kind": "account",
+   "gate": "production_auth",
+   "note": "any signed-in caller; the answer is the same for everyone (catalogues and calculators, no stored customer data)"
+  },
+  "POST /api/v27/projects/{project_id}/live-build": {
+   "kind": "legacy_refused",
+   "world": "v27",
+   "refused": 410,
+   "gate": "_reject_legacy_sync_build",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "Build a page now"
+   },
+   "unused": [
+    "build_contract_id"
+   ],
+   "unused_note": "the request model (V27BuildRequest) is shared with the async build route; this endpoint never reads the field"
+  },
+  "GET /hosted/v27/{deployment_id}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ]
+  },
+  "POST /runtime/v27/{deployment_id}/register": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ],
+   "body": {
+    "email": "someone@example.com",
+    "password": "Long-password-1"
+   }
+  },
+  "POST /runtime/v27/{deployment_id}/login": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ],
+   "body": {
+    "email": "someone@example.com",
+    "password": "Long-password-1"
+   }
+  },
+  "GET /runtime/v27/{deployment_id}/data/{collection}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ]
+  },
+  "POST /runtime/v27/{deployment_id}/data/{collection}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ],
+   "body": {
+    "payload": {
+     "a": 1
+    }
+   }
+  },
+  "WS /runtime/v27/{deployment_id}/ws": {
+   "kind": "legacy_ws",
+   "world": "v28",
+   "gate": "websocket_authorize",
+   "ids": [
+    "deployment_id"
+   ],
+   "note": "the HTTP legacy guard does not see a websocket; it closes 4401 because the production configuration refuses every promote, so no deployment exists"
+  },
+  "GET /api/v28/brand/readiness": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/v28/launch/readiness": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/v28/source/client/{platform}": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/v28/ui/translations": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/v28/pricing": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "POST /api/v28/billing/checkout": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "POST /api/v28/billing/stripe/webhook": {
+   "kind": "public",
+   "gate": "verify_stripe_signature",
+   "note": "Stripe-signed events only"
+  },
+  "POST /api/v28/auth/register": {
+   "kind": "public",
+   "gate": "credentials",
+   "note": "signs in or creates the caller's own account"
+  },
+  "POST /api/v28/auth/login": {
+   "kind": "public",
+   "gate": "credentials",
+   "note": "signs in or creates the caller's own account"
+  },
+  "POST /api/v28/auth/logout": {
+   "kind": "account",
+   "gate": "logout"
+  },
+  "GET /api/v28/auth/sessions": {
+   "kind": "account",
+   "gate": "list_sessions"
+  },
+  "POST /api/v28/auth/sessions/{session_id}/revoke": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "revoke_session",
+   "ids": [
+    "session_id"
+   ],
+   "owner": "destructive"
+  },
+  "POST /api/v28/auth/email-verification/request": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "POST /api/v28/auth/verify-email": {
+   "kind": "public",
+   "gate": "single-use token",
+   "note": "the emailed token names the account"
+  },
+  "POST /api/v28/auth/password-reset/request": {
+   "kind": "public",
+   "gate": "credentials",
+   "note": "signs in or creates the caller's own account"
+  },
+  "POST /api/v28/auth/password-reset/confirm": {
+   "kind": "public",
+   "gate": "single-use token",
+   "note": "the emailed token names the account"
+  },
+  "POST /api/v28/auth/consents": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "POST /api/v28/auth/data-export": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "POST /api/v28/auth/account-deletion": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "GET /api/v28/me": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "GET /api/v28/me/subscription": {
+   "kind": "account",
+   "gate": "subscription"
+  },
+  "POST /api/v28/admin/subscription": {
+   "kind": "admin",
+   "world": "v28",
+   "gate": "OMNI_BILLING_ADMIN_KEY",
+   "ids": [
+    "account_id"
+   ],
+   "body": {
+    "user_id": "{account_id}",
+    "plan": "business"
+   },
+   "owner": "admin",
+   "note": "only the billing admin key may name an account; a customer token never can"
+  },
+  "POST /api/v28/projects": {
+   "kind": "account",
+   "gate": "create_project"
+  },
+  "GET /api/v28/projects": {
+   "kind": "account",
+   "gate": "list_projects"
+  },
+  "GET /api/v28/projects/search": {
+   "kind": "account",
+   "gate": "search_projects"
+  },
+  "PATCH /api/v28/projects/{project_id}": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "rename_project",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "title": "Renamed by the caller"
+   },
+   "owner": "destructive"
+  },
+  "POST /api/v28/projects/{project_id}/archive": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "archive_project",
+   "ids": [
+    "project_id"
+   ],
+   "owner": "destructive"
+  },
+  "POST /api/v28/projects/{project_id}/unarchive": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "unarchive_project",
+   "ids": [
+    "project_id"
+   ],
+   "owner": "destructive"
+  },
+  "DELETE /api/v28/projects/{project_id}": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "delete_project",
+   "ids": [
+    "project_id"
+   ],
+   "owner": "destructive"
+  },
+  "GET /api/v28/projects/{project_id}/state": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "project_state",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/build": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "_reject_legacy_sync_build",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "Build a page now"
+   },
+   "unused": [
+    "build_contract_id"
+   ],
+   "unused_note": "the request model (V27BuildRequest) is shared with the async build route; this endpoint never reads the field"
+  },
+  "GET /api/v28/projects/{project_id}/history": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "history",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/patch": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "files": [
+     {
+      "path": "index.html",
+      "content": "x"
+     }
+    ],
+    "message": "edit"
+   }
+  },
+  "POST /api/v28/projects/{project_id}/restore": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id",
+    "first_version_id"
+   ],
+   "child": [
+    "first_version_id"
+   ],
+   "body": {
+    "version_id": "{first_version_id}"
+   },
+   "owner": [
+    200
+   ],
+   "param_map": {
+    "version_id": "first_version_id"
+   }
+  },
+  "GET /api/v28/projects/{project_id}/export": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "export",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "child": [
+    "version_id"
+   ],
+   "query": {
+    "version_id": "{version_id}"
+   },
+   "owner": [
+    200
+   ]
+  },
+  "GET /api/v28/projects/{project_id}/rights": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "rights_status",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/rights/original-alternative": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "original_alternative",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "An original page for a bakery"
+   },
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/branding": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "set_project_branding",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "visible": true
+   },
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/usage/quote": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "authorize_live_usage",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "cost_class": "standard",
+    "credits": 1,
+    "category": "new_build"
+   },
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/promote": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 501,
+   "gate": "_reject_unbacked_publish",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "query": {
+    "version_id": "{version_id}"
+   }
+  },
+  "POST /api/v28/projects/{project_id}/discovery": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_discovery_account",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "A page for a flower shop",
+    "mode": "guided"
+   },
+   "owner": [
+    200
+   ]
+  },
+  "GET /api/v28/projects/{project_id}/discovery": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_discovery_account",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/discovery/answers": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_discovery_account",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "revision": 1,
+    "answers": {}
+   },
+   "owner": [
+    200,
+    409,
+    422
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/conversation": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id",
+    "attachment_id"
+   ],
+   "child": [
+    "attachment_id"
+   ],
+   "body": {
+    "message": "Here is a picture",
+    "attachment_ids": [
+     "{attachment_id}"
+    ]
+   },
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/spec-approval": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "brief_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000"
+   },
+   "owner": [
+    200,
+    409
+   ]
+  },
+  "GET /api/v28/projects/{project_id}/proposal": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_discovery_account",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/proposal/edit": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_discovery_account",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "revision": 1,
+    "op": "move_up",
+    "key": "hero"
+   },
+   "owner": [
+    200,
+    404,
+    409,
+    422
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/proposal/undo": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_discovery_account",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "undo": {}
+   },
+   "owner": [
+    200,
+    409,
+    422
+   ]
+  },
+  "GET /api/v28/projects/{project_id}/conversation": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_discovery_account",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "GET /api/v28/projects/{project_id}/memory": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "GET /api/v28/projects/{project_id}/builds/{build_id}/plan": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id",
+    "build_id"
+   ],
+   "child": [
+    "build_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/approvals": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_discovery_account",
+   "ids": [
+    "project_id",
+    "build_contract_id"
+   ],
+   "body": {
+    "build_contract_id": "{build_contract_id}",
+    "brief_revision": 1
+   },
+   "owner": [
+    200,
+    409
+   ],
+   "note": "the contract id is read only after the brief revision and the approved, verified plan of the two-gate flow (_brief_prompt, _bind_execution_plan); the own-project probe of that id is the builds route's, and both routes read it through the same PostgresBuildContractRepository.get"
+  },
+  "POST /api/v28/projects/{project_id}/build-contracts": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "A CRM for a bakery"
+   },
+   "owner": [
+    200,
+    402,
+    409,
+    503
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/builds": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id",
+    "build_contract_id"
+   ],
+   "child": [
+    "build_contract_id"
+   ],
+   "body": {
+    "prompt": "Build a small CRM app for the caller",
+    "build_contract_id": "{build_contract_id}"
+   },
+   "owner": [
+    200
+   ],
+   "own_parent": "bare",
+   "note": "own_parent bare: a project with a queued build answers with that build before the contract is read"
+  },
+  "GET /api/v28/projects/{project_id}/builds/latest": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "GET /api/v28/projects/{project_id}/builds/{build_id}": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id",
+    "build_id"
+   ],
+   "child": [
+    "build_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/builds/{build_id}/cancel": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id",
+    "build_id"
+   ],
+   "child": [
+    "build_id"
+   ],
+   "owner": "destructive"
+  },
+  "GET /api/v28/projects/{project_id}/builds/{build_id}/events": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id",
+    "build_id"
+   ],
+   "child": [
+    "build_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/versions/{version_id}/previews": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_preview_key",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "child": [
+    "version_id"
+   ],
+   "owner": [
+    422
+   ],
+   "note": "the owner gets 422 NOT_PREVIEWABLE: the seeded version has no preview contract (no container is started)"
+  },
+  "GET /api/v28/projects/{project_id}/previews/{preview_id}": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_preview_key",
+   "ids": [
+    "project_id",
+    "preview_id"
+   ],
+   "child": [
+    "preview_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/previews/{preview_id}/access": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_owned_preview",
+   "ids": [
+    "project_id",
+    "preview_id"
+   ],
+   "child": [
+    "preview_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_owned_preview",
+   "ids": [
+    "project_id",
+    "preview_id"
+   ],
+   "child": [
+    "preview_id"
+   ],
+   "body": {
+    "mode": "SHARED"
+   },
+   "owner": [
+    200
+   ]
+  },
+  "DELETE /api/v28/projects/{project_id}/previews/{preview_id}": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_preview_key",
+   "ids": [
+    "project_id",
+    "preview_id"
+   ],
+   "child": [
+    "preview_id"
+   ],
+   "owner": "destructive"
+  },
+  "POST /api/v28/projects/{project_id}/versions/{version_id}/modifications": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id",
+    "version_id",
+    "attachment_id"
+   ],
+   "child": [
+    "version_id",
+    "attachment_id"
+   ],
+   "body": {
+    "followup": "Make the title larger please",
+    "attachment_ids": [
+     "{attachment_id}"
+    ]
+   },
+   "owner": [
+    202
+   ]
+  },
+  "GET /api/v28/projects/{project_id}/modifications/latest": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_modification_key",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/modifications/{modification_id}/cancel": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_modification_key",
+   "ids": [
+    "project_id",
+    "modification_id"
+   ],
+   "child": [
+    "modification_id"
+   ],
+   "owner": "destructive"
+  },
+  "GET /api/v28/projects/{project_id}/modifications/{modification_id}/events": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_modification_key",
+   "ids": [
+    "project_id",
+    "modification_id"
+   ],
+   "child": [
+    "modification_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "GET /api/v28/projects/{project_id}/modifications/{modification_id}": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_modification_key",
+   "ids": [
+    "project_id",
+    "modification_id"
+   ],
+   "child": [
+    "modification_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "GET /api/v28/projects/{project_id}/modifications/{modification_id}/candidate": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_modification_key",
+   "ids": [
+    "project_id",
+    "modification_id"
+   ],
+   "child": [
+    "modification_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/modifications/{modification_id}/accept": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_modification_key",
+   "ids": [
+    "project_id",
+    "modification_id"
+   ],
+   "child": [
+    "modification_id"
+   ],
+   "body": {
+    "message": "accept the change"
+   },
+   "owner": "destructive"
+  },
+  "POST /api/v28/projects/{project_id}/modifications/{modification_id}/reject": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_modification_key",
+   "ids": [
+    "project_id",
+    "modification_id"
+   ],
+   "child": [
+    "modification_id"
+   ],
+   "body": {
+    "reason": "not this one"
+   },
+   "owner": "destructive"
+  },
+  "POST /api/v28/projects/{project_id}/attachments": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_owner",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "kind": "image",
+    "data_base64": "{png_base64}"
+   },
+   "owner": [
+    200
+   ]
+  },
+  "GET /api/v28/projects/{project_id}/attachments": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_owner",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "GET /api/v28/projects/{project_id}/attachments/{attachment_id}": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_owner",
+   "ids": [
+    "project_id",
+    "attachment_id"
+   ],
+   "child": [
+    "attachment_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "DELETE /api/v28/projects/{project_id}/attachments/{attachment_id}": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_owner",
+   "ids": [
+    "project_id",
+    "attachment_id"
+   ],
+   "child": [
+    "attachment_id"
+   ],
+   "owner": "destructive"
+  },
+  "POST /api/v28/projects/{project_id}/attachments/{attachment_id}/reading": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_owner",
+   "ids": [
+    "project_id",
+    "attachment_id"
+   ],
+   "child": [
+    "attachment_id"
+   ],
+   "body": {
+    "purpose": "handwritten_note"
+   },
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/readings/{draft_fingerprint}/approve": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_owner",
+   "ids": [
+    "project_id",
+    "draft_fingerprint"
+   ],
+   "body": {},
+   "owner": [
+    404
+   ],
+   "note": "no reading draft exists anywhere (OMNI_MEDIA_READER is off), so the draft fingerprint is probed only under another account's project; the owner gets draft_not_found"
+  },
+  "POST /api/v28/projects/{project_id}/readings/{draft_fingerprint}/discard": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_owner",
+   "ids": [
+    "project_id",
+    "draft_fingerprint"
+   ],
+   "body": {},
+   "owner": [
+    404
+   ],
+   "note": "no reading draft exists anywhere (OMNI_MEDIA_READER is off), so the draft fingerprint is probed only under another account's project; the owner gets draft_not_found"
+  },
+  "POST /api/v28/projects/{project_id}/versions/{version_id}/visual-edit/locate": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_owner",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "child": [
+    "version_id"
+   ],
+   "body": {
+    "selection": {
+     "tag": "h1",
+     "id": "title"
+    }
+   },
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/v28/projects/{project_id}/rollback": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "_modification_key",
+   "ids": [
+    "project_id",
+    "first_version_id"
+   ],
+   "child": [
+    "first_version_id"
+   ],
+   "body": {
+    "target_version_id": "{first_version_id}",
+    "message": "back"
+   },
+   "owner": [
+    200
+   ]
+  },
+  "GET /api/v28/capabilities": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "GET /api/v28/providers/status": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "GET /api/v28/providers/replicate/check": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "POST /api/v28/providers/replicate/check": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "GET /r2-diagnostics": {
+   "kind": "account",
+   "gate": "_replicate_image_test_context"
+  },
+  "POST /api/v28/providers/replicate/image-test": {
+   "kind": "account",
+   "gate": "_replicate_image_test_context"
+  },
+  "GET /api/v28/providers/replicate/image-test": {
+   "kind": "account",
+   "gate": "_replicate_image_test_context"
+  },
+  "GET /api/v28/providers/replicate/image-test/image": {
+   "kind": "account",
+   "gate": "_replicate_image_test_context"
+  },
+  "GET /replicate-test": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /assets/replicate-test.js": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/v28/projects/{project_id}/builds/{build_id}/capabilities": {
+   "kind": "tenant",
+   "world": "v28",
+   "gate": "resolve_project_key",
+   "ids": [
+    "project_id",
+    "build_id"
+   ],
+   "child": [
+    "build_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "GET /api/v28/m5/status": {
+   "kind": "account",
+   "gate": "production_auth",
+   "note": "any signed-in caller; the answer is the same for everyone (catalogues and calculators, no stored customer data)"
+  },
+  "GET /api/v28/deployment": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "GET /api/v28/integrations": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "GET /api/v28/company-os": {
+   "kind": "account",
+   "gate": "account"
+  },
+  "POST /api/v28/projects/{project_id}/live-build": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "_reject_legacy_sync_build",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "Build a page now"
+   },
+   "unused": [
+    "build_contract_id"
+   ],
+   "unused_note": "the request model (V27BuildRequest) is shared with the async build route; this endpoint never reads the field"
+  },
+  "GET /hosted/v28/{deployment_id}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ]
+  },
+  "POST /runtime/v28/{deployment_id}/register": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ],
+   "body": {
+    "email": "someone@example.com",
+    "password": "Long-password-1"
+   }
+  },
+  "POST /runtime/v28/{deployment_id}/login": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ],
+   "body": {
+    "email": "someone@example.com",
+    "password": "Long-password-1"
+   }
+  },
+  "GET /runtime/v28/{deployment_id}/data/{collection}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ]
+  },
+  "POST /runtime/v28/{deployment_id}/data/{collection}": {
+   "kind": "legacy_refused",
+   "world": "v28",
+   "refused": 410,
+   "gate": "legacy_paths_guard",
+   "ids": [
+    "deployment_id"
+   ],
+   "body": {
+    "payload": {
+     "a": 1
+    }
+   }
+  },
+  "WS /runtime/v28/{deployment_id}/ws": {
+   "kind": "legacy_ws",
+   "world": "v28",
+   "gate": "websocket_authorize",
+   "ids": [
+    "deployment_id"
+   ],
+   "note": "the HTTP legacy guard does not see a websocket; it closes 4401 because the production configuration refuses every promote, so no deployment exists"
+  },
+  "GET /brand/{asset_name}": {
+   "kind": "public",
+   "gate": "none"
+  },
+  "POST /api/live/auth/register": {
+   "kind": "public",
+   "gate": "credentials",
+   "note": "signs in or creates the caller's own account"
+  },
+  "POST /api/live/auth/login": {
+   "kind": "public",
+   "gate": "credentials",
+   "note": "signs in or creates the caller's own account"
+  },
+  "POST /api/live/auth/logout": {
+   "kind": "account",
+   "gate": "require_user"
+  },
+  "GET /api/live/me": {
+   "kind": "account",
+   "gate": "require_user"
+  },
+  "GET /api/live/projects": {
+   "kind": "account",
+   "gate": "require_user"
+  },
+  "GET /api/live/projects/{project_id}/versions": {
+   "kind": "tenant",
+   "world": "live",
+   "gate": "require_user",
+   "ids": [
+    "project_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/live/builds": {
+   "kind": "tenant",
+   "world": "live",
+   "gate": "require_user",
+   "ids": [
+    "project_id"
+   ],
+   "body": {
+    "prompt": "Build a small page",
+    "project_id": "{project_id}"
+   },
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/live/builds/{build_id}/run": {
+   "kind": "tenant",
+   "world": "live",
+   "gate": "require_user",
+   "ids": [
+    "build_id"
+   ],
+   "body": {
+    "target_markets": []
+   },
+   "owner": "destructive",
+   "note": "the owner's call would run the generator; another account is refused before it"
+  },
+  "GET /api/live/builds/{build_id}": {
+   "kind": "tenant",
+   "world": "live",
+   "gate": "require_user",
+   "ids": [
+    "build_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/live/projects/{project_id}/versions/{version_id}/restore": {
+   "kind": "tenant",
+   "world": "live",
+   "gate": "require_user",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "child": [
+    "version_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "GET /api/live/projects/{project_id}/versions/{version_id}/export": {
+   "kind": "tenant",
+   "world": "live",
+   "gate": "require_user",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "child": [
+    "version_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "POST /api/live/projects/{project_id}/versions/{version_id}/preview": {
+   "kind": "tenant",
+   "world": "live",
+   "gate": "require_user",
+   "ids": [
+    "project_id",
+    "version_id"
+   ],
+   "child": [
+    "version_id"
+   ],
+   "owner": [
+    200
+   ]
+  },
+  "GET /preview/live/{preview_id}/": {
+   "kind": "capability_url",
+   "world": "live",
+   "gate": "preview_asset",
+   "ids": [
+    "live_preview_handle"
+   ],
+   "param_map": {
+    "preview_id": "live_preview_handle"
+   },
+   "note": "the link IS the access: base64(version uuid + artifact uuid), both random and shown only to the owner; a handle mixing two accounts' ids, an unknown one or a path outside the archive is 404 (tests/test_tenant_isolation_pg.py::test_live_preview_handles_*)"
+  },
+  "GET /preview/live/{preview_id}/{path:path}": {
+   "kind": "capability_url",
+   "world": "live",
+   "gate": "preview_asset",
+   "ids": [
+    "live_preview_handle"
+   ],
+   "param_map": {
+    "preview_id": "live_preview_handle"
+   },
+   "note": "the link IS the access: base64(version uuid + artifact uuid), both random and shown only to the owner; a handle mixing two accounts' ids, an unknown one or a path outside the archive is 404 (tests/test_tenant_isolation_pg.py::test_live_preview_handles_*)"
+  },
+  "MOUNT /ui": {
+   "kind": "public",
+   "gate": "none"
+  }
+ }
+}
