@@ -32,8 +32,10 @@ REHEARSAL_ACCEPT = Evidence('live', 'postdeploy-checks run 37961193099 (attempt 
 # (2b4bafd), which is red: its agent-graph check read the run before the worker closed it (fixed by 54620a4;
 # tests/test_postdeploy_crash_agent_graph.py). The capability does not hold on main either: since e5e11e5
 # (2026-10-14) maintenance.recover_lost_running ends a build whose lost worker made a paid call as FAILED
-# provider_liability_unknown instead of requeueing it, and the one recovery that ended READY started over (inspect run
-# 37955419872: the recovered worker called architecture again). The plan's crash step (S4.2) asks for a build that
+# provider_liability_unknown instead of requeueing it. Two crash runs recovered a build to READY, both on 2026-10-09,
+# before e5e11e5 and before the ledger, agent-graph and settlement checks: 37940033628 (d1c7482, bld_ec5f51e6,
+# recovery_attempts=1; it checked the status only and printed no ledger) and 37954236866, whose recovered worker
+# called architecture again, i.e. started over (inspect run 37955419872). The plan's crash step (S4.2) asks for a build that
 # continues from its last checkpoint; crash-verify checks that now (postdeploy_checks.resume_verdict) and no run
 # passes it. The later crash run 37962802899 (039574f) is red too. Cite a green crash-verify run here when one exists.
 BACKUP = Evidence('live', 'backup-restore run 37962179844', 'stored copy restored into empty PostgreSQL 18; 42/42 versions '
