@@ -1,0 +1,150 @@
+{
+  "pr": "image-subject",
+  "sha256": [
+    "tests/test_image_subject.py",
+    "tests/fixtures/image_subject_owner_builds_2026_11_23.json",
+    "omni_prod/capability_planner.py",
+    "omni_prod/capability_registry.py",
+    "omni_prod/media_pipeline.py",
+    "omni_prod/product_architect.py",
+    "omni_prod/universal_brain.py"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "the customer's own clause is not read: a picture the customer described is planned without its subject",
+      "mutations": [
+        {
+          "file": "omni_prod/capability_planner.py",
+          "old": "        clause = describe(prompt, purpose)\n",
+          "new": "        clause = None\n"
+        }
+      ],
+      "targets": ["tests/test_image_subject.py"],
+      "expect_failed": [
+        "test_the_customers_own_clause_comes_first"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "the approved semantic decision's quoted words are not read (ShayFly, bld_7b541f93)",
+      "mutations": [
+        {
+          "file": "omni_prod/capability_planner.py",
+          "old": "        quoted = _semantic_image_words(semantic_decisions)\n",
+          "new": "        quoted = None\n"
+        }
+      ],
+      "targets": ["tests/test_image_subject.py"],
+      "expect_failed": [
+        "test_shayfly_builds_with_the_picture_the_customer_asked_for",
+        "test_shayfly_required_by_the_semantic_decision_plans_the_customers_quoted_words",
+        "test_shayfly_still_stops_on_a_wrong_picture"
+      ]
+    },
+    {
+      "id": "NC3",
+      "what": "the default hero gets no subject from the brief's business line (GOA, bld_4bb6207f / bld_6c8c2d3a)",
+      "mutations": [
+        {
+          "file": "omni_prod/capability_planner.py",
+          "old": "            return _brief_business_line(full_prompt if full_prompt is not None else prompt)\n",
+          "new": "            return None\n"
+        }
+      ],
+      "targets": ["tests/test_image_subject.py"],
+      "expect_failed": [
+        "test_goa_default_hero_plans_the_briefs_business_line",
+        "test_goa_drops_a_wrong_default_hero_and_still_builds",
+        "test_goa_keeps_a_matching_default_hero"
+      ]
+    },
+    {
+      "id": "NC4",
+      "what": "validate_plan accepts an image requirement without a subject (the stored production plans pass again)",
+      "mutations": [
+        {
+          "file": "omni_prod/capability_registry.py",
+          "old": "            if requirement.key == \"media.image.generate\" and not str(\n",
+          "new": "            if False and not str(\n"
+        }
+      ],
+      "targets": ["tests/test_image_subject.py"],
+      "expect_failed": [
+        "test_the_stored_production_requirements_are_refused"
+      ]
+    },
+    {
+      "id": "NC5",
+      "what": "a required picture nothing describes is dropped silently: the contract is READY and asks nothing",
+      "mutations": [
+        {
+          "file": "omni_prod/product_architect.py",
+          "old": "            questions = questions + (self._image_subject_question(intent),)\n",
+          "new": "            pass\n"
+        }
+      ],
+      "targets": ["tests/test_image_subject.py"],
+      "expect_failed": [
+        "test_a_required_picture_nothing_describes_is_the_contracts_question",
+        "test_the_question_is_in_the_customers_language"
+      ]
+    },
+    {
+      "id": "NC6",
+      "what": "the planner keeps an image nothing describes: validate_plan refuses the contract at compile time",
+      "mutations": [
+        {
+          "file": "omni_prod/capability_planner.py",
+          "old": "                requested.pop(IMAGE_KEY)\n",
+          "new": "                pass\n"
+        },
+        {
+          "file": "omni_prod/capability_planner.py",
+          "old": "count = self._picture_count(IMAGE_KEY, purpose, prompt)[\"count\"] if subject else 0",
+          "new": "count = self._picture_count(IMAGE_KEY, purpose, prompt)[\"count\"]"
+        }
+      ],
+      "targets": ["tests/test_image_subject.py"],
+      "expect_failed": [
+        "test_a_required_picture_nothing_describes_is_the_contracts_question",
+        "test_an_optional_default_hero_with_no_business_line_is_not_planned",
+        "test_the_question_is_in_the_customers_language"
+      ]
+    },
+    {
+      "id": "NC7",
+      "what": "the default hero is not told apart from the other image triggers",
+      "mutations": [
+        {
+          "file": "omni_prod/media_pipeline.py",
+          "old": "    return asset.kind == AssetKind.IMAGE and str(asset.prompt).endswith(DEFAULT_HERO_PROMPT)\n",
+          "new": "    return False\n"
+        }
+      ],
+      "targets": ["tests/test_image_subject.py"],
+      "expect_failed": [
+        "test_goa_default_hero_plans_the_briefs_business_line",
+        "test_goa_drops_a_wrong_default_hero_and_still_builds",
+        "test_goa_keeps_a_matching_default_hero"
+      ]
+    },
+    {
+      "id": "NC8",
+      "what": "the approved brief does not reach the capability planner, so the business line is never found",
+      "mutations": [
+        {
+          "file": "omni_prod/universal_brain.py",
+          "old": "            full_prompt=full_prompt,\n            semantic_decisions=semantic_decisions\n",
+          "new": "            semantic_decisions=semantic_decisions\n"
+        }
+      ],
+      "targets": ["tests/test_image_subject.py"],
+      "expect_failed": [
+        "test_goa_default_hero_plans_the_briefs_business_line",
+        "test_goa_drops_a_wrong_default_hero_and_still_builds",
+        "test_goa_keeps_a_matching_default_hero"
+      ]
+    }
+  ]
+}

@@ -333,6 +333,14 @@ class ProductArchitect:
                 "הבקשה עכשיו כוללת משהו ששומר מידע. האם האתר שומר מידע?",
                 "the approved 'stores nothing' decision conflicts with: " + ", ".join(resolved.storing_capabilities),
                 True, ("דף לקריאה בלבד — לא נשמר כלום", "אתר ששומר מידע")),)
+        from .capability_planner import IMAGE_ITEMS_UNREAD, IMAGE_SUBJECT_UNRESOLVED
+        if IMAGE_SUBJECT_UNRESOLVED in capability_plan.notes:
+            # the owner, 2026-11-26: a picture the customer asked for that nothing describes is asked about, never drawn
+            # from a generic sentence (the plan left it out; validate_plan refuses an image without a subject)
+            questions = questions + (self._image_subject_question(intent),)
+        if IMAGE_ITEMS_UNREAD in capability_plan.notes:
+            # a picture of each item is asked, and the approved brief lists no items to make them from
+            questions = questions + (self._image_items_question(intent),)
         status = BuildContractStatus.NEEDS_CLARIFICATION if questions else BuildContractStatus.READY
         static_default = ["static_content_site"] if content_only else []
         defaults = tuple(role_defaults + static_default + [profile.key, "vercel_release_target"])
@@ -637,6 +645,30 @@ class ProductArchitect:
                 ),
             )
         return ()
+
+    @staticmethod
+    def _image_subject_question(customer_text: str) -> ClarificationQuestion:
+        """The question for a required picture nothing describes, in the customer's language (Hebrew, else English)."""
+        hebrew = bool(re.search(r"[֐-׿]", customer_text or ""))
+        return ClarificationQuestion(
+            "image_subject",
+            "מה התמונה באתר צריכה להראות? כתבו במשפט אחד מה רואים בה." if hebrew
+            else "What should the picture on the site show? Describe it in one sentence.",
+            "a picture is planned, but nothing the customer said and nothing in the approved brief describes it "
+            "(image-subject-unresolved); it is not generated from a generic sentence",
+            True)
+
+    @staticmethod
+    def _image_items_question(customer_text: str) -> ClarificationQuestion:
+        """The question when a picture of each item is asked and the brief names no items (Hebrew, else English)."""
+        hebrew = bool(re.search(r"[֐-׿]", customer_text or ""))
+        return ClarificationQuestion(
+            "image_items",
+            "לאילו פריטים לשים תמונה? כתבו את רשימת הפריטים, מופרדת בפסיקים." if hebrew
+            else "Which items should each get a picture? List them, separated by commas.",
+            "a picture of each item is asked, and the approved brief lists no items to make them from "
+            "(image-items-unread)",
+            True)
 
     def _required_skills(self, capability_plan) -> tuple[str, ...]:
         keys = [
