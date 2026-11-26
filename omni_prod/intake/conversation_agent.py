@@ -279,6 +279,44 @@ _AFTER = r'(?:\s+[^\s"״“„,.;:!?]{2,15}){0,2}\s*[,:\-–]?\s*'
 _NAMING = re.compile(r'(?:(?:קוראים|קוראות)\s+(?:לו|לה|לנו|לי|לעסק|למקום)|נקרא(?:ת|ים)?|בשם|שמו|שמה|שמנו|'
                      r'השם\s+(?:שלנו|שלי|שלו|שלה|של\s+העסק|של\s+המקום)(?:\s+(?:הוא|היא))?|השם\s+(?:הוא|היא)|'
                      r'called|named|name\s+is)\s*[:\-–]?\s*' + _QUOTE, re.I)
+# S4 (release review of 550320c): 'דף נחיתה למסעדה עם כפתור "הזמינו עכשיו"' gave "שם העסק: הזמינו עכשיו" -- a quote
+# right after a word of the page (a button, a slogan, a headline, a gallery) is that part's text, never the name.
+_PAGE_PART = re.compile(r'(?<![\w֐-׿])[ובהלשכמ]{0,2}(?:כפתור|כפתורים|לחצן|לחצנים|סלוגן|מוטו|כותרת|כותרות|כותרת\s+משנה|'
+                        r'גלריה|גלריית|באנר|הירו|טקסט|משפט|ציטוט|קישור|לינק|תפריט|לשונית|פסקה|מבצע|הודעה|שורה|תגית|'
+                        r'קריאה\s+לפעולה)(?![\w֐-׿])|\b(?:buttons?|slogan|motto|headlines?|heading|title|subtitle|'
+                        r'tagline|banner|gallery|hero|text|caption|link|menu|cta|label|tab|quote|section|offer|line)\b',
+                        re.I)
+# S4: a statement of the name ('השם שלנו הוא', 'קוראים לעסק', 'the name is') overrides a name read earlier and replaces
+# its "שם העסק:" line (with_name_line); a quoted name after it, else the rest of its sentence when that is a name.
+_EXPLICIT = re.compile(r'(?:השם\s+(?:שלנו|שלי|של\s+העסק|של\s+המקום)(?:\s+(?:הוא|היא))?|השם\s+(?:הוא|היא)|'
+                       r'(?:קוראים|קוראות)\s+(?:לעסק|לנו|לי|לו|לה|למקום)|שם\s+העסק\s+(?:הוא|היא)|'
+                       r"the\s+name\s+is|(?:our|my|the)\s+(?:business\s+)?name\s+is|we\s+are\s+called|"
+                       r"it\s+is\s+called|it'?s\s+called)\s*[:\-–]?\s*", re.I)
+_RECORDED_LINE = re.compile(r'(?m)^שם העסק: [^\n:]*\.[ \t]*\n?')
+
+
+def explicit_name(message: str) -> str | None:
+    """The name the customer states outright in this message ('השם שלנו הוא "השף הקטן"', 'קוראים לעסק השף הקטן'), or
+    None. A quoted span right after the statement is the name; without quotes, the rest of the sentence when it is a
+    name by name_line's rules (no digits or links, at most six words, not a handed-back answer)."""
+    text = ' '.join((message or '').split())
+    m = _EXPLICIT.search(text)
+    if not m:
+        return None
+    rest = text[m.end():]
+    quoted = re.match(_QUOTE, rest)
+    if quoted:
+        return ' '.join(quoted.group(1).split())
+    line = name_line(re.split(r'[.!?,;\n]', rest, maxsplit=1)[0])
+    return line[len('שם העסק: '):-1] if line else None
+
+
+def with_name_line(prompt: str, line: str) -> str:
+    """The request with `line` as its one "שם העסק:" line: an earlier recorded line (a whole line in that form) is
+    replaced, never kept beside it -- two labels would ask "which one?" again (S4)."""
+    return (_RECORDED_LINE.sub('', prompt or '').rstrip() + '\n' + line).strip()
+
+
 _POINTER = re.compile(r'^\s*(?:ה)?(?:ראשון|ראשונה|שני|שנייה|שניה|אחרון|אחרונה)\b|שניהם|first|second|both|either', re.I)
 
 
@@ -306,7 +344,8 @@ def stated_names(customer_text: str) -> list[str]:
     if labels:
         return labels
     found = sorted((m.start(1), ' '.join(m.group(1).split())) for rx in (_after_the_kind(), _NAMING)
-                   for m in rx.finditer(text))
+                   for m in rx.finditer(text)
+                   if rx is _NAMING or not _PAGE_PART.search(text[m.start():m.start(1)]))   # S4: a page part's text
     return list(dict.fromkeys(name for _, name in found if len(name) >= 2))
 
 
@@ -338,6 +377,11 @@ def name_to_record(known: str, message: str, *, answering: bool) -> str | None:
       * otherwise, the one name the customer quoted, written once as their declared name: from then on the canon, the
         content route and the summary read it, and nothing asks it again."""
     from ..fact_canon import _NAME
+    stated = explicit_name(message)
+    if stated is not None and all(n == stated for n in stated_names(message)):
+        # S4: said outright, and the only name of this message: it replaces a name read earlier (with_name_line). A
+        # message that itself names two ("לאטליז "א", וקוראים לנו "ב"") is asked which one, below.
+        return None if stated_names(known) == [stated] else f'שם העסק: {stated}.'
     whole = (known or '') + '\n' + (message or '')
     names = stated_names(whole)
     if answering and len(names) != 1:

@@ -210,6 +210,73 @@ class OnTheRealPath(unittest.TestCase):
         self.assertEqual(agent.stated_names(d.customer_text(sup.briefs.latest('two').brief)), ['בשר השכונה'])
 
 
+class APagePartIsNotTheName(unittest.TestCase):
+    """S4 (release review of 550320c): _AFTER let two words stand between the kind of business and a quote, so
+    'דף נחיתה למסעדה עם כפתור "הזמינו עכשיו"' was recorded as "שם העסק: הזמינו עכשיו" on every website turn; a correction
+    'השם שלנו הוא "השף הקטן"' was ignored (a label wins over a quote), and the two-names question then looped."""
+    BUTTON = 'דף נחיתה למסעדה עם כפתור "הזמינו עכשיו". אתר תוכן בלבד, לא שומרים כלום. טלפון 03-5551234'
+
+    def setUp(self):
+        p = mock.patch.dict(os.environ, {'OMNI_INTAKE_AGENT': '1'})
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_a_quote_after_a_page_word_is_not_a_name(self):
+        for text in ('דף נחיתה למסעדה עם כפתור "הזמינו עכשיו"', 'אתר למספרה עם הסלוגן "תספורת שמחה"',
+                     'אתר לאטליז עם כותרת "בשר טרי כל יום"', 'אתר למאפייה עם גלריה "המאפים שלנו"',
+                     'a site for my bakery with a button "Order now"', 'a landing page for a cafe, headline "Fresh daily"'):
+            with self.subTest(text):
+                self.assertEqual(agent.stated_names(text), [])
+                self.assertIsNone(agent.name_to_record('', text, answering=False))
+        # a name right after the kind of business is still read
+        self.assertEqual(agent.stated_names('אתר לאטליז "בשר השכונה" עם כפתור "הזמינו עכשיו"'), ['בשר השכונה'])
+
+    def test_a_stated_name_replaces_the_one_read_earlier_and_adds_no_second(self):
+        known = 'אתר למסעדה "פיצה טובה".\nשם העסק: פיצה טובה.'
+        for said, name in (('השם שלנו הוא "השף הקטן"', 'השף הקטן'), ('קוראים לעסק השף הקטן', 'השף הקטן'),
+                           ('the name is "Little Chef"', 'Little Chef')):
+            with self.subTest(said):
+                line = agent.name_to_record(known, said, answering=False)
+                self.assertEqual(line, f'שם העסק: {name}.')
+                prompt = agent.with_name_line(known, line)
+                self.assertEqual(prompt.count('שם העסק:'), 1, prompt)
+                self.assertEqual(agent.stated_names(prompt), [name])
+        self.assertIsNone(agent.name_to_record('שם העסק: השף הקטן.', 'השם שלנו הוא "השף הקטן"', answering=False))
+        self.assertIsNone(agent.explicit_name('השם שלנו הוא 0501234567'))
+
+    def test_on_the_real_path_the_button_is_never_the_name_and_the_stated_name_is(self):
+        sup = R._Supervisor(ModelInterpreter(FollowsThePrompt()))
+        say = lambda m: sup.turn(project_id='btn', account_id='a', message=m, lang='he')   # noqa: E731
+        t, replies, name_asks = say(self.BUTTON), [], 0
+        self.assertNotIn('שם העסק: הזמינו עכשיו', sup.briefs.latest('btn').brief.prompt)
+        for _ in range(10):
+            replies.append(t.reply)
+            if any(a['type'] == 'approve_spec' for a in t.actions):
+                break
+            asked = list(getattr(t, 'asked_in_words', None) or [])
+            if agent.NAME_ID in asked:
+                name_asks += 1
+                t = say('השם שלנו הוא "השף הקטן"')
+            else:
+                t = say(R.TYPED.get(asked[0], 'תחליטו אתם על השאר') if asked else 'תחליטו אתם על השאר')
+        self.assertEqual(name_asks, 1, replies)
+        self.assertTrue(any(a['type'] == 'approve_spec' for a in t.actions), replies)
+        self.assertIn('שם: השף הקטן', t.reply)
+        self.assertNotIn('הזמינו עכשיו"', t.reply.split('פרטי העסק', 1)[-1])
+        prompt = sup.briefs.latest('btn').brief.prompt
+        self.assertEqual(prompt.count('שם העסק:'), 1, prompt)
+
+    def test_on_the_real_path_a_correction_replaces_the_name_read_earlier(self):
+        sup = R._Supervisor(ModelInterpreter(FollowsThePrompt()))
+        say = lambda m: sup.turn(project_id='fix', account_id='a', message=m, lang='he')   # noqa: E731
+        say('אתר למסעדה "פיצה טובה". אתר תוכן בלבד, לא שומרים כלום. טלפון 03-5551234')
+        self.assertEqual(sup.briefs.latest('fix').brief.prompt.count('שם העסק: פיצה טובה.'), 1)
+        say('השם שלנו הוא "השף הקטן"')
+        brief = sup.briefs.latest('fix').brief
+        self.assertEqual(brief.prompt.count('שם העסק:'), 1, brief.prompt)
+        self.assertEqual(agent.stated_names(d.customer_text(brief)), ['השף הקטן'])
+
+
 class TheChecker(unittest.TestCase):
     """The rehearsal's checks on the recorded transcripts: each recorded run fails, for the turns the logs show."""
     EXPECTED = {   # (model, scenario): (asked again [(turn, fact)], questions with the summary [turn])

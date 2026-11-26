@@ -1291,8 +1291,8 @@ class ConversationSupervisor:
             # to the name question, or the one name they quoted, joins the request as their own "שם העסק:" line
             line = agent.name_to_record(d.customer_text(new_brief), message,
                                         answering=row is not None and agent.NAME_ID in self._awaiting(project_id))
-            if line:
-                new_brief.prompt = (new_brief.prompt.rstrip() + '\n' + line).strip()
+            if line:                       # S4: one "שם העסק:" line -- a stated name replaces one read earlier
+                new_brief.prompt = agent.with_name_line(new_brief.prompt, line)
         if row is not None and message and not answers:
             # S1: the answer to the contract's picture question is recorded where the planner reads it; after
             # ASK_PICTURE_AT_MOST questions with no answer it can read, the stated default is recorded instead

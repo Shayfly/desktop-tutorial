@@ -41,6 +41,7 @@
    ],
    "expect_failed": [
     "test_a_stated_name_is_never_asked_and_the_summary_shows_it",
+    "test_on_the_real_path_the_button_is_never_the_name_and_the_stated_name_is",
     "test_two_names_are_asked_once_as_a_choice_and_the_answer_settles_it"
    ]
   },
@@ -60,6 +61,7 @@
    "expect_failed": [
     "test_a_quoted_name_becomes_the_declared_name_the_build_reads",
     "test_a_stated_name_is_never_asked_and_the_summary_shows_it",
+    "test_on_the_real_path_a_correction_replaces_the_name_read_earlier",
     "test_the_answer_to_which_one_is_the_name_it_names"
    ]
   },
@@ -163,7 +165,9 @@
     "tests/test_name_asked_once.py"
    ],
    "expect_failed": [
-    "test_a_quote_that_is_not_a_name_is_not_one"
+    "test_a_quote_after_a_page_word_is_not_a_name",
+    "test_a_quote_that_is_not_a_name_is_not_one",
+    "test_on_the_real_path_the_button_is_never_the_name_and_the_stated_name_is"
    ]
   },
   {
@@ -286,6 +290,60 @@
    ],
    "expect_failed": [
     "test_the_rows_follow_the_customers_order"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "S4: a quote right after a page word (a button, a slogan, a headline) is taken as the business name",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "                   if rx is _NAMING or not _PAGE_PART.search(text[m.start():m.start(1)]))   # S4: a page part's text\n",
+     "new": "                   if True)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_a_quote_after_a_page_word_is_not_a_name",
+    "test_on_the_real_path_the_button_is_never_the_name_and_the_stated_name_is"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "S4: a name the customer states outright does not replace the name read earlier",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "    if stated is not None and all(n == stated for n in stated_names(message)):\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_a_stated_name_replaces_the_one_read_earlier_and_adds_no_second",
+    "test_on_the_real_path_a_correction_replaces_the_name_read_earlier"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "S4: the stated name is added beside the earlier \"שם העסק:\" line instead of replacing it (two labels: the which-one question again)",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/conversation_agent.py",
+     "old": "    return (_RECORDED_LINE.sub('', prompt or '').rstrip() + '\\n' + line).strip()\n",
+     "new": "    return ((prompt or '').rstrip() + '\\n' + line).strip()  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": [
+    "test_a_stated_name_replaces_the_one_read_earlier_and_adds_no_second",
+    "test_on_the_real_path_a_correction_replaces_the_name_read_earlier"
    ]
   }
  ]
