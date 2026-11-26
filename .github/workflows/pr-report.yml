@@ -1,8 +1,10 @@
 name: PR report
 
 # The owner's plan v3 (2026-11-25, S1.7): every pull request carries the 18-field delivery report of the plan's
-# section 17 (.github/pull_request_template.md), with a status of PASS, FAIL or HOLD and the plan's task id in the title.
-# It runs when the body is edited too, so fixing the report does not need a push.
+# section 17 (.github/pull_request_template.md), with a status of PASS, FAIL or HOLD and the plan's task id in the title
+# ("none: <reason>" outside the plan). It runs when the body is edited too, so fixing the report does not need a push.
+# Never skipped: no paths filter, no `if`. The script reads the event file GitHub writes for this run, so neither the
+# title nor the body is ever put into a shell line or an expression.
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened, ready_for_review]
@@ -19,8 +21,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Check the delivery report fields
-        env:
-          # through the environment, never interpolated into the script: the body is written by anyone with access
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-        run: python3 scripts/check_pr_report.py
+        run: python3 scripts/check_pr_report.py --event "$GITHUB_EVENT_PATH"
