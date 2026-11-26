@@ -86,8 +86,10 @@ jobs:
           NC_SCOPE=declared python scripts/run_negative_controls.py typography_126_129; c=$?
           # 2026-11-26 (#541, run 45855426699): NC1-NC3 and NC6 of repair_converge_offscreen drive Chromium (visual_qa's
           # viewport and widening-element tests, the focused skip link); v24-ci's shards have none, so they were DID NOT
-          # RUN there. envs browser now: they run here, about 4 controls at 16 s on 2 workers, inside this step's 13 min.
-          NC_SCOPE=declared python scripts/run_negative_controls.py repair_converge_offscreen; d=$?
+          # RUN there. envs browser now: they run here, inside this step's 13 min, on ONE worker: tests/test_visual_qa.py
+          # starts its pages on fixed ports (18731-18739), so two controls of this spec at once refuse each other's page
+          # (run 45860673027: ERR_CONNECTION_REFUSED at 127.0.0.1:18733, an extra failure under NC6).
+          NC_JOBS=1 NC_SCOPE=declared python scripts/run_negative_controls.py repair_converge_offscreen; d=$?
           c=$(( c | d ))
           b=$(( b | c ))
           exit $(( a | b ))

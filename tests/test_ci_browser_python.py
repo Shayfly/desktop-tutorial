@@ -57,6 +57,8 @@ class TheBrowserJob(unittest.TestCase):
         self.assertIn('run_negative_controls.py section_library', step['run'])
         # #541: visual_qa's viewport and widening tests need Chromium, which v24-ci's shards lack
         self.assertIn('run_negative_controls.py repair_converge_offscreen', step['run'])
+        # its controls share test_visual_qa's fixed ports, so they run one at a time (run 45860673027)
+        self.assertIn('NC_JOBS=1 NC_SCOPE=declared python scripts/run_negative_controls.py repair_converge_offscreen', step['run'])
         self.assertIn('run_negative_controls.py library_cookie_banner', step['run'])
         self.assertIn('exit $(( a | b ))', step['run'])                     # one failing spec fails the step
         # bundle 2 (warehouse 126): the typography spec's 4 browser controls run here too, and fail the step
