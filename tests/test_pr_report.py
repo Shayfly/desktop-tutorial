@@ -2,7 +2,8 @@
 
 scripts/check_pr_report.py reads the title and body; the "PR report" workflow runs it on every pull request, also when
 the body alone is edited. Checked here on the real script and the real template and workflow files. The cases come
-from the review of #532 (2026-11-25): each one passed or failed wrongly before."""
+from the review of #532 (2026-11-25) and the review of its follow-up (2026-11-26): each one passed or failed wrongly
+before."""
 from __future__ import annotations
 
 import json
@@ -25,6 +26,12 @@ WORKFLOW_TEXT = (ROOT / '.github' / 'workflows' / 'pr-report.yml').read_text(enc
 WORKFLOW = yaml.safe_load(WORKFLOW_TEXT)
 TITLE = 'S1.7 A pull request template with the 18 fields'
 SCRIPT = str(ROOT / 'scripts' / 'check_pr_report.py')
+REPO = 'Shayfly/desktop-tutorial'
+# The review of 2026-11-26, its event file word for word: a title and a body anyone can type passed without a report.
+SPOOF = {"action": "opened", "pull_request": {
+    "title": "Revert \"nothing\" \u2014 actually a new feature",
+    "body": "Reverts someone/elsewhere#1\n\nThis PR adds a new payment provider and changes the approval flow.",
+    "user": {"login": "Shayfly"}, "head": {"ref": "claude/new-feature"}}}
 
 
 def filled(**override) -> str:
@@ -48,15 +55,20 @@ def plain(**override) -> str:
 
 
 def run(*args, env_extra=None):
-    env = {k: v for k, v in os.environ.items() if k not in ('PR_TITLE', 'PR_BODY', 'PR_AUTHOR')}
+    env = {k: v for k, v in os.environ.items()
+           if k not in ('PR_TITLE', 'PR_BODY', 'PR_AUTHOR', 'PR_HEAD_REF', 'GITHUB_REPOSITORY')}
     return subprocess.run([sys.executable, SCRIPT, *args], env={**env, **(env_extra or {})}, capture_output=True,
                           text=True)
 
 
-def event_file(directory: str, title, body, login='someone') -> str:
+def event_file(directory: str, title, body, login='someone', head='claude/a-branch', repository=None) -> str:
     path = os.path.join(directory, 'event.json')
+    event = {'action': 'edited',
+             'pull_request': {'title': title, 'body': body, 'user': {'login': login}, 'head': {'ref': head}}}
+    if repository is not None:
+        event['repository'] = {'full_name': repository}
     with open(path, 'w', encoding='utf-8') as fh:
-        json.dump({'action': 'edited', 'pull_request': {'title': title, 'body': body, 'user': {'login': login}}}, fh)
+        json.dump(event, fh)
     return path
 
 
@@ -106,6 +118,22 @@ class TheSections(unittest.TestCase):
     def test_a_fenced_block_with_text_is_content(self):
         self.assertEqual(R.problems(TITLE, filled(Cost='```\nnone: nothing was spent\n```')), [])
 
+    def test_what_draws_nothing_is_not_content(self):
+        # the review of 2026-11-26: each of the first six passed as the only content of a section
+        for empty in ('[none]: <>', '\u3164', '\u2800', '&#8203;', '&ensp;', '<span></span>',
+                      '[x]: https://example.com "a title"', '&#x200B;&zwnj;&ZeroWidthSpace;', '<b> </b><br/>',
+                      '[](https://example.com)', '- &nbsp;', '\u115f\u1160\uffa0', '<p>&emsp;</p>', '\u00ad\u2061',
+                      '> <span></span>'):
+            with self.subTest(content=empty):
+                self.assertEqual(R.problems(TITLE, filled(Cost=empty)), ['the section "## Cost" is empty'])
+
+    def test_what_draws_something_is_content(self):
+        for shown in ('![chart](https://example.com/a.png)', '<img src="a.png">', '[the run](https://example.com)',
+                      '&lt;span&gt;', '```\n<span></span>\n```', '[^1]: a footnote', 'none\u3164spent', '`&nbsp;`',
+                      '&amp;', '&nbsp without its semicolon'):
+            with self.subTest(content=shown):
+                self.assertEqual(R.problems(TITLE, filled(Cost=shown)), [])
+
     def test_comments_are_removed_from_the_whole_body_before_the_split(self):
         self.assertEqual(R.problems(TITLE, plain()), [])
         whole = '<!--\n' + plain() + '\n-->'                      # GitHub shows an empty description
@@ -136,6 +164,29 @@ class TheSections(unittest.TestCase):
         tilde = 'the log:\n~~~~\n## Rollback\n```\nstill inside\n~~~~'
         self.assertEqual(R.problems(TITLE, filled(Evidence=tilde)), [])
 
+    def test_a_comment_mark_inside_code_is_text(self):
+        # the review of 2026-11-26: comments were removed before code was read, so a "<!--" in code hid the rest of
+        # the body. On GitHub code shows as written: a code span or a fenced block holds the mark as text.
+        for evidence in ('the guidance begins with `<!--`', 'the template:\n```\n<!-- guidance\n```',
+                         'a span of two: ``a <!-- b``', '~~~\n<!--\n~~~', '```text\n## Status\n<!-- x\n```',
+                         '`<!--` and later `-->`'):
+            with self.subTest(evidence=evidence):
+                self.assertEqual(R.problems(TITLE, plain(Evidence=evidence)), [])
+                self.assertEqual(R.problems(TITLE, filled(Evidence=evidence)), [])
+
+    def test_a_comment_still_hides_what_it_holds(self):
+        # a comment that begins first hides the code marks inside it, and code ends where GitHub ends it
+        self.assertEqual(R.problems(TITLE, plain(Cost='<!-- `x` and ```\n## Cost\n``` -->')),
+                         ['the section "## Cost" is empty'])
+        self.assertEqual(R.problems(TITLE, plain(Cost='a `stray backtick\n\n<!-- hidden -->')), [])
+        for cost in ('`a\n\nb <!-- c` hides the rest', '`a\n<!-- b` hides the rest'):
+            with self.subTest(cost=cost):      # a code span never crosses a blank line or a line a comment begins
+                self.assertIn('the section "## Status" is missing', R.problems(TITLE, plain(Cost=cost)))
+        escaped = R.problems(TITLE, plain(Cost='\\`<!-- x`'))       # \` is text, so the comment is never closed
+        self.assertIn('the section "## Status" is missing', escaped)
+        # ```x``` at the start of a line is a code span, not a fence that would swallow the rest of the body
+        self.assertEqual(R.problems(TITLE, plain(Tests='```pytest -q``` passed')), [])
+
     def test_a_crlf_body_passes(self):
         crlf = filled().replace('\n', '\r\n')
         self.assertEqual(R.problems(TITLE, crlf), [])
@@ -147,10 +198,22 @@ class TheSections(unittest.TestCase):
 
 
 class TheStatus(unittest.TestCase):
+    def test_a_mark_closed_after_the_stop_passes(self):
+        # the review of 2026-11-26: "**PASS:** reason" shows a bold "PASS:" and was rejected
+        for status in R.STATUSES:
+            for text in (f'**{status}:** the reason', f'__{status}.__ the reason', f'`{status}:` the reason',
+                         f'*{status}.* the reason', f'**{status}—** the reason', f'**{status}:**'):
+                with self.subTest(status=text):
+                    self.assertEqual(R.problems(TITLE, filled(Status=text)), [])
+                    self.assertEqual(R.status_word(filled(Status=text)), status)
+        self.assertEqual(R.problems(TITLE, filled(Status='<b>HOLD</b>: CI')), [])      # a tag draws no text
+        self.assertEqual(R.problems(TITLE, filled(Status='HOLD&nbsp;(CI)')), [])        # a space is a space
+
     def test_a_status_outside_the_three_fails(self):
         for bad in ('DONE', 'passed', 'ready to merge', 'PASSED', 'PASSING', 'HOLDING', 'FAILED', 'PASS/FAIL',
                     'PASS/FAIL/HOLD', 'PASS_WITH_WARNINGS', 'PASS_PENDING', 'PASS2', 'PASS, FAIL or HOLD',
-                    'PASS, FAIL or HOLD, as the first word.', 'not PASS', 'will FAIL', '**PASS', 'pass'):
+                    'PASS, FAIL or HOLD, as the first word.', 'not PASS', 'will FAIL', '**PASS', 'pass',
+                    '**PASS:**reason', '**PASS,** the reason', '**PASS:* x', '**PASSED:** x', '`PASS/`FAIL'):
             with self.subTest(status=bad):
                 found = R.problems(TITLE, filled(Status=bad))
                 self.assertEqual(len(found), 1, found)
@@ -188,22 +251,58 @@ class TheTaskId(unittest.TestCase):
 
 
 class TheExceptions(unittest.TestCase):
+    BRANCH = 'revert-532-claude/practical-hopper-oi3qj2-s1'          # what GitHub's Revert button names the branch
+
     def test_a_github_revert_passes_with_its_generated_body(self):
         title = 'Revert "S1.7 A pull request template with the 18 fields"'
         for body in ('Reverts Shayfly/desktop-tutorial#532', 'Reverts Shayfly/desktop-tutorial#532\r\n\r\nWhy: red'):
             with self.subTest(body=body):
-                self.assertIsNotNone(R.accepted_without_report(title, body, 'someone'))
+                self.assertIsNotNone(R.accepted_without_report(title, body, 'someone', self.BRANCH, REPO))
                 with tempfile.TemporaryDirectory() as d:
-                    done = run('--event', event_file(d, title, body))
+                    done = run('--event', event_file(d, title, body, head=self.BRANCH, repository=REPO))
                 self.assertEqual(done.returncode, 0, done.stdout)
                 self.assertIn('no delivery report needed: a GitHub revert', done.stdout)
 
     def test_a_revert_title_alone_is_not_enough(self):
-        self.assertIsNone(R.accepted_without_report('Revert "S1.7 x"', 'I undo it', 'someone'))
-        self.assertIsNone(R.accepted_without_report('S1.7 x', 'Reverts Shayfly/desktop-tutorial#532', 'someone'))
+        self.assertIsNone(R.accepted_without_report('Revert "S1.7 x"', 'I undo it', 'someone', self.BRANCH, REPO))
+        self.assertIsNone(R.accepted_without_report('S1.7 x', 'Reverts Shayfly/desktop-tutorial#532', 'someone',
+                                                    self.BRANCH, REPO))
         with tempfile.TemporaryDirectory() as d:
-            done = run('--event', event_file(d, 'Revert "S1.7 x"', 'I undo it'))
+            done = run('--event', event_file(d, 'Revert "S1.7 x"', 'I undo it', head=self.BRANCH, repository=REPO))
         self.assertEqual(done.returncode, 1)
+
+    def test_the_spoofed_revert_of_the_review_needs_the_report(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'spoof.json')
+            with open(path, 'w', encoding='utf-8') as fh:
+                json.dump(SPOOF, fh)
+            done = run('--event', path)
+            with open(path, 'w', encoding='utf-8') as fh:       # the same event, sent to this repository
+                json.dump({**SPOOF, 'repository': {'full_name': REPO}}, fh)
+            here = run('--event', path)
+        for result in (done, here):
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertNotIn('no delivery report needed', result.stdout)
+            self.assertIn('the section "## Task ID" is missing', result.stdout)
+
+    def test_each_part_of_a_github_revert_is_required(self):
+        title, body = 'Revert "S1.7 x"', 'Reverts Shayfly/desktop-tutorial#532'
+        self.assertIsNotNone(R.accepted_without_report(title, body, 'someone', self.BRANCH, REPO))
+        self.assertIsNotNone(R.accepted_without_report(title, body, 'someone', self.BRANCH, REPO.upper()))
+        for branch, repository, why in (('claude/new-feature', REPO, 'a branch GitHub does not make'),
+                                        (None, REPO, 'no branch'),
+                                        ('revert-531-claude/x', REPO, 'the branch reverts another pull request'),
+                                        ('revert-532-', REPO, 'no branch after the number'),
+                                        (self.BRANCH, 'someone/elsewhere', 'another repository'),
+                                        (self.BRANCH, None, 'no repository')):
+            with self.subTest(why=why):
+                self.assertIsNone(R.accepted_without_report(title, body, 'someone', branch, repository))
+        for other in ('Reverts someone/elsewhere#532', 'Reverts Shayfly/desktop-tutorial#5320', 'Reverts #532',
+                      'I undo #532\nReverts Shayfly/desktop-tutorial#532'):
+            with self.subTest(body=other):
+                self.assertIsNone(R.accepted_without_report(title, other, 'someone', self.BRANCH, REPO))
+        done = run('--title', title, env_extra={'PR_BODY': body, 'PR_HEAD_REF': self.BRANCH, 'GITHUB_REPOSITORY': REPO})
+        self.assertEqual(done.returncode, 0, done.stdout)                   # without an event: the same rule
 
     def test_dependabot_passes_and_another_login_does_not(self):
         self.assertEqual(R.BOTS, ('dependabot[bot]',))
