@@ -1242,7 +1242,10 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 carried_budget=budget, history_not_restored=not_restored)}
             resume = loaded.resume
             logging.getLogger(__name__).info('BUILD_RESUMED build=%s from %s', build_id, build_checkpoint.label(recorded))
-        result = engine.build(build_prompt, resume=resume) if resume is not None else engine.build(build_prompt)
+        if resume is not None:
+            result = engine.build(build_prompt, resume=resume)
+        else:
+            result = engine.build(build_prompt)
         if agent_recorder is not None and hasattr(agent_recorder, 'raise_if_violated'):
             agent_recorder.raise_if_violated()   # plan-governed: a swallowed violation still fails closed
         _report_phase(jobs, build_id, 'VERIFYING', 'running quality, security and rights gates')

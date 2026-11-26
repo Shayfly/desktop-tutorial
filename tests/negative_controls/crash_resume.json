@@ -15,8 +15,8 @@
    "mutations": [
     {
      "file": "omni_prod/worker_tasks.py",
-     "old": "        result = engine.build(build_prompt, resume=resume) if resume is not None else engine.build(build_prompt)",
-     "new": "        result = engine.build(build_prompt)  # NEGATIVE CONTROL"
+     "old": "            result = engine.build(build_prompt, resume=resume)",
+     "new": "            result = engine.build(build_prompt)  # NEGATIVE CONTROL"
     }
    ],
    "targets": [

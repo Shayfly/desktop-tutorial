@@ -153,10 +153,9 @@ _REQUEUE = {
 # T.<lang>.logResumed / logRestarted repeat these texts, kept equal by tests/test_crash_resume.py.
 RECOVERY_LINES = {
     'resumed': {
-        'he': 'השרת שעבד על זה הפסיק להגיב. ממשיכים מהנקודה האחרונה שנשמרה, בלי להתחיל מחדש.',
-        'en': 'The server working on this stopped responding. We are continuing from the last saved point, '
-              'without starting over.',
-        'ar': 'توقف الخادم الذي كان يعمل على هذا عن الاستجابة. نتابع من آخر نقطة محفوظة، دون البدء من جديد.',
+        'he': 'הבנייה נקטעה באמצע. ממשיכים מהנקודה האחרונה שנשמרה, בלי להתחיל מחדש.',
+        'en': 'The build was cut off part-way. We are continuing from the last saved point, without starting over.',
+        'ar': 'انقطع البناء في منتصفه. نتابع من آخر نقطة محفوظة، دون البدء من جديد.',
     },
     'restarted': {
         'he': 'השרת שעבד על זה הפסיק להגיב. מתחיל מחדש מהתחלה.',
