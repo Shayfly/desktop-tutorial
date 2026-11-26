@@ -121,6 +121,11 @@ _LEGACY_PATCH=re.compile(r'^/api/v2[5-8]/projects/[^/]+/patch$')
 def _legacy_refused()->bool:
     if os.getenv('OMNI_ENV','development').strip().lower() in ('staging','production'):
         return True
+    # S4.5 review of 0384bbb: Vercel production runs without OMNI_ENV, so the refusal followed the S3 workspace alone and
+    # an incomplete S3 configuration opened the unscoped in-process demo store. Any Vercel deployment refuses; only local
+    # development (VERCEL_ENV unset or 'development') keeps these paths, and an unknown value refuses (fails closed).
+    if os.getenv('VERCEL_ENV','').strip().lower() not in ('','development'):
+        return True
     return _async_build_mode()
 
 @app.middleware('http')

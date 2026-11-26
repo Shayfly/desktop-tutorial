@@ -344,6 +344,52 @@ def test_the_legacy_guard_covers_every_route_said_to_be_refused_by_it():
         assert path.startswith(investor_app._LEGACY_PREFIXES) or investor_app._LEGACY_PATCH.match(path), key
 
 
+LEGACY = sorted(k for k, e in ROUTES.items() if e['kind'] == 'legacy_refused')
+_PLACEHOLDER = {'engine': 'godot', 'platform': 'android', 'collection': 'items', 'path': 'index.html'}
+
+
+def _placeholders(value):
+    if isinstance(value, str):
+        return re.sub(r'\{(\w+)(?::\w+)?\}', lambda m: _PLACEHOLDER.get(m.group(1), 'ffffffff-0000-4000-8000-000000000000'), value)
+    if isinstance(value, list):
+        return [_placeholders(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _placeholders(v) for k, v in value.items()}
+    return value
+
+
+@pytest.mark.parametrize('vercel_env', ('production', 'preview'))
+@pytest.mark.parametrize('key', LEGACY)
+def test_deployed_but_not_durable_still_refuses_every_legacy_route(key, vercel_env, monkeypatch):
+    """A Vercel deployment whose durable backend is incomplete (no OMNI_ENV, memory persistence, no S3 workspace --
+    this process) must still refuse the legacy routes: they read and write one in-process store that is not scoped to
+    an account. The refusal used to follow the S3 workspace, so a missing S3 variable opened them (review of 0384bbb)."""
+    from fastapi.testclient import TestClient
+    monkeypatch.delenv('OMNI_ENV', raising=False)
+    monkeypatch.setenv('VERCEL_ENV', vercel_env)
+    assert not investor_app._async_build_mode(), 'this test needs a deployment without the durable backend'
+    entry, (method, template) = ROUTES[key], key.split(' ', 1)
+    client = TestClient(served.app, raise_server_exceptions=False)
+    got = client.request(method, _placeholders(template), params=_placeholders(entry.get('query')),
+                         json=_placeholders(entry.get('body')), headers=_placeholders(entry.get('headers') or {}))
+    assert got.status_code == entry['refused'], \
+        f'{key} answered {got.status_code} with VERCEL_ENV={vercel_env} and no durable backend, not {entry["refused"]}: {got.text[:200]}'
+
+
+@pytest.mark.parametrize('vercel_env,refused', ((None, False), ('development', False), ('preview', True),
+                                                ('production', True), ('Production ', True), ('staging-x', True)))
+def test_the_legacy_refusal_reads_the_vercel_environment_and_fails_closed(vercel_env, refused, monkeypatch):
+    """Only local development (VERCEL_ENV unset or 'development') keeps the legacy demo paths; any other value,
+    including one nobody expected, refuses them."""
+    monkeypatch.delenv('OMNI_ENV', raising=False)
+    if vercel_env is None:
+        monkeypatch.delenv('VERCEL_ENV', raising=False)
+    else:
+        monkeypatch.setenv('VERCEL_ENV', vercel_env)
+    assert not investor_app._async_build_mode()
+    assert investor_app._legacy_refused() is refused
+
+
 PLATFORM_GATES = {'history', 'export', 'restore', 'rights_status', 'add_rights_evidence', 'verify_rights_evidence',
                   'original_alternative', 'set_project_branding', 'authorize_live_usage'}
 
