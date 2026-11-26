@@ -47,3 +47,14 @@ A paid external provider is not called before a durable authorization ceiling ex
 ## Cost dimensions still required before public production
 
 Provider/model tokens or credits, image/3D/video/audio units, retries and paid failures, sandbox CPU/GPU, build time, object storage, egress, database/queue/monitoring, payment fees, non-recoverable tax, refunds/chargebacks where applicable, and support allocation. M4.95 establishes the accounting contracts; production telemetry and commercial provider price catalogs remain `NOT_CONFIGURED` until live credentials/contracts and measured usage exist.
+
+## The owner's word of 2026-11-26 (newer than the rules above, which it overrides where they differ)
+
+- A missing price no longer stops an execution or a build, for any account. A model or capability without a price runs;
+  its usage (tokens, units) is recorded and its cost is UNKNOWN -- never zero, never the reservation -- and every build's
+  evidence names it in `cost_data_missing`. An unpriced capability event keeps the storage's 0 placeholders with
+  `pricing_version` starting `unpriced:`; every reader skips them as a cost.
+- Settlement: a component whose price is missing is left out of COMPUTED_FROM_USAGE and named; CONSERVATIVE_RESERVATION
+  remains only for liability that cannot be bounded (an earlier worker's call without exposure).
+- The founder account builds without money limits (safety bounds $25 and 400 calls per build); see pricing.py.
+
