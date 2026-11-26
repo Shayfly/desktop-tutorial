@@ -1,3 +1,10 @@
+# 2026-11-26 — S4.2 review fixes (review of 1edee7b; Claude Code; local commits, not pushed)
+
+- Blocker fixed: a continued build could settle above its reservation (reservation 1.00, settled 1.118852): the carried budget now also excludes the lost worker's unanswered call's authorized amount, which the settlement adds. `test_a_continued_build_never_settles_above_its_reservation` (real PostgreSQL, the reviewer's numbers): settled <= 1.00; control NC11.
+- Only the earlier workers come off the limits (trace filter): headroom 0.95, not 0.92 (NC12). The resume decision and the byte check run before any paid call of the run (right after prior_metered); the prompt is checked before the engine; the image check of a continued build replays the lost worker's verdicts from the checkpoint (`ReplayVision`), no vision call is paid again (unit test; no image build was run). Checkpoint keys must be under `build-checkpoints/<build>/`.
+- Epoch fence: `PostgresBuildRepository.fence`: a worker's terminal transitions and heartbeats change the row only in its claim's recovery epoch; a refused one is logged STALE_WORKER_REFUSED (NC14, NC15); the checkpoint write's guard has its test (NC13). Not fenced: the stale worker's settlement and its event lines.
+- Evidence: `tests/test_crash_resume_pg.py` 17 passed, `tests/test_crash_resume.py` 18 passed; controls `crash_resume` 15/15 (5 default + 11 pg, NC3 in both); the other sets that touch these files 287/287 default (45 specs) and 20/20 pg (8 specs). Merged with main f675730 (#540).
+
 # 2026-11-26 — S4.2: a build whose worker dies continues from its last checkpoint (Claude Code; local commits on `claude/practical-hopper-oi3qj2-crash-resume`, not pushed, NOT run on GitHub or on the worker host)
 
 - The owner's decision (10:13 UTC): option (א), continue; cost is set aside -- the call in flight at the crash is what the attempt ledger shows, nothing is computed for it.

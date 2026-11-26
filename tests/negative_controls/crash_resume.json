@@ -158,7 +158,7 @@
    "mutations": [
     {
      "file": "omni_prod/build_checkpoint.py",
-     "old": "        policy, external_budget_usd=max(policy.external_budget_usd - metered, Decimal('0')),",
+     "old": "        policy, external_budget_usd=max(policy.external_budget_usd - metered - unanswered, Decimal('0')),",
      "new": "        policy, external_budget_usd=policy.external_budget_usd,  # NEGATIVE CONTROL"
     }
    ],
