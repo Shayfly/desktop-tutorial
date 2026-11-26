@@ -235,8 +235,8 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/agents.py",
-     "old": "            if V.blocking(problems):\n                doc, problems = self._without_invented(doc, problems, sheet, offered, route)\n            if V.blocking(problems):\n                report['problems']",
-     "new": "            if V.blocking(problems):\n                report['problems']"
+     "old": "                # deterministic) before another paid correction is spent on them\n                doc, problems = self._without_invented(doc, problems, sheet, offered, route)\n",
+     "new": "                # deterministic) before another paid correction is spent on them\n"
     }
    ],
    "targets": [

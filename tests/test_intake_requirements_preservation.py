@@ -81,7 +81,12 @@ class ApplyTests(unittest.TestCase):
                'requirements': ['תשלומים באשראי', 123, 'x' * 400], 'delegate_rest': 'yes'}
         it, dropped = validate_model_output(raw, msg)
         self.assertEqual(it.proposals, [])                                       # evidence not in the message
-        self.assertEqual(it.requirements, ['תשלומים באשראי'])                    # text only, never a field
+        # the owner, 2026-11-26: a long requirement is kept as the model's text (cut at 1,000, noted), not dropped
+        # past 300 -- and no requirement of the model ever reaches the contract, which is built from the brief alone
+        self.assertEqual(it.requirements, ['תשלומים באשראי', 'x' * 400])          # text only, never a field
+        built = str(C.build(agent.apply(d.start(msg), it).brief).to_dict())
+        self.assertNotIn('תשלומים באשראי', built)
+        self.assertNotIn('x' * 40, built)
         self.assertFalse(it.delegate_rest)
         self.assertTrue(any('delegate_rest' in x for x in dropped))
         for bad in ({'proposals': 'login'}, {'proposals': {'a': 1}}, {'requirements': 'x'}, [1], 'x', None):

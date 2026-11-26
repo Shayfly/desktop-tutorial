@@ -59,8 +59,8 @@ class TheValidator(unittest.TestCase):
         case('LAYOUT_UNKNOWN', 'layout.hero', lambda d: d['layout'].update(hero='carousel'))
         case('TOO_LONG', 'sections.hero.cta', lambda d: sec(d)['hero'].update(cta='לתיאום פגישת ייעוץ ' * 3))
         case('TOO_FEW', 'sections.faq.items', lambda d: sec(d)['faq'].update(items=sec(d)['faq']['items'][:1]))
-        case('TOO_MANY', 'sections.process.steps', lambda d: sec(d)['process'].update(
-            steps=sec(d)['process']['steps'] * 3))
+        case('TOO_MANY', 'sections.process.steps', lambda d: sec(d)['process'].update(     # 15: past the 12 steps
+            steps=sec(d)['process']['steps'] * 5))                                          # allowed on 2026-11-26
         case('EMPTY_TEXT', 'sections.hero.lead', lambda d: sec(d)['hero'].update(lead='  '))
         case('NOT_HEBREW', 'sections.services.items[0].desc', lambda d: sec(d)['services']['items'][0].update(
             desc='Unfair dismissal claims.'))

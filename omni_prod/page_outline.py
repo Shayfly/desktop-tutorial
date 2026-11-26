@@ -19,9 +19,15 @@ import logging
 import re
 
 REQUIREMENT = 'CUSTOMER-PAGE-STRUCTURE'
-MAX_SECTIONS = 20
-MAX_TITLE = 60
-MAX_BODY = 400
+# The owner, 2026-11-26 (WAREHOUSE 136, option a): the customer's own outline held at most 20 sections and each
+# section's text was cut at 400 characters, silently. Raised; when a bound still applies it is logged
+# (PAGE_OUTLINE_CUT), written into the structure requirement itself, and said to the customer when the spec is shown
+# for approval (outline_notes / notes_message, conversation.supervisor._gate1). MAX_TITLE is not a cut: it defines a
+# section line (a name of at most this many characters, then a dash or a colon); a longer line is prose and ends the
+# structure as before, and every line stays in the request the build reads.
+MAX_SECTIONS = 60
+MAX_TITLE = 120
+MAX_BODY = 4000
 _HEADING = re.compile(r'^\s*(?:מבנה\s+(?:הדף|האתר|העמוד)|סדר\s+(?:הדף|העמוד)|page\s+structure|sections)\s*:\s*$', re.I)
 # "הירו — ...", "שאלות נפוצות - ...", "צור קשר: ..." -- a short title, a dash or colon, then what the section holds
 _SECTION = re.compile(r'^\s*(?:\d+[.)]\s*)?(?P<title>[^—:\-–\n]{2,%d}?)\s*(?:—|–|-|:)\s*(?P<body>.+)$' % MAX_TITLE)
@@ -33,10 +39,11 @@ _ROLE_ONLY = re.compile(r'^(?:פתיח|פתיחה|הירו|באנר|באנר ר�
 _LOG = logging.getLogger(__name__)
 
 
-def outline(text: str) -> list[tuple[str, str]]:
-    """[(title, what the customer wrote for it)] in order; [] when the request lists no structure."""
+def _read(text: str) -> tuple[list[tuple[str, str]], list[dict]]:
+    """(the sections, what the bounds left out: [{'kind': 'body_cut' | 'sections_cut', ...}])."""
     lines = (text or '').split('--- Approved project brief')[0].splitlines()
     out: list[tuple[str, str]] = []
+    notes: list[dict] = []
     numbered_list = False
     for i, line in enumerate(lines):
         if not _HEADING.match(line):
@@ -53,11 +60,50 @@ def outline(text: str) -> list[tuple[str, str]]:
             if out and numbered_list and not numbered:
                 break                           # a numbered list ends at its first unnumbered line ("עיצוב: ...")
             numbered_list = numbered_list or (not out and numbered)
-            out.append((m['title'].strip(' "\''), m['body'].strip()[:MAX_BODY]))
-            if len(out) >= MAX_SECTIONS:
-                _LOG.warning('PAGE_OUTLINE_CUT at %d sections', MAX_SECTIONS)
-                break
+            if len(out) >= MAX_SECTIONS:        # a section past the bound: counted and said, never dropped silently
+                if notes and notes[-1]['kind'] == 'sections_cut':
+                    notes[-1]['left_out'] += 1
+                else:
+                    notes.append({'kind': 'sections_cut', 'bound': MAX_SECTIONS, 'left_out': 1})
+                continue
+            title, body = m['title'].strip(' "\''), m['body'].strip()
+            if len(body) > MAX_BODY:
+                notes.append({'kind': 'body_cut', 'title': title, 'chars': len(body), 'bound': MAX_BODY})
+            out.append((title, body[:MAX_BODY]))
         break
+    return out, notes
+
+
+def outline(text: str) -> list[tuple[str, str]]:
+    """[(title, what the customer wrote for it)] in order; [] when the request lists no structure. What a bound left
+    out is logged here (PAGE_OUTLINE_CUT) and said by outline_notes / notes_message."""
+    sections, notes = _read(text)
+    for note in notes:
+        _LOG.warning('PAGE_OUTLINE_CUT %s', note)
+    return sections
+
+
+def outline_notes(text: str) -> list[dict]:
+    """What the bounds left out of the customer's outline (empty when nothing)."""
+    return _read(text)[1]
+
+
+def notes_message(notes: list[dict], lang: str = 'he') -> list[str]:
+    """Each note in the customer's words (the spec they approve says it)."""
+    out = []
+    for n in notes:
+        if n['kind'] == 'sections_cut':
+            out.append(f'במבנה הדף שכתבתם יש יותר מ-{n["bound"]} חלקים: הדף ייבנה מ-{n["bound"]} הראשונים, ו-{n["left_out"]} '
+                       'האחרונים לא ייכנסו למבנה (הם נשארים בבקשה).' if lang == 'he' else
+                       f'Your page outline has more than {n["bound"]} parts: the page is built from the first '
+                       f'{n["bound"]}, and the last {n["left_out"]} are not part of the structure (they stay in the request).')
+        elif n['kind'] == 'body_cut':
+            out.append(f'מה שכתבתם לחלק "{n["title"]}" ארוך מ-{n["bound"]:,} תווים: {n["bound"]:,} התווים הראשונים נכנסים '
+                       'להנחיית המבנה, והשאר נשאר בבקשה.' if lang == 'he' else
+                       f'What you wrote for the part "{n["title"]}" is longer than {n["bound"]:,} characters: the first '
+                       f'{n["bound"]:,} go into the structure, and the rest stays in the request.')
+        else:
+            raise ValueError(f'unknown outline note kind {n["kind"]!r}')
     return out
 
 

@@ -104,7 +104,7 @@ class APriceInAHeading(unittest.TestCase):
                     generate(gw)
                 self.assertEqual(failure_code(caught.exception), 'site_content_invalid')
                 self.assertIn((PATH, 'TOO_LONG'), {(p['path'], p['code']) for p in caught.exception.problems})
-                self.assertEqual(gw.roles().count('content'), 2)
+                self.assertEqual(gw.roles().count('content'), 1 + A.MAX_CORRECTIONS)    # caps-a 1: up to three
 
     def test_a_substituted_heading_that_fits_is_rendered_with_one_content_call(self):
         self.assertEqual(len(R.shown(FITS, Fx.fact_sheet(PRICED))), H3)

@@ -1,0 +1,29 @@
+{
+ "pr": "caps-a-upload-counts",
+ "sha256": ["tests/test_upload_counts.py", "omni_prod/attachments.py", "omni_prod/investor_app.py"],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the old limit is back: 6 images per message",
+   "mutations": [{"file": "omni_prod/attachments.py", "old": "MAX_PER_MESSAGE = 20\n", "new": "MAX_PER_MESSAGE = 6\n"}],
+   "targets": ["tests/test_upload_counts.py"],
+   "expect_failed": ["test_the_bounds", "test_twenty_images_in_one_message_and_one_more_is_refused",
+                     "test_the_message_routes_take_twenty_ids"]
+  },
+  {
+   "id": "NC2",
+   "what": "the old limit is back: 40 live images per project",
+   "mutations": [{"file": "omni_prod/attachments.py", "old": "MAX_LIVE_PER_PROJECT = 200\n", "new": "MAX_LIVE_PER_PROJECT = 40\n"}],
+   "targets": ["tests/test_upload_counts.py"],
+   "expect_failed": ["test_the_bounds", "test_the_two_hundredth_image_is_kept_and_the_next_one_is_refused"]
+  },
+  {
+   "id": "NC3",
+   "what": "the conversation route keeps its own 6-id bound",
+   "mutations": [{"file": "omni_prod/investor_app.py", "old": "    attachment_ids: list[str] = Field(default_factory=list, max_length=20)   # = attachments.MAX_PER_MESSAGE\n    brief_revision",
+                  "new": "    attachment_ids: list[str] = Field(default_factory=list, max_length=6)\n    brief_revision"}],
+   "targets": ["tests/test_upload_counts.py"],
+   "expect_failed": ["test_the_message_routes_take_twenty_ids"]
+  }
+ ]
+}
