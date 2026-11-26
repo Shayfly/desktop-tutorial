@@ -50,7 +50,7 @@ def approved_prompt(request: str, answers: dict) -> str:
         brief = d.answer(brief, {q.id: d.DELEGATE for q in group})
     else:
         raise ValueError(f'the brief was not complete after {MAX_BRIEF_STEPS} steps')
-    return (brief.prompt + '\n' + d.requirements_text(brief))[:12000]
+    return d.build_prompt(brief)[0]        # = investor_app._brief_prompt (the owner, 2026-11-26: decisions never cut)
 
 
 def run(prompt: str) -> dict:

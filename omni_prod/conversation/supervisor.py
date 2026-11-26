@@ -231,6 +231,8 @@ _TXT = {
            'image_change_defaulted': 'שינוי של התמונה עצמה (למשל קריקטורה) עוד לא זמין, אז כדי להתקדם בחרתי: {choice}. אפשר לשנות בכל רגע.',
            'image_hero_taken': 'כבר יש בדף תמונה ראשית אחת. בחרו לתמונה הזו מקום אחר.',
            'attached_kept': '(שמרתי {n} בפרויקט; מההודעה הזו היא לא נכנסת לבנייה.)',
+           'request_cut': '(התחלתי את הבקשה מ-{kept} ההודעות הקודמות שלכם ומההודעה הזו. {chars} תווים מהודעות מוקדמות '
+                          'יותר לא נכנסו לבקשה; אם יש בהם משהו חשוב, כתבו אותו שוב.)',
            'images': lambda n: 'תמונה אחת' if n == 1 else f'{n} תמונות'},
     'en': {'safe_default': 'No answer on {topic}, so I applied a safe default: {label}. You can change it any time in the "Requirements" tab.',
            'card_blocked': 'A decision on {topic} is missing, and we cannot continue without it. You can choose in the "Requirements" tab.',
@@ -288,6 +290,8 @@ _TXT = {
            'image_change_defaulted': 'Changing the image itself (a caricature, for example) is not available yet, so to move on I chose: {choice}. You can change it any time.',
            'image_hero_taken': 'The page already has its one main image. Choose another place for this image.',
            'attached_kept': '(I saved {n} in the project; from this message it does not go into the build.)',
+           'request_cut': '(I started the request from your {kept} earlier messages and this one. {chars} characters of '
+                          'messages before those did not go into it; if anything there matters, write it again.)',
            'images': lambda n: 'one image' if n == 1 else f'{n} images'},
 }
 
@@ -424,6 +428,7 @@ class ConversationSupervisor:
         # 79: the build-admission check the banner shows (plan preview: quote, plan allowance, infrastructure, gate).
         # The chat never says "ready, approve" while this says no; if they would disagree, admission wins.
         self.admission = admission                             # (project_id, row, lang) -> preview dict | None
+        self.request_cut = None                                # what _whole_request left out of a new brief, if any
 
     # ------------------------------------------------------------------ helpers
     def _unpriced_gate(self, project_id: str, account_id: str, row, lang: str, turn) -> list[str] | None:
@@ -604,8 +609,8 @@ class ConversationSupervisor:
         gate 1 was shown and approved three times, and gate 2 refused each time with "האם האתר שומר מידע? ענו על
         השאלה בשיחה" and no card. A compile failure is logged at ERROR and gate 2 still refuses on its own."""
         from ..product_architect import ProductArchitect
-        prompt = (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000]
         try:
+            prompt = d.build_prompt(row.brief)[0]          # = investor_app._brief_prompt: the decisions never cut
             contract = ProductArchitect().compile(prompt, project_id='gate1-check', contract_version=1)
         except Exception:
             import logging
@@ -676,8 +681,16 @@ class ConversationSupervisor:
         # business detail word for word was already dropped (the detail stays in the canon line below)
         safe = _TXT['he' if lang == 'he' else 'en']['safe_suffix']
         summary = '; '.join(f"{r['label']}: {r['value']}" + (safe if r['default'] else '') for r in card['rows'])
-        return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *excluded, *canon['lines'],
-                AF.range_line(lang, lo, hi), t['gate1']]
+        # the owner, 2026-11-26: what a bound leaves out of the customer's own page outline is said in the spec they
+        # approve (page_outline.outline_notes), never only logged during the build
+        from .. import page_outline as PO
+        outline_said = PO.notes_message(PO.outline_notes(row.brief.prompt), lang)
+        if outline_said:
+            notices = list((turn.interpretation or {}).get('notices') or [])
+            turn.interpretation = {**(turn.interpretation or {}),
+                                   'notices': notices + [{'kind': 'outline_cut', 'message': m} for m in outline_said]}
+        return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *excluded, *outline_said,
+                *canon['lines'], AF.range_line(lang, lo, hi), t['gate1']]
 
     def _plan(self, project_id, row):
         try:
@@ -1120,35 +1133,50 @@ class ConversationSupervisor:
         c = complexity.classify(message, history, confirmed=confirmed, proposed=proposed)
         return c, lanes.choose(c.level)
 
-    MAX_CARRIED_MESSAGES = 5          # earlier customer messages a new brief may start from
-    MAX_REQUEST_CHARS = 12_000        # the whole request a brief starts from
+    # The owner, 2026-11-26 (WAREHOUSE 136, option a): a new brief started from the last 5 earlier messages, at most
+    # 12,000 characters, and the oldest were dropped silently (a log line only). Raised, and a drop is said to the
+    # customer in the turn's reply and stored with it (interpretation.request_cut).
+    MAX_CARRIED_MESSAGES = 20         # earlier customer messages a new brief may start from (was 5)
+    MAX_REQUEST_CHARS = 48_000        # the whole request a brief starts from: six messages at the 8,000 limit (was 12,000)
+    CARRY_READ = 100                  # the latest messages read to find them (customer and assistant turns alternate)
 
     def _whole_request(self, project_id, message: str) -> str:
         """The text a NEW brief starts from: everything the customer wrote in this project before a brief existed,
         then this message. Production 2026-11-17, "148 דלתות": the owner pasted a full brief, the router refused it
         (a misread word), said "ההודעה שלכם נשמרה בשיחה" -- and the brief was then started from the next message
         alone, the single word "אתר". 3,295 characters of the customer's own words never reached the build.
-        A message said to be kept is part of the request. Bounded; a text cut by the bound is logged."""
-        earlier = [m.get('content') or '' for m in self.store.messages_for(project_id, limit=40)
+        A message said to be kept is part of the request. Bounded; whatever the bounds leave out is logged and kept in
+        self.request_cut for the turn to say (never silent)."""
+        self.request_cut = None
+        read = self.store.messages_for(project_id, limit=self.CARRY_READ)
+        earlier = [m.get('content') or '' for m in read
                    if m.get('role') == 'customer' and not (m.get('interpretation') or {}).get('system')
                    and not (m.get('interpretation') or {}).get('label')]   # a platform label is not their words (128)
         if earlier and earlier[-1] == message:
             earlier = earlier[:-1]                        # the current message was stored at turn start
         earlier = [e.strip() for e in earlier if e.strip() and e.strip() != message.strip()]
+        left_out = earlier[:-self.MAX_CARRIED_MESSAGES] if len(earlier) > self.MAX_CARRIED_MESSAGES else []
         earlier = earlier[-self.MAX_CARRIED_MESSAGES:]
         if not earlier:
             return message
         whole = '\n'.join(earlier + [message]).strip()
+        cut_chars = 0
         if len(whole) > self.MAX_REQUEST_CHARS:
-            import logging
-            logging.getLogger(__name__).warning('REQUEST_CUT project=%s chars=%s kept=%s', project_id, len(whole),
-                                                self.MAX_REQUEST_CHARS)
             # the newest words win: whole earlier messages are dropped oldest first, and the message being answered
             # is never the part that is cut
             while len(earlier) > 1 and len('\n'.join(earlier + [message])) > self.MAX_REQUEST_CHARS:
-                earlier = earlier[1:]
+                left_out, earlier = left_out + earlier[:1], earlier[1:]
             room = max(0, self.MAX_REQUEST_CHARS - len(message) - 1)
-            whole = ('\n'.join(earlier)[:room] + '\n' + message).strip()[:self.MAX_REQUEST_CHARS]
+            joined = '\n'.join(earlier)
+            cut_chars = max(0, len(joined) - room)
+            whole = (joined[:room] + '\n' + message).strip()[:self.MAX_REQUEST_CHARS]
+        if left_out or cut_chars:
+            self.request_cut = {'messages_left_out': len(left_out), 'chars_left_out': sum(map(len, left_out)) + cut_chars,
+                                'messages_carried': len(earlier), 'bound_messages': self.MAX_CARRIED_MESSAGES,
+                                'bound_chars': self.MAX_REQUEST_CHARS,
+                                'older_unread': len(read) >= self.CARRY_READ}       # the read window was full
+            import logging
+            logging.getLogger(__name__).warning('REQUEST_CUT project=%s %s', project_id, self.request_cut)
         return whole
 
     def _route_output(self, row, message, lang) -> Turn | None:
@@ -1224,6 +1252,7 @@ class ConversationSupervisor:
                     answers = {q.id: value}
                     break
         brief = row.brief if row else d.start(self._whole_request(project_id, message or ''), d.GUIDED)
+        request_cut = None if row else self.request_cut      # a new brief: what its request left out, said below
         for qid, value in answers.items():
             brief = intake_agent.answer_question(brief, qid, value)
         sensitive = bool(lane and lane.get('requires_explicit_confirmation'))
@@ -1345,6 +1374,14 @@ class ConversationSupervisor:
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
         turn.gaps = gaps
         parts = []
+        if request_cut:
+            # the owner, 2026-11-26: a new brief that could not carry every earlier message says so, in the reply and in
+            # the stored message, never only in a log
+            said = T['request_cut'].format(n=request_cut['messages_left_out'], chars=f"{request_cut['chars_left_out']:,}",
+                                           kept=request_cut['messages_carried'])
+            notices = list((turn.interpretation or {}).get('notices') or []) + [{'kind': 'request_cut', 'message': said}]
+            turn.interpretation = {**(turn.interpretation or {}), 'request_cut': request_cut, 'notices': notices}
+            parts.append(said)
         if any(k.startswith('image_place_') for k in answers) and row.brief.hints.get('image_hero_taken') == 'yes':
             parts.append(T['image_hero_taken'])      # one main image per page: the place is asked again
         if any(answers.get(q) == 'change' for q in ('image_use', 'image_use_other')):

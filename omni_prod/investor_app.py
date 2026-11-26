@@ -2118,7 +2118,7 @@ def _supervisor(key: str, account_id: str | None = None):
         def admission(project_id, row, lang):   # 79: the banner's own check, saving no contract
             from . import discovery as d
             from .build_contract_repository import MemoryBuildContractRepository
-            prompt = (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000]   # = _brief_prompt
+            prompt = d.build_prompt(row.brief)[0]                                    # = _brief_prompt
             return _plan_admission(account_id, project_id, prompt, row, MemoryBuildContractRepository(), lang)[0]
     return ConversationSupervisor(briefs=_brief_repo(), store=_conversation_store(), gateway=None,
                                   credits=credits, credits_from_plan=credits_from_plan, context=_project_context(key),
@@ -2137,6 +2137,8 @@ def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
                       'intent': (m.get('interpretation') or {}).get('intent'),
                       'actions': (m.get('interpretation') or {}).get('actions') or [],
                       'attachments': (m.get('interpretation') or {}).get('attachments') or [],
+                      # the owner, 2026-11-26: a bound that applied to this turn, in the customer's words (never silent)
+                      'notices': (m.get('interpretation') or {}).get('notices') or [],
                       'ai_status': _conversation_message_status(m)}
                      for m in store.messages_for(project_id, limit=100)
                      if not (m.get('interpretation') or {}).get('system')],   # the flow mark is not a message
@@ -2442,7 +2444,13 @@ def _brief_prompt(project_id: str, revision: int) -> tuple[str, object]:
         # O10: name what is missing (pending question ids and contradictions), not only that something is.
         raise HTTPException(409, detail={'error': 'brief_incomplete', 'message': 'Some questions are still open.',
                                          **d.missing(row.brief)})
-    return (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000], row
+    # the owner, 2026-11-26: the approved decisions are never cut (discovery.build_prompt); a cut of the request, when
+    # one is still needed past BUILD_PROMPT_MAX, is said in the prompt, the plan view and the build evidence
+    try:
+        prompt, _cut = d.build_prompt(row.brief)
+    except ValueError as exc:
+        raise HTTPException(409, detail={'error': 'request_too_long', 'message': str(exc)}) from exc
+    return prompt, row
 
 
 # The architect's role and data tokens (product_architect._infer_roles / _infer_data_requirements and the
@@ -2611,6 +2619,12 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     preview['credits_required'] = build_credits
     preview['brief_revision'] = req.brief_revision
     preview['allowance'] = _v28.subscription(token=token)
+    if brief_row is not None:
+        # the owner, 2026-11-26: a request too long for the build prompt is cut at its start, never silently -- the
+        # plan says so in the customer's words before they approve (discovery.build_prompt)
+        from . import discovery as _d
+        cut = _d.request_cut_of(prompt)
+        preview['request_cut'] = {**cut, 'message': _d.request_cut_message(cut, _lang(request))} if cut else None
     if internal_qa:
         # Founder-only prototype diagnostics. Advisory information only: the
         # live reserve transaction RECHECKS this budget under a DB lock.
