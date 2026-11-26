@@ -19,7 +19,7 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from .evidence import AT, BACKUP, CRASH, DEPLOY, FREE, PAID, REHEARSAL_ACCEPT
+from .evidence import AT, BACKUP, DEPLOY, FREE, PAID, REHEARSAL_ACCEPT
 
 ROOT = Path(__file__).resolve().parents[2]
 REGRESSION = ROOT / 'PLATFORM_REGRESSION_MATRIX.json'
@@ -127,7 +127,11 @@ _INJECTIONS = (
     ('invalid migration', 'tests/test_failure_injection.py::test_invalid_migration_aborts_instead_of_diverging', 'deploy aborts on checksum drift'),
     ('corrupted artifact reference', 'tests/test_failure_injection.py::test_corrupted_artifact_is_refused', 'ArtifactIntegrityError, never served'),
     ('network interruption to the sandbox', 'tests/test_failure_injection.py::test_sandbox_network_interruption_is_a_named_error', 'RemoteSandboxError'),
-    ('worker killed mid-build', CRASH.ref, 'requeued once, build finished READY'),
+    # Law 2 (2026-11-26): not proven. The run this row cited is red, and the handling it named no longer holds
+    # (agent_os/evidence.py, the note where CRASH was). The plan's handling (S4.2) is not implemented yet.
+    ('worker killed mid-build', '', 'S4.2: the build continues from its last checkpoint -- not implemented; a recovered '
+                                    'build starts over, and since 2026-10-14 a build whose lost worker made a paid call '
+                                    'ends FAILED provider_liability_unknown instead of being requeued'),
     ('deployment during a build', DEPLOY.ref, 'drain: running job finishes first'),
     ('browser JS exception', 'tests/test_browser_probe.py', 'repairable BROWSER failure'),
     ('expired preview token', 'tests/test_preview_access.py::test_public_needs_no_token_and_expired_tokens_fail', '401 private page'),
@@ -150,8 +154,12 @@ GOLDEN_SCENARIOS = (
     ('Golden 2 — SaaS with authentication', (), 'NOT_RUN', 'generated-app sign-in is not implemented (Identity & Auth agent NOT_IMPLEMENTED)'),
     ('Golden 3 — Existing project modification', (), 'PARTIAL', 'founder change verified 2026-10-08 (mod_c14435dc); not re-run on this code'),
     ('Golden 4 — Cancellation (queued + active)', (FREE,), 'PASS', ''),
-    ('Golden 5 — Crash recovery', (CRASH,), 'PASS', ''),
-    ('Golden 6 — Provider failure', (), 'PARTIAL', 'fallback proven by injection tests; OpenAI/Anthropic have no credit, so no real second provider'),
+    ('Golden 5 — Crash recovery', (), 'FAIL', 'S4.2 (the build continues from its last checkpoint) is not implemented: a '
+     'recovered build starts over, and since 2026-10-14 (e5e11e5) a build whose lost worker made a paid call ends FAILED '
+     'provider_liability_unknown instead of being requeued. crash-verify checks S4.2 (postdeploy_checks.resume_verdict); '
+     'no crash-verify run has been green since 2026-10-09'),
+    ('Golden 6 — Provider failure', (), 'PARTIAL', 'fallback proven by injection tests; OpenAI and Anthropic answer again (model-probe run 42527017456, 2026-11-18) '
+     'but are not AVAILABLE to planning (no successful build call), so no real second provider yet'),
     ('Golden 7 — Budget guard', (), 'PARTIAL', 'ceiling enforced in the paid run ($0.15 effective); refusal proven by injection test'),
     ('Golden 8 — Backup / restore', (BACKUP,), 'PASS', 'restore into a throw-away database; no destructive drill'),
     ('Golden 9 — Automation', (), 'NOT_RUN', 'Automation agent NOT_IMPLEMENTED'),
