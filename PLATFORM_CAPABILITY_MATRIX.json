@@ -174,10 +174,8 @@
    "capability": "preview_access_protect",
    "expected_behavior": "as contracted",
    "test_layer": "real-server",
-   "test_location": [
-    "postdeploy-checks run 38083312245"
-   ],
-   "last_result": "REAL_SERVER_VERIFIED",
+   "test_location": [],
+   "last_result": "IMPLEMENTED",
    "last_verified_commit": "67a0765",
    "last_verified_at": "2026-10-10T20:20Z",
    "environment": "pre-staging worker host"
