@@ -2,6 +2,7 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| RED-EVIDENCE | Claude Code | Local commits, not pushed; HOLD for CI, the main session's dispatches and the owner's answer on S4.2 (money) | `claude/practical-hopper-oi3qj2-red-evidence`: vision 43689691749 and model 42527017456 re-cited (green, read 2026-11-26); crash evidence removed, Golden 5 FAIL, crash-verify checks S4.2; 39377332673 still listed; controls vision_probe_step 3/3, model_probe_runs 3/3, postdeploy_crash_agent_graph 2/2, postdeploy_crash_resume 5/5, paid_build_red_run 4/4, evidence_runs 52/52; STATUS.md 2026-11-26 |
 | LAW2-EVIDENCE-RUNS | Claude Code | Implemented with review fixes, verified locally; branch not pushed; real read-only run exit 0 (18 of 22 green, 4 known red listed in docs/evidence-runs-known-red.json, not fixed) | `claude/practical-hopper-oi3qj2-law2-evidence`; `scripts/resolve_evidence_runs.py`, `.github/workflows/evidence-runs.yml`; tests 76 passed, controls 52/52; STATUS.md 2026-11-25 |
 | LAW6-FRESHNESS-ISSUES | Claude Code | Implemented with review fixes, verified locally; branch not pushed | `.github/workflows/critical-path-freshness.yml` issue step (not-verified titles, close on PASS); tests 22 + 8 passed, controls 25/25 + 3/3; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525-APPROVAL | Codex | Owner approved exact declarations; HOLD for CI and independent merge review | #525, approved candidate `e1c8a7d7`, base `042253f5`; STATUS.md 2026-11-25 |
