@@ -134,12 +134,15 @@ class TheWrongPictureStopsTheBuild(unittest.TestCase):
         with self.assertRaisesRegex(M.ImageDoesNotMatch, 'without the subject'):
             M.verify(Vision(BEEF), [img], {'cap-x': '  '})
 
-    def test_bounded(self):
-        imgs = [SimpleNamespace(requirement_id='r', sha256=str(i), data=png(8, 8)) for i in range(M.MAX_IMAGES + 1)]
+    def test_every_image_is_checked_however_many(self):
+        """The owner, 2026-11-26: no image cap. Until then a ninth image failed the build ("bounded at 8"); now every
+        image the plan generated is checked, the loop bounded by that list."""
+        imgs = [SimpleNamespace(requirement_id=f'r{i}', sha256=str(i), data=png(8, 8)) for i in range(12)]
         vision = Vision(BEEF)
-        with self.assertRaisesRegex(M.ImageDoesNotMatch, 'bounded'):
-            M.verify(vision, imgs, {'r': SUBJECT})
-        self.assertEqual(vision.calls, [])
+        verdicts = M.verify(vision, imgs, {f'r{i}': SUBJECT for i in range(12)})
+        self.assertEqual([v['status'] for v in verdicts], ['MATCH'] * 12)
+        self.assertEqual(len(vision.calls), 12)
+        self.assertFalse(hasattr(M, 'MAX_IMAGES'))
 
 
 class RolloutBeforeCustomers(unittest.TestCase):

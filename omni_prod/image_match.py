@@ -12,8 +12,9 @@ apply), is shown each generated image with the customer's subject and answers wh
 
 Blocking, and fail-closed: a mismatch blocks; so does a check that could not run (no vision route, an error, an
 answer that is not the expected JSON) -- "a required check that cannot run cannot pass", said with the reason. One
-call per image, bounded by MAX_IMAGES. What this does NOT prove: that the model judges correctly. That is the
-lens's calibration (spec section 8), not a test.
+call per image, for every image the plan generated: the loop's bound is the plan's own list of images, never a fixed
+number (the owner, 2026-11-26: no image cap; until then more than 8 images failed the build). What this does NOT
+prove: that the model judges correctly. That is the lens's calibration (spec section 8), not a test.
 """
 from __future__ import annotations
 
@@ -21,8 +22,6 @@ import json
 import logging
 
 from .capability_worker import CapabilityStageBlocked
-
-MAX_IMAGES = 8          # bound: one vision call per image, never more than this many per build
 
 _SYSTEM = (
     'You check a generated image against what a customer asked to see. You get ONE image and the customer\'s own '
@@ -111,8 +110,9 @@ def check_optional(gateway, images, subjects: dict) -> tuple[list, list[dict]]:
 
 
 def verify(gateway, images, subjects: dict) -> list[dict]:
-    """One verdict per image. Raises ImageDoesNotMatch on a mismatch, or when the check cannot run (an image without
-    the subject it was made from, no vision answer, an answer of the wrong shape, more images than the bound)."""
+    """One verdict per image, for every image given (the plan's own images: their number is the loop's bound). Raises
+    ImageDoesNotMatch on a mismatch, or when the check cannot run (an image without the subject it was made from, no
+    vision answer, an answer of the wrong shape)."""
     unnamed = [img.requirement_id for img in images if not (subjects.get(img.requirement_id) or '').strip()]
     if unnamed:
         # every generated image is made FROM a subject (image_prompt sets it); one without a subject cannot be checked,
@@ -121,9 +121,6 @@ def verify(gateway, images, subjects: dict) -> list[dict]:
                                 evidence={'image_match': [{'requirement_id': r, 'status': 'NOT_RUN',
                                                            'reason': 'no subject recorded'} for r in unnamed]})
     checked = list(images)
-    if len(checked) > MAX_IMAGES:
-        raise ImageDoesNotMatch(f'{len(checked)} generated images; the image check is bounded at {MAX_IMAGES}',
-                                evidence={'image_match': {'status': 'NOT_RUN', 'reason': 'over the bound'}})
     verdicts = []
     for img in checked:
         subject = subjects[img.requirement_id].strip()

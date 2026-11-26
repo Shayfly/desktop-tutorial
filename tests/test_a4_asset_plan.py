@@ -73,12 +73,24 @@ class ThePlan(unittest.TestCase):
         self.assertIn('two uploaded images claim the hero', str(two.exception))
         with self.assertRaises(a4.AssetPlanError):
             a4.plan([up(1, 'footer')], [])
-        with self.assertRaises(a4.AssetPlanError) as many:
-            a4.plan([], [gen(i) for i in range(1, a4.MAX_ASSETS + 2)])
-        self.assertIn(f'at most {a4.MAX_ASSETS}', str(many.exception))
         with self.assertRaises(a4.AssetPlanError) as heavy:
             a4.plan([], [gen(1, size=a4.PAGE_IMAGE_BUDGET_BYTES // 2 + 1), gen(2, size=a4.PAGE_IMAGE_BUDGET_BYTES // 2 + 1)])
         self.assertIn('weigh', str(heavy.exception))
+
+    def test_the_number_of_images_never_stops_the_plan(self):
+        """The owner, 2026-11-26: no image cap. Until then a page with more than 12 images was refused."""
+        slots = a4.plan([up(1, 'story')], [gen(i) for i in range(1, 30)])
+        self.assertEqual(len(slots), 30)
+        self.assertEqual([s['place'] for s in slots].count('gallery'), 28)
+        self.assertFalse(hasattr(a4, 'MAX_ASSETS'))
+
+    def test_a_picture_of_one_item_goes_next_to_that_item(self):
+        slots = a4.plan([], [gen(1), gen(2, a4.ITEM_PURPOSE), gen(3, a4.ITEM_PURPOSE)])
+        self.assertEqual([s['place'] for s in slots], ['hero', 'products', 'products'])
+        rules = a4.rules(slots)
+        self.assertIn('src="148ai-asset://image/2" (generated): inside the products section.\n'
+                      '  It shows "תמונה 2": put it next to that item.', rules)
+        self.assertNotIn('It shows "תמונה 1"', rules)                  # the main image is not an item's picture
 
     def test_the_rules_name_every_image_and_its_place(self):
         slots = a4.plan([up(1, 'products')], [gen(1)])

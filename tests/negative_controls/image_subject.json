@@ -98,6 +98,11 @@
           "file": "omni_prod/capability_planner.py",
           "old": "                requested.pop(IMAGE_KEY)\n",
           "new": "                pass\n"
+        },
+        {
+          "file": "omni_prod/capability_planner.py",
+          "old": "count = self._picture_count(IMAGE_KEY, purpose, prompt)[\"count\"] if subject else 0",
+          "new": "count = self._picture_count(IMAGE_KEY, purpose, prompt)[\"count\"]"
         }
       ],
       "targets": ["tests/test_image_subject.py"],

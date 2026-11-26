@@ -1,0 +1,130 @@
+{
+  "pr": "image-caps",
+  "sha256": [
+    "tests/test_image_per_item.py",
+    "tests/test_a4_asset_plan.py",
+    "tests/test_lens11_image_match.py",
+    "tests/fixtures/site_content_bld_3938e570.json",
+    "omni_prod/a4/__init__.py",
+    "omni_prod/image_match.py",
+    "omni_prod/capability_planner.py",
+    "omni_prod/product_architect.py"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "the page refuses more than 12 images again (the owner, 2026-11-26: there is no image cap)",
+      "mutations": [
+        {
+          "file": "omni_prod/a4/__init__.py",
+          "old": "    total = sum(s['bytes'] for s in slots)\n",
+          "new": "    if len(slots) > 12:\n        raise AssetPlanError(f'{len(slots)} images for one page; at most 12')\n    total = sum(s['bytes'] for s in slots)\n"
+        }
+      ],
+      "targets": ["tests/test_a4_asset_plan.py"],
+      "expect_failed": [
+        "test_the_number_of_images_never_stops_the_plan"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "the image check fails a build with more than 8 images again",
+      "mutations": [
+        {
+          "file": "omni_prod/image_match.py",
+          "old": "    checked = list(images)\n    verdicts = []\n",
+          "new": "    checked = list(images)\n    if len(checked) > 8:\n        raise ImageDoesNotMatch(f'{len(checked)} generated images; the image check is bounded at 8')\n    verdicts = []\n"
+        }
+      ],
+      "targets": ["tests/test_lens11_image_match.py", "tests/test_image_per_item.py"],
+      "expect_failed": [
+        "test_a_wrong_picture_of_one_item_stops_the_build",
+        "test_each_picture_is_made_and_judged_from_its_own_item_and_placed_next_to_it",
+        "test_every_image_is_checked_however_many"
+      ]
+    },
+    {
+      "id": "NC3",
+      "what": "the customer's 'a picture next to each item' is not read: one picture for nine items (bld_3938e570)",
+      "mutations": [
+        {
+          "file": "omni_prod/capability_planner.py",
+          "old": "        if semantic.get(IMAGE_KEY) != \"not_required\" and _picture_per_item(text):\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "targets": ["tests/test_image_per_item.py"],
+      "expect_failed": [
+        "test_a_picture_per_item_with_no_list_in_the_brief_is_the_contracts_question",
+        "test_a_wrong_picture_of_one_item_stops_the_build",
+        "test_each_picture_is_made_and_judged_from_its_own_item_and_placed_next_to_it",
+        "test_nine_named_items_are_nine_pictures_each_its_own_subject"
+      ]
+    },
+    {
+      "id": "NC4",
+      "what": "the items the approved brief lists are not read",
+      "mutations": [
+        {
+          "file": "omni_prod/capability_planner.py",
+          "old": "            if len(items) >= 2:                           # one phrase after a label is a sentence, not a list\n                return tuple(items)\n",
+          "new": ""
+        }
+      ],
+      "targets": ["tests/test_image_per_item.py"],
+      "expect_failed": [
+        "test_a_wrong_picture_of_one_item_stops_the_build",
+        "test_each_picture_is_made_and_judged_from_its_own_item_and_placed_next_to_it",
+        "test_nine_named_items_are_nine_pictures_each_its_own_subject"
+      ]
+    },
+    {
+      "id": "NC5",
+      "what": "every item's picture is made from the main subject: N takes of the same picture again",
+      "mutations": [
+        {
+          "file": "omni_prod/capability_planner.py",
+          "old": "constraints=self._image_constraints(IMAGE_KEY, ITEM_PURPOSE, prompt, subject=item)))",
+          "new": "constraints=self._image_constraints(IMAGE_KEY, ITEM_PURPOSE, prompt, subject=subject or item)))"
+        }
+      ],
+      "targets": ["tests/test_image_per_item.py"],
+      "expect_failed": [
+        "test_a_wrong_picture_of_one_item_stops_the_build",
+        "test_each_picture_is_made_and_judged_from_its_own_item_and_placed_next_to_it",
+        "test_nine_named_items_are_nine_pictures_each_its_own_subject"
+      ]
+    },
+    {
+      "id": "NC6",
+      "what": "a picture of one item is not placed next to that item (it goes to the hero and the gallery)",
+      "mutations": [
+        {
+          "file": "omni_prod/a4/__init__.py",
+          "old": "        elif getattr(img, 'purpose', '') == ITEM_PURPOSE:\n",
+          "new": "        elif False:\n"
+        }
+      ],
+      "targets": ["tests/test_a4_asset_plan.py", "tests/test_image_per_item.py"],
+      "expect_failed": [
+        "test_a_picture_of_one_item_goes_next_to_that_item",
+        "test_each_picture_is_made_and_judged_from_its_own_item_and_placed_next_to_it"
+      ]
+    },
+    {
+      "id": "NC7",
+      "what": "a picture per item with no list in the brief is dropped silently: the contract asks nothing",
+      "mutations": [
+        {
+          "file": "omni_prod/product_architect.py",
+          "old": "            questions = questions + (self._image_items_question(intent),)\n",
+          "new": "            pass\n"
+        }
+      ],
+      "targets": ["tests/test_image_per_item.py"],
+      "expect_failed": [
+        "test_a_picture_per_item_with_no_list_in_the_brief_is_the_contracts_question"
+      ]
+    }
+  ]
+}
