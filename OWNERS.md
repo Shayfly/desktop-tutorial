@@ -68,6 +68,11 @@ later decision changed plan v3, the plan's wording is kept beside it.
     מעדיף שתבנה הכול ביחד, תמזג מה שאפשר". The customers' sites are finished first; after them everything is built
     together, games and apps first among it, and changes that can share one pull request are merged as a bundle. Music
     and video wait (the owner, 2026-11-26 08:34; WAREHOUSE.md item 137).
+11. **No image cap (the owner, 2026-11-26 08:49):** "אין דבר כזה תקרת תמונות לבטל מיד !". The cap on generated
+    pictures per build (`a4.FIRST_CAP` = 3, set on his own "up to 3 to start" of 2026-11-17) and every other limit on
+    the number of pictures are removed. For pictures, this takes the limit out of rule 8 and WAREHOUSE.md item 136.
+    He asked in the same message for the list of the other limits a customer meets; each of them stays until he
+    decides it.
 
 ## 2026-11-21 — the owner: only Claude Code works
 
