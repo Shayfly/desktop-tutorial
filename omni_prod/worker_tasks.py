@@ -1155,6 +1155,10 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # 2026-11-19: SHARE failed on every production build with the rule in the spec -- the platform writes og tags
         from .share_preview import install as install_share_preview
         install_share_preview(engine)
+        # bld_cb2d1b90 (2026-11-24): left:-9999px made a right-to-left page 9999px wide in every round. The hiding idiom
+        # is rewritten to the platform's visually-hidden rule after generation and every repair (omni_prod/offscreen).
+        from .offscreen import install as install_offscreen
+        install_offscreen(engine)
         # Michael 2026-11-10 condition 2: the truth gate's canon comes from the APPROVED request, not the spec summary.
         from .product_review import install_review_request
         install_review_request(engine, prompt)
@@ -1425,6 +1429,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'quality_report': quality_report.to_dict() if quality_report is not None else None,
             'round_snapshots': round_snapshots,
             'kept_round': kept_round(engine, result),     # the round whose evidence the stage rows read
+            # offscreen.rewrite: every hiding rule the platform rewrote in the generated code ('path:line prop value')
+            'offscreen_rewrites': list(getattr(getattr(engine, 'core', engine), 'offscreen_rewrites', None) or [])[:40],
         }
     except BuildCancelled as exc:
         spent, calls = spend_snapshot(gateway)
