@@ -160,7 +160,9 @@ jobs:
   # the follow-up the comment on `test` asked for: the controls run in their own job, beside the tests. Every spec
   # still runs on every push; nothing is skipped.
   negative-controls:
-    # 2026-11-26: three shards run in parallel (NC_SHARD; every spec in exactly one shard). Counted as the controls
+    # 2026-11-26: four shards run in parallel (NC_SHARD; every spec in exactly one shard). Three were not enough: on #537
+    # (run 45829940347) shard 2 of 3 took 14 min 45 s of the step's 18 (13:31:32 to 13:46:17), and controls keep being added.
+    # The shards balance by the number of controls that run here (the runner has no time weights): 1,372 controls, 343 per shard. Counted as the controls
     # that run here (not the pg job's own): in one job, all 1,200 of main 4690d01 took 9.6 minutes (run 45711355778);
     # of the 1,217 of main 18dba53, 1,186 had run and 31 had not when the step's 18-minute limit stopped it (run
     # 45713038574), on a runner about 1.9 times slower: the specs both runs share took 71.5 worker-minutes instead of
@@ -170,7 +172,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -183,7 +185,7 @@ jobs:
         timeout-minutes: 18
         env:
           NC_JOBS: "4"    # 2026-11-17: the 4 cores of the runner; output is the same as a serial run, in the same order
-          NC_SHARD: "${{ matrix.shard }}/3"
+          NC_SHARD: "${{ matrix.shard }}/4"
         run: python scripts/run_negative_controls.py
   publish-report:
     # smoke/ci-last-run.md (the latest main CI result, readable without job logs) is published where it cannot rot

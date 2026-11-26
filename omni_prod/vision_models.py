@@ -13,7 +13,9 @@ A model is added only with evidence: a production answer to an image call, or th
 from __future__ import annotations
 
 # provider model id (ModelEndpoint.model) -> evidence
-_PROBE = 'live probe run 43657047045 (2026-11-15, main f02404a): red circle and blue triangle both named correctly'
+_PROBE = 'vision-probe run 43689691749 (2026-11-15, main be831c6): red circle and blue triangle both named correctly'
+# Law 2 (2026-11-26): the first probe, run 43657047045 (f02404a), had the same answers from all six models but ended
+# red: its step failed on an empty stderr (fixed by 7d79150; tests/test_vision_probe_step.py). This is its green re-run.
 VISION_MODELS: dict[str, str] = {
     'gpt-6.1-sol': 'production: 20 design reviews scored from screenshots (build_jobs.evidence_json design_review, '
                    'last bld_83529c13 2026-11-14 18:25Z); ' + _PROBE,

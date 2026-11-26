@@ -59,7 +59,10 @@ PLATFORM = {c.key: c for c in (
     PlatformCapability('invoice_reconciliation', ('omni_prod.qa_budget:qa_used_usd',),
                        blocked_by='needs the provider billing export (founder access to Google AI Studio / Cloud billing)'),
     PlatformCapability('second_model_provider', ('omni_prod.routed_gateway:RoutedModelGateway',),
-                       blocked_by='OpenAI: no credits (HTTP 429); Anthropic: credit balance too low (HTTP 400)'),
+                       blocked_by='no build has fallen back to a second provider: OpenAI and Anthropic answer again '
+                                  '(model-probe run 42527017456, 2026-11-18), but gpt-6.1-sol and claude-sonnet-5-5 '
+                                  'stay UNVERIFIED (no successful build call) and planning routes only AVAILABLE '
+                                  'models; needs a paid build call on each (owner approval)'),
     PlatformCapability('visual_qa_desktop_mobile', ('omni_prod.visual_qa:VisualQAExecutor',),
                        (VERIFY_REPLAY, Evidence('integration', 'tests/test_visual_qa.py'))),
     PlatformCapability('write_ahead_cost_ledger', ('omni_prod.attempt_ledger:persist_attempts',

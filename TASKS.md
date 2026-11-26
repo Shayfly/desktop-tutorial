@@ -3,6 +3,7 @@
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
 | CAPS-A | Claude Code | Implemented, verified locally; branch not pushed | `claude/practical-hopper-oi3qj2-caps-a`; tests/test_content_corrections.py, test_item_maxima.py, test_silent_cuts.py, test_preview_lifetime.py, test_approval_lifetime.py, test_conversation_history.py, test_upload_counts.py, test_plan_view_promises.py; controls 34/34 new; STATUS.md 2026-11-26 |
+| RED-EVIDENCE | Claude Code | Local commits, not pushed; HOLD for CI, the main session's dispatches and the owner's answer on S4.2 (money) | `claude/practical-hopper-oi3qj2-red-evidence`: vision 43689691749 and model 42527017456 re-cited (green, read 2026-11-26); crash evidence removed, Golden 5 FAIL, crash-verify checks S4.2; 39377332673 still listed; controls vision_probe_step 3/3, model_probe_runs 3/3, postdeploy_crash_agent_graph 2/2, postdeploy_crash_resume 5/5, paid_build_red_run 4/4, evidence_runs 52/52; STATUS.md 2026-11-26; review of 78d3b79 fixed in separate commits (stage read tested, R4b/R4c caught; records corrected; nits), declarations 712 -> 713 |
 | A1-RELEASE | Claude Code | Released | #531 `8b7d204` -> `ac10e94` [release], #533 `91290f8` -> `8911e32` [release]; runs 45702506669, 45702519795; deploy-worker 45699791750, 45709671445; STATUS.md 2026-11-26 |
 | LAWS-5-6 | Claude Code | Merged | #534 `9d04b99` -> `4690d01`; STATUS.md 2026-11-26 |
 | LAWS-2-6 | Claude Code | Merged (CI only, no release) | #535 `5bf1522` -> `fa41a5d`; CI 25 passed; supersedes the rows LAW2-EVIDENCE-RUNS and LAW6-FRESHNESS-ISSUES below; STATUS.md 2026-11-26 |
@@ -10,7 +11,6 @@
 | S1-GOV | Claude Code (the owner merged #532) | Merged; 23 review fixes on a follow-up branch | #532 `d7b861d` -> `18dba53`; v24-ci negative-controls timeout, run 45713038574; STATUS.md 2026-11-26 |
 | GOA-ROUTE | Claude Code | In progress | bld_3938e570; branch route-honesty |
 | FLEET-ROOTS | Claude Code | In progress | diagnosis w2fwdjhzk; branches image-subject, repair-converge |
-| RED-EVIDENCE | Claude Code | In progress | runs 37814803770, 37954236866, 39377332673, 43657047045; branch red-evidence |
 | TENANT-S4.5 | Claude Code | In progress | branch tenant-isolation |
 | MEDIA-137 | the owner | In the warehouse (item 137) | the owner, 2026-11-26: music and video wait; STATUS.md 2026-11-26 |
 | LAW2-EVIDENCE-RUNS | Claude Code | Implemented with review fixes, verified locally; branch not pushed; real read-only run exit 0 (18 of 22 green, 4 known red listed in docs/evidence-runs-known-red.json, not fixed) | `claude/practical-hopper-oi3qj2-law2-evidence`; `scripts/resolve_evidence_runs.py`, `.github/workflows/evidence-runs.yml`; tests 76 passed, controls 52/52; STATUS.md 2026-11-25 |
@@ -126,3 +126,4 @@
 | PLAN-S1-7 | Claude Code | #532 merged; follow-up HOLD for CI | `scripts/check_pr_report.py` (code before comments; a revert by its branch and this repository; invisible text is not content), `.github/workflows/pr-report.yml` (reads `$GITHUB_EVENT_PATH`), the template; `tests/test_pr_report.py`; controls pr_report 45/45 |
 | PLAN-S1-8 | Claude Code | #532 merged; follow-up HOLD for CI | OWNERS.md rules 1-12, `inbox/002-2026-11-25-owner-plan-v3.md` (plan v3 and the owner's messages verbatim, with their send times) |
 | CI-NC-SHARDS | Claude Code | Follow-up branch, HOLD for CI | v24-ci negative-controls in 3 shards (`NC_SHARD`); main run 45713038574 timed out at 18 min (1,186 of the 1,217 controls that run in v24-ci; 31 left); controls nc_shards 10/10 |
+| CI-NC-4SHARDS | Claude Code | Branch claude/practical-hopper-oi3qj2-nc-4-shards, HOLD for CI | v24-ci negative-controls in 4 shards (`NC_SHARD` i/4), 343 of 1,372 controls each (was 458/457/457); #537 run 45829940347 shard 2 of 3 took 14 min 45 s of the 18; controls nc_shards 10/10 |

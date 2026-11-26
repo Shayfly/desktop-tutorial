@@ -1,0 +1,64 @@
+{
+ "pr": "red-evidence",
+ "sha256": [
+  "tests/test_postdeploy_crash_resume_stage.py"
+ ],
+ "controls": [
+  {
+   "id": "R4b",
+   "what": "a silent default stands in for the record's checkpoint when the record names none",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "    recovery = sql(\"SELECT evidence_json->'recovery' FROM build_jobs WHERE id = %s\", (b,))[0][0]",
+     "new": "    recovery = sql(\"SELECT evidence_json->'recovery' FROM build_jobs WHERE id = %s\", (b,))[0][0] or {'resumed_from': {'checkpoint': 'round 0'}}  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_crash_resume_stage.py"
+   ],
+   "expect_failed": [
+    "test_a_build_that_started_over_with_no_checkpoint_fails_on_both_counts",
+    "test_a_continued_build_whose_record_names_no_checkpoint_fails"
+   ]
+  },
+  {
+   "id": "R4c",
+   "what": "resume_verdict is handed a constant record instead of the one the stage read",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "    record('crash: build continued from its last checkpoint (S4.2)', *resume_verdict(attempts, recovery))",
+     "new": "    record('crash: build continued from its last checkpoint (S4.2)', *resume_verdict(attempts, {'resumed_from': {'checkpoint': 'round 0'}}))  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_crash_resume_stage.py"
+   ],
+   "expect_failed": [
+    "test_a_build_that_started_over_with_no_checkpoint_fails_on_both_counts",
+    "test_a_continued_build_whose_record_names_no_checkpoint_fails",
+    "test_the_stage_judges_the_record_it_reads"
+   ]
+  },
+  {
+   "id": "R4a",
+   "what": "the stage judges an empty ledger instead of the build's provider calls",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "    attempts = sql(\"SELECT trace_id, attempt_seq, task_type, outcome, created_at FROM task_attempts \"\n                   \"WHERE build_id = %s AND kind = 'provider_call' ORDER BY created_at, attempt_seq\", (b,))",
+     "new": "    attempts = []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_crash_resume_stage.py"
+   ],
+   "expect_failed": [
+    "test_a_build_that_started_over_with_no_checkpoint_fails_on_both_counts",
+    "test_a_continued_build_whose_record_names_no_checkpoint_fails",
+    "test_the_stage_judges_the_record_it_reads"
+   ]
+  }
+ ]
+}

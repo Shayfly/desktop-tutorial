@@ -27,10 +27,14 @@ class ProviderEvidence:
 DEPLOY_NOTICE = ProviderEvidence(
     'deploy-worker run 38083162363 (annotation "model catalog")', '2026-10-10T20:17Z', '67a0765',
     'all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets')
+# Law 2 (2026-11-26): the green re-run of the probe. The first one, run 37814803770 (2026-10-08, ff6b4f6), was red:
+# gpt-6-luna and gpt-6.1-sol answered HTTP 429 "no credits remaining" and claude-sonnet-5-5 HTTP 400 "credit balance
+# is too low" (tests/test_model_probe_runs.py reproduces both runs from their logs).
 PROBE = ProviderEvidence(
-    'model-probe run 37814803770 (annotations)', '2026-10-08T17:12Z', 'ff6b4f6',
-    'gemini-3.8-flash, gemini-3.5-flash-lite, gemini-3.1-flash-lite answered OK; gpt-6-luna and gpt-6.1-sol '
-    'HTTP 429 "no credits remaining"; claude-sonnet-5-5 HTTP 400 "credit balance is too low"')
+    'model-probe run 42527017456 (annotations)', '2026-11-18T22:43Z', 'f299889',
+    'all six catalog models answered OK and served the model asked for, in attempt 1 (2026-11-08) and attempt 2 '
+    '(2026-11-18): gemini-3.1-flash-lite, gemini-3.5-flash-lite, gemini-3.8-flash, gpt-6-luna, gpt-6.1-sol, '
+    'claude-sonnet-5-5')
 LEDGER = ProviderEvidence(
     'postdeploy-checks economics run 38083624196 (annotation "economics by model")', '2026-10-10T20:24Z', '67a0765',
     'attempt ledger: gemini-3.8-flash 36 ok / 88 calls; gemini-3.1-flash-lite 115 ok / 117; gemini-3.5-flash-lite '
@@ -112,7 +116,7 @@ def _llm(provider, key, model_id, family, *, quality_tasks, key_env, cred, conn,
          scope='worker'):
     return ModelEntry(
         provider_key=provider, model_key=key, provider_model_id=model_id,
-        id_source=id_source or ('model-probe 37814803770 served_model' if conn == S.CONNECTION_TESTED else 'provider docs'),
+        id_source=id_source or ('model-probe 42527017456 served_model' if conn == S.CONNECTION_TESTED else 'provider docs'),
         model_family=family, provider_type='llm', capability_types=('text.generate', 'json.structured'),
         intended_task_types=quality_tasks, execution_adapter=adapter, adapter_implementation_path=adapter_path,
         supported_modalities=('text', 'image') if vision else ('text',), supported_languages=LANG_HE_EN,
@@ -161,16 +165,20 @@ INVENTORY: tuple[ModelEntry, ...] = (
     _llm('openai', 'openai-gpt-6-1-sol', 'gpt-6.1-sol', 'GPT Sol',
          quality_tasks=('architecture', 'codegen', 'repair', 'review', 'security_review'), key_env='OPENAI_API_KEY',
          cred=S.CREDENTIAL_PRESENT, conn=S.CONNECTION_TESTED, ver=S.UNVERIFIED, ev=(DEPLOY_NOTICE, PROBE, LEDGER),
-         ctx=None, max_out=16384, limits='no successful call: account has no credit', fallback='review-only',
-         health_note='HTTP 429 no credits remaining (2026-10-08); 0 ok / 10 in the ledger',
+         ctx=None, max_out=16384, fallback='review-only',
+         # 2026-11-26: the October "no credits remaining" (HTTP 429) is not the last answer any more; PROBE answered OK
+         limits='answered the model probe on 2026-11-08 and 2026-11-18 (PROBE); no successful call in a build yet '
+                '(0 ok / 10 in the ledger, LEDGER 2026-10-10)',
          commercial='OpenAI API terms: customer owns outputs; API data not used for training by default',
          adapter='routed_gateway (OpenAI reasoning dialect)'),
     # --------------------------------------------------------- Anthropic (worker)
     _llm('anthropic', 'anthropic-claude-sonnet-5-5', 'claude-sonnet-5-5', 'Claude Sonnet',
          quality_tasks=('architecture', 'codegen', 'repair', 'review', 'security_review'), key_env='ANTHROPIC_API_KEY',
          cred=S.CREDENTIAL_PRESENT, conn=S.CONNECTION_TESTED, ver=S.UNVERIFIED, ev=(DEPLOY_NOTICE, PROBE, LEDGER),
-         ctx=None, max_out=16384, limits='no successful call: prepaid balance too low', fallback='review-only',
-         health_note='HTTP 400 credit balance too low (2026-10-08); 0 ok / 10 in the ledger',
+         ctx=None, max_out=16384, fallback='review-only',
+         # 2026-11-26: the October "credit balance too low" (HTTP 400) is not the last answer any more; PROBE answered OK
+         limits='answered the model probe on 2026-11-08 and 2026-11-18 (PROBE); no successful call in a build yet '
+                '(0 ok / 10 in the ledger, LEDGER 2026-10-10)',
          commercial='Anthropic commercial terms: customer owns outputs; no training on API data by default',
          adapter='routed_gateway (Anthropic Messages API)', id_source='Anthropic published model string'),
     # ------------------------------------------------- candidates (not in catalog)
@@ -182,7 +190,7 @@ INVENTORY: tuple[ModelEntry, ...] = (
     _llm('anthropic', 'anthropic-claude-haiku-5-5', 'claude-haiku-5-5', 'Claude Haiku',
          quality_tasks=('conversation', 'intake_extraction'), key_env='ANTHROPIC_API_KEY', cred=S.CREDENTIAL_PRESENT,
          conn=S.NOT_CONNECTED, ver=S.UNVERIFIED, ev=(DEPLOY_NOTICE,), ctx=None, max_out=None, in_catalog=False,
-         limits='not in the catalog; same account as Sonnet (balance too low)', fallback='none',
+         limits='not in the catalog; same account as Sonnet (which answered the model probe in November)', fallback='none',
          commercial='Anthropic commercial terms', adapter='routed_gateway (Anthropic Messages API)',
          id_source='Anthropic published model string'),
     _llm('gemini', 'gemini-3-1-pro-preview', 'gemini-3.1-pro-preview', 'Gemini Pro',
