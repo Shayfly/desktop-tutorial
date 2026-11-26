@@ -8,8 +8,9 @@ What only the network and a browser can show, on the real path:
 * every Hebrew pair, locked into the design contract (typography.contract_fonts) and rendered by the section library
   with the richest content and its headings near the script's length limits, in every art direction the pair serves:
   at 320, 390, 768 and 1440 px the page does not scroll sideways, no heading is wider than its box or runs off the
-  screen, the h1-h3 are set in the pair's display face and the text in its body face, and both faces really loaded (a
-  FontFace of that family and weight, status 'loaded', covering the letters on the page) -- never a silent system font.
+  screen, the h1-h3 are set in the pair's display face and the text in its body face, no text is set in another face,
+  and every face the text uses really loaded (for each family and weight in use, a FontFace of that family and weight,
+  status 'loaded', covering the letters set in it) -- never a silent system font.
 Arabic and Latin pairs are not rendered on the library's page (it writes its own words in Hebrew only, warehouse 129);
 that every one of their faces loads for its script is tests/test_font_pairs_load.py.
 
@@ -95,9 +96,15 @@ MEASURE = r'''() => {
   // the text: every paragraph and h4 but the hero panel's big number and a quote, which the library sets as display
   const text = [...document.querySelectorAll('main p, h4')].filter(e => !e.matches('.panel-figure') && !e.closest('blockquote'));
   out.body = [...new Set(text.map(e => first(getComputedStyle(e).fontFamily)))];
-  const h1 = document.querySelector('h1'), p = text.find(e => e.matches('p'));
-  out.h1 = [getComputedStyle(h1).fontWeight, h1.textContent];
-  out.p = [getComputedStyle(p).fontWeight, p.textContent];
+  // every face the visible text is set in (family, weight) with the letters it must cover
+  const used = {};
+  for (const el of document.querySelectorAll('h1, h2, h3, h4, main p, main li, .btn, .brand b')) {
+    const s = getComputedStyle(el), r = el.getBoundingClientRect();
+    if (s.display === 'none' || s.visibility === 'hidden' || !r.width) continue;
+    const key = first(s.fontFamily) + '|' + s.fontWeight;
+    used[key] = ((used[key] || '') + ' ' + el.textContent).slice(0, 600);
+  }
+  out.used = Object.entries(used).map(([k, t]) => [...k.split('|'), t]);
   return out; }'''
 
 
@@ -168,8 +175,12 @@ class EveryHebrewPairOnTheLibraryPage(unittest.TestCase):
                             found += [f'{width}px: {o}' for o in m['over']]
                         if m['display'] != [p['display']['family']] or m['body'] != [p['body']['family']]:
                             found.append(f"faces in use: headings {m['display']}, text {m['body']}")
-                        lost = (missing(faces, [(p['display']['family'], int(m['h1'][0]))], m['h1'][1])
-                                + missing(faces, [(p['body']['family'], int(m['p'][0]))], m['p'][1]))
+                        pair_faces = {p['display']['family'], p['body']['family']}
+                        outside = sorted({family for family, _, _ in m['used']} - pair_faces)
+                        if outside:
+                            found.append(f'text set in a face outside the pair: {outside}')
+                        lost = [x for family, weight, text in m['used'] if family in pair_faces
+                                for x in missing(faces, [(family, int(weight))], text)]
                         if lost:
                             found.append(f'not loaded: {lost}')
                         page.close()
