@@ -48,8 +48,11 @@ PICTURE_ITEMS_DEFAULT = ("Picture items: NOT GIVEN after two questions -- no pic
                          "as text.")
 PICTURE_SUBJECT_DEFAULT = ("Picture subject: NOT GIVEN after two questions -- the picture nothing describes is left out; "
                            "never drawn from a generic sentence.")
-IMAGE_ITEMS_UPLOADED = "image-items-uploaded-photos"      # S3: the customer placed their own photos: none generated
-_UPLOADED = "148ai-asset://upload/"                        # the marker a4.pictures and media_pipeline.default_hero read
+IMAGE_ITEMS_UPLOADED = "image-items-uploaded-photos"      # S3: own photos among the items stand for the first ones
+# a photo the approved brief places (discovery.requirements_text's "Uploaded image N ..." line)
+_PLACED_UPLOAD = re.compile(r'^Uploaded image (\d{1,2}) attachment: \S+; sha256=[a-f0-9]{64}; '
+                            r'src="148ai-asset://upload/\1"; placement: (hero|story|products|gallery);')
+ITEM_PHOTO_PLACES = ('products', 'gallery')                  # where the customer's own photo stands for an item
 IMAGE_ITEMS_DEFAULTED = "image-items-defaulted-text-only"        # stated in the summary (supervisor) and the contract
 IMAGE_SUBJECT_DEFAULTED = "image-subject-defaulted-left-out"     # stated in the summary (supervisor) and the contract
 MAX_ANSWER_ITEM_WORDS = 4          # a longer "item" is a sentence ("תעשו מה שנראה לכם"), not an item: not read as one
@@ -150,21 +153,73 @@ def _approved_lines(full_prompt: str) -> list[str]:
     return text[markers[-1].end():].splitlines() if markers else []
 
 
-def answer_items(answer: str) -> tuple[str, ...]:
-    """The items of the customer's answer to the items question (the supervisor records only an answer this reads):
-    the list after a label when it has one ("מוצרים: a, b"), else the whole answer. One item is an answer here (the
-    question asked for a list); an "item" of more than MAX_ANSWER_ITEM_WORDS words, a sentence addressed to us
-    (_HANDED_BACK) or a question makes the whole answer unread -- () -- so it is asked again, never drawn from."""
-    text = " ".join((answer or "").split())
-    if _HANDED_BACK.search(text) or text.endswith(("?", "؟")):
-        return ()
+# Review of 49d61d3 (B1): an unrelated reply was recorded as the picture answer -- "תשנו את הצבע לכחול" and "no idea"
+# became items, "הטלפון שלנו 03-5559999" and "גם כתובת: הרצל 5, חיפה" too, and "Also add an opening hours section" became
+# what the picture shows. A reply is the answer only when it reads as one (read_picture_answer); when in doubt it is not
+# recorded and the question is asked once more, within ASK_PICTURE_AT_MOST.
+# "I don't know / skip / you decide" (he, en, ar): the stated default, at once -- never an answer.
+_DECLINE = re.compile(
+    r"(?<![\wא-ת])(?:לא\s+(?:יודע|יודעת|יודעים|בטוח|בטוחה|משנה|צריך|חשוב)|אין\s+לי\s+(?:מושג|רעיון)|אין\s+מושג|"
+    r"תחליטו|תחליט|תבחרו|תבחר|דלגו|תדלגו|דלג|מה\s+ש(?:נראה|תרצו|בא|מתאים)|בלי\s+תמונ\S*|"
+    r"תעשו\s+מה)(?![\wא-ת])"
+    r"|\b(?:no\s+idea|not\s+sure|i\s+don'?t\s+know|don'?t\s+know|dunno|idk|skip(?:\s+it)?|whatever|you\s+decide|"
+    r"up\s+to\s+you|your\s+call|you\s+choose|no\s+pictures?)\b"
+    r"|(?<![\wء-ي])(?:لا\s+أعرف|لا\s+اعرف|لست\s+متأكد\S*|تخط[ىي]|تجاوز|قرروا|اختاروا|لا\s+يهم|بدون\s+صور\S*)"
+    r"(?![\wء-ي])", re.I)
+_DECLINE_ALONE = re.compile(r"^\s*(?:no|none|nothing|nope|לא|אין|כלום|لا|لا\s+شيء)\s*[.!]*\s*$", re.I)
+# A change to the request, not an answer: an imperative edit verb (he / en / ar).
+_CHANGE = re.compile(
+    r"(?<![\wא-ת])ו?(?:תשנ[וה]|שנו|תוסיפ[וי]|תוסיף|הוסיפו|תוריד[וי]|תוריד|הורידו|תחליפ[וי]|החליפו|תמחק[וי]|מחקו|תעביר[וי]|"
+    r"העבירו|אפשר\s+(?:להוסיף|לשנות|להוריד|להחליף)|גם\s+(?:כתובת|טלפון|שעות|מייל))(?![\wא-ת])"
+    r"|\b(?:change|add|remove|delete|replace|move|can\s+you|could\s+you|please|also)\b"
+    r"|(?<![\wء-ي])(?:غيروا|غيّروا|أضيفوا|اضيفوا|احذفوا|انقلوا|استبدلوا)(?![\wء-ي])", re.I)
+_LONG_NUMBER = re.compile(r"\d[\d\s\-]{4,}\d")             # a phone or another number, never an item or a picture
+
+
+def read_picture_answer(text: str, qid: str) -> tuple[str, object]:
+    """How the customer's reply to a picture question of the contract reads (one reader for the supervisor, which
+    records it, and the planner, which reads what was recorded):
+      ('answer', value)  -- the items (a tuple) for image_items, the sentence for image_subject;
+      ('decline', None)  -- "I don't know / skip / you decide" (he, en, ar): the stated default, now;
+      ('unread', reason) -- not an answer: a question, a change to the request, a phone / address / labelled field, an
+                            item that is not a short noun phrase. Never recorded; the question is asked again."""
+    if qid not in ('image_items', 'image_subject'):
+        raise ValueError(f'not a picture question: {qid!r}')
+    text = " ".join((text or "").split())
+    if not re.search(r"[^\W\d_]", text):
+        return 'unread', 'no words'
+    if text.endswith(("?", "؟")):
+        return 'unread', 'a question'
+    if _DECLINE_ALONE.match(text) or (_DECLINE.search(text) and len(text.split()) <= 12):
+        return 'decline', None
+    if _CHANGE.search(text):
+        return 'unread', 'a change to the request'
+    from .fact_canon import fact_spans
+    if _LONG_NUMBER.search(text) or fact_spans(text):
+        return 'unread', 'a phone, an address or another fact'
     label, colon, listed = text.partition(":")
-    if colon and (_items_label().search(label) or len(label.split()) <= 3):
+    if qid == 'image_subject':
+        if colon and not re.search(r"תמונה|picture|image|photo|صورة", label, re.I):
+            return 'unread', 'a labelled field'
+        return ('answer', text) if len(text) <= MAX_SUBJECT_CHARS else ('unread', 'too long for one sentence')
+    if colon:
+        if not _items_label().search(label):
+            return 'unread', 'a labelled field that is not an items list'
         text = listed
     items = _split_items(text) if text.strip() else []
-    if not items or any(len(item.split()) > MAX_ANSWER_ITEM_WORDS for item in items):
-        return ()
-    return tuple(items)
+    if not items:
+        return 'unread', 'no items'
+    if any(len(item.split()) > MAX_ANSWER_ITEM_WORDS or ":" in item for item in items):
+        return 'unread', 'an item that is not a short noun phrase'
+    if _HANDED_BACK.search(text):
+        return 'unread', 'a sentence addressed to us'
+    return 'answer', tuple(items)
+
+
+def answer_items(answer: str) -> tuple[str, ...]:
+    """The items of the customer's answer to the items question, when it reads as one (read_picture_answer), else ()."""
+    kind, value = read_picture_answer(answer, 'image_items')
+    return value if kind == 'answer' else ()
 
 
 def _brief_items(full_prompt: str) -> tuple[str, ...]:
@@ -192,6 +247,18 @@ def _brief_items(full_prompt: str) -> tuple[str, ...]:
     return ()
 
 
+def item_pictures(full_prompt: str) -> dict:
+    """{'own', 'covered', 'generated'}: of the items the approved brief lists (_brief_items), the first `own` -- the
+    number of the customer's photos its server-written block places in products or gallery (ITEM_PHOTO_PLACES) --
+    are covered by those photos, and a picture is generated for each of the rest. A photo placed as the hero or in the
+    story covers no item. Read only from the LAST brief block, never from a marker the customer typed."""
+    lines = _approved_lines(full_prompt)
+    own = len({m.group(1) for m in (_PLACED_UPLOAD.match(line) for line in lines)
+               if m and m.group(2) in ITEM_PHOTO_PLACES})
+    listed = _brief_items(full_prompt)
+    return {'own': own, 'covered': listed[:own], 'generated': listed[own:]}
+
+
 def _brief_says(full_prompt: str, line: str) -> bool:
     """Does the approved brief's last block carry this exact line (a recorded default)?"""
     return line in _approved_lines(full_prompt)
@@ -201,8 +268,8 @@ def _brief_subject_answer(full_prompt: str) -> str | None:
     """The customer's recorded answer to the picture question (PICTURE_SUBJECT_ANSWER), from the last brief block."""
     for line in _approved_lines(full_prompt):
         if line.startswith(PICTURE_SUBJECT_ANSWER):
-            words = " ".join(line[len(PICTURE_SUBJECT_ANSWER):].split())
-            return words[:MAX_SUBJECT_CHARS] or None
+            kind, words = read_picture_answer(line[len(PICTURE_SUBJECT_ANSWER):], 'image_subject')
+            return words if kind == 'answer' else None
     return None
 
 
@@ -376,14 +443,19 @@ class CapabilityPlanner:
             # S3 (release review of 550320c): the customer's own photos are the items' pictures -- founder decision
             # #28 (media_pipeline), the check a4.pictures and media_pipeline.default_hero already make. Said in the
             # contract's notes, never a silent drop.
-            uploaded = _UPLOADED in text
-            item_subjects = () if uploaded else _brief_items(text)
-            if uploaded:
+            # Review SF1 (49d61d3): only the photos the approved brief places among the items (products, gallery)
+            # count, read from its server-written block; they stand for the first items as listed, the summary says
+            # which, and a picture is generated for each item after them (item_pictures).
+            split = item_pictures(text)
+            item_subjects = split['generated']
+            if split['own']:
                 image_notes += (IMAGE_ITEMS_UPLOADED,)
-                logging.getLogger(__name__).info("%s: the customer placed their own photos; no item picture is "
-                                                 "generated", IMAGE_ITEMS_UPLOADED)
-            elif item_subjects:
+                logging.getLogger(__name__).info("%s: %d own photo(s) among the items; generated for %d item(s)",
+                                                 IMAGE_ITEMS_UPLOADED, split['own'], len(item_subjects))
+            if item_subjects:
                 requested.setdefault(IMAGE_KEY, (ITEM_PURPOSE, True))
+            elif split['own'] or split['covered']:
+                pass                                        # the customer's own photos stand for the items
             elif _brief_says(text, PICTURE_ITEMS_DEFAULT):
                 image_notes += (IMAGE_ITEMS_DEFAULTED,)      # asked twice, no list: the stated default, not a question
                 logging.getLogger(__name__).warning("%s: no item list after %d questions; items shown as text",

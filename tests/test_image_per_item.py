@@ -182,21 +182,55 @@ class TheCustomersOwnPhotos(unittest.TestCase):
              'Initial content: בגדי נועה; מוצרים: חולצות, מכנסיים ושמלות\n'
              'Language: Hebrew, right-to-left; dates shown as DD/MM/YYYY.')
     REQUEST = 'אתר לחנות הבגדים שלי "בגדי נועה" עם תמונות של המוצרים.'
-    UPLOADS = (' צירפתי את התמונות שלי: src 148ai-asset://upload/1 , 148ai-asset://upload/2 , '
-               '148ai-asset://upload/3')
+    @staticmethod
+    def placed(n, place):
+        """The brief line requirements_text writes for the customer's photo n placed in `place` (discovery)."""
+        return (f'Uploaded image {n} attachment: att_{n:032x}; sha256={n:064x}; src="148ai-asset://upload/{n}"; '
+                f'placement: {place}; role product: "בגד {n}". The customer\'s own photo: use it AS IS.')
 
-    def test_uploaded_photos_mean_no_generated_item_pictures_and_the_contract_says_so(self):
+    def compile(self, *places, typed=''):
+        lines = [self.placed(n, p) for n, p in enumerate(places, start=1)]
+        return compile_contract(self.REQUEST + typed + '\n' + self.BRIEF + ''.join('\n' + x for x in lines))
+
+    def item_subjects(self, contract):
+        return [r.constraints['subject'] for r in images(contract) if r.purpose == a4.ITEM_PURPOSE]
+
+    def test_photos_placed_among_the_products_stand_for_the_items_and_the_contract_says_so(self):
         from omni_prod.capability_planner import IMAGE_ITEMS_UPLOADED
-        contract = compile_contract(self.REQUEST + self.UPLOADS + '\n' + self.BRIEF)
-        self.assertEqual(images(contract), [])
+        contract = self.compile('products', 'products', 'gallery')
+        self.assertEqual(self.item_subjects(contract), [])
         self.assertIn(IMAGE_ITEMS_UPLOADED, contract.capability_plan.notes)
         self.assertEqual([q.id for q in contract.unresolved_questions if q.id.startswith('image')], [])
+
+    def test_fewer_photos_than_items_cover_the_first_items_and_the_rest_are_generated(self):
+        self.assertEqual(self.item_subjects(self.compile('products')), ['מכנסיים', 'שמלות'])
+
+    def test_a_hero_or_story_photo_covers_no_item(self):
+        """Review SF1 ($SP/rv-probe/p_s3.py): one hero upload cancelled every item picture."""
+        self.assertEqual(self.item_subjects(self.compile('hero')), ['חולצות', 'מכנסיים', 'שמלות'])
+        self.assertEqual(self.item_subjects(self.compile('hero', 'story')), ['חולצות', 'מכנסיים', 'שמלות'])
+
+    def test_a_marker_the_customer_typed_is_not_an_upload(self):
+        typed = ' (לא כמו 148ai-asset://upload/1 באתר הקודם)'
+        self.assertEqual(self.item_subjects(self.compile(typed=typed)), ['חולצות', 'מכנסיים', 'שמלות'])
 
     def test_without_uploads_each_item_gets_its_picture(self):
         contract = compile_contract(self.REQUEST + '\n' + self.BRIEF)
         self.assertEqual([r.constraints['subject'] for r in images(contract) if r.purpose == a4.ITEM_PURPOSE],
                          ['חולצות', 'מכנסיים', 'שמלות'])
 
+    def test_the_summary_says_which_items_the_photos_stand_for(self):
+        """The customer approves it: the summary of gate 1 (supervisor._picture_notes) reads the same split."""
+        from omni_prod import discovery as d
+        from omni_prod.conversation.supervisor import _picture_notes
+        brief = d.start(self.REQUEST)
+        brief = d.answer(brief, {'content': 'בגדי נועה; מוצרים: חולצות, מכנסיים ושמלות'})
+        brief.assets['images'] = [{'id': 'att_' + '1' * 32, 'sha256': '1' * 64, 'use': 'as_is', 'place': 'products',
+                                   'kind': 'product', 'alt': 'חולצה'}]
+        self.assertEqual(_picture_notes(brief, 'he')[-2:], ['התמונות שהעליתם (1) יוצגו ליד הפריטים הראשונים: חולצות.',
+                                                           'תמונה תיווצר עבור: מכנסיים, שמלות.'])
+        brief.assets['images'][0]['place'] = 'hero'
+        self.assertEqual(_picture_notes(brief, 'he'), [])
 
 if __name__ == '__main__':
     unittest.main()

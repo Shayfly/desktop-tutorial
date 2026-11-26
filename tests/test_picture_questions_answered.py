@@ -106,7 +106,8 @@ class OnTheRealPath(unittest.TestCase):
         self.assertEqual(item_subjects(compile_brief(c.brief)), ['חולצות', 'מכנסיים', 'שמלות'])
 
     def test_no_answer_is_asked_twice_then_the_stated_default(self):
-        c = Conversation(RESTAURANT, ['תעשו מה שנראה לכם יפה ומתאים למסעדה שלנו בבקשה', 'אין לי מושג, תחליטו אתם'])
+        # review B1: two replies that are not an answer (a question, a dot) -- asked once more, then the default
+        c = Conversation(RESTAURANT, ['מה אתם ממליצים?', '.'])
         self.assertEqual(c.picture_asks, 2, c.replies)
         self.assertEqual(sum(ITEMS_QUESTION in r for r in c.replies), 2)
         # the second ask says it was not read, and what happens without an answer (never "nothing new")
@@ -122,7 +123,7 @@ class OnTheRealPath(unittest.TestCase):
         self.assertEqual(item_subjects(contract), [])
 
     def test_an_approve_press_after_two_asks_records_the_default_and_shows_it(self):
-        c = Conversation(RESTAURANT, ['תעשו מה שנראה לכם'])          # stops at the second ask, unanswered
+        c = Conversation(RESTAURANT, ['מה זה אומר?'])                # stops at the second ask, unanswered
         sup = c.sup
         self.assertEqual(c.picture_asks, 2, c.replies)
         self.assertEqual((c.last.interpretation or {}).get('contract_asked'), 'image_items')
@@ -131,6 +132,95 @@ class OnTheRealPath(unittest.TestCase):
         self.assertIn('לא קיבלנו רשימת פריטים', t.reply)
         self.assertTrue(any(a['type'] == 'approve_spec' for a in t.actions), t.reply)
         self.assertEqual(sup.briefs.latest('p').brief.assets['pictures'], {'image_items': {'default': True}})
+
+
+class AnUnrelatedReplyIsNotTheAnswer(unittest.TestCase):
+    """Review of 49d61d3, blocker B1 ($SP/rv-probe/p_s1.py, p_s1d.py): on the real supervisor an unrelated reply was
+    recorded as the picture answer and then built from. Each reviewer case, exactly as he wrote it."""
+
+    def setUp(self):
+        p = mock.patch.dict(os.environ, {'OMNI_INTAKE_AGENT': '1'})
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_a_change_a_phone_or_an_address_is_never_recorded_and_the_question_is_asked_again(self):
+        for reply in ('תשנו את הצבע לכחול', 'הטלפון שלנו 03-5559999', 'גם כתובת: הרצל 5, חיפה'):
+            with self.subTest(reply):
+                c = Conversation(RESTAURANT, [reply])                # stops at the second ask
+                self.assertEqual(c.picture_asks, 2, c.replies)
+                self.assertIsNone(c.brief.assets.get('pictures'))
+                self.assertEqual(item_subjects(compile_brief(c.brief)), [])
+                second = [r for r in c.replies if ITEMS_QUESTION in r][1]
+                self.assertIn('לא הצלחתי לקרוא מההודעה רשימת פריטים', second)
+
+    def test_i_dont_know_takes_the_stated_default_at_once(self):
+        for reply in ('no idea', 'skip', 'לא יודע', 'אין לי מושג, תחליטו אתם', 'لا أعرف'):
+            with self.subTest(reply):
+                c = Conversation(RESTAURANT, [reply])
+                self.assertEqual(c.picture_asks, 1, c.replies)
+                self.assertEqual(c.brief.assets['pictures'], {'image_items': {'default': True}})
+                self.assertIn('לא קיבלנו רשימת פריטים', c.summary or '')
+                self.assertEqual(item_subjects(compile_brief(c.brief)), [])
+
+    def test_the_subject_question_records_only_a_description(self):
+        from omni_prod import conversation_rehearsal as Rh
+        sup = Rh._Supervisor(None)
+        sup._contract_asked = lambda pid: 'image_subject'
+        sup._times_contract_asked = lambda pid, q: 1
+        cases = {'Also add an opening hours section': None, 'Can you make the colours warmer': None,
+                 'תוסיפו גם עמוד צור קשר': None, 'not sure': {'default': True}, 'no idea': {'default': True},
+                 'לא יודע': {'default': True}, 'whatever you think': {'default': True}, 'skip it': {'default': True},
+                 'בתמונה רואים מכונית מרוץ אדומה': {'answer': 'בתמונה רואים מכונית מרוץ אדומה'}}
+        for reply, recorded in cases.items():
+            with self.subTest(reply):
+                b = d.start('x')
+                sup._picture_answer('p', b, reply)
+                self.assertEqual((b.assets.get('pictures') or {}).get('image_subject'), recorded)
+
+    def test_a_reply_the_interpreter_took_as_a_change_is_not_the_answer(self):
+        from omni_prod import conversation_rehearsal as Rh
+        sup = Rh._Supervisor(None)
+        sup._contract_asked = lambda pid: 'image_items'
+        sup._times_contract_asked = lambda pid, q: 1
+        b = d.start('x')
+        sup._picture_answer('p', b, 'כחול ולבן', edited=['color'])
+        self.assertIsNone(b.assets.get('pictures'))
+        sup._picture_answer('p', b, 'כחול ולבן', edited=[])
+        self.assertEqual(b.assets['pictures'], {'image_items': {'answer': 'כחול ולבן'}})
+
+    def test_a_store_that_cannot_be_read_counts_as_never_asked_and_is_said(self):
+        from omni_prod import conversation_rehearsal as Rh
+        sup = Rh._Supervisor(None)
+        sup.store.messages_for = mock.Mock(side_effect=OSError('db down'))
+        with self.assertLogs('omni_prod.conversation.supervisor', level='ERROR') as logs:
+            self.assertEqual(sup._times_contract_asked('p', 'image_items'), 0)
+            self.assertIsNone(sup._contract_asked('p'))
+        self.assertTrue(any('CONTRACT_ASKED_UNCOUNTED' in line for line in logs.output))
+
+    def test_the_reader(self):
+        R = CP.read_picture_answer
+        self.assertEqual(R('תשנו את הצבע לכחול', 'image_items')[0], 'unread')
+        self.assertEqual(R('no idea', 'image_items'), ('decline', None))
+        self.assertEqual(R('הטלפון שלנו 03-5559999', 'image_items')[0], 'unread')
+        self.assertEqual(R('גם כתובת: הרצל 5, חיפה', 'image_items')[0], 'unread')
+        self.assertEqual(R('כתובת: הרצל 5, חיפה', 'image_items')[0], 'unread')
+        self.assertEqual(R('شكشوكة، حمص وفلافل', 'image_items'), ('answer', ('شكشوكة', 'حمص', 'فلافل')))
+        with self.assertRaises(ValueError):
+            R('x', 'colour')
+
+    def test_the_arabic_question_has_an_arabic_intro(self):
+        from omni_prod import conversation_rehearsal as Rh
+        from omni_prod.build_contract import ClarificationQuestion
+        from omni_prod.conversation.supervisor import Turn
+        from omni_prod.product_architect import PICTURE_ITEMS_QUESTION
+        sup = Rh._Supervisor(None)
+        row = Rh.MemoryBriefs.Row(1, d.start('موقع لمطعم'))
+        for lang, question, intro in (('en', PICTURE_ITEMS_QUESTION['ar'], 'سؤال واحد قبل أن نتابع:'),
+                                      ('he', PICTURE_ITEMS_QUESTION['he'], 'שאלה אחת לפני שממשיכים:')):
+            with self.subTest(lang):
+                sup._contract_open = lambda r, q=question: [ClarificationQuestion('image_items', q, 'r', True)]
+                self.assertEqual(sup._open_question_instead_of_gate1(Turn('x', lang, '', row), row, lang),
+                                 [intro, question])
 
 
 class TheLabelReader(unittest.TestCase):
@@ -154,6 +244,7 @@ class TheLabelReader(unittest.TestCase):
         self.assertEqual(CP.answer_items('מוצרים: חולצות, מכנסיים'), ('חולצות', 'מכנסיים'))
         self.assertEqual(CP.answer_items('פיצה'), ('פיצה',))
         for sentence in ('תעשו מה שנראה לכם יפה ומתאים למסעדה שלנו בבקשה', 'לא יודע', 'מה זה אומר?', 'you decide',
+                         'תשנו את הצבע לכחול', 'no idea', 'הטלפון שלנו 03-5559999', 'גם כתובת: הרצל 5, חיפה',
                          'אני רוצה שהאתר יראה מאוד מקצועי ומזמין לכל מי שנכנס אליו'):
             with self.subTest(sentence):
                 self.assertEqual(CP.answer_items(sentence), ())

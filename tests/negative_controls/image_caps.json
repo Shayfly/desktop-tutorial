@@ -55,11 +55,14 @@
       ],
       "targets": ["tests/test_image_per_item.py"],
       "expect_failed": [
+        "test_a_hero_or_story_photo_covers_no_item",
+        "test_a_marker_the_customer_typed_is_not_an_upload",
         "test_a_picture_per_item_with_no_list_in_the_brief_is_the_contracts_question",
         "test_a_wrong_picture_of_one_item_stops_the_build",
         "test_each_picture_is_made_and_judged_from_its_own_item_and_placed_next_to_it",
+        "test_fewer_photos_than_items_cover_the_first_items_and_the_rest_are_generated",
         "test_nine_named_items_are_nine_pictures_each_its_own_subject",
-        "test_uploaded_photos_mean_no_generated_item_pictures_and_the_contract_says_so",
+        "test_photos_placed_among_the_products_stand_for_the_items_and_the_contract_says_so",
         "test_without_uploads_each_item_gets_its_picture"
       ]
     },
@@ -75,9 +78,13 @@
       ],
       "targets": ["tests/test_image_per_item.py"],
       "expect_failed": [
+        "test_a_hero_or_story_photo_covers_no_item",
+        "test_a_marker_the_customer_typed_is_not_an_upload",
         "test_a_wrong_picture_of_one_item_stops_the_build",
         "test_each_picture_is_made_and_judged_from_its_own_item_and_placed_next_to_it",
+        "test_fewer_photos_than_items_cover_the_first_items_and_the_rest_are_generated",
         "test_nine_named_items_are_nine_pictures_each_its_own_subject",
+        "test_the_summary_says_which_items_the_photos_stand_for",
         "test_without_uploads_each_item_gets_its_picture"
       ]
     },
@@ -136,13 +143,46 @@
       "mutations": [
         {
           "file": "omni_prod/capability_planner.py",
-          "old": "            uploaded = _UPLOADED in text\n",
-          "new": "            uploaded = False  # NEGATIVE CONTROL\n"
+          "old": "               if m and m.group(2) in ITEM_PHOTO_PLACES})\n",
+          "new": "               if False})  # NEGATIVE CONTROL\n"
         }
       ],
       "targets": ["tests/test_image_per_item.py"],
       "expect_failed": [
-        "test_uploaded_photos_mean_no_generated_item_pictures_and_the_contract_says_so"
+        "test_fewer_photos_than_items_cover_the_first_items_and_the_rest_are_generated",
+        "test_photos_placed_among_the_products_stand_for_the_items_and_the_contract_says_so",
+        "test_the_summary_says_which_items_the_photos_stand_for"
+      ]
+    },
+    {
+      "id": "NC9",
+      "what": "review SF1: any placed upload (a hero, a story photo) stands for an item",
+      "mutations": [
+        {
+          "file": "omni_prod/capability_planner.py",
+          "old": "               if m and m.group(2) in ITEM_PHOTO_PLACES})\n",
+          "new": "               if m})  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": ["tests/test_image_per_item.py"],
+      "expect_failed": [
+        "test_a_hero_or_story_photo_covers_no_item",
+        "test_the_summary_says_which_items_the_photos_stand_for"
+      ]
+    },
+    {
+      "id": "NC10",
+      "what": "review SF1: the summary the customer approves does not say which items their photos stand for",
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "    if split['own'] and _picture_per_item(full):\n",
+          "new": "    if False:  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": ["tests/test_image_per_item.py"],
+      "expect_failed": [
+        "test_the_summary_says_which_items_the_photos_stand_for"
       ]
     }
   ]

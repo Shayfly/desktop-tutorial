@@ -139,22 +139,31 @@ _PICTURE_NOTES = {
            'subject_default': 'לא קיבלנו תיאור לתמונה, ולכן היא לא תיווצר.',
            'items_again': 'לא הצלחתי לקרוא מההודעה רשימת פריטים. אם גם הפעם לא תהיה רשימה, נבנה בלי תמונה לכל פריט '
                           'והפריטים יוצגו כטקסט.',
-           'subject_again': 'לא הצלחתי לקרוא מההודעה מה רואים בתמונה. אם גם הפעם לא יהיה תיאור, נבנה בלי התמונה הזאת.'},
+           'subject_again': 'לא הצלחתי לקרוא מההודעה מה רואים בתמונה. אם גם הפעם לא יהיה תיאור, נבנה בלי התמונה הזאת.',
+           'own': 'התמונות שהעליתם ({n}) יוצגו ליד הפריטים הראשונים: {covered}.', 'own_none': 'התמונות שהעליתם ({n}) יוצגו ליד הפריטים.',
+           'gen': 'תמונה תיווצר עבור: {generated}.', 'gen_none': 'לא תיווצר תמונה לפריטים.'},
     'ar': {'items': 'صورة لكل عنصر: {v}.', 'subject': 'ما يظهر في الصورة: {v}.',
            'items_default': 'لم نتلقَّ قائمة العناصر، لذلك لن تُنشأ صورة لكل عنصر. ستُعرض العناصر كنص.',
            'subject_default': 'لم نتلقَّ وصفًا للصورة، لذلك لن تُنشأ.',
            'items_again': 'لم أتمكن من قراءة قائمة عناصر من الرسالة. إذا لم تصل قائمة هذه المرة أيضًا، سنبني دون صورة لكل '
                           'عنصر وستُعرض العناصر كنص.',
            'subject_again': 'لم أتمكن من قراءة ما يظهر في الصورة من الرسالة. إذا لم يصل وصف هذه المرة أيضًا، سنبني دون '
-                            'هذه الصورة.'},
+                            'هذه الصورة.',
+           'own': 'صوركم ({n}) ستُعرض بجانب العناصر الأولى: {covered}.', 'own_none': 'صوركم ({n}) ستُعرض بجانب العناصر.',
+           'gen': 'ستُنشأ صورة لـ: {generated}.', 'gen_none': 'لن تُنشأ صورة للعناصر.'},
     'en': {'items': 'A picture of each item: {v}.', 'subject': 'The picture shows: {v}.',
            'items_default': 'No list of items was given, so no picture is made per item. The items are shown as text.',
            'subject_default': 'No description of the picture was given, so it is left out.',
            'items_again': 'I could not read a list of items in that message. If there is no list this time either, the '
                           'site is built without a picture per item, and the items are shown as text.',
            'subject_again': 'I could not read what the picture shows in that message. If there is no description this '
-                            'time either, it is built without that picture.'},
+                            'time either, it is built without that picture.',
+           'own': 'Your {n} photo(s) go next to the first items: {covered}.', 'own_none': 'Your {n} photo(s) go next to the items.',
+           'gen': 'A picture is made for: {generated}.', 'gen_none': 'No picture is made for the items.'},
 }
+
+
+_ASK_ONE_AR = 'سؤال واحد قبل أن نتابع:'
 
 
 def _picture_notes(brief, lang: str) -> list[str]:
@@ -168,6 +177,15 @@ def _picture_notes(brief, lang: str) -> list[str]:
             out.append(words[key].format(v=entry['answer']))
         elif entry.get('default'):
             out.append(words[key + '_default'])
+    # review SF1: the customer's own photos among the items, and which items they stand for -- said, not assumed
+    from ..capability_planner import _picture_per_item, item_pictures
+    full = (brief.prompt or '') + '\n' + d.requirements_text(brief)
+    split = item_pictures(full)
+    if split['own'] and _picture_per_item(full):
+        out.append(words['own'].format(n=split['own'], covered=', '.join(split['covered'])) if split['covered']
+                   else words['own_none'].format(n=split['own']))
+        out.append(words['gen'].format(generated=', '.join(split['generated'])) if split['generated']
+                   else words['gen_none'])
     return out
 
 
@@ -679,7 +697,9 @@ class ConversationSupervisor:
             # asked before and not answered in words the planner reads: said, with what happens after this question
             words = _PICTURE_NOTES[lang if lang in _PICTURE_NOTES else 'en']
             again = [words[{'image_items': 'items', 'image_subject': 'subject'}[open_qs[0].id] + '_again']]
-        return again + [T['ask_one'], open_qs[0].question]
+        # nit (review of 49d61d3): an Arabic question gets an Arabic intro (the conversation's lang is he / en)
+        intro = _ASK_ONE_AR if re.search(r'[؀-ۿ]', open_qs[0].question) else T['ask_one']
+        return again + [intro, open_qs[0].question]
 
     def _gate1(self, turn, row, lang, project_id=None):
         """Step 1 of 2: the spec + the cost range, and the approve-spec control. No plan exists here."""
@@ -1296,7 +1316,9 @@ class ConversationSupervisor:
         if row is not None and message and not answers:
             # S1: the answer to the contract's picture question is recorded where the planner reads it; after
             # ASK_PICTURE_AT_MOST questions with no answer it can read, the stated default is recorded instead
-            self._picture_answer(project_id, new_brief, message)
+            # review B1: a reply the interpreter also took as a change of the request is not the answer
+            edited = [x['field'] for x in res.applied + res.corrected + res.conflicts if x.get('field') != 'content']
+            self._picture_answer(project_id, new_brief, message, edited=edited)
         if (agent.enabled() and row is not None and message and not answers
                 and agent.COLOUR_ID in self._awaiting(project_id) and agent.colour_unknown_business(row.brief)):
             # row.brief, not new_brief: the interpreter already read the colours in the order they were written
@@ -1756,31 +1778,44 @@ class ConversationSupervisor:
         return ((last or {}).get('interpretation') or {}).get('contract_asked')
 
     def _times_contract_asked(self, project_id, qid: str) -> int:
-        """How many assistant turns asked the contract's question `qid`, within the last 60 messages."""
-        prev = self.store.messages_for(project_id, limit=60)
+        """How many assistant turns asked the contract's question `qid`, within the last 60 messages. A store that
+        cannot be read is logged at ERROR and counts as never asked (the question is asked again, never defaulted)."""
+        try:
+            prev = self.store.messages_for(project_id, limit=60)
+        except Exception:
+            logging.getLogger(__name__).error('CONTRACT_ASKED_UNCOUNTED project=%s question=%s', project_id, qid,
+                                              exc_info=True)
+            return 0
         return sum(1 for m in prev if m.get('role') == 'assistant'
                    and (m.get('interpretation') or {}).get('contract_asked') == qid)
 
-    def _picture_answer(self, project_id, brief, message: str) -> None:
-        """S1: when the last turn asked a picture question of the contract, this message is its answer -- recorded on
-        `brief` where the planner reads it (discovery.record_picture_answer) when the planner can read it: a list of
-        items (capability_planner.answer_items), or a sentence that describes the picture. Anything else (a handed-back
-        answer, a question) is not recorded: the question is asked again, at most ASK_PICTURE_AT_MOST times in all;
-        after that the stated default is recorded (shown in the summary and carried by the contract's notes)."""
-        from ..capability_planner import ASK_PICTURE_AT_MOST, answer_items
-        from ..intake.conversation_agent import _NOT_A_NAME
+    def _picture_answer(self, project_id, brief, message: str, *, edited=()) -> None:
+        """S1: when the last turn asked a picture question of the contract, this message may be its answer. Review B1
+        (49d61d3): only a reply that reads as one is recorded (capability_planner.read_picture_answer -- not a question,
+        a change to the request, a phone / address / labelled field, or an item that is not a short noun phrase), and
+        not one the interpreter also took as a change (`edited`: the fields it set). "I don't know / skip / you decide"
+        records the stated default at once. Anything else is not recorded: the question is asked once more, at most
+        ASK_PICTURE_AT_MOST times in all, and then the stated default is recorded (in the summary and the contract)."""
+        from ..capability_planner import ASK_PICTURE_AT_MOST, read_picture_answer
+        log = logging.getLogger(__name__)
         qid = self._contract_asked(project_id)
         if qid not in d.PICTURE_QUESTIONS:
             return
-        text = ' '.join(message.split())
-        readable = bool(text) and not _NOT_A_NAME.search(text) and not text.endswith(('?', '؟'))
-        if readable and (answer_items(text) if qid == 'image_items' else len(text) <= 300):
-            d.record_picture_answer(brief, qid, text)
-            logging.getLogger(__name__).info('PICTURE_ANSWER_RECORDED project=%s question=%s', project_id, qid)
+        kind, value = read_picture_answer(message, qid)
+        if kind == 'answer' and edited:
+            kind, value = 'unread', 'also read as a change of ' + ', '.join(sorted(set(edited)))
+        if kind == 'answer':
+            d.record_picture_answer(brief, qid, ' '.join(message.split()))
+            log.info('PICTURE_ANSWER_RECORDED project=%s question=%s', project_id, qid)
+        elif kind == 'decline':
+            d.record_picture_answer(brief, qid, None)
+            log.info('PICTURE_QUESTION_DECLINED project=%s question=%s: the stated default', project_id, qid)
         elif self._times_contract_asked(project_id, qid) >= ASK_PICTURE_AT_MOST:
             d.record_picture_answer(brief, qid, None)
-            logging.getLogger(__name__).warning('PICTURE_QUESTION_DEFAULTED project=%s question=%s asked=%d', project_id,
-                                                qid, ASK_PICTURE_AT_MOST)
+            log.warning('PICTURE_QUESTION_DEFAULTED project=%s question=%s asked=%d last_reply=%s', project_id, qid,
+                        ASK_PICTURE_AT_MOST, value)
+        else:
+            log.info('PICTURE_ANSWER_UNREAD project=%s question=%s: %s', project_id, qid, value)
 
     def _picture_default(self, project_id, account_id, row):
         """S1, the approve button of an earlier turn: a picture question the contract still asks after it was asked
