@@ -1,0 +1,104 @@
+{
+ "pr": "route-honesty",
+ "sha256": [
+  "tests/test_route_honesty.py",
+  "tests/fixtures/site_content_bld_3938e570.json",
+  "omni_prod/vertical_palettes.py",
+  "omni_prod/site_content/__init__.py",
+  "omni_prod/site_content/schema.py",
+  "omni_prod/site_content/agents.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the palette's category is the business again: a smoke shop with no signal reads the lawyer domain",
+   "mutations": [
+    {
+     "file": "omni_prod/vertical_palettes.py",
+     "old": "    return {'category': None, 'palette_category': near,",
+     "new": "    return {'category': near, 'palette_category': near,"
+    }
+   ],
+   "targets": [
+    "tests/test_route_honesty.py"
+   ],
+   "expect_failed": [
+    "test_a_near_word_or_an_inflection_lends_the_palette_only",
+    "test_no_signal_is_no_category",
+    "test_the_model_is_never_told_a_trade_the_brief_did_not_name",
+    "test_the_neutral_palettes_process_and_faq_are_offered_not_required"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "no signal is reported as found by similarity",
+   "mutations": [
+    {
+     "file": "omni_prod/vertical_palettes.py",
+     "old": "'found': 'nearest' if score else 'none',",
+     "new": "'found': 'nearest',"
+    }
+   ],
+   "targets": [
+    "tests/test_route_honesty.py"
+   ],
+   "expect_failed": [
+    "test_a_near_word_or_an_inflection_lends_the_palette_only",
+    "test_no_signal_is_no_category"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a business the brief does not name is still required the neutral palette's process and FAQ",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    entry = DIRECTIONS['palettes'][palette] if category else unnamed_entry(DIRECTIONS['palettes'][palette])\n",
+     "new": "    entry = DIRECTIONS['palettes'][palette]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_route_honesty.py"
+   ],
+   "expect_failed": [
+    "test_the_model_is_never_told_a_trade_the_brief_did_not_name",
+    "test_the_neutral_palettes_process_and_faq_are_offered_not_required"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the schema never offers a palette's optional sections",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "        for key in palette.get('optional_sections', ()):",
+     "new": "        for key in ():  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_honesty.py"
+   ],
+   "expect_failed": [
+    "test_the_model_is_never_told_a_trade_the_brief_did_not_name",
+    "test_the_neutral_palettes_process_and_faq_are_offered_not_required"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the copy model is told the neutral palette's trade name ('counsel') for a business the brief does not name",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "'palette': route.palette if named else None,",
+     "new": "'palette': route.palette,"
+    }
+   ],
+   "targets": [
+    "tests/test_route_honesty.py"
+   ],
+   "expect_failed": [
+    "test_the_model_is_never_told_a_trade_the_brief_did_not_name"
+   ]
+  }
+ ]
+}

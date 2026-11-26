@@ -332,8 +332,11 @@ class ContentSiteGenerator:
     def _payload(self, route, sheet, offered) -> dict:
         from ..section_library import LAYOUTS
         from ..skill_units import gate as G
-        return {'request': sheet.for_model(), 'palette': route.palette, 'direction': route.direction,
-                'voice': route.voice,
+        # a palette's name is a trade's ('counsel'): the model is given it only for a business the brief names, so the
+        # neutral palette of an unnamed business never reads as "a law firm" (bld_3938e570)
+        named = getattr(route, 'category', None) is not None
+        return {'request': sheet.for_model(), 'palette': route.palette if named else None,
+                'direction': route.direction, 'voice': route.voice,
                 'trade_words': list(getattr(route, 'domain_words', None) or []),
                 'schema': K.schema_for_model(offered, route.outline_titles, name_given=bool(sheet.name),
                                              layouts=LAYOUTS),
