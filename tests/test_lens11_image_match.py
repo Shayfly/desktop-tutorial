@@ -109,7 +109,10 @@ class TheWrongPictureStopsTheBuild(unittest.TestCase):
         r = run(EGGS)
         self.assertEqual(len(r.vision.calls), 1)
         call = r.vision.calls[0]
-        self.assertEqual(call['images'], (r.image,))
+        # image weight (2026-11-26): the page's copy of the stored image -- what the customer will see, converted from
+        # the stored artifact (its digest stays the image's own)
+        from omni_prod.web_rendition import rendition
+        self.assertEqual(call['images'], (rendition(r.image, 'image/png', place='hero')['data'],))
         self.assertIn(SUBJECT, call['user'])
         self.assertEqual(call.get('task'), 'review')
 

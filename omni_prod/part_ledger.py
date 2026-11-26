@@ -34,9 +34,11 @@ Where each origin is read from:
     are the page's CSS colour custom properties;
   * images: assets/148ai-logo.<ext> is customer_upload when its bytes' sha256 is the brief's 'Uploaded logo
     attachment ... sha256='; assets/148ai-upload-N.<ext> is customer_upload bound to the brief's uploaded-image line N
-    (byte for byte, or the web rendition warehouse 114 makes: WebP, under web_rendition.BUDGET_BYTES);
+    (byte for byte, or a web rendition: since the image weight change of 2026-11-26 every carried photo is one --
+    WebP or JPEG, web_rendition.OUTPUT_MIMES);
     assets/148ai-image-N.<ext> is ai_generated, linked to the N-th VERIFIED media.image.generate artifact of the asset
-    manifest in generated_images.collect order (byte for byte, or a web rendition of an artifact over the budget).
+    manifest in generated_images.collect order (byte for byte, or a web rendition of the artifact -- every one, since
+    2026-11-26).
 
 `customer_view(ledger)` is what the customer may read (decision #29, VISION_LAW rule 7): every key
 customer_views.is_internal_key matches is dropped, and so are the provider and routing keys it does not match
@@ -252,21 +254,16 @@ def _manifest_artifacts(L: _Ledger) -> list[dict] | None:
     return found
 
 
-def _bytes_state(file_sha: str, mime: str, size: int, bound_sha: str, *, bound_over_budget: bool | None) -> str | None:
-    """'identical', 'web_rendition' (warehouse 114: a WebP under the budget, made from a file over it), or None (the
-    file is not what was bound). `bound_over_budget` is what is known of the bound file's size: True / False from the
-    manifest's size_bytes, None when nothing records it (the brief binds a photo by its digest only)."""
-    from .web_rendition import BUDGET_BYTES
+def _bytes_state(file_sha: str, mime: str, bound_sha: str) -> str | None:
+    """'identical', 'web_rendition' (a file of a type the converter makes, web_rendition.OUTPUT_MIMES: since the image
+    weight change of 2026-11-26 EVERY photo and generated image the platform carries is a conversion -- no image is
+    carried byte for byte, whatever its size), or None (the file is not what was bound)."""
+    from .web_rendition import OUTPUT_MIMES
     if file_sha == bound_sha:
         return 'identical'
-    if mime == 'image/webp' and size <= BUDGET_BYTES and bound_over_budget is not False:
+    if mime in OUTPUT_MIMES:
         return 'web_rendition'
     return None
-
-
-def _budget() -> int:
-    from .web_rendition import BUDGET_BYTES
-    return BUDGET_BYTES
 
 
 def _images(L: _Ledger, brief: _Brief | None) -> None:
@@ -312,7 +309,7 @@ def _images(L: _Ledger, brief: _Brief | None) -> None:
                 L.item('images', 'customer_upload', path=path, sha256=sha, bound_to='uploaded_logo', bytes='identical')
         elif kind == 'upload':
             line = uploads.get(n)
-            state = _bytes_state(sha, mime, size, line[3], bound_over_budget=None) if line else None
+            state = _bytes_state(sha, mime, line[3]) if line else None
             if line is None:
                 L.unresolve(path, f'an uploaded photo file, and the approved brief has no uploaded-image line {n}')
             elif state is None:
@@ -349,9 +346,7 @@ def _images(L: _Ledger, brief: _Brief | None) -> None:
         if not art.get('sha256'):
             L.unresolve(path, 'its verified artifact records no sha256, so the file cannot be attested')
             continue
-        recorded = art.get('size_bytes')
-        state = _bytes_state(sha, mime, size, art['sha256'], bound_over_budget=(
-            recorded > _budget() if isinstance(recorded, int) and not isinstance(recorded, bool) else False))
+        state = _bytes_state(sha, mime, art['sha256'])
         if state is None:
             L.unresolve(path, 'the file is not its verified artifact (sha256 differs and it is not a web rendition)')
             continue

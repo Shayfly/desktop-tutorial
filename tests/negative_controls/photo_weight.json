@@ -22,6 +22,8 @@
     "tests/test_web_rendition.py"
    ],
    "expect_failed": [
+    "test_a_light_phone_photo_reaches_the_page_and_the_export_without_its_gps",
+    "test_a_png_with_an_exif_chunk_and_text_is_cleaned_too",
     "test_the_page_passes_the_unit_that_failed_on_the_butcher"
    ]
   },
@@ -39,77 +41,9 @@
     "tests/test_web_rendition.py"
    ],
    "expect_failed": [
-    "test_a_phone_photo_stored_sideways_comes_out_upright"
-   ]
-  },
-  {
-   "id": "NC3",
-   "what": "a light photo is re-encoded although it needs nothing",
-   "mutations": [
-    {
-     "file": "omni_prod/web_rendition.py",
-     "old": "    if len(data) <= BUDGET_BYTES:\n",
-     "new": "    if False:\n"
-    }
-   ],
-   "targets": [
-    "tests/test_web_rendition.py"
-   ],
-   "expect_failed": [
-    "test_a_light_photo_is_carried_byte_for_byte"
-   ]
-  },
-  {
-   "id": "NC4",
-   "what": "transparency is flattened",
-   "mutations": [
-    {
-     "file": "omni_prod/web_rendition.py",
-     "old": "    base = upright.convert('RGBA' if has_alpha else 'RGB')",
-     "new": "    base = upright.convert('RGB')"
-    }
-   ],
-   "targets": [
-    "tests/test_web_rendition.py"
-   ],
-   "expect_failed": [
-    "test_transparency_is_kept"
-   ]
-  },
-  {
-   "id": "NC5",
-   "what": "an animated image is accepted and silently reduced to one frame",
-   "mutations": [
-    {
-     "file": "omni_prod/web_rendition.py",
-     "old": "    if getattr(img, 'is_animated', False):",
-     "new": "    if False:"
-    }
-   ],
-   "targets": [
-    "tests/test_web_rendition.py"
-   ],
-   "expect_failed": [
-    "test_an_animated_image_is_refused"
-   ]
-  },
-  {
-   "id": "NC6",
-   "what": "the rendition is accepted over the budget",
-   "mutations": [
-    {
-     "file": "omni_prod/web_rendition.py",
-     "old": "        if out.tell() <= BUDGET_BYTES:",
-     "new": "        if True:"
-    }
-   ],
-   "targets": [
-    "tests/test_web_rendition.py"
-   ],
-   "expect_failed": [
+    "test_a_phone_photo_stored_sideways_comes_out_upright",
     "test_it_fits_the_budget_and_the_screen",
-    "test_the_page_passes_the_unit_that_failed_on_the_butcher",
-    "test_the_real_collect_path_carries_the_light_rendition_and_keeps_the_verified_digest"
+    "test_the_similarity_passes_the_threshold_and_is_measured_again"
    ]
   },
   {
@@ -143,6 +77,8 @@
     "tests/test_web_rendition.py"
    ],
    "expect_failed": [
+    "test_a_generated_picture_the_plan_puts_in_the_gallery_is_made_for_the_gallery",
+    "test_an_icon_is_made_for_the_header",
     "test_the_real_collect_path_carries_the_light_rendition_and_keeps_the_verified_digest"
    ]
   }

@@ -14,6 +14,8 @@ from omni_prod.autonomous_core import AutonomousProductEngine
 from omni_prod.generated_images import GeneratedImage
 from omni_prod.skill_units import gate as G
 from omni_prod.uploaded_assets import _MainImage
+from omni_prod.web_rendition import PLACE_SIDE
+from tests import real_images
 from tests.test_skill_gates import BUTCHER, _Arch, _Files, _Sandbox, as_app_py
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,10 +27,12 @@ def gen(index, purpose='hero/brand visual', size=2000):
                           sha256=hashlib.sha256(data).hexdigest(), alt=f'תמונה {index}', data=data)
 
 
-def up(index, place, size=2000):
-    data = b'\xff\xd8\xff' + bytes([index + 100]) * size
-    return _MainImage(data, 'image/jpeg', hashlib.sha256(data).hexdigest(), f'צילום {index}', 800, 600, index=index,
-                      place=place)
+def up(index, place):
+    data = real_images.jpeg(index + 100)       # a real photo: every photo is converted (image weight, 2026-11-26)
+    img = _MainImage(data, 'image/jpeg', hashlib.sha256(data).hexdigest(), f'צילום {index}', 800, 600, index=index,
+                     place=place if place in PLACE_SIDE else 'hero')
+    img.place = place                          # A4 judges the place itself: an unknown one is A4's refusal to make
+    return img
 
 
 def page(*chunks):
