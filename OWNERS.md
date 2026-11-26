@@ -58,21 +58,27 @@ later decision changed plan v3, the plan's wording is kept beside it.
    limits that exist in the code are not changed. Whether the live Golden E2E build (S1.2) runs meanwhile is an open
    question to the owner; it is not run until he answers.
 9. **SQL, migrations and deletions on production are approved (the owner, 21:54 and 21:55):** "אז אני מאשר לך אמרתי
-   לך כבר גם לגבי הצהרות אני מאשר גם sql", and "אם צריך לעשות מחיקה תעשה אתה מבין בזה". Every such write, a
-   deletion included, still goes through CLAUDE.md section 5, in its order: a Neon backup branch
-   `backup-before-<what>-<date>`, a dry count of the rows, one transaction that verifies the old value of every row,
-   and a separate verification query. Each deletion is reported to the owner: the table, the rows and their count, the
-   backup branch, and the old values. The same messages approve the declarations Claude Code types in his name
-   (CLAUDE.md section 8), each with its `signature_note`.
-10. **The order of work (the owner, 22:14 and 22:16):** "בניית משחקים ואפליקציות הכי חשוב", and "אחרי אתרים
-    מעדיף שתבנה הכול ביחד, תמזג מה שאפשר". The customers' sites are finished first; after them everything is built
-    together, games and apps first among it, and changes that can share one pull request are merged as a bundle. Music
-    and video wait (the owner, 2026-11-26 08:34; WAREHOUSE.md item 137).
-11. **No image cap (the owner, 2026-11-26 08:49):** "אין דבר כזה תקרת תמונות לבטל מיד !". The cap on generated
-    pictures per build (`a4.FIRST_CAP` = 3, set on his own "up to 3 to start" of 2026-11-17) and every other limit on
-    the number of pictures are removed. For pictures, this takes the limit out of rule 8 and WAREHOUSE.md item 136.
-    He asked in the same message for the list of the other limits a customer meets; each of them stays until he
-    decides it.
+   לך כבר גם לגבי הצהרות אני מאשר גם sql" (21:54:06). That "sql" covers migrations as well as fixes to data is Claude
+   Code's reading: it wrote it back to him at 21:54:24 and asked to be corrected if it was wrong ("ככה אני מבין את
+   האישור, ואם הבנתי לא נכון, תתקן אותי"), and he did not correct it. His next message, at 21:55:09, answered that
+   reply's line on deleting customer data: "אם צריך לעשות מחיקה תעשה אתה מבין בזה". inbox/002 part B quotes the reply,
+   marked as Claude Code's. Every such write, a deletion included, still goes through CLAUDE.md section 5, in its
+   order: a Neon backup branch `backup-before-<what>-<date>`, a dry count of the rows, one transaction that verifies the
+   old value of every row, and a separate verification query. Each deletion is reported to the owner: the table, the
+   rows and their count, the backup branch, and the old values. The same messages approve the declarations Claude Code
+   types in his name (CLAUDE.md section 8), each with its `signature_note`.
+10. **The order of work (the owner, 22:14:35, 22:14:54 and 22:15:09):** "בניית משחקים ואפליקציות הכי חשוב", then
+    "אחרי אתרים מעדיף שתבנה הכול ביחד" and "תמזג מה שאפשר" (two messages, which reached the session together at
+    22:16:16). The customers' sites are finished first; after them everything is built together, games and apps first
+    among it, and changes that can share one pull request are merged as a bundle. Music and video wait (the owner,
+    2026-11-26 08:34; WAREHOUSE.md item 137).
+11. **No image cap (the owner, 2026-11-26 08:49):** "אין דבר כזה תקרת תמונות לבטל מיד !". The owner cancelled the cap
+    on generated pictures per build (`a4.FIRST_CAP` = 3, set on his own "up to 3 to start" of 2026-11-17) and every
+    other limit on the number of pictures. The code on main still has them (`a4.FIRST_CAP`, `a4.MAX_ASSETS`,
+    `image_match.MAX_IMAGES`, the Google adapter's 1 to 3): their removal is in progress on the branch
+    `claude/practical-hopper-oi3qj2-image-subject` and ships with the sites bundle. For pictures, this takes the limit
+    out of rule 8 and WAREHOUSE.md item 136. He asked in the same message for the list of the other limits a customer
+    meets; each of them stays until he decides it.
 
 ## 2026-11-21 — the owner: only Claude Code works
 
