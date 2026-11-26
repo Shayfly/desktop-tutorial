@@ -1,0 +1,88 @@
+{
+ "pr": "caps-a-silent-cuts",
+ "sha256": [
+  "tests/test_silent_cuts.py",
+  "omni_prod/intake/interpreter.py",
+  "omni_prod/discovery.py",
+  "omni_prod/conversation/supervisor.py",
+  "omni_prod/page_outline.py",
+  "omni_prod/worker_tasks.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the old limit is back: the model reads the first 4,000 characters of a message",
+   "mutations": [{"file": "omni_prod/intake/interpreter.py", "old": "MAX_MESSAGE_CHARS = 8000\n", "new": "MAX_MESSAGE_CHARS = 4000\n"}],
+   "targets": ["tests/test_silent_cuts.py::TheModelReadsTheWholeMessage"],
+   "expect_failed": ["test_the_bound_is_the_conversations_message_limit", "test_a_message_at_the_limit_reaches_the_model_whole",
+                     "test_a_longer_message_from_an_internal_caller_is_noted_and_logged"]
+  },
+  {
+   "id": "NC2",
+   "what": "the old limit is back: the build prompt is bounded at 12,000 characters",
+   "mutations": [{"file": "omni_prod/discovery.py", "old": "BUILD_PROMPT_MAX = 64_000\n", "new": "BUILD_PROMPT_MAX = 12_000\n"}],
+   "targets": ["tests/test_silent_cuts.py::TheBuildPrompt"],
+   "expect_failed": ["test_a_request_past_the_old_cut_keeps_every_decision",
+                     "test_the_rehearsal_prompt_is_the_customers_and_keeps_the_decisions"]
+  },
+  {
+   "id": "NC3",
+   "what": "the old cut is back in the build route: the decisions appended last are what it removes",
+   "mutations": [{"file": "omni_prod/investor_app.py", "old": "        prompt, _cut = d.build_prompt(row.brief)\n",
+                  "new": "        prompt, _cut = (row.brief.prompt + '\\n' + d.requirements_text(row.brief))[:12000], None\n"}],
+   "targets": ["tests/test_silent_cuts.py::TheBuildPrompt"],
+   "expect_failed": ["test_every_place_that_built_the_prompt_uses_the_one_function"]
+  },
+  {
+   "id": "NC4",
+   "what": "the old limit is back: a new brief carries the last 5 earlier messages",
+   "mutations": [{"file": "omni_prod/conversation/supervisor.py", "old": "    MAX_CARRIED_MESSAGES = 20 ", "new": "    MAX_CARRIED_MESSAGES = 5 "}],
+   "targets": ["tests/test_silent_cuts.py::ANewBriefCarriesTheEarlierMessages"],
+   "expect_failed": ["test_eight_long_messages_are_all_carried_now"]
+  },
+  {
+   "id": "NC5",
+   "what": "a drop of earlier messages is stored but not said to the customer",
+   "mutations": [{"file": "omni_prod/conversation/supervisor.py", "old": "            parts.append(said)\n", "new": "            pass\n"}],
+   "targets": ["tests/test_silent_cuts.py::ANewBriefCarriesTheEarlierMessages"],
+   "expect_failed": ["test_past_the_bounds_the_oldest_are_left_out_and_it_is_said"]
+  },
+  {
+   "id": "NC6",
+   "what": "the old limits are back on the model's output: a reply of 1,200 characters, 12 requirements",
+   "mutations": [{"file": "omni_prod/intake/interpreter.py", "old": "MAX_REPLY_CHARS = 4000 ", "new": "MAX_REPLY_CHARS = 1200 "},
+                 {"file": "omni_prod/intake/interpreter.py", "old": "MAX_REQUIREMENTS = 60\n", "new": "MAX_REQUIREMENTS = 12\n"}],
+   "targets": ["tests/test_silent_cuts.py::TheModelsOutput"],
+   "expect_failed": ["test_a_reply_of_3000_characters_is_kept_whole", "test_forty_requirements_and_a_long_one_are_kept"]
+  },
+  {
+   "id": "NC7",
+   "what": "a cut reply no longer says it was cut",
+   "mutations": [{"file": "omni_prod/intake/interpreter.py", "old": "        reply = reply.rstrip() + '\\n' + said ", "new": "        reply = reply.rstrip() "}],
+   "targets": ["tests/test_silent_cuts.py::TheModelsOutput"],
+   "expect_failed": ["test_a_reply_past_the_bound_is_cut_at_a_sentence_and_says_so"]
+  },
+  {
+   "id": "NC8",
+   "what": "the old limits are back on the customer's outline: 20 sections, 400 characters a section",
+   "mutations": [{"file": "omni_prod/page_outline.py", "old": "MAX_SECTIONS = 60\n", "new": "MAX_SECTIONS = 20\n"},
+                 {"file": "omni_prod/page_outline.py", "old": "MAX_BODY = 4000\n", "new": "MAX_BODY = 400\n"}],
+   "targets": ["tests/test_silent_cuts.py::TheCustomersOwnOutline"],
+   "expect_failed": ["test_thirty_sections_and_a_long_section_are_read_whole"]
+  },
+  {
+   "id": "NC9",
+   "what": "the spec the customer approves does not say what the outline bound left out",
+   "mutations": [{"file": "omni_prod/conversation/supervisor.py", "old": "*excluded, *outline_said,", "new": "*excluded,"}],
+   "targets": ["tests/test_silent_cuts.py::TheCustomersOwnOutline"],
+   "expect_failed": ["test_the_spec_the_customer_approves_says_it"]
+  },
+  {
+   "id": "NC10",
+   "what": "a failed build's evidence loses the request cut",
+   "mutations": [{"file": "omni_prod/worker_tasks.py", "old": "                           'request_cut': _request_cut_evidence(prompt),\n", "new": ""}],
+   "targets": ["tests/test_silent_cuts.py::TheBuildPrompt"],
+   "expect_failed": ["test_the_build_evidence_records_the_cut"]
+  }
+ ]
+}
