@@ -151,7 +151,8 @@ def _check_face(pair_id: str, role: str, face: dict, name: str) -> None:
     if entry is None:
         raise FontNotInLibrary(f'pair {pair_id!r} {role}: {face["family"]!r} is not on the allowed list (families)')
     if set(entry) != FAMILY_KEYS:
-        raise FontNotInLibrary(f'{face["family"]!r}: keys {sorted(set(entry) ^ FAMILY_KEYS)} differ from {sorted(FAMILY_KEYS)}')
+        raise FontNotInLibrary(f'{face["family"]!r}: keys {sorted(set(entry) ^ FAMILY_KEYS)} differ from '
+                               f'{sorted(FAMILY_KEYS)}')
     if entry['licence'] not in LICENCES:
         raise FontNotInLibrary(f'{face["family"]!r}: licence {entry["licence"]!r} is not one of {LICENCES}')
     if name not in entry['scripts']:
