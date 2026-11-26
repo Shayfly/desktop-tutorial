@@ -80,7 +80,7 @@
       "mutations": [
         {
           "file": "omni_prod/product_architect.py",
-          "old": "            questions = questions + (self._image_subject_question(intent),)\n",
+          "old": "            questions = questions + (self._image_subject_question(intent, capability_plan.target_keys),)\n",
           "new": "            pass\n"
         }
       ],

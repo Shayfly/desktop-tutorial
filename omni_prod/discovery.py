@@ -937,6 +937,42 @@ def note_customer_texts(brief: Brief, texts) -> bool:
     return True
 
 
+PICTURE_QUESTIONS = ('image_items', 'image_subject')     # the contract's picture questions (product_architect)
+
+
+def record_picture_answer(brief: Brief, qid: str, answer: str | None) -> bool:
+    """Record the customer's answer to a picture question of the build contract where the capability planner reads it
+    (release review S1: nothing did, and the question came back every turn). `answer` None records the stated default
+    (asked ASK_PICTURE_AT_MOST times with no answer the planner can read). requirements_text writes it into the approved
+    brief, so it changes the fingerprint and binds to the approval like any requirement. Returns whether it changed."""
+    if qid not in PICTURE_QUESTIONS:
+        raise ValueError(f'not a picture question: {qid!r}')
+    entry = {'default': True} if answer is None else {'answer': ' '.join(answer.split())[:300]}
+    if entry.get('answer') == '':
+        raise ValueError('an empty answer is not recorded')
+    current = dict(brief.assets.get('pictures') or {})
+    if current.get(qid) == entry:
+        return False
+    current[qid] = entry
+    brief.assets['pictures'] = current
+    return True
+
+
+def picture_lines(brief: Brief) -> list[str]:
+    """The approved brief's lines for the recorded picture answers and defaults (capability_planner reads them)."""
+    from .capability_planner import (PICTURE_ITEMS_ANSWER, PICTURE_ITEMS_DEFAULT, PICTURE_SUBJECT_ANSWER,
+                                     PICTURE_SUBJECT_DEFAULT)
+    out, recorded = [], brief.assets.get('pictures') or {}
+    for qid, prefix, default in (('image_items', PICTURE_ITEMS_ANSWER, PICTURE_ITEMS_DEFAULT),
+                                 ('image_subject', PICTURE_SUBJECT_ANSWER, PICTURE_SUBJECT_DEFAULT)):
+        entry = recorded.get(qid) or {}
+        if entry.get('answer'):
+            out.append(prefix + entry['answer'])
+        elif entry.get('default'):
+            out.append(default)
+    return out
+
+
 def customer_messages(messages) -> list[str]:
     """The stored customer messages' text, in the order the store returns them. A platform LABEL stored on the
     customer's side ("📎 a handwritten note", "I approved the draft" -- warehouse 128) is not their words. A bare number
@@ -1097,6 +1133,7 @@ def requirements_text(brief: Brief) -> str:
                        ('references', 'Visual references (inspiration only)')):
         if v.get(fld):
             lines.append(f'{label}: {_label(BY_ID[fld], v[fld], "en")}')
+    lines.extend(picture_lines(brief))       # S1: the customer's answer to a picture question, where the planner reads
     lang = v.get('languages', 'he')
     lines.append('Language: ' + {'he': 'Hebrew, right-to-left', 'he_en': 'Hebrew (RTL) with an English switch',
                                  'en': 'English'}.get(lang, lang) + '; dates shown as DD/MM/YYYY.')

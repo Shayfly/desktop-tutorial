@@ -4,7 +4,7 @@
  "controls": [
   {"id": "NC1", "what": "gate 1 is shown although the contract still asks (2026-11-13 13:35)",
    "mutations": [{"file": "omni_prod/conversation/supervisor.py",
-                  "old": "        held = self._open_question_instead_of_gate1(turn, row, lang)\n        if held is not None:\n            return held\n",
+                  "old": "        held = self._open_question_instead_of_gate1(turn, row, lang, project_id)\n        if held is not None:\n            return held\n",
                   "new": "        # NEGATIVE CONTROL\n"}],
    "targets": ["tests/test_gate1_contract_open.py"],
    "expect_failed": ["test_gate1_is_held_while_the_contract_asks"]},

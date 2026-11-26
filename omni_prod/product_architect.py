@@ -188,6 +188,44 @@ def _without_excluded(integrations, semantic_decisions, prompt: str) -> tuple:
     return tuple(i for i in integrations if decided.get(_INTEGRATION_CAPABILITY.get(i, "")) != "not_required")
 
 
+
+# The contract's picture questions, in the customer's language and naming the product kind (release review S1, F3).
+PICTURE_SUBJECT_QUESTION = {
+    'he': {'site': 'מה התמונה באתר צריכה להראות? כתבו במשפט אחד מה רואים בה.',
+           'game': 'מה התמונה של המשחק צריכה להראות? כתבו במשפט אחד מה רואים בה.',
+           'app': 'מה התמונה של האפליקציה צריכה להראות? כתבו במשפט אחד מה רואים בה.'},
+    'ar': {'site': 'ماذا يجب أن تُظهر الصورة في الموقع؟ اكتبوا في جملة واحدة ما يظهر فيها.',
+           'game': 'ماذا يجب أن تُظهر صورة اللعبة؟ اكتبوا في جملة واحدة ما يظهر فيها.',
+           'app': 'ماذا يجب أن تُظهر صورة التطبيق؟ اكتبوا في جملة واحدة ما يظهر فيها.'},
+    'en': {'site': 'What should the picture on the site show? Describe it in one sentence.',
+           'game': "What should the game's picture show? Describe it in one sentence.",
+           'app': "What should the app's picture show? Describe it in one sentence."},
+}
+PICTURE_ITEMS_QUESTION = {
+    'he': 'לאילו פריטים לשים תמונה? כתבו את רשימת הפריטים, מופרדת בפסיקים.',
+    'ar': 'لأي عناصر نضع صورة؟ اكتبوا قائمة العناصر مفصولة بفواصل.',
+    'en': 'Which items should each get a picture? List them, separated by commas.',
+}
+
+
+def _picture_lang(customer_text: str) -> str:
+    """he | ar | en, by the script of the customer's own words (intake.gaps.language_of); any other script: English."""
+    from .intake.gaps import language_of
+    lang = language_of(customer_text or '')
+    if lang not in ('he', 'ar') and re.search(r"[֐-׿]", customer_text or ''):
+        return 'he'                       # any Hebrew in the customer's words: Hebrew, as before (a Latin brand name)
+    return lang if lang in ('he', 'ar') else 'en'
+
+
+def _product_kind(target_keys) -> str:
+    """game | app | site: the product the customer asked for, from the plan's targets."""
+    keys = tuple(target_keys or ())
+    if any(k.startswith('target.game') for k in keys):
+        return 'game'
+    if any(k.startswith(('target.android', 'target.ios', 'target.desktop')) for k in keys):
+        return 'app'
+    return 'site'
+
 class ProductArchitect:
     """Compile product intent into the immutable M5 Web/SaaS Build Contract.
 
@@ -337,7 +375,7 @@ class ProductArchitect:
         if IMAGE_SUBJECT_UNRESOLVED in capability_plan.notes:
             # the owner, 2026-11-26: a picture the customer asked for that nothing describes is asked about, never drawn
             # from a generic sentence (the plan left it out; validate_plan refuses an image without a subject)
-            questions = questions + (self._image_subject_question(intent),)
+            questions = questions + (self._image_subject_question(intent, capability_plan.target_keys),)
         if IMAGE_ITEMS_UNREAD in capability_plan.notes:
             # a picture of each item is asked, and the approved brief lists no items to make them from
             questions = questions + (self._image_items_question(intent),)
@@ -647,25 +685,24 @@ class ProductArchitect:
         return ()
 
     @staticmethod
-    def _image_subject_question(customer_text: str) -> ClarificationQuestion:
-        """The question for a required picture nothing describes, in the customer's language (Hebrew, else English)."""
-        hebrew = bool(re.search(r"[֐-׿]", customer_text or ""))
+    def _image_subject_question(customer_text: str, target_keys=()) -> ClarificationQuestion:
+        """The question for a required picture nothing describes, in the customer's language (Hebrew, Arabic, else
+        English), naming the product they asked for (release review S1: a 3D game was asked about "the picture on the
+        site"): a game, an app, else a site."""
+        lang = _picture_lang(customer_text)
+        kind = _product_kind(target_keys)
         return ClarificationQuestion(
-            "image_subject",
-            "מה התמונה באתר צריכה להראות? כתבו במשפט אחד מה רואים בה." if hebrew
-            else "What should the picture on the site show? Describe it in one sentence.",
+            "image_subject", PICTURE_SUBJECT_QUESTION[lang][kind],
             "a picture is planned, but nothing the customer said and nothing in the approved brief describes it "
             "(image-subject-unresolved); it is not generated from a generic sentence",
             True)
 
     @staticmethod
     def _image_items_question(customer_text: str) -> ClarificationQuestion:
-        """The question when a picture of each item is asked and the brief names no items (Hebrew, else English)."""
-        hebrew = bool(re.search(r"[֐-׿]", customer_text or ""))
+        """The question when a picture of each item is asked and the brief names no items (Hebrew, Arabic, else
+        English)."""
         return ClarificationQuestion(
-            "image_items",
-            "לאילו פריטים לשים תמונה? כתבו את רשימת הפריטים, מופרדת בפסיקים." if hebrew
-            else "Which items should each get a picture? List them, separated by commas.",
+            "image_items", PICTURE_ITEMS_QUESTION[_picture_lang(customer_text)],
             "a picture of each item is asked, and the approved brief lists no items to make them from "
             "(image-items-unread)",
             True)

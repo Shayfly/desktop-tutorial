@@ -36,12 +36,41 @@ IMAGE_SUBJECT_UNRESOLVED = "image-subject-unresolved"    # a required image: lef
 IMAGE_NOT_PLANNED = "image-not-planned-no-subject"        # an optional image: left out, never generated
 MAX_SUBJECT_CHARS = 300                                   # the alt's own bound (generated_images.alt_text)
 IMAGE_ITEMS_UNREAD = "image-items-unread"   # a picture of each item is asked and the brief lists none: the contract asks
+# Release review of 550320c (S1): nothing wrote the customer's answer to those two questions where this planner reads,
+# so each was asked again on every turn, bounded only by the conversation's cost cap. The supervisor now records the
+# answer (discovery.record_picture_answer) and requirements_text writes it into the approved brief as one of these lines,
+# which this planner reads. After a question was asked ASK_PICTURE_AT_MOST times without an answer it can read, the
+# supervisor records the stated default instead, the plan carries the *_DEFAULTED note and the summary says it.
+ASK_PICTURE_AT_MOST = 2
+PICTURE_ITEMS_ANSWER = "Picture items (the customer's answer): "
+PICTURE_SUBJECT_ANSWER = "Picture subject (the customer's answer): "
+PICTURE_ITEMS_DEFAULT = ("Picture items: NOT GIVEN after two questions -- no picture is made per item; the items are shown "
+                         "as text.")
+PICTURE_SUBJECT_DEFAULT = ("Picture subject: NOT GIVEN after two questions -- the picture nothing describes is left out; "
+                           "never drawn from a generic sentence.")
+IMAGE_ITEMS_DEFAULTED = "image-items-defaulted-text-only"        # stated in the summary (supervisor) and the contract
+IMAGE_SUBJECT_DEFAULTED = "image-subject-defaulted-left-out"     # stated in the summary (supervisor) and the contract
+MAX_ANSWER_ITEM_WORDS = 4          # a longer "item" is a sentence ("תעשו מה שנראה לכם"), not an item: not read as one
+# words of a sentence addressed to us, never of an item: "תעשו מה שנראה לכם יפה ומתאים" was read as two items
+_HANDED_BACK = re.compile(r"(?<![\wא-ת])(?:תעשו|תעשה|תבחרו|תבחר|תחליטו|תחליט|תמליצו|לכם|לך|אתם|אתה|בבקשה|נראה|"
+                          r"יודע|יודעת|משנה)(?![\wא-ת])|\b(?:you|your|please|whatever|decide|choose|know)\b|"
+                          r"(?<![\w" + "ء-ي" + r"])(?:اختاروا|اختر|قرروا|قرر|أنتم|انتم|لكم|من\s+فضلك|أعرف|اعرف)"
+                          r"(?![\w" + "ء-ي" + r"])", re.I)
 _APPROVED_BRIEF = re.compile(r"(?m)^--- Approved project brief \(binding; fingerprint [a-f0-9]{16}\) ---$")
 _BUSINESS_LINE = "Main action: "
 _CONTENT_LINE = "Initial content: "
 # the last two items of a list: "קופסאות אחסון ומצתים", "boxes and lighters"
-_LAST_AND = re.compile(r"\s+(?:ו-?(?=[א-ת])|and\s+)", re.I)
-_NOT_AN_ITEM = {"עוד", "וכו", "וכו׳", "וכו'", "וכדומה", "more", "etc", "etc."}
+_LAST_AND = re.compile(r"\s+(?:ו-?(?=[א-ת])|and\s+|و\s?(?=[ء-ي]))", re.I)
+_NOT_AN_ITEM = {"עוד", "וכו", "וכו׳", "וכו'", "וכדומה", "more", "etc", "etc.", "وغيرها", "إلخ", "الخ"}
+_SEGMENTS = re.compile(r"[;|؛]")        # the brief's content segments (and the " | " _record_content joins with)
+_ITEM_COMMAS = re.compile(r"[,،]")      # Hebrew/English and Arabic commas
+# Labels of an items list besides the item words the picture_per_item reader knows (one_page.ITEMS_HE / ITEMS_EN), in
+# Hebrew, English and Arabic (release review S1: "תפריט:", "Menu:", "מוצרי החנות:", "שירותי המספרה:" were missed).
+_LABELS_HE_EXTRA = ("תפריט", "תפריטים", "מבחר", "קולקציה", "קולקציות")
+_LABELS_EN_EXTRA = r"menu|menus|selection|range|line-?up|list\s+of\s+\w+"
+_LABELS_AR = ("منتجات", "خدمات", "أطباق", "اطباق", "أصناف", "اصناف", "فئات", "أقسام", "اقسام", "قائمة", "منيو",
+              "وجبات", "مأكولات", "عروض", "باقات")
+_AR = "ء-ي"
 
 
 def _semantic_image_words(semantic_decisions) -> str | None:
@@ -80,38 +109,99 @@ def _picture_per_item(full_prompt: str) -> bool:
     return any(kind == "picture_per_item" for kind, _ in beyond(customer_text(full_prompt)))
 
 
-def _brief_items(full_prompt: str) -> tuple[str, ...]:
-    """The items the approved brief names: the list after an items label ("קטגוריות:", "מוצרים:", "dishes:") in its
-    "Initial content:" line (discovery.requirements_text: the customer's content, in their words), the first such list
-    of at least two. Commas separate the items and "ו"/"and" joins the last two. Read only from the LAST server-written
-    brief block. () when that line has no labelled list."""
+def _items_label() -> re.Pattern:
+    """An items label, case- and spacing-tolerant: a Hebrew item word in its plural or construct form ("מוצרים",
+    "מוצרי החנות", "שירותי המספרה") with up to three prefix letters, "תפריט"; an English plural item word or "menu"; an
+    Arabic one with its article, conjunction or possessive ("القائمة", "منتجاتنا")."""
     from .site_content.one_page import ITEMS_HE, _ITEMS_EN_PLURAL     # the item words the picture_per_item reader knows
-    label_words = re.compile(r"(?<![\wא-ת])[ובשלמהכ]{0,3}(?:" + "|".join(sorted(ITEMS_HE, key=len, reverse=True))
-                             + r")(?![\wא-ת])|\b" + _ITEMS_EN_PLURAL + r"\b", re.I)
+    he = set(ITEMS_HE) | set(_LABELS_HE_EXTRA) | {w[:-2] + "י" for w in ITEMS_HE if w.endswith("ים")}
+    he_rx = (r"(?<![\wא-ת])[ובשלמהכ]{0,3}(?:" + "|".join(sorted(map(re.escape, he), key=len, reverse=True))
+             + r")(?![\wא-ת])")
+    en_rx = r"\b(?:" + _ITEMS_EN_PLURAL + "|" + _LABELS_EN_EXTRA + r")\b"
+    ar_rx = (r"(?<![\w" + _AR + r"])(?:و|ف)?(?:ال)?(?:" + "|".join(sorted(_LABELS_AR, key=len, reverse=True))
+             + r")(?:نا|ه|ها|كم)?(?![\w" + _AR + r"])")
+    return re.compile(he_rx + "|" + en_rx + "|" + ar_rx, re.I)
+
+
+def _split_items(listed: str) -> list[str]:
+    """The items of one written list: commas separate them and "ו"/"and"/"و" joins the last two. Each item once, its
+    whitespace collapsed, never a filler word ("וכו", "etc")."""
+    parts = [" ".join(p.split()) for p in _ITEM_COMMAS.split(listed)]
+    last = list(_LAST_AND.finditer(parts[-1]))
+    if last:                                          # "a ו-b": the last element holds the last two items
+        parts[-1:] = [parts[-1][:last[-1].start()], parts[-1][last[-1].end():]]
+    items = []
+    for part in parts:
+        item = part.strip(" .")
+        if item.lower().startswith("and "):
+            item = item[4:].strip()
+        if item and item.lower() not in _NOT_AN_ITEM and item not in items:
+            items.append(item[:MAX_SUBJECT_CHARS])
+    return items
+
+
+def _approved_lines(full_prompt: str) -> list[str]:
+    """The lines of the LAST server-written brief block ([] without one): a customer's text that imitates a brief is
+    never read (the rule semantic_capabilities.read_approved follows)."""
     text = full_prompt or ""
     markers = list(_APPROVED_BRIEF.finditer(text))
-    lines = text[markers[-1].end():].splitlines() if markers else ()
+    return text[markers[-1].end():].splitlines() if markers else []
+
+
+def answer_items(answer: str) -> tuple[str, ...]:
+    """The items of the customer's answer to the items question (the supervisor records only an answer this reads):
+    the list after a label when it has one ("מוצרים: a, b"), else the whole answer. One item is an answer here (the
+    question asked for a list); an "item" of more than MAX_ANSWER_ITEM_WORDS words, a sentence addressed to us
+    (_HANDED_BACK) or a question makes the whole answer unread -- () -- so it is asked again, never drawn from."""
+    text = " ".join((answer or "").split())
+    if _HANDED_BACK.search(text) or text.endswith(("?", "؟")):
+        return ()
+    label, colon, listed = text.partition(":")
+    if colon and (_items_label().search(label) or len(label.split()) <= 3):
+        text = listed
+    items = _split_items(text) if text.strip() else []
+    if not items or any(len(item.split()) > MAX_ANSWER_ITEM_WORDS for item in items):
+        return ()
+    return tuple(items)
+
+
+def _brief_items(full_prompt: str) -> tuple[str, ...]:
+    """The items the approved brief names, read only from its LAST server-written block: the customer's recorded answer
+    to the items question (PICTURE_ITEMS_ANSWER) first; else the list after an items label (_items_label: "קטגוריות:",
+    "תפריט:", "Menu:", "القائمة:") in its "Initial content:" line (discovery.requirements_text: the customer's content,
+    in their words), the first such list of at least two. () when there is neither."""
+    lines = _approved_lines(full_prompt)
+    for line in lines:
+        if line.startswith(PICTURE_ITEMS_ANSWER):
+            items = answer_items(line[len(PICTURE_ITEMS_ANSWER):])
+            if items:
+                return items
+    label_words = _items_label()
     for line in lines:
         if not line.startswith(_CONTENT_LINE):
             continue
-        for segment in line[len(_CONTENT_LINE):].split(";"):
+        for segment in _SEGMENTS.split(line[len(_CONTENT_LINE):]):
             label, colon, listed = segment.partition(":")
-            if not colon or not label_words.search(label):
+            if not colon or not label_words.search(" ".join(label.split())):
                 continue
-            parts = [" ".join(p.split()) for p in listed.split(",")]
-            last = list(_LAST_AND.finditer(parts[-1]))
-            if last:                                      # "a ו-b": the last element holds the last two items
-                parts[-1:] = [parts[-1][:last[-1].start()], parts[-1][last[-1].end():]]
-            items = []
-            for part in parts:
-                item = part.strip(" .")
-                if item.lower().startswith("and "):
-                    item = item[4:].strip()
-                if item and item.lower() not in _NOT_AN_ITEM and item not in items:
-                    items.append(item[:MAX_SUBJECT_CHARS])
+            items = _split_items(listed)
             if len(items) >= 2:                           # one phrase after a label is a sentence, not a list
                 return tuple(items)
     return ()
+
+
+def _brief_says(full_prompt: str, line: str) -> bool:
+    """Does the approved brief's last block carry this exact line (a recorded default)?"""
+    return line in _approved_lines(full_prompt)
+
+
+def _brief_subject_answer(full_prompt: str) -> str | None:
+    """The customer's recorded answer to the picture question (PICTURE_SUBJECT_ANSWER), from the last brief block."""
+    for line in _approved_lines(full_prompt):
+        if line.startswith(PICTURE_SUBJECT_ANSWER):
+            words = " ".join(line[len(PICTURE_SUBJECT_ANSWER):].split())
+            return words[:MAX_SUBJECT_CHARS] or None
+    return None
 
 
 def asset_capability_status(plan) -> dict[str, str]:
@@ -269,7 +359,9 @@ class CapabilityPlanner:
                                                 full_prompt=full_prompt)
             if image_subject is None:
                 requested.pop(IMAGE_KEY)
-                image_notes = (IMAGE_SUBJECT_UNRESOLVED if image_required else IMAGE_NOT_PLANNED,)
+                defaulted = image_required and _brief_says(full_prompt or "", PICTURE_SUBJECT_DEFAULT)
+                image_notes = ((IMAGE_SUBJECT_DEFAULTED if defaulted else IMAGE_SUBJECT_UNRESOLVED) if image_required
+                               else IMAGE_NOT_PLANNED,)
                 logging.getLogger(__name__).warning("%s purpose=%s: nothing the customer said describes the picture",
                                                     image_notes[0], image_purpose)
         # A picture of EACH item the customer named (the owner, 2026-11-26: no image cap): one requirement per item,
@@ -282,6 +374,10 @@ class CapabilityPlanner:
             item_subjects = _brief_items(text)
             if item_subjects:
                 requested.setdefault(IMAGE_KEY, (ITEM_PURPOSE, True))
+            elif _brief_says(text, PICTURE_ITEMS_DEFAULT):
+                image_notes += (IMAGE_ITEMS_DEFAULTED,)      # asked twice, no list: the stated default, not a question
+                logging.getLogger(__name__).warning("%s: no item list after %d questions; items shown as text",
+                                                    IMAGE_ITEMS_DEFAULTED, ASK_PICTURE_AT_MOST)
             else:
                 image_notes += (IMAGE_ITEMS_UNREAD,)
                 logging.getLogger(__name__).warning("%s: a picture of each item is asked and the brief lists none",
@@ -359,8 +455,9 @@ class CapabilityPlanner:
                        full_prompt: str | None) -> str | None:
         """What the picture shows, from the trigger that made the requirement, the first found in this order (the
         owner, 2026-11-26): the customer's own clause that names the picture (generated_images.describe); else the
-        customer's own words quoted by the approved semantic decision that requires it; else, for the default hero of a
-        content site (DECISIONS 5), the approved brief's business line. None when none of them exists."""
+        customer's own words quoted by the approved semantic decision that requires it; else the customer's recorded
+        answer to the picture question (release review S1); else, for the default hero of a content site (DECISIONS
+        5), the approved brief's business line. None when none of them exists."""
         from .generated_images import describe
         clause = describe(prompt, purpose)
         if clause:
@@ -368,6 +465,9 @@ class CapabilityPlanner:
         quoted = _semantic_image_words(semantic_decisions)
         if quoted:
             return quoted
+        answered = _brief_subject_answer(full_prompt if full_prompt is not None else prompt)
+        if answered:                      # the customer's answer to the picture question (recorded by the supervisor)
+            return answered
         if default_hero:
             return _brief_business_line(full_prompt if full_prompt is not None else prompt)
         return None
