@@ -92,9 +92,10 @@ SECTIONS = {
 }
 TOP = {'schema': None, 'name': Str(60), 'tagline': Str(50), 'description': Str(160), 'layout': None,
        'sections': None, 'shortened': None}
-# Review S5 (2026-11-26): the raised maxima do not all fit one answer of MAX_CONTENT_TOKENS (a money bound, unchanged).
-# When the model must shorten a list to fit, it says which in `shortened` -- never silently, and never by spending the
-# corrections on TOO_MANY. The lists it may name (section.field), each only when its section is offered:
+# Review S5 (2026-11-26), narrowed by the owner's order of 16:10 (no product token cap; agents.output_maximum): only
+# when a list would really not fit the model's own output maximum does the model shorten it, and then it says which in
+# `shortened` -- never silently, and never by spending the corrections on TOO_MANY. The lists it may name
+# (section.field), each only when its section is offered:
 SHORTENABLE = ('stats.items', 'services.items', 'about.paragraphs', 'about.facts', 'process.steps', 'faq.items',
                'testimonials.items', 'pricelist.groups', 'contact.topics')
 NAV_SECTIONS = ('services', 'about', 'process', 'faq', 'testimonials', 'pricelist', 'contact')

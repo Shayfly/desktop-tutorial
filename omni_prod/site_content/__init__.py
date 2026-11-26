@@ -285,6 +285,15 @@ def on_route(engine) -> bool:
     return isinstance(route, Route) and route.route == ROUTE
 
 
+def _content_usage(core) -> dict | None:
+    from .agents import usage_summary
+    generator = getattr(core, 'generator', None)
+    writer, rewriter = getattr(generator, 'agent', None), getattr(generator, 'repair_agent', None)
+    if writer is None and rewriter is None:
+        return None
+    return usage_summary(list(getattr(writer, 'usage', None) or []) + list(getattr(rewriter, 'usage', None) or []))
+
+
 def report(engine) -> dict | None:
     """For the build evidence ('site_route'): the decision and, on the route, what it did."""
     core = getattr(engine, 'core', engine)
@@ -298,5 +307,7 @@ def report(engine) -> dict | None:
         out.update(renderer=RENDERER_VERSION, headings=f'the display face of font pair {route.font_pair} (warehouse 126)',
                    **{k: v for k, v in (getattr(core, 'site_report', None) or {}).items()},
                    library_feedback=list(getattr(core, 'site_feedback', None) or [])[:40],
-                   repair_trace=list(getattr(repairer, 'trace', None) or [])[-20:])
+                   repair_trace=list(getattr(repairer, 'trace', None) or [])[-20:],
+                   # the owner, 2026-11-26 16:10 ("רק מדידה"): every content call's real tokens and cost, and totals
+                   content_usage=_content_usage(core))
     return out

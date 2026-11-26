@@ -22,12 +22,14 @@ Every loop is bounded (at most MAX_CORRECTIONS corrective calls per generation, 
 engine's own round bounds), every failure is loud (SiteContentInvalid, SiteRenderDefect, RepairDeclined), and there is
 no fallback to the legacy generator once the route was chosen.
 
-What a correction costs: one model call on the build's own model budget (a money limit, unchanged) -- the content
-document again (input: the request, the schema, the previous document and the problems; output at most
-MAX_CONTENT_TOKENS) or a rewrite of the named paths (output at most MAX_REWRITE_TOKENS). ESTIMATE, measured in
-tests/test_content_corrections.py (TheCostOfACorrection) on the owner's brief bld_b0eb47a5 at the catalogue's prices
-(infra/worker-host/model-catalog.json): a correction is at most about $0.11 on claude-sonnet-5-5 ($0.04 on
-gemini-3.8-flash), so three are at most about $0.33 -- an upper bound from token bounds, not a billed amount.
+Tokens (the owner, 2026-11-26 ~16:10 UTC: "לבטל מגבלה על טוקנים כרגע רק מדידה"): there is no product-chosen
+output cap on the content path. Each call asks for its model's own documented maximum (output_maximum: the catalogue's
+max_output_tokens; the router then gives each model exactly its own), and every call is MEASURED -- its real input and
+output tokens, its metered cost, its model and why it stopped -- into the build evidence (site_route.content_usage:
+every call and the build's totals); the same attempts are in the attempt ledger. A call that stops at the model's
+maximum is said loudly there (truncated_at_model_maximum, SITE_CONTENT_TRUNCATED in the log). What a correction costs is
+that measurement, per build. The money caps stay (the build's reservation and the per-build ceiling, warehouse 136):
+the router still authorizes every call against the build's budget.
 """
 from __future__ import annotations
 
@@ -50,19 +52,87 @@ from . import validate as V
 _LOG = logging.getLogger(__name__)
 PREVIEW_CUT = 45_000                  # preview_smoke keeps the first 45,000 characters of GET / for the truth gate
 PREPASS_GATES = ('G1', 'G3', 'G10', 'G11', 'HE', 'BRAND', 'SHARE', 'PRO')
-MAX_CONTENT_TOKENS = 8000
-MAX_REWRITE_TOKENS = 3000
 # The owner, 2026-11-26 (WAREHOUSE 136, option a): corrective calls per generation -- a fixed, stated bound (CLAUDE.md
 # section 3). It was 1. Each round is logged in the build evidence (site_route.correction_rounds) and the bound is
 # said there (site_route.correction_bound) and in the failure message.
 MAX_CORRECTIONS = 3
-# Review S5 (2026-11-26): one answer holds MAX_CONTENT_TOKENS (a money bound, unchanged); the raised item maxima can be
-# more than that (the schema's largest document is 90,966 characters, measured from schema.SECTIONS). The model is
-# told the room it has and, when a list must be shorter to fit, names it in the document's `shortened`; the evidence
-# records it with the sentence for the customer (site_route.shortened, .shortened_said): recorded and returned by the
-# API, on screen once the apps bundle shows it. ESTIMATE: about 2.5
-# characters of Hebrew JSON per token (not measured on a tokenizer here), so about 20,000 characters.
-OUTPUT_CHARS = MAX_CONTENT_TOKENS * 5 // 2
+# Review S5, narrowed by the owner's order of 2026-11-26 16:10: the only room left is the model's own output maximum.
+# The model is told that room and, only when a list would really not fit in it, names the list in the document's
+# `shortened`; the evidence records it with the sentence for the customer (site_route.shortened, .shortened_said):
+# recorded and returned by the API, on screen once the apps bundle shows it. ESTIMATE: about 2.5 characters of Hebrew
+# JSON per token (not measured on a tokenizer here).
+CHARS_PER_TOKEN_ESTIMATE = 2.5
+_REPO_CATALOG = __import__('pathlib').Path(__file__).resolve().parents[2] / 'infra' / 'worker-host' / 'model-catalog.json'
+
+
+def output_maximum(gateway) -> int:
+    """The model's own documented output maximum to ask for: the largest max_output_tokens of the catalogue the
+    gateway routes over (RoutedModelGateway.ranked -- each route is then clamped to ITS model's maximum by
+    ranked_routes); with no routed catalogue, the runtime catalogue (OMNI_MODEL_CATALOG_JSON), else the repository's
+    (infra/worker-host/model-catalog.json). A catalogue entry without the field counts 8,192, as model_catalog reads it."""
+    import os
+    ranked = getattr(gateway, 'ranked', None)
+    if isinstance(ranked, (list, tuple)) and ranked:
+        return max(int(m.max_output_tokens) for m in ranked)
+    raw = os.environ.get('OMNI_MODEL_CATALOG_JSON', '').strip()
+    items = json.loads(raw) if raw else json.loads(_REPO_CATALOG.read_text(encoding='utf-8'))
+    return max(int(i.get('max_output_tokens', 8192)) for i in items)
+
+
+_TRUNCATED = ('length', 'max_tokens')
+
+
+def _measured(gateway, start, role: str, max_tokens: int) -> dict:
+    """One content call as the router recorded it: every attempt's model, tokens, metered cost and why it stopped."""
+    recorder = getattr(gateway, 'recorder', None)
+    records = getattr(recorder, 'records', None)
+    if start is None or not isinstance(records, list):
+        return {'role': role, 'max_tokens': max_tokens, 'measured': False,
+                'why': 'the gateway keeps no attempt records (not a routed gateway)'}
+    output = getattr(gateway, 'attempt_output', None) or {}
+    attempts = []
+    for r in records[start:]:
+        if getattr(r, 'kind', None) != 'provider_call':
+            continue
+        seen = output.get(r.attempt_seq) or {}
+        reason, sent, maximum = seen.get('finish_reason'), seen.get('max_tokens_sent'), seen.get('model_maximum')
+        failure = str(getattr(r, 'failure_reason', '') or '')
+        truncated = reason in _TRUNCATED or any(f'finish_reason={t}' in failure for t in _TRUNCATED)
+        # stopped at the model's own maximum, or at a smaller allowance the build's money left (fit_to_budget)
+        at_maximum = truncated and (maximum is None or sent is None or int(sent) >= int(maximum))
+        attempts.append({'model': r.model, 'outcome': r.outcome, 'input_tokens': r.input_tokens,
+                         'output_tokens': r.output_tokens,
+                         'metered_cost_usd': None if r.metered_cost_usd is None else str(r.metered_cost_usd),
+                         'max_tokens_sent': sent, 'model_maximum': maximum, 'finish_reason': reason,
+                         'truncated_at_model_maximum': at_maximum,
+                         'truncated_at_budget_allowance': truncated and not at_maximum})
+        if truncated:
+            _LOG.error('SITE_CONTENT_TRUNCATED role=%s model=%s output_tokens=%s max_tokens_sent=%s model_maximum=%s '
+                       'at=%s', role, r.model, r.output_tokens, sent, maximum,
+                       'model_maximum' if at_maximum else 'budget_allowance')
+    return {'role': role, 'max_tokens': max_tokens, 'measured': True, 'attempts': attempts}
+
+
+def usage_summary(calls: list[dict]) -> dict:
+    """The build's content calls and their totals (site_route.content_usage). A total is None when any attempt did not
+    report its number -- never a silent 0."""
+    attempts = [a for c in calls if c.get('measured') for a in c['attempts']]
+    unmeasured = any(not c.get('measured') for c in calls)
+
+    def total(key, cast):
+        values = [a[key] for a in attempts]
+        if unmeasured or any(v is None for v in values):       # an unmeasured call makes the total unknown, not 0
+            return None
+        return sum(values) if cast is int else str(sum(cast(v) for v in values))
+    from decimal import Decimal
+    return {'calls': len(calls), 'attempts': len(attempts), 'unmeasured_calls': sum(1 for c in calls if not c.get('measured')),
+            'input_tokens': total('input_tokens', int), 'output_tokens': total('output_tokens', int),
+            'metered_cost_usd': total('metered_cost_usd', Decimal),
+            'truncated_at_model_maximum': [c['role'] for c in calls if any(a['truncated_at_model_maximum']
+                                                                           for a in c.get('attempts', ()))],
+            'truncated_at_budget_allowance': [c['role'] for c in calls if any(a['truncated_at_budget_allowance']
+                                                                              for a in c.get('attempts', ()))],
+            'per_call': calls}
 
 
 class SiteContentInvalid(RuntimeError):
@@ -131,13 +201,20 @@ def rewrite_shape_guard(data) -> None:
         raise ModelJSONRejected('not a rewrite: no "set" object', raw='', diagnostic={'reason': 'rewrite_shape'})
 
 
-def _complete(gateway, *, system: str, user: str, max_tokens: int, guard) -> dict:
+def _complete(gateway, *, system: str, user: str, max_tokens: int, guard, usage: list | None = None,
+              role: str = 'content') -> dict:
     kwargs = dict(system=system, user=user, max_tokens=max_tokens)
     if getattr(gateway, 'accepts_task_tag', False):
         kwargs['validate'] = guard
-    data = gateway.complete_json(**kwargs)
-    guard(data)                        # a plain gateway has no router to escalate; the shape is still enforced
-    return data
+    records = getattr(getattr(gateway, 'recorder', None), 'records', None)
+    start = len(records) if isinstance(records, list) else None
+    try:
+        data = gateway.complete_json(**kwargs)
+        guard(data)                    # a plain gateway has no router to escalate; the shape is still enforced
+        return data
+    finally:                           # measured on success and on failure alike (the owner: "רק מדידה")
+        if usage is not None:
+            usage.append(_measured(gateway, start, role, max_tokens))
 
 
 class ContentAgent:
@@ -147,18 +224,20 @@ class ContentAgent:
     def __init__(self, gateway):
         self.gateway = gateway
         self.calls = 0
+        self.usage: list[dict] = []       # every call, measured (site_route.content_usage)
 
     def write(self, payload: dict) -> dict:
         self.calls += 1
         return _complete(self.gateway, system=_CONTENT_SYSTEM, user=json.dumps(payload, ensure_ascii=False),
-                         max_tokens=MAX_CONTENT_TOKENS, guard=content_shape_guard)
+                         max_tokens=output_maximum(self.gateway), guard=content_shape_guard, usage=self.usage,
+                         role='content')
 
     def correct(self, payload: dict, doc: dict, problems) -> dict:
         self.calls += 1
         user = json.dumps({**payload, 'instruction': _CONTENT_CORRECTION, 'your_document': doc,
                            'problems': [p.to_dict() for p in problems]}, ensure_ascii=False)
-        return _complete(self.gateway, system=_CONTENT_SYSTEM, user=user, max_tokens=MAX_CONTENT_TOKENS,
-                         guard=content_shape_guard)
+        return _complete(self.gateway, system=_CONTENT_SYSTEM, user=user, max_tokens=output_maximum(self.gateway),
+                         guard=content_shape_guard, usage=self.usage, role='correction')
 
 
 class ContentRepairAgent:
@@ -167,6 +246,7 @@ class ContentRepairAgent:
     def __init__(self, gateway):
         self.gateway = gateway
         self.calls = 0
+        self.usage: list[dict] = []       # every call, measured (site_route.content_usage)
 
     def rewrite(self, doc: dict, paths: dict[str, str], findings: list[str], sheet) -> dict[str, str]:
         self.calls += 1
@@ -175,8 +255,9 @@ class ContentRepairAgent:
                                                     'counts': 'a year' if n['kind'] == 'year' else n['noun']}
                                                    for n in sheet.numbers],
                            'prices': [p['id'] for p in sheet.prices]}, ensure_ascii=False)
-        data = _complete(self.gateway, system=_CONTENT_REPAIR_SYSTEM, user=user, max_tokens=MAX_REWRITE_TOKENS,
-                         guard=rewrite_shape_guard)
+        data = _complete(self.gateway, system=_CONTENT_REPAIR_SYSTEM, user=user,
+                         max_tokens=output_maximum(self.gateway), guard=rewrite_shape_guard, usage=self.usage,
+                         role='rewrite')
         outside = sorted(set(data['set']) - set(paths))
         if outside:
             raise SiteContentInvalid(f'the rewrite set paths it was not given: {outside}')
@@ -369,13 +450,17 @@ class ContentSiteGenerator:
     def _payload(self, route, sheet, offered) -> dict:
         from ..section_library import LAYOUTS
         from ..skill_units import gate as G
+        # a generator built without its agent (tests/test_domain_registry builds one with __new__) has no routed
+        # gateway: output_maximum then reads the runtime or repository catalogue, as for any unrouted gateway
+        gateway = getattr(getattr(self, 'agent', None), 'gateway', None)
         return {'request': sheet.for_model(), 'palette': route.palette, 'direction': route.direction,
                 'voice': route.voice,
                 'trade_words': list(getattr(route, 'domain_words', None) or []),
                 'schema': K.schema_for_model(offered, route.outline_titles, name_given=bool(sheet.name),
                                              layouts=LAYOUTS),
                 'checks': G.rules_text(('HE', 'G10', 'BRAND')),
-                'output_room': {'characters': OUTPUT_CHARS, 'rule': (
+                'output_room': {'characters': int(output_maximum(gateway) * CHARS_PER_TOKEN_ESTIMATE),
+                                'rule': (
                     'Your whole answer must stay under about this many characters. If it would not: shorten '
                     'descriptions first; if a list must still be shorter, keep the customer\'s own items first, never '
                     'leave out a price, and name each list you shortened in "shortened" with how many items it leaves '

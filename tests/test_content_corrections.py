@@ -14,6 +14,7 @@ only the model gateway is scripted, by role and in order (AGENTS.md rule 2). The
 import json
 import os
 import unittest
+from decimal import Decimal
 from unittest import mock
 
 from tests.test_site_content_agents import routed
@@ -136,42 +137,117 @@ class TheBound(unittest.TestCase):
         self.assertTrue(files)
 
 
-class TheCostOfACorrection(unittest.TestCase):
-    """Review S6: the dollar figure in agents.py is measured here. ESTIMATE: an upper bound from the platform's own token
-    bounds (input = bytes + 64, as intake.budget.quote; output = the call's max_tokens) at the catalogue's prices."""
+class TheTokensAreMeasuredNotCapped(unittest.TestCase):
+    """The owner, 2026-11-26 ~16:10 UTC: "לבטל מגבלה על טוקנים כרגע רק מדידה". No product-chosen output cap on the
+    content path: every call asks for its model's own documented maximum (the catalogue's max_output_tokens), and every
+    call's real tokens, cost and stop reason are in the build evidence. A real RoutedModelGateway over a catalogue; only
+    the provider's HTTP answer is scripted."""
 
-    def test_one_correction_is_at_most_about_eleven_cents_on_the_code_station(self):
+    CATALOG = [
+        {"name": "big", "provider": "big", "base_url": "https://big.example/v1", "model": "big-1", "api_key_env": "BIG_KEY",
+         "quality": 92, "input_per_million": "0.10", "output_per_million": "0.20", "max_output_tokens": 64000},
+        {"name": "mid", "provider": "mid", "base_url": "https://mid.example/v1", "model": "mid-1", "api_key_env": "MID_KEY",
+         "quality": 90, "input_per_million": "0.05", "output_per_million": "0.10", "max_output_tokens": 32768},
+    ]
+
+    def routed_gateway(self, finish='stop', usage=(1200, 900)):
         from decimal import Decimal
-        from pathlib import Path
-        catalog = {m['model']: m for m in json.loads((Path(__file__).resolve().parent.parent / 'infra' / 'worker-host'
-                                                      / 'model-catalog.json').read_text(encoding='utf-8'))}
-        gw = SequenceGateway([INVALID, CONTENT])
-        generate(gw)
-        _, user, max_tokens = gw.calls[1]                         # the correction
-        tokens_in = len(A._CONTENT_SYSTEM.encode()) + len(user.encode()) + 64
-        worst = {name: (Decimal(tokens_in) * Decimal(catalog[name]['input_per_million'])
-                        + Decimal(max_tokens) * Decimal(catalog[name]['output_per_million'])) / Decimal(1_000_000)
-                 for name in ('claude-sonnet-5-5', 'gemini-3.8-flash')}
-        self.assertEqual(max_tokens, A.MAX_CONTENT_TOKENS)
-        self.assertTrue(Decimal('0.09') < worst['claude-sonnet-5-5'] < Decimal('0.13'), worst)
-        self.assertTrue(Decimal('0.03') < worst['gemini-3.8-flash'] < Decimal('0.05'), worst)
-        self.assertLess(worst['claude-sonnet-5-5'] * A.MAX_CORRECTIONS, Decimal('0.39'))
+        from omni_prod.model_catalog import parse_model_catalog
+        from omni_prod.model_policy import ModelUsePolicy
+        from omni_prod.provider_usage import ProviderUsage
+        from omni_prod.routed_gateway import RoutedModelGateway, RoutingPolicy
+        sent = []
+
+        class Provider:
+            def __init__(self, endpoint):
+                self.endpoint, self.last_usage, self.last_finish_reason = endpoint, None, None
+
+            def complete_json(self, *, system, user, max_tokens, validate=None, **_):
+                sent.append((self.endpoint.name, max_tokens))
+                self.last_usage = ProviderUsage(self.endpoint.name, self.endpoint.model, True, 'req', 'header:x',
+                                                'resp', usage[0], usage[1], None, None, True)
+                self.last_finish_reason = finish
+                data = json.loads(json.dumps(CONTENT))
+                if validate is not None:
+                    validate(data)
+                return data
+        gw = RoutedModelGateway(ranked=parse_model_catalog(json.dumps(self.CATALOG), {'BIG_KEY': 'k', 'MID_KEY': 'k'}),
+                                routing_policy=RoutingPolicy(minimum_quality=70),
+                                policy=ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True,
+                                                      external_budget_usd=Decimal('5.00'),
+                                                      max_external_calls_per_build=20),
+                                gateway_factory=Provider)
+        return gw, sent
+
+    def test_each_call_asks_for_its_models_own_maximum(self):
+        gw, sent = self.routed_gateway()
+        self.assertEqual(A.output_maximum(gw), 64000)
+        engine, _ = generate(gw)
+        self.assertEqual(sent, [('mid', 32768)])              # the cheapest eligible model, given ITS maximum
+        self.assertFalse(hasattr(A, 'MAX_CONTENT_TOKENS') or hasattr(A, 'MAX_REWRITE_TOKENS'))
+        scripted = SequenceGateway([INVALID, CONTENT])         # no catalogue on the gateway: the repository's
+        generate(scripted)
+        self.assertEqual({m for _, _, m in scripted.calls}, {64000})   # claude-sonnet-5-5's 64,000 (model-catalog.json)
+
+    def test_every_call_is_measured_with_its_cost_and_the_build_totals(self):
+        gw, _ = self.routed_gateway()
+        engine, _ = generate(gw)
+        usage = site_content.report(engine)['content_usage']
+        self.assertEqual((usage['calls'], usage['attempts'], usage['unmeasured_calls']), (1, 1, 0))
+        self.assertEqual((usage['input_tokens'], usage['output_tokens']), (1200, 900))
+        # metered by the router from the provider's tokens at the catalogue price: 1200 x 0.05 + 900 x 0.10 per million
+        self.assertEqual(usage['metered_cost_usd'], str(Decimal('0.00015')))
+        call = usage['per_call'][0]
+        first = call['attempts'][0]
+        self.assertEqual((call['role'], call['max_tokens']), ('content', 64000))              # asked: the largest
+        self.assertEqual((first['model'], first['max_tokens_sent'], first['model_maximum'], first['finish_reason']),
+                         ('mid-1', 32768, 32768, 'stop'))                                   # sent: ITS maximum
+        self.assertEqual(usage['truncated_at_model_maximum'], [])
+        self.assertEqual([r.task_type for r in gw.recorder.records], ['codegen'])     # and in the attempt ledger
+
+    def test_a_call_that_stops_at_the_model_maximum_is_said_loudly(self):
+        gw, _ = self.routed_gateway(finish='length')
+        with self.assertLogs('omni_prod.site_content.agents', 'ERROR') as logs:
+            engine, _ = generate(gw)
+        usage = site_content.report(engine)['content_usage']
+        self.assertEqual(usage['truncated_at_model_maximum'], ['content'])
+        self.assertTrue(usage['per_call'][0]['attempts'][0]['truncated_at_model_maximum'])
+        self.assertIn('SITE_CONTENT_TRUNCATED', logs.output[0])
+
+    def test_a_stop_below_the_model_maximum_is_said_as_the_budget_allowance(self):
+        # fit_to_budget (money, kept) may send less than the model's maximum; a stop there is not "the model's maximum"
+        from types import SimpleNamespace as NS
+        record = NS(kind='provider_call', attempt_seq=1, model='m', outcome='ok', input_tokens=10, output_tokens=12000,
+                    metered_cost_usd=Decimal('0.1'), failure_reason=None)
+        gw = NS(recorder=NS(records=[record]),
+                attempt_output={1: {'finish_reason': 'length', 'max_tokens_sent': 12000, 'model_maximum': 64000}})
+        with self.assertLogs('omni_prod.site_content.agents', 'ERROR') as logs:
+            usage = A.usage_summary([A._measured(gw, 0, 'content', 64000)])
+        self.assertEqual((usage['truncated_at_model_maximum'], usage['truncated_at_budget_allowance']), ([], ['content']))
+        self.assertIn('at=budget_allowance', logs.output[0])
+
+    def test_a_gateway_with_no_records_is_said_unmeasured_never_zero(self):
+        engine, _ = generate(SequenceGateway([CONTENT]))
+        usage = site_content.report(engine)['content_usage']
+        self.assertEqual((usage['unmeasured_calls'], usage['input_tokens'], usage['metered_cost_usd']), (1, None, None))
+        self.assertFalse(usage['per_call'][0]['measured'])
 
 
 class AShortenedListIsSaidByName(unittest.TestCase):
-    """Review S5 (2026-11-26): the raised maxima do not all fit one answer of MAX_CONTENT_TOKENS (money, unchanged).
-    The model is told its room and names a list it shortened; the evidence records it, the customer's words say it, and
-    no correction is spent on it."""
+    """Review S5, narrowed by the owner's order of 2026-11-26 16:10: the only room is the model's own output maximum.
+    The model is told that room and names a list it shortened only when one would really not fit; the evidence records
+    it, the customer's words say it, and no correction is spent on it."""
 
     def test_the_room_is_in_the_payload_and_the_largest_document_needs_it(self):
         gw = SequenceGateway([CONTENT])
         generate(gw)
         payload = json.loads(gw.calls[0][1])
-        self.assertEqual(payload['output_room']['characters'], A.OUTPUT_CHARS)
+        room = int(64000 * A.CHARS_PER_TOKEN_ESTIMATE)              # claude-sonnet-5-5's maximum (model-catalog.json)
+        self.assertEqual(payload['output_room']['characters'], room)
         self.assertIn('"shortened"', payload['output_room']['rule'])
         from omni_prod.site_content import schema as K
         self.assertIn('shortened (optional)', payload['schema'])
-        self.assertLess(len(json.dumps(CONTENT, ensure_ascii=False)), A.OUTPUT_CHARS)   # the owner's brief: 2,118
+        self.assertLess(len(json.dumps(CONTENT, ensure_ascii=False)), room)   # the owner's brief: 2,118
 
         def largest(spec):                                     # every string at its bound, every list at its maximum
             if isinstance(spec, K.Str):
@@ -183,7 +259,9 @@ class AShortenedListIsSaidByName(unittest.TestCase):
             if isinstance(spec, dict):
                 return sum(largest(f) for f in spec.values())
             return 12
-        self.assertGreater(sum(largest(s) for s in K.SECTIONS.values()), A.OUTPUT_CHARS)   # 90,966 > 20,000
+        # ESTIMATE: every list at its maximum (90,966 characters) fits the largest model's room (160,000); a smaller
+        # model's room may not, and only then is `shortened` the honest answer
+        self.assertLess(sum(largest(s) for s in K.SECTIONS.values()), room)
 
     def test_a_shortened_list_is_recorded_and_said_without_a_correction(self):
         doc = json.loads(json.dumps(CONTENT))

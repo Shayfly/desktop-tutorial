@@ -5,7 +5,8 @@
   "tests/test_site_content_agents.py",
   "omni_prod/site_content/agents.py",
   "omni_prod/site_content/validate.py",
-  "omni_prod/site_content/schema.py"
+  "omni_prod/site_content/schema.py",
+  "omni_prod/routed_gateway.py"
  ],
  "controls": [
   {
@@ -92,8 +93,8 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/agents.py",
-     "old": "                'output_room': {'characters': OUTPUT_CHARS, 'rule': (",
-     "new": "                'output_room_off': {'characters': OUTPUT_CHARS, 'rule': ("
+     "old": "                'output_room': {'characters': int(output_maximum(self.agent.gateway) * CHARS_PER_TOKEN_ESTIMATE),",
+     "new": "                'output_room_off': {'characters': int(output_maximum(self.agent.gateway) * CHARS_PER_TOKEN_ESTIMATE),"
     }
    ],
    "targets": [
@@ -139,19 +140,111 @@
   },
   {
    "id": "NC8",
-   "what": "review S6: the cost estimate is no longer measured (the correction's payload is cut out)",
+   "what": "the owner's order 2026-11-26 16:10: a product token cap is back on the content call (8,000)",
    "mutations": [
     {
      "file": "omni_prod/site_content/agents.py",
-     "old": "MAX_CONTENT_TOKENS = 8000\n",
-     "new": "MAX_CONTENT_TOKENS = 16000\n"
+     "old": "                         max_tokens=output_maximum(self.gateway), guard=content_shape_guard, usage=self.usage,\n                         role='content')",
+     "new": "                         max_tokens=8000, guard=content_shape_guard, usage=self.usage,\n                         role='content')"
     }
    ],
    "targets": [
-    "tests/test_content_corrections.py::TheCostOfACorrection"
+    "tests/test_content_corrections.py::TheTokensAreMeasuredNotCapped"
    ],
    "expect_failed": [
-    "test_one_correction_is_at_most_about_eleven_cents_on_the_code_station"
+    "test_each_call_asks_for_its_models_own_maximum",
+    "test_every_call_is_measured_with_its_cost_and_the_build_totals",
+    "test_a_call_that_stops_at_the_model_maximum_is_said_loudly"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a product token cap hides in the catalogue maximum (the repository catalogue read, min 8,000)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "    return max(int(i.get('max_output_tokens', 8192)) for i in items)",
+     "new": "    return min(8000, max(int(i.get('max_output_tokens', 8192)) for i in items))"
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py::TheTokensAreMeasuredNotCapped",
+    "tests/test_content_corrections.py::AShortenedListIsSaidByName"
+   ],
+   "expect_failed": [
+    "test_each_call_asks_for_its_models_own_maximum",
+    "test_the_room_is_in_the_payload_and_the_largest_document_needs_it"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a content call's usage is not recorded in the build evidence",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            usage.append(_measured(gateway, start, role, max_tokens))",
+     "new": "            pass"
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py::TheTokensAreMeasuredNotCapped"
+   ],
+   "expect_failed": [
+    "test_every_call_is_measured_with_its_cost_and_the_build_totals",
+    "test_a_call_that_stops_at_the_model_maximum_is_said_loudly",
+    "test_a_gateway_with_no_records_is_said_unmeasured_never_zero"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a call that stopped on max_tokens is not said",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        truncated = reason in _TRUNCATED or any(f'finish_reason={t}' in failure for t in _TRUNCATED)",
+     "new": "        truncated = False"
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py::TheTokensAreMeasuredNotCapped"
+   ],
+   "expect_failed": [
+    "test_a_call_that_stops_at_the_model_maximum_is_said_loudly",
+    "test_a_stop_below_the_model_maximum_is_said_as_the_budget_allowance"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the router does not record the max_tokens it actually sent",
+   "mutations": [
+    {
+     "file": "omni_prod/routed_gateway.py",
+     "old": "            'max_tokens_sent': kwargs.get('max_tokens'), 'model_maximum': maximum}",
+     "new": "            'max_tokens_sent': None, 'model_maximum': maximum}"
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py::TheTokensAreMeasuredNotCapped"
+   ],
+   "expect_failed": [
+    "test_every_call_is_measured_with_its_cost_and_the_build_totals"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "an unmeasured call reads as zero tokens and zero dollars",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        if unmeasured or any(v is None for v in values):",
+     "new": "        if any(v is None for v in values):"
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py::TheTokensAreMeasuredNotCapped"
+   ],
+   "expect_failed": [
+    "test_a_gateway_with_no_records_is_said_unmeasured_never_zero"
    ]
   }
  ]
