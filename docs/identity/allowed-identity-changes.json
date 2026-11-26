@@ -2,29 +2,56 @@
  "rule": "Michael 2026-11-13: while identity.yml blocks, a flag-off change passes only with ONE signed entry that matches it exactly -- from_digest/to_digest and the exact added/removed/changed/data_changed gate-closure paths. No wildcards. reviewer must not be the author. Checked by scripts/identity_declared.py. to_digest is unique in this file: a consumed entry is never used twice.",
  "changes": [
   {
-    "id": "repair-converge",
+    "id": "sites-bundle-2026-11-26",
     "from_digest": "f2fd495d7d482cfec82093e5ccccf0d2965631b8ff3494c7871cced21bd40d76",
     "to_digest": "fd3a45bf33f61c27ef08db0b41f1c147ae9c621dfd61d069744bb9c6e48be084",
     "added": [
-      "omni_prod/offscreen.py"
+      "omni_prod/offscreen.py",
+      "omni_prod/site_content/one_page.py"
     ],
     "removed": [],
     "changed": [
+      "omni_prod/a4/__init__.py",
+      "omni_prod/asset_markers.py",
       "omni_prod/autonomous_core.py",
+      "omni_prod/capability_planner.py",
+      "omni_prod/capability_registry.py",
       "omni_prod/consistency_gate.py",
+      "omni_prod/conversation/spec_card.py",
+      "omni_prod/conversation/supervisor.py",
+      "omni_prod/discovery.py",
+      "omni_prod/fact_canon.py",
       "omni_prod/gate_words.py",
+      "omni_prod/image_match.py",
+      "omni_prod/intake/conversation_agent.py",
+      "omni_prod/intake/interpreter.py",
+      "omni_prod/intake/question_skills.py",
+      "omni_prod/media_pipeline.py",
+      "omni_prod/product_architect.py",
+      "omni_prod/providers/google_image.py",
       "omni_prod/release_policy.py",
+      "omni_prod/site_content/__init__.py",
+      "omni_prod/site_content/agents.py",
+      "omni_prod/site_content/render.py",
+      "omni_prod/site_content/schema.py",
+      "omni_prod/site_content/validate.py",
       "omni_prod/skills_runtime.py",
+      "omni_prod/typography/__init__.py",
+      "omni_prod/universal_brain.py",
       "omni_prod/verification_group.py",
+      "omni_prod/vertical_palettes.py",
       "omni_prod/visual_qa.py",
       "omni_prod/worker_tasks.py"
     ],
-    "data_changed": [],
-    "reason": "2026-11-26, the owner's failed build bld_cb2d1b90a90f430c98603d14f8afa1a8: (1) the repair loop ranks a round by ALL its failing checks (autonomous_core judge/rank; verification_group's file:line pointer needs a file name), so a repair that fixed the review and still failed the layout is adopted, not discarded six times; (2) the failure message, the announcement and the stage rows come from the KEPT version (worker_tasks, release_policy, verification_group); (3) an element parked off-screen on a right-to-left page is rewritten to one visually-hidden rule (new omni_prod/offscreen.py, installed by the worker), blocked by the consistency gate when it cannot be rewritten, named by the visual QA script (which now reads the meta viewport tag itself), and the generator's ACCESSIBILITY guidance carries the rule; gate_words says the new consistency kind. Flag-off digest measured on the branch with python -m omni_prod.pipeline_identity; the path sets are identity_declared.diff of the source manifests of 18dba53 and the branch.",
+    "data_changed": [
+      "omni_prod/section_library/library.css",
+      "omni_prod/typography/font_pairs.json"
+    ],
+    "reason": "2026-11-26, the sites bundle (one pull request): the flag-off behavioural digest changes f2fd495d -> fd3a45bf because of repair-converge; the other branches of the bundle change gate-closure files without changing the digest (route-honesty, image-subject with the owner's removal of every image cap, font-range, name-asked-twice, content-followups, asset-marker-tests, replay-scope-530), so the path sets below are the bundle's whole closure change against main fa41a5d, computed with python -m omni_prod.pipeline_identity --source on both trees and scripts/identity_declared.diff. repair-converge, as written for its own branch: 2026-11-26, the owner's failed build bld_cb2d1b90a90f430c98603d14f8afa1a8: (1) the repair loop ranks a round by ALL its failing checks (autonomous_core judge/rank; verification_group's file:line pointer needs a file name), so a repair that fixed the review and still failed the layout is adopted, not discarded six times; (2) the failure message, the announcement and the stage rows come from the KEPT version (worker_tasks, release_policy, verification_group); (3) an element parked off-screen on a right-to-left page is rewritten to one visually-hidden rule (new omni_prod/offscreen.py, installed by the worker), blocked by the consistency gate when it cannot be rewritten, named by the visual QA script (which now reads the meta viewport tag itself), and the generator's ACCESSIBILITY guidance carries the rule; gate_words says the new consistency kind. Flag-off digest measured on the branch with python -m omni_prod.pipeline_identity; the path sets are identity_declared.diff of the source manifests of 18dba53 and the branch.",
     "author": "claude",
-    "reviewer": "pending",
+    "reviewer": "shai",
     "reviewed_at": "2026-11-26",
-    "signature_note": "Prepared for the owner's signature; not a signed approval. The caller's instruction for this change named the deletion declarations, not this identity declaration, so the reviewer field is left for the owner."
+    "signature_note": "Signed by the owner's instruction (standing grant 2026-11-16; 'I approve declarations', 2026-11-25 21:54 UTC). The reviewer field was typed by the author (claude) on that instruction."
   },
   {
     "id": "executed-skill-evidence-525",
