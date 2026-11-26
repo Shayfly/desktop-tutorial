@@ -77,6 +77,7 @@ from .capability_repository import PostgresCapabilityRepository
 from .capability_registry import CapabilityRegistry
 from .capabilities import CapabilityStatus
 from .preview_repository import DEFAULT_TTL_SECONDS as _PREVIEW_DEFAULT_TTL, PostgresPreviewRepository
+from .discovery import BUILD_PROMPT_MAX as _PROMPT_MAX   # the plan and build `prompt` bound (review B1, 2026-11-26)
 from .preview_runtime import (NotPreviewable, PreviewBackendUnavailable, ensure_durable_workspace,
                               external_preview_url, parse_preview_contract, parse_web_saas_acceptance_plan)
 from .rights_ip import JURISDICTIONS
@@ -509,7 +510,7 @@ class V26RestoreRequest(BaseModel):
     version_id: str = Field(min_length=1,max_length=160)
 
 class V27BuildRequest(BaseModel):
-    prompt: str = Field(min_length=3,max_length=12000)
+    prompt: str = Field(min_length=3,max_length=_PROMPT_MAX)
     target_markets: list[str] = Field(default_factory=lambda:['US','EU','IL'])
     build_contract_id: str | None = Field(default=None, min_length=1, max_length=160)
     idempotency_key: str | None = Field(default=None, min_length=8, max_length=160)
@@ -1887,7 +1888,7 @@ def _internal_qa_funding(account_id: str):
 
 
 class V28PlanRequest(BaseModel):
-    prompt: str = Field(min_length=3, max_length=12000)
+    prompt: str = Field(min_length=3, max_length=_PROMPT_MAX)
     # Directive 2026-10-09 §4-5: plan from the approved discovery brief. The
     # contract prompt then carries the brief's requirements and fingerprint.
     brief_revision: int | None = Field(default=None, ge=1)

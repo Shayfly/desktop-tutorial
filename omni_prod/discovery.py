@@ -1141,6 +1141,10 @@ def requirements_text(brief: Brief) -> str:
 # decisions have the rest), and when anything must still go it is the request's OLDEST words (it starts with the
 # earliest message carried), said in the decisions block itself, in the build evidence and to the customer.
 BUILD_PROMPT_MAX = 64_000
+# The request a new brief starts from (ConversationSupervisor.MAX_REQUEST_CHARS reads it), and the bound of the
+# `prompt` field of the plan and build routes (investor_app.V28PlanRequest / V27BuildRequest read BUILD_PROMPT_MAX):
+# one place, so a request the conversation accepts is never a 422 at the plan or the build (review B1, 2026-11-26).
+REQUEST_MAX_CHARS = 48_000
 REQUEST_CUT_PREFIX = 'Request cut: '
 _REQUEST_CUT_ROOM = 200                       # the line that says so, inside the decisions block
 _REQUEST_CUT = re.compile(r'^' + re.escape(REQUEST_CUT_PREFIX) + r'the first (\d+) of (\d+) characters', re.M)

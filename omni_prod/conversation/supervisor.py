@@ -1137,7 +1137,7 @@ class ConversationSupervisor:
     # 12,000 characters, and the oldest were dropped silently (a log line only). Raised, and a drop is said to the
     # customer in the turn's reply and stored with it (interpretation.request_cut).
     MAX_CARRIED_MESSAGES = 20         # earlier customer messages a new brief may start from (was 5)
-    MAX_REQUEST_CHARS = 48_000        # the whole request a brief starts from: six messages at the 8,000 limit (was 12,000)
+    MAX_REQUEST_CHARS = d.REQUEST_MAX_CHARS   # the whole request a brief starts from: 48,000 (was 12,000)
     CARRY_READ = 100                  # the latest messages read to find them (customer and assistant turns alternate)
 
     def _whole_request(self, project_id, message: str) -> str:

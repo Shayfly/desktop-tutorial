@@ -185,6 +185,35 @@ class TheBuildPrompt(unittest.TestCase):
         self.assertEqual(source.count("'request_cut': _request_cut_evidence(prompt)"), 2)       # success and failure
 
 
+class ALongRequestCanBePlannedAndBuilt(unittest.TestCase):
+    """Review B1 (2026-11-26): the conversation carried 48,000 characters while the plan and build routes refused a
+    `prompt` past 12,000 with a 422. The real request models of the routes, and the request the real _whole_request
+    makes from two messages at the message limit."""
+
+    def test_one_bound_for_the_conversation_the_plan_and_the_build(self):
+        import omni_prod.investor_app as ia
+        self.assertEqual(ConversationSupervisor.MAX_REQUEST_CHARS, d.REQUEST_MAX_CHARS)
+        for model in (ia.V28PlanRequest, ia.V27BuildRequest):
+            bound = next(m.max_length for m in model.model_fields['prompt'].metadata if hasattr(m, 'max_length'))
+            self.assertEqual(bound, d.BUILD_PROMPT_MAX, model.__name__)
+            self.assertGreaterEqual(bound, d.REQUEST_MAX_CHARS)
+
+    def test_a_request_past_12000_characters_passes_the_plan_and_the_build(self):
+        import omni_prod.investor_app as ia
+        store = MemoryConversationStore()
+        for i in range(2):
+            store.add_message(project_id='p', account_id='a', role='customer',
+                              content=(f'חלק {i} ' + 'מספרה בתל אביב, ' * 700)[:7990])
+        sup = ConversationSupervisor(briefs=MemoryBriefs(), store=store, credits=10, context=lambda p: {})
+        prompt = d.start(sup._whole_request('p', 'אתר למספרה עם הזמנת תורים')).prompt
+        self.assertGreater(len(prompt), 12_000)
+        self.assertEqual(ia.V28PlanRequest(prompt=prompt, brief_revision=1).prompt, prompt)
+        self.assertEqual(ia.V27BuildRequest(prompt=prompt, build_contract_id='bc', approval_id='apr').prompt, prompt)
+        whole = 'א' * d.REQUEST_MAX_CHARS + '\nשם העסק: סטודיו נועה'          # the bound plus an answer line
+        ia.V28PlanRequest(prompt=whole)
+        ia.V27BuildRequest(prompt=whole)
+
+
 class ANewBriefCarriesTheEarlierMessages(unittest.TestCase):
     def setUp(self):
         self.briefs, self.store = MemoryBriefs(), MemoryConversationStore()
