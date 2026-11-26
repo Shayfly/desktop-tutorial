@@ -414,8 +414,8 @@
    "mutations": [
     {
      "file": "omni_prod/investor_app.py",
-     "old": "    attachment_ids: list[str] = Field(default_factory=list, max_length=6)\n    brief_revision: int | None = Field(default=None, ge=1)\n",
-     "new": "    attachment_ids: list[str] = Field(default_factory=list, max_length=6)\n    version_id: str | None = None\n    brief_revision: int | None = Field(default=None, ge=1)\n"
+     "old": "    attachment_ids: list[str] = Field(default_factory=list, max_length=20)   # = attachments.MAX_PER_MESSAGE\n    brief_revision: int | None = Field(default=None, ge=1)\n",
+     "new": "    attachment_ids: list[str] = Field(default_factory=list, max_length=20)   # = attachments.MAX_PER_MESSAGE\n    version_id: str | None = None\n    brief_revision: int | None = Field(default=None, ge=1)\n"
     }
    ],
    "targets": [
