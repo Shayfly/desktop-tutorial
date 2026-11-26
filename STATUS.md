@@ -4664,3 +4664,18 @@ Follow-up after the manual check: migration 045 was merged in #474. The [worker 
 - AcceptanceW still runs a nested suite and requires a successful exit. With optional dependencies present, the existing unittest command and 300-second timeout stay in place. Without them, the nested pytest command applies the repository's `not needs_env` selection and has a separate 600-second ceiling. Three modules and four individual tests that depend on FastAPI were measured and added to the manifest. They remain in full CI.
 - The standalone AcceptanceW test passed in the dependency-light environment on code commit `1453d7e` in 252.76 seconds. Both negative controls passed, including one that injects a real inner test failure and checks that the outer gate rejects it.
 - The same offline reproduction on current base `df37f4f` still failed (43 errors and four failures in the nested command). Full `pytest tests` with dependencies passed both before and after the fix: 4,015 on base and 4,016 on the branch, 294 skipped and one expected failure on each, with no failures or errors.
+
+## 2026-11-26 — S1.5–S1.8 follow-up: the review of #532, and the negative controls in three shards (Claude Code, HOLD)
+
+#532 merged on 2026-11-25 at `d7b861d` (merge `18dba53`) before the fixes for the 23 findings of its review. Branch `claude/practical-hopper-oi3qj2-s1-governance-fixes`, cut from `18dba53`, carries them. **HOLD** until CI is green on its head and the main session's full suite has run.
+
+**Implemented and verified locally (commands and counts in the PR body, `scratchpad/pr_532_v2.md`):**
+- **S1.5, the system map.** Only the mapping is committed (`docs/SYSTEM_MAP.md`, a render of `omni_prod/system_map.py` alone). The full map is no longer committed: `v24-ci`, job `light`, builds it on every push and pull request (artifact `system-map`, run summary). Before, a committed copy and its currency test in the required `test` job would have turned main red after any merge of a branch cut before it.
+  - Environment names: 234 names (method: literals, constants, env mappings and 12 package helpers; 16 reads built at run time are counted, not guessed). The old count was 121.
+  - Two credit-exhausted models now map to PARTIAL, not CONNECTED; `registry_auditor` (unit tests only) maps to IMPLEMENTED.
+  - `/_omni/health/live` and `/_omni/health/ready` are listed with their router prefix; `omni-preview-host-` is a queue prefix.
+- **S1.7, the PR report.** Comments are removed before the split; empty and duplicate sections fail; Status must begin with PASS, FAIL or HOLD as a whole word; CRLF bodies and null bodies are handled; `none: <reason>`, GitHub reverts and dependabot pass. The workflow reads `$GITHUB_EVENT_PATH` and holds no expression.
+- **S1.8.** `inbox/002-2026-11-25-owner-plan-v3.md` holds plan v3 and the owner's messages of that evening verbatim. OWNERS.md gains rule 9 (production SQL, migrations and deletions, through CLAUDE.md section 5), and AGENTS.md lines 18 and 34 get dated notes.
+- **CI: negative controls in three shards.** Run 45713038574 (main `18dba53`) timed out at the step's 18-minute limit after 1,186 of 1,296 controls. The same specs took 71.5 worker-minutes on that runner and 37.9 on run 45711355778 (1.9 times). No single set caused it: the largest are site-content, images-as-files and laws-5-6. `NC_SHARD` gives each of three parallel jobs about 444 controls; every spec runs in exactly one shard.
+
+**Not verified:** CI on the new head, and the full suite (run by the main session). The duration of a sharded run on GitHub is an estimate (about 3.5 to 7 minutes per shard, from the two runs above) until the first run.
