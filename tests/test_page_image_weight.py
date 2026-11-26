@@ -166,9 +166,45 @@ class PicturesOfTheProductionSize(unittest.TestCase):
         self.assertTrue(any('PAGE_FIT_FAILED' in line for line in logs.output))
         self.assertEqual(e.build('a page').status, 'ready')
 
+    def test_a_fit_that_fails_half_way_says_what_it_did(self):
+        """Review SF4 ($SP/rv-probe/p_s2.py): the 26th picture has no original kept, so fit_page raises ValueError after
+        re-encoding the 25 before it; the evidence said bytes_before=717066 fits=True images=0."""
+        import dataclasses
+        import hashlib
+        images = [picture(i) for i in range(1, 27)]
+        images[-1] = dataclasses.replace(images[-1], source=())
+        bound = {img.marker: hashlib.sha256(img.data).hexdigest() for img in images}
+        total = sum(len(img.data) for img in images)
+        with self.assertLogs(a4.__name__, level='ERROR') as logs:
+            e, _ = build(images)
+        fit = e.image_fit
+        changed = [img.marker for img in images if hashlib.sha256(img.data).hexdigest() != bound[img.marker]]
+        self.assertEqual(len(changed), 25)
+        self.assertEqual([r['marker'] for r in fit['images']], changed)
+        self.assertEqual((fit['bytes_before'], fit['bytes_after'], fit['fits'], fit['partial']),
+                         (total, sum(len(img.data) for img in images), False, True))
+        self.assertTrue(fit['error'].startswith('ValueError'))
+        self.assertTrue(fit['warning'].startswith(a4.PAGE_WEIGHT_WARNING))
+        self.assertTrue(any('PAGE_FIT_FAILED' in line for line in logs.output))
+        self.assertEqual(e.build('a page').status, 'ready')
+
     def test_the_plan_never_refuses_weight(self):
         heavy = [picture(i) for i in range(1, 27)]
         self.assertEqual(len(a4.plan([], heavy)), 26)
+
+
+class TheConvertersBoundsAsThePageFitUsesThem(unittest.TestCase):
+    """Review nit (49d61d3): page_image_weight NC5-NC9 guarded S2's own converter, which the image-weight merge removed.
+    Its quality floor and its rebinding of the carried file are guarded in image_weight.json (NC22, NC8/NC9); its step
+    list as the page fit runs it -- with a byte target nothing reaches, every step and no more -- is guarded here."""
+
+    def test_a_target_nothing_reaches_runs_every_step_once_and_is_said(self):
+        data, mime = source(2)
+        r = W.rendition(data, mime, place='hero', max_bytes=1, keep_mime='image/webp', search=False)
+        self.assertTrue(r['over_budget'])
+        self.assertEqual(r['encodes'], len(W.STEPS))
+        self.assertEqual(r['step'][1], W.STEPS[-1][1])
+        self.assertGreaterEqual(min(q for _, q in W.STEPS), W.QUALITY_FLOOR)
 
 
 class ImagesBeyondTheFirstScreenAreLazy(unittest.TestCase):

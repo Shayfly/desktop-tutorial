@@ -19,6 +19,7 @@
    ],
    "expect_failed": [
     "test_a_fit_that_cannot_run_is_said_and_the_build_goes_on",
+    "test_a_fit_that_fails_half_way_says_what_it_did",
     "test_a_page_over_the_budget_is_fitted_before_any_code_and_the_build_goes_on",
     "test_what_cannot_fit_is_carried_and_said_never_a_failure"
    ]
@@ -55,6 +56,7 @@
     "tests/test_page_image_weight.py"
    ],
    "expect_failed": [
+    "test_a_fit_that_fails_half_way_says_what_it_did",
     "test_what_cannot_fit_is_carried_and_said_never_a_failure"
    ]
   },
@@ -72,7 +74,59 @@
     "tests/test_page_image_weight.py"
    ],
    "expect_failed": [
-    "test_a_fit_that_cannot_run_is_said_and_the_build_goes_on"
+    "test_a_fit_that_cannot_run_is_said_and_the_build_goes_on",
+    "test_a_fit_that_fails_half_way_says_what_it_did"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "review SF4 (the reviewer's M4): a fit that fails with ValueError (an image with no original) fails the build",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    except (RenditionError, ValueError) as exc:\n",
+     "new": "    except RenditionError as exc:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_a_fit_that_fails_half_way_says_what_it_did"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "review SF4: a fit that fails half way says it fits and changed nothing",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "               'fits': False, 'images': changed, 'partial': bool(changed),\n",
+     "new": "               'fits': True, 'images': [], 'partial': False,  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_a_fit_that_fails_half_way_says_what_it_did"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "review nit: the converter's step list as the page fit runs it is unbounded",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "        for scale, q in STEPS:\n",
+     "new": "        for scale, q in STEPS * 50:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_image_weight.py"
+   ],
+   "expect_failed": [
+    "test_a_target_nothing_reaches_runs_every_step_once_and_is_said"
    ]
   }
  ]

@@ -58,6 +58,7 @@
    ],
    "expect_failed": [
     "test_a_fit_that_cannot_run_is_said_and_the_build_goes_on",
+    "test_a_fit_that_fails_half_way_says_what_it_did",
     "test_a_page_over_the_budget_is_fitted_before_any_code_and_the_build_goes_on",
     "test_what_cannot_fit_is_carried_and_said_never_a_failure"
    ]

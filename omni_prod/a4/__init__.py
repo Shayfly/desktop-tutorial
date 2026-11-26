@@ -239,16 +239,26 @@ def _fit_page(core, uploaded, generated) -> dict:
     (web_rendition.fit_page: each from its source, in its own type and path, its carried file rebound) BEFORE any code
     is paid for. What still does not fit is carried, and the evidence (web_rendition.report -> image_weight.page_fit)
     and the log say so -- the bytes, the count and the budget (PAGE_WEIGHT_WARNING) -- never a failure, never
-    worker_exception. A fit that cannot run is logged at ERROR and recorded; the bytes stay as they were bound."""
+    worker_exception. A fit that fails is logged at ERROR and recorded as it left the page (review SF4)."""
+    import hashlib
     from ..web_rendition import RenditionError, fit_page
     images = [*uploaded, *generated]
+    bound = {img.marker: (len(img.data or b''), hashlib.sha256(img.data or b'').hexdigest()) for img in images}
     try:
         out = fit_page(images, budget=PAGE_IMAGE_BUDGET_BYTES)
     except (RenditionError, ValueError) as exc:
-        total = sum(len(getattr(img, 'data', b'') or b'') for img in images)
-        _LOG.error('PAGE_FIT_FAILED bytes=%s count=%s budget=%s: %s', total, len(images), PAGE_IMAGE_BUDGET_BYTES, exc)
-        out = {'budget': PAGE_IMAGE_BUDGET_BYTES, 'bytes_before': total, 'bytes_after': total,
-               'fits': total <= PAGE_IMAGE_BUDGET_BYTES, 'images': [], 'error': f'{type(exc).__name__}: {exc}'[:300]}
+        # Review SF4 (49d61d3): the fit may fail half way, after it re-encoded some images. The evidence says what is
+        # true after it: each image it changed (by digest, against the bytes as bound), the total as bound, the total
+        # now, and fits=False -- a fit that did not finish never says it fits.
+        changed = [{'marker': img.marker, 'bytes_before': bound[img.marker][0], 'bytes': len(img.data or b''),
+                    'sha256': hashlib.sha256(img.data or b'').hexdigest()} for img in images
+                   if hashlib.sha256(img.data or b'').hexdigest() != bound[img.marker][1]]
+        now = sum(len(img.data or b'') for img in images)
+        out = {'budget': PAGE_IMAGE_BUDGET_BYTES, 'bytes_before': sum(b for b, _ in bound.values()), 'bytes_after': now,
+               'fits': False, 'images': changed, 'partial': bool(changed),
+               'error': f'{type(exc).__name__}: {exc}'[:300]}
+        _LOG.error('PAGE_FIT_FAILED bytes_before=%s bytes_after=%s count=%s changed=%s budget=%s: %s',
+                   out['bytes_before'], now, len(images), len(changed), PAGE_IMAGE_BUDGET_BYTES, exc)
     out['count'] = len(images)
     out['warning'] = None if out['fits'] else (
         f'{PAGE_WEIGHT_WARNING}: {len(images)} images weigh {out["bytes_after"]:,} bytes together after the page fit; '
