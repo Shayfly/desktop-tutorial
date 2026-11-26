@@ -79,6 +79,15 @@ later decision changed plan v3, the plan's wording is kept beside it.
     `claude/practical-hopper-oi3qj2-image-subject` and ships with the sites bundle. For pictures, this takes the limit
     out of rule 8 and WAREHOUSE.md item 136. He asked in the same message for the list of the other limits a customer
     meets; each of them stays until he decides it.
+12. **The limits a customer meets that are not money are cancelled (the owner, 2026-11-26 10:01):** "לגבי התקרות א׳",
+    his answer (א) to Claude Code's question of 09:17 UTC (asked again until 10:01). (א) covers: the content route's
+    single correction, which fails the build when it is not enough, becomes several corrections; the limit of 8 items
+    (services or questions) is raised; the preview lives longer than one hour; every silent cut of the customer's words
+    ends; and the subscription plans stop promising what the code does not keep (a project quota, a number of users,
+    "priority build"). The money limits (credits, the monthly provider budget, the model budget per build, the
+    conversation's $0.15 a project and $1 a day) stay in WAREHOUSE.md item 136 until he has cost data (rule 8). The work
+    is in progress on the branch `claude/practical-hopper-oi3qj2-caps-a`; until it ships, the code on main still has
+    these limits.
 
 ## 2026-11-21 — the owner: only Claude Code works
 
