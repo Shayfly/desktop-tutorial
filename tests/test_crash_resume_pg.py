@@ -223,7 +223,8 @@ class KilledWorkersContinue(unittest.TestCase):
                 self.assertEqual((carried['carried'], carried['external_calls'], carried['metered_usd']),
                                  (True, len(first), str(sum((Decimal(str(m)) for m, in first if m is not None),
                                                             Decimal('0')))))
-                self.assertEqual(Decimal(carried['budget_left_usd']), self.H.LLM_BUDGET - Decimal(carried['metered_usd']))
+                self.assertEqual(Decimal(carried['budget_left_usd']), self.H.LLM_BUDGET - Decimal(carried['metered_usd'])
+                                 - Decimal(carried['unanswered_authorized_usd']))
                 # the settlement counts the earlier workers once, from the ledger: this worker's own calls only
                 basis = run['evidence']['economics_settlement']['cost_basis']
                 self.assertEqual(basis['external_calls'], sum(run['second']['calls'].values()))
@@ -349,6 +350,155 @@ class JanitorDecides(unittest.TestCase):
         out, _ = janitor(self.db.pool)
         self.assertEqual((out['failed'], out['resumed']), ([bid], []))
         self.assertEqual(self.state(bid)[:2], ('failed', 'provider_liability_unknown'))
+
+
+class FencesAndTheSameBudget(unittest.TestCase):
+    """Review of 1edee7b on real rows: a continued build never settles above its reservation, the earlier workers are
+    counted once, and a worker the janitor gave up on can no longer write the build's checkpoint, end it, or keep it
+    alive."""
+
+    @classmethod
+    def setUpClass(cls):
+        if not DATABASE_URL:
+            raise unittest.SkipTest('BLOCKED: M4D2_DATABASE_URL (real PostgreSQL) not configured')
+        cls.db = Database('crashfence')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.db.close()
+
+    def build(self, *, running=True, attempts=0):
+        from tests.crash_resume_harness import create_build
+        bid = create_build(self.db.pool)
+        if running:
+            with self.db.pool.connection() as conn:
+                conn.execute("UPDATE build_jobs SET status='running', started_at=now(), heartbeat_at=now(), "
+                             "recovery_attempts=%s WHERE id=%s", (attempts, bid))
+                conn.commit()
+        return bid
+
+    def ledger(self, bid, *rows):
+        from omni_prod.attempt_ledger import AttemptRecord, persist_attempts
+        persist_attempts(self.db.pool, [AttemptRecord(task_type=t, attempt_seq=i, kind='provider_call', outcome=o,
+                                                      trace_id=trace, authorized_cost_usd=Decimal(a),
+                                                      metered_cost_usd=None if m is None else Decimal(m))
+                                        for i, (trace, t, o, a, m) in enumerate(rows)], build_id=bid)
+
+    @staticmethod
+    def gateway(price_out='2000'):
+        """The production gateway on one priced catalog model; every answer is 10 + 10 tokens."""
+        import io
+        import json
+        from omni_prod.model_catalog import CatalogModel
+        from omni_prod.model_gateway import ModelEndpoint, OpenAICompatibleGateway
+        from omni_prod.model_policy import ModelUsePolicy
+        from omni_prod.model_router import ModelOption, RoutingPolicy
+        from omni_prod.routed_gateway import RoutedModelGateway
+
+        def urlopen(req, timeout):
+            class Resp(io.BytesIO):
+                headers = {}
+            return Resp(json.dumps({'id': 'r', 'model': 'm', 'choices': [{'message': {'content': '{"ok": true}'},
+                                                                          'finish_reason': 'stop'}],
+                                    'usage': {'prompt_tokens': 10, 'completion_tokens': 10}}).encode('utf-8'))
+        model = CatalogModel(endpoint=ModelEndpoint(name='m', base_url='http://127.0.0.1:9/v1', model='m',
+                                                    api_key='test-fixture-only', external=True),
+                             option=ModelOption('p', 'm', 90, 100, Decimal('1'), Decimal(price_out)),
+                             max_output_tokens=1000, api_key_env='K')
+        return RoutedModelGateway(ranked=(model,), routing_policy=RoutingPolicy(minimum_quality=0),
+                                  policy=ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True,
+                                                        external_budget_usd=Decimal('5'), max_external_calls_per_build=500),
+                                  gateway_factory=lambda ep: OpenAICompatibleGateway(ep, urlopen=urlopen),
+                                  transient_retries=0, sleep=lambda s: None)
+
+    def test_a_continued_build_never_settles_above_its_reservation(self):
+        """The reviewer's numbers: reservation 1.00; the lost worker's architect call metered 0.000203 and its codegen
+        call in flight, authorized 0.11227. The continued worker spends all the budget it is given; the settlement then
+        adds the unanswered call's authorization -- the whole must stay within 1.00 (it was 1.118852)."""
+        from omni_prod import build_checkpoint as C
+        from omni_prod.subscription_store import PostgresSubscriptionService
+        from omni_prod.worker_tasks import prior_worker_metered_cost, resolve_m5_billing
+        bid = self.build(attempts=1)
+        self.ledger(bid, ('trc_lost', 'architecture', 'ok', '0.022406', '0.000203'),
+                    ('trc_lost', 'codegen', 'unknown', '0.11227', None))
+        gw = self.gateway()
+        gw.bind_budget(Decimal('1.00'))
+        gw.prior_metered = prior_worker_metered_cost(self.db.pool, bid)
+        carried = C.carry_budget(gw, C.recorded_spend(self.db.pool, bid, worker=gw.recorder.trace_id))
+        self.assertEqual(Decimal(carried['budget_left_usd']), Decimal('1.00') - Decimal('0.000203') - Decimal('0.11227'))
+        calls = 0
+        while calls < 200:
+            try:
+                gw.complete_json(system='s', user='u', max_tokens=12, task='repair')
+            except Exception:
+                break                                              # the budget refuses the next call
+            calls += 1
+        self.assertGreater(calls, 30)                              # it really spent (about 0.02 a call)
+        resolve_m5_billing(PostgresSubscriptionService(pool=self.db.pool), build_id=bid, ready=True, gateway=gw,
+                           capability_evidence=None, economics_quote={'components': {'llm_maximum_usd': '1.00'}})
+        status, settled = self.db.one('SELECT status, settled_provider_cost_usd FROM credit_reservations '
+                                      'WHERE build_id=%s', bid)
+        self.assertEqual(status, 'SETTLED')
+        self.assertLessEqual(Decimal(str(settled)), Decimal('1.00'))
+
+    def test_only_the_earlier_workers_come_off_the_budget(self):
+        """The earlier worker metered 0.05; this worker's own 0.03 is already in its gateway's state: the headroom the
+        limit leaves is 0.95, not 0.92."""
+        from omni_prod import build_checkpoint as C
+        bid = self.build(attempts=1)
+        self.ledger(bid, ('trc_prev', 'architecture', 'ok', '0.05', '0.05'), ('trc_own', 'codegen', 'ok', '0.03', '0.03'))
+        gw = self.gateway()
+        gw.bind_budget(Decimal('1.00'))
+        spend = C.recorded_spend(self.db.pool, bid, worker='trc_own')
+        self.assertEqual((spend['external_calls'], spend['metered_usd']), (1, Decimal('0.05')))
+        self.assertEqual(Decimal(C.carry_budget(gw, spend)['budget_left_usd']), Decimal('0.95'))
+
+    def test_a_checkpoint_is_written_only_in_the_writers_epoch(self):
+        from omni_prod import build_checkpoint as C
+        bid = self.build(attempts=1)
+        self.assertIsNone(C.write_record(self.db.pool, bid, 0, {'version': 1, 'stage': 'spec'}))
+        self.assertIsNone(self.db.one("SELECT evidence_json->'checkpoint' FROM build_jobs WHERE id=%s", bid)[0])
+        stored = C.write_record(self.db.pool, bid, 1, {'version': 1, 'stage': 'spec'})
+        self.assertEqual((stored['stage'], bool(stored['written_at'])), ('spec', True))
+
+    def test_a_worker_of_an_earlier_epoch_cannot_end_the_build(self):
+        from omni_prod.job_repository import PostgresBuildRepository
+        from omni_prod.models import BuildStatus
+        bid = self.build(attempts=0)
+        old = PostgresBuildRepository(self.db.pool)
+        old.fence(bid, 0)
+        with self.db.pool.connection() as conn:                  # the janitor gave it to another worker, which runs it
+            conn.execute('UPDATE build_jobs SET recovery_attempts = 1 WHERE id = %s', (bid,))
+            conn.commit()
+        with self.assertLogs('omni_prod.job_repository', 'WARNING') as logs:
+            self.assertFalse(old.transition(build_id=bid, expected=BuildStatus.RUNNING, target=BuildStatus.FAILED,
+                                            error_code='worker_exception', evidence_json={'billing': 'released'}))
+        self.assertIn('STALE_WORKER_REFUSED', logs.output[0])
+        self.assertEqual(self.db.one('SELECT status, error_code FROM build_jobs WHERE id=%s', bid), ('running', None))
+        new = PostgresBuildRepository(self.db.pool)
+        new.fence(bid, 1)
+        self.assertTrue(new.transition(build_id=bid, expected=BuildStatus.RUNNING, target=BuildStatus.READY,
+                                       evidence_json={'billing': 'settled'}))
+
+    def test_a_worker_of_an_earlier_epoch_cannot_keep_the_build_alive(self):
+        from omni_prod.job_repository import PostgresBuildRepository
+        bid = self.build(attempts=0)
+        old = PostgresBuildRepository(self.db.pool)
+        old.fence(bid, 0)
+        with self.db.pool.connection() as conn:
+            conn.execute("UPDATE build_jobs SET recovery_attempts = 1, heartbeat_at = now() - interval '1 hour' "
+                         "WHERE id = %s", (bid,))
+            conn.commit()
+        with self.assertLogs('omni_prod.job_repository', 'WARNING') as logs:
+            self.assertFalse(old.checkpoint(bid))
+        self.assertIn('the heartbeat', logs.output[0])
+        self.assertTrue(self.db.one("SELECT heartbeat_at < now() - interval '30 minutes' FROM build_jobs WHERE id=%s",
+                                    bid)[0])
+        new = PostgresBuildRepository(self.db.pool)
+        new.fence(bid, 1)
+        new.checkpoint(bid)
+        self.assertFalse(self.db.one("SELECT heartbeat_at < now() - interval '30 minutes' FROM build_jobs WHERE id=%s",
+                                     bid)[0])
 
 
 class PlanGraphCarries(unittest.TestCase):

@@ -1052,8 +1052,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         if attempt_pool is not None:
             claim = build_checkpoint.read_claim(attempt_pool, build_id)
             recovery_evidence = claim.get('recovery')
-            # the janitor requeued this build to continue: its checkpoint (bytes are checked before the engine runs)
-            recorded = build_checkpoint.resume_record(claim)
+            fence = getattr(jobs, 'fence', None)
+            if callable(fence):           # this run's transitions and heartbeats change the row only in its epoch
+                fence(build_id, claim['epoch'])
         _report_phase(jobs, build_id, 'PLANNING', 'validating the build contract and product plan')
         # M5 Task 6: a contract-bound product cannot become READY without its
         # required generated-app infrastructure. Checked before any paid model
@@ -1110,6 +1111,20 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 gateway.on_attempt_start = control.flush_attempts   # write-ahead ledger
             # A recovered build: calls a lost worker already made are still owed.
             gateway.prior_metered = prior_worker_metered_cost(attempt_pool, build_id)
+        loaded = carried_budget = None
+        if claim is not None:
+            # S4.2: the janitor requeued this build to continue. Its checkpoint is read back and every byte checked
+            # HERE -- after the earlier workers' cost is known to the settlement (prior_metered), before any paid call of
+            # this run -- so a checkpoint that cannot be trusted fails the build before anything is spent again.
+            recorded = build_checkpoint.resume_record(claim)
+            if recorded is not None:
+                loaded = build_checkpoint.load(recorded, store=getattr(workspace, 'storage', None),
+                                               unzip=getattr(workspace, '_unzip_repo', None), build_id=build_id,
+                                               contract_fingerprint=request.get('build_contract_fingerprint'))
+                # the same budgets: what the earlier workers recorded (their metered cost and the authorized amount of
+                # their unanswered call, which the settlement adds) comes off the build's reserved budget and call limit
+                carried_budget = build_checkpoint.carry_budget(gateway, build_checkpoint.recorded_spend(
+                    attempt_pool, build_id, worker=getattr(getattr(gateway, 'recorder', None), 'trace_id', None)))
         if capability_stage is not None:
             _report_phase(jobs, build_id, 'ASSETS', 'generating and verifying required assets')
             # #324 (Michael 2026-11-13): an image is generated from an ENGLISH prompt translated once from the brief
@@ -1162,7 +1177,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             build_prompt = install_generated_images(
                 engine, prompt=prompt, plan=capability_plan, evidence=capability_evidence,
                 store=getattr(getattr(capability_stage, 'executor', None), 'artifact_store', None),
-                vision=gateway if image_match_enabled(request) else None)   # lens 11 / I-01, before code
+                # lens 11 / I-01, before code; a continued build replays the lost worker's verdicts (no vision call)
+                vision=(None if not image_match_enabled(request) else gateway if recorded is None
+                        else build_checkpoint.ReplayVision(recorded.get('image_match'))))
             image_match = getattr(getattr(engine, 'core', engine), 'image_match', None)
             if image_match is None and getattr(getattr(engine, 'core', engine), 'generated_images', None):
                 # not run by rollout: said in the evidence and the log, never a silent pass
@@ -1230,16 +1247,13 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 worker=getattr(getattr(gateway, 'recorder', None), 'trace_id', None),
                 why_not=build_checkpoint.not_resumable_reason(engine))
             getattr(engine, 'core', engine).checkpoint_hook = checkpoints
-        if recorded is not None:
-            loaded = build_checkpoint.load(recorded, store=store, unzip=getattr(workspace, '_unzip_repo', None),
-                                           contract_fingerprint=request.get('build_contract_fingerprint'),
-                                           prompt=build_prompt)
+        if loaded is not None:
+            # loaded and checked before any paid call (above); the prompt is final only now
+            build_checkpoint.check_prompt(recorded, build_prompt)
             not_restored = build_checkpoint.restore_executors(engine, loaded.executors)
             round_snapshots[:0] = loaded.round_snapshots
-            # the same budgets: the earlier workers' recorded calls and cost count against this build's reservation
-            budget = build_checkpoint.carry_budget(gateway, build_checkpoint.recorded_spend(attempt_pool, build_id))
             recovery_evidence = {**(recovery_evidence or {}), 'resumed_from': loaded.resumed_from(
-                carried_budget=budget, history_not_restored=not_restored)}
+                carried_budget=carried_budget, history_not_restored=not_restored)}
             resume = loaded.resume
             logging.getLogger(__name__).info('BUILD_RESUMED build=%s from %s', build_id, build_checkpoint.label(recorded))
         if resume is not None:

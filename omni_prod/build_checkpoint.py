@@ -117,6 +117,34 @@ def not_resumable_reason(engine) -> str:
     return ''
 
 
+class ReplayVision:
+    """The image check of a build that continues (lens 11, generated_images.install): the lost worker asked the vision
+    model about every generated image before any code was written, and its checkpoints keep those verdicts. The same
+    images, asked in the same order, get the same answers from the checkpoint; no vision call is paid again. Any
+    difference -- another subject asked, more questions than verdicts -- raises, so the image check fails closed (an
+    optional image is dropped, which changes the prompt, which check_prompt then refuses)."""
+
+    accepts_task_tag = False
+
+    def __init__(self, verdicts):
+        # the questions image_match._ask really sent: a row with a subject (a row without one never reached the model)
+        self.pending = [dict(v) for v in (verdicts or ()) if isinstance(v, dict) and str(v.get('subject') or '').strip()]
+        self.replayed = 0
+
+    def complete_json(self, *, user: str = '', **_):
+        subject = str(json.loads(user or '{}').get('customer_asked_to_see') or '')
+        if not self.pending:
+            raise ValueError('the checkpoint holds no image verdict for this question')
+        verdict = self.pending.pop(0)
+        if verdict['subject'].strip() != subject.strip():
+            raise ValueError(f"the checkpoint's verdict is for {verdict['subject']!r}, the question is for {subject!r}")
+        if 'shows' not in verdict:          # the lost worker's question could not be answered then either
+            raise ValueError(str(verdict.get('reason') or 'the image could not be checked'))
+        self.replayed += 1
+        return {'matches': verdict.get('status') == 'MATCH', 'shows': verdict.get('shows', ''),
+                'reason': verdict.get('reason', '')}
+
+
 # ---------------------------------------------------------------------------------------------------------- database
 def read_claim(pool, build_id: str) -> dict:
     """What the worker reads right after it claimed the build: the recovery epoch, the last checkpoint and the
@@ -177,16 +205,22 @@ def completed_paid_calls(pool, build_id: str) -> dict:
             'calls': calls[-MAX_LISTED_CALLS:]}
 
 
-def recorded_spend(pool, build_id: str) -> dict:
-    """What the ledger records of the build's earlier workers: their provider calls and the metered cost of those
-    calls. A call without a metered cost (the one in flight at the crash) adds its call and no cost (the owner,
-    2026-11-26: count what is recorded, nothing more)."""
+def recorded_spend(pool, build_id: str, *, worker: str | None) -> dict:
+    """What the ledger records of the build's EARLIER workers (every trace but `worker`, this worker's own trace: its
+    calls are already in its gateway's state): their provider calls, the metered cost of those calls, and the
+    authorized amount of their calls that have no metered cost -- the call in flight at the crash. That amount is
+    what the settlement adds for such a call (worker_tasks.computed_provider_cost, unknown_exposure_usd, the same
+    rows as prior_worker_metered_cost), so the budget that is left must not include it either: otherwise a continued
+    build could settle above its reservation (review of 1edee7b: reservation 1.00, settled 1.118852)."""
     with pool.connection() as conn:
         row = conn.execute(
             "SELECT count(*) FILTER (WHERE COALESCE(authorized_cost_usd, 0) > 0 OR COALESCE(metered_cost_usd, 0) > 0), "
-            "COALESCE(sum(metered_cost_usd), 0) FROM task_attempts WHERE build_id = %s AND kind = 'provider_call'",
-            (build_id,)).fetchone()
-    return {'external_calls': int(row[0] or 0), 'metered_usd': Decimal(str(row[1] or 0))}
+            "COALESCE(sum(metered_cost_usd), 0), "
+            "COALESCE(sum(authorized_cost_usd) FILTER (WHERE metered_cost_usd IS NULL AND outcome IN ('ok', 'unknown')), 0) "
+            "FROM task_attempts WHERE build_id = %s AND kind = 'provider_call' AND trace_id IS DISTINCT FROM %s",
+            (build_id, worker)).fetchone()
+    return {'external_calls': int(row[0] or 0), 'metered_usd': Decimal(str(row[1] or 0)),
+            'unanswered_authorized_usd': Decimal(str(row[2] or 0))}
 
 
 def carry_budget(gateway, spend: dict) -> dict:
@@ -200,8 +234,9 @@ def carry_budget(gateway, spend: dict) -> dict:
     if policy is None:
         return {'carried': False, 'why': 'the gateway has no model-use policy'}
     calls, metered = int(spend['external_calls']), Decimal(str(spend['metered_usd']))
+    unanswered = Decimal(str(spend.get('unanswered_authorized_usd') or 0))
     lowered = dataclasses.replace(
-        policy, external_budget_usd=max(policy.external_budget_usd - metered, Decimal('0')),
+        policy, external_budget_usd=max(policy.external_budget_usd - metered - unanswered, Decimal('0')),
         max_external_calls_per_build=max(policy.max_external_calls_per_build - calls, 0))
     gateway.policy = lowered
     if hasattr(gateway, 'policy_version'):
@@ -209,7 +244,7 @@ def carry_budget(gateway, spend: dict) -> dict:
         gateway.policy_version = content_version('model-use', lowered.zero_cost_mode, lowered.allow_external_fallback,
                                                  str(lowered.external_budget_usd), lowered.max_external_calls_per_build)
     return {'carried': True, 'external_calls': calls, 'metered_usd': str(metered),
-            'budget_left_usd': str(lowered.external_budget_usd), 'calls_left': lowered.max_external_calls_per_build}
+            'unanswered_authorized_usd': str(unanswered), 'budget_left_usd': str(lowered.external_budget_usd), 'calls_left': lowered.max_external_calls_per_build}
 
 
 # ------------------------------------------------------------------------------------------- the verification history
@@ -335,6 +370,9 @@ class CheckpointWriter:
                   'spec': self._spec_ref(payload['spec']), 'contract_fingerprint': self.contract_fingerprint,
                   'prompt_sha256': self.prompt_sha256, 'epoch': self.epoch, 'worker': self.worker,
                   'resumable': not self.why_not, 'why_not': self.why_not or None}
+        verdicts = getattr(getattr(self.engine, 'core', self.engine), 'image_match', None)
+        if isinstance(verdicts, list):      # the image check ran before the architect; a resume replays it (ReplayVision)
+            record['image_match'] = json.loads(dumps_evidence(verdicts))
         if stage != 'spec':
             state = {'loop': loop, 'executors': capture_executors(self.engine),
                      'round_snapshots': [dict(e) for e in self.round_snapshots]}
@@ -397,10 +435,19 @@ def _read(store, key: str, sha256: str, what: str) -> bytes:
     return data
 
 
-def load(record: dict, *, store, unzip, contract_fingerprint, prompt: str) -> Loaded:
+def check_prompt(record: dict, prompt: str) -> None:
+    """The prompt this worker builds from must be the one the checkpoint was written from. It is final only after
+    every install, right before the engine runs, so it is checked there; the bytes are checked earlier (load)."""
+    if record.get('prompt_sha256') != prompt_sha256(prompt):
+        raise CheckpointUnusable('the prompt this worker builds from is not the one the checkpoint was written from '
+                                 f"(sha256 {prompt_sha256(prompt)[:16]} vs {str(record.get('prompt_sha256'))[:16]})")
+
+
+def load(record: dict, *, store, unzip, contract_fingerprint, build_id: str, prompt: str | None = None) -> Loaded:
     """Read the checkpoint's bytes back and check each against the sha256 the checkpoint recorded: the spec (bytes and
     fingerprint), the repository archive (bytes, then the repository's own checksum after unzipping) and the loop
-    state. Anything that does not match raises CheckpointUnusable."""
+    state, every key under this build's own prefix. Anything that does not match raises CheckpointUnusable. The worker
+    calls it before any paid call of the run; `prompt`, when given, is checked too (check_prompt)."""
     from .autonomous_core import ResumePoint
     from .product_spec import ProductSpec
     from .workspace import _checksum
@@ -412,9 +459,13 @@ def load(record: dict, *, store, unzip, contract_fingerprint, prompt: str) -> Lo
     if record.get('contract_fingerprint') != contract_fingerprint:
         raise CheckpointUnusable(f"the checkpoint is of build contract {record.get('contract_fingerprint')!r}; the "
                                  f'build is bound to {contract_fingerprint!r}')
-    if record.get('prompt_sha256') != prompt_sha256(prompt):
-        raise CheckpointUnusable('the prompt this worker builds from is not the one the checkpoint was written from '
-                                 f"(sha256 {prompt_sha256(prompt)[:16]} vs {str(record.get('prompt_sha256'))[:16]})")
+    if prompt is not None:
+        check_prompt(record, prompt)
+    prefix = f'{KEY_PREFIX}/{build_id}/'
+    for part in ('spec', 'snapshot', 'state'):
+        key = (record.get(part) or {}).get('key')
+        if key is not None and (not str(key).startswith(prefix) or '..' in str(key).split('/')):
+            raise CheckpointUnusable(f'the checkpoint names {part} {key!r}, which is not under {prefix}')
     spec_ref = record['spec']
     raw = _read(store, spec_ref['key'], spec_ref['sha256'], 'spec')
     try:

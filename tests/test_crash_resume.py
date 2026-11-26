@@ -234,7 +234,8 @@ class CheckpointIsTrustedOnlyByItsBytes(unittest.TestCase):
         self.round2 = next(r for r in self.writer.records if r['stage'] == 'round' and r['round'] == 2)
 
     def load(self, record, **kw):
-        args = dict(store=self.store, unzip=unzip, contract_fingerprint='cfp', prompt='a reading list')
+        args = dict(store=self.store, unzip=unzip, contract_fingerprint='cfp', prompt='a reading list',
+                    build_id='bld_unit')
         args.update(kw)
         return C.load(record, **args)
 
@@ -279,6 +280,14 @@ class CheckpointIsTrustedOnlyByItsBytes(unittest.TestCase):
         del self.store.objects[self.round2['state']['key']]
         with self.assertRaises(C.CheckpointUnusable):
             self.load(self.round2)
+
+    def test_a_key_outside_this_builds_prefix_is_refused(self):
+        for part in ('spec', 'snapshot', 'state'):
+            with self.subTest(part):
+                record = {**self.round2, part: {**self.round2[part], 'key': 'build-checkpoints/bld_other/x.json'}}
+                with self.assertRaises(C.CheckpointUnusable) as ctx:
+                    self.load(record)
+                self.assertIn('not under build-checkpoints/bld_unit/', str(ctx.exception))
 
     def test_usable_names_why_not(self):
         cases = ((None, 'no checkpoint'), ({**self.round2, 'version': 2}, 'version'),
@@ -339,24 +348,44 @@ class TheVerificationHistoryIsCarried(unittest.TestCase):
                          sorted(saved, key=list(saved).index))
 
 
+class TheImageCheckIsReplayed(unittest.TestCase):
+    def ask(self, vision, subject):
+        from omni_prod.image_match import _ask
+        return _ask(vision, SimpleNamespace(data=b'img'), subject)
+
+    def test_the_lost_workers_verdicts_answer_the_same_questions_in_order_and_nothing_else(self):
+        verdicts = [{'requirement_id': 'r1', 'subject': 'a bakery', 'status': 'MATCH', 'shows': 'bread', 'reason': 'ok'},
+                    {'requirement_id': 'hero', 'subject': '', 'status': 'DROPPED', 'reason': 'no subject recorded'},
+                    {'requirement_id': 'r2', 'subject': 'a cake', 'status': 'DROPPED', 'shows': 'a pie', 'reason': 'no'}]
+        vision = C.ReplayVision(verdicts)
+        self.assertEqual(self.ask(vision, 'a bakery'), {'matches': True, 'shows': 'bread', 'reason': 'ok'})
+        self.assertFalse(self.ask(vision, 'a cake')['matches'])
+        with self.assertRaises(ValueError):                       # more questions than the checkpoint answered
+            self.ask(vision, 'a cake')
+        with self.assertRaises(ValueError):                       # another question than the one answered
+            self.ask(C.ReplayVision(verdicts), 'a shop')
+        self.assertEqual(vision.replayed, 2)
+
+
 class TheSameBudgets(unittest.TestCase):
     def test_the_earlier_workers_recorded_calls_and_cost_count_against_the_build_budget(self):
         from omni_prod.model_policy import ModelPolicyViolation, authorize_model_call
         _, gateway = engine(Model())
         gateway.state.external_calls, gateway.state.external_spend_usd = 1, Decimal('0.01')
         version = gateway.policy_version
-        out = C.carry_budget(gateway, {'external_calls': 3, 'metered_usd': Decimal('0.004')})
-        self.assertEqual(out, {'carried': True, 'external_calls': 3, 'metered_usd': '0.004', 'budget_left_usd': '4.996',
-                               'calls_left': 57})
+        out = C.carry_budget(gateway, {'external_calls': 3, 'metered_usd': Decimal('0.004'),
+                                       'unanswered_authorized_usd': Decimal('0.11')})
+        self.assertEqual(out, {'carried': True, 'external_calls': 3, 'metered_usd': '0.004',
+                               'unanswered_authorized_usd': '0.11', 'budget_left_usd': '4.886', 'calls_left': 57})
         self.assertEqual((gateway.policy.external_budget_usd, gateway.policy.max_external_calls_per_build),
-                         (Decimal('4.996'), 57))
+                         (Decimal('4.886'), 57))
         self.assertNotEqual(gateway.policy_version, version)
         # this worker's own spend is untouched: the settlement adds the earlier workers from the ledger itself
         self.assertEqual((gateway.state.external_calls, gateway.state.external_spend_usd), (1, Decimal('0.01')))
         endpoint = ModelEndpoint(name='x', base_url='http://127.0.0.1:9/v1', model='x', api_key='k', external=True)
-        with self.assertRaises(ModelPolicyViolation):     # 0.01 spent + 4.99 > 4.996 left of the build's 5
+        with self.assertRaises(ModelPolicyViolation):     # 0.01 spent + 4.88 > 4.886 left of the build's 5
             authorize_model_call(endpoint=endpoint, policy=gateway.policy, state=gateway.state,
-                                 estimated_cost_usd=Decimal('4.99'))
+                                 estimated_cost_usd=Decimal('4.88'))
 
 
 class TheTerminalEvidenceCarriesTheRecord(unittest.TestCase):

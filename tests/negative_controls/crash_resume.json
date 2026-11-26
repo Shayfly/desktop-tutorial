@@ -205,6 +205,107 @@
    "expect_failed": [
     "test_the_record_names_the_checkpoint_it_continued_from"
    ]
+  },
+  {
+   "id": "NC11",
+   "what": "the unanswered call of the lost worker is left in the carried budget: a continued build can settle above its reservation (review of 1edee7b)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "        policy, external_budget_usd=max(policy.external_budget_usd - metered - unanswered, Decimal('0')),",
+     "new": "        policy, external_budget_usd=max(policy.external_budget_usd - metered, Decimal('0')),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_continued_build_never_settles_above_its_reservation",
+    "test_the_record_names_the_checkpoint_it_continued_from"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "this worker's own calls are counted as an earlier worker's too",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "AND trace_id IS DISTINCT FROM %s\",",
+     "new": "AND (trace_id IS DISTINCT FROM %s OR TRUE)\",  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_only_the_earlier_workers_come_off_the_budget"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "a checkpoint is written whatever the epoch (the mutation that survived the review)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "\"WHERE id = %s AND status = 'running' AND recovery_attempts = %s \"",
+     "new": "\"WHERE id = %s AND status = 'running' AND %s::int IS NOT NULL \""
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_checkpoint_is_written_only_in_the_writers_epoch"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "a worker of an earlier epoch can end the continuing worker's build",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "WHERE id = %s AND status = %s AND (%s::int IS NULL OR recovery_attempts = %s::int)",
+     "new": "WHERE id = %s AND status = %s AND (%s::int IS NULL OR %s::int IS NOT NULL)"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_worker_of_an_earlier_epoch_cannot_end_the_build"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "a worker of an earlier epoch keeps the build alive (its heartbeat is written)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "\"AND (%s::int IS NULL OR recovery_attempts = %s::int) \"",
+     "new": "\"AND (%s::int IS NULL OR %s::int IS NOT NULL) \""
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_worker_of_an_earlier_epoch_cannot_keep_the_build_alive"
+   ]
   }
  ]
 }
