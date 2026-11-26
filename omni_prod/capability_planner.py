@@ -48,6 +48,8 @@ PICTURE_ITEMS_DEFAULT = ("Picture items: NOT GIVEN after two questions -- no pic
                          "as text.")
 PICTURE_SUBJECT_DEFAULT = ("Picture subject: NOT GIVEN after two questions -- the picture nothing describes is left out; "
                            "never drawn from a generic sentence.")
+IMAGE_ITEMS_UPLOADED = "image-items-uploaded-photos"      # S3: the customer placed their own photos: none generated
+_UPLOADED = "148ai-asset://upload/"                        # the marker a4.pictures and media_pipeline.default_hero read
 IMAGE_ITEMS_DEFAULTED = "image-items-defaulted-text-only"        # stated in the summary (supervisor) and the contract
 IMAGE_SUBJECT_DEFAULTED = "image-subject-defaulted-left-out"     # stated in the summary (supervisor) and the contract
 MAX_ANSWER_ITEM_WORDS = 4          # a longer "item" is a sentence ("תעשו מה שנראה לכם"), not an item: not read as one
@@ -371,8 +373,16 @@ class CapabilityPlanner:
         item_subjects = ()
         text = full_prompt if full_prompt is not None else prompt
         if semantic.get(IMAGE_KEY) != "not_required" and _picture_per_item(text):
-            item_subjects = _brief_items(text)
-            if item_subjects:
+            # S3 (release review of 550320c): the customer's own photos are the items' pictures -- founder decision
+            # #28 (media_pipeline), the check a4.pictures and media_pipeline.default_hero already make. Said in the
+            # contract's notes, never a silent drop.
+            uploaded = _UPLOADED in text
+            item_subjects = () if uploaded else _brief_items(text)
+            if uploaded:
+                image_notes += (IMAGE_ITEMS_UPLOADED,)
+                logging.getLogger(__name__).info("%s: the customer placed their own photos; no item picture is "
+                                                 "generated", IMAGE_ITEMS_UPLOADED)
+            elif item_subjects:
                 requested.setdefault(IMAGE_KEY, (ITEM_PURPOSE, True))
             elif _brief_says(text, PICTURE_ITEMS_DEFAULT):
                 image_notes += (IMAGE_ITEMS_DEFAULTED,)      # asked twice, no list: the stated default, not a question

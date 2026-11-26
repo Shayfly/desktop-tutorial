@@ -58,7 +58,9 @@
         "test_a_picture_per_item_with_no_list_in_the_brief_is_the_contracts_question",
         "test_a_wrong_picture_of_one_item_stops_the_build",
         "test_each_picture_is_made_and_judged_from_its_own_item_and_placed_next_to_it",
-        "test_nine_named_items_are_nine_pictures_each_its_own_subject"
+        "test_nine_named_items_are_nine_pictures_each_its_own_subject",
+        "test_uploaded_photos_mean_no_generated_item_pictures_and_the_contract_says_so",
+        "test_without_uploads_each_item_gets_its_picture"
       ]
     },
     {
@@ -75,7 +77,8 @@
       "expect_failed": [
         "test_a_wrong_picture_of_one_item_stops_the_build",
         "test_each_picture_is_made_and_judged_from_its_own_item_and_placed_next_to_it",
-        "test_nine_named_items_are_nine_pictures_each_its_own_subject"
+        "test_nine_named_items_are_nine_pictures_each_its_own_subject",
+        "test_without_uploads_each_item_gets_its_picture"
       ]
     },
     {
@@ -92,7 +95,8 @@
       "expect_failed": [
         "test_a_wrong_picture_of_one_item_stops_the_build",
         "test_each_picture_is_made_and_judged_from_its_own_item_and_placed_next_to_it",
-        "test_nine_named_items_are_nine_pictures_each_its_own_subject"
+        "test_nine_named_items_are_nine_pictures_each_its_own_subject",
+        "test_without_uploads_each_item_gets_its_picture"
       ]
     },
     {
@@ -124,6 +128,21 @@
       "targets": ["tests/test_image_per_item.py"],
       "expect_failed": [
         "test_a_picture_per_item_with_no_list_in_the_brief_is_the_contracts_question"
+      ]
+    },
+    {
+      "id": "NC8",
+      "what": "S3: the per-item pictures have no upload check -- the customer's own photos are ignored and a picture is generated per item",
+      "mutations": [
+        {
+          "file": "omni_prod/capability_planner.py",
+          "old": "            uploaded = _UPLOADED in text\n",
+          "new": "            uploaded = False  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": ["tests/test_image_per_item.py"],
+      "expect_failed": [
+        "test_uploaded_photos_mean_no_generated_item_pictures_and_the_contract_says_so"
       ]
     }
   ]

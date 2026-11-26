@@ -169,5 +169,34 @@ class WhenNoItemsAreNamedOrAsked(unittest.TestCase):
         self.assertNotIn(IMAGE_ITEMS_UNREAD, contract.capability_plan.notes)
 
 
+class TheCustomersOwnPhotos(unittest.TestCase):
+    """S3 (release review of 550320c): a picture was generated for each item although the customer uploaded their own
+    photos -- the per-item path had no upload check, while a4.pictures and media_pipeline.default_hero have one
+    (founder decision #28). The clothes shop of the review: three uploads, "מוצרים: חולצות, מכנסיים ושמלות"."""
+    BRIEF = ('--- Approved project brief (binding; fingerprint 0123456789abcdef) ---\n'
+             'Sign-in: NONE. Do not add login, sessions, users or roles.\n'
+             'Product kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; no '
+             'accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given.\n'
+             'Product decisions v1: {"version":1,"persistence":"none","source":"customer"}\n'
+             'Main action: הצגת החנות והמוצרים\n'
+             'Initial content: בגדי נועה; מוצרים: חולצות, מכנסיים ושמלות\n'
+             'Language: Hebrew, right-to-left; dates shown as DD/MM/YYYY.')
+    REQUEST = 'אתר לחנות הבגדים שלי "בגדי נועה" עם תמונות של המוצרים.'
+    UPLOADS = (' צירפתי את התמונות שלי: src 148ai-asset://upload/1 , 148ai-asset://upload/2 , '
+               '148ai-asset://upload/3')
+
+    def test_uploaded_photos_mean_no_generated_item_pictures_and_the_contract_says_so(self):
+        from omni_prod.capability_planner import IMAGE_ITEMS_UPLOADED
+        contract = compile_contract(self.REQUEST + self.UPLOADS + '\n' + self.BRIEF)
+        self.assertEqual(images(contract), [])
+        self.assertIn(IMAGE_ITEMS_UPLOADED, contract.capability_plan.notes)
+        self.assertEqual([q.id for q in contract.unresolved_questions if q.id.startswith('image')], [])
+
+    def test_without_uploads_each_item_gets_its_picture(self):
+        contract = compile_contract(self.REQUEST + '\n' + self.BRIEF)
+        self.assertEqual([r.constraints['subject'] for r in images(contract) if r.purpose == a4.ITEM_PURPOSE],
+                         ['חולצות', 'מכנסיים', 'שמלות'])
+
+
 if __name__ == '__main__':
     unittest.main()
