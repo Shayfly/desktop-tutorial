@@ -1,3 +1,29 @@
+# 2026-11-26 — Rate limits on the account routes, shared by every instance (Claude Code; local commits on `claude/practical-hopper-oi3qj2-rate-limits`, NOT pushed, NOT live)
+
+- **Implemented and verified locally:** `omni_prod/rate_limits.py`, one middleware (innermost) and one PostgreSQL table
+  (`infra/postgres/047_rate_limits.sql`, rollback in `infra/postgres/rollback/`). Limits: login 10/15 min per e-mail and
+  50/15 min per address; signup 10/hour per address (and the login count of its e-mail); password reset 5/hour per e-mail
+  and 20/hour per address; verification e-mail 5/hour per account and 20/hour per address; verify/reset links 30/15 min
+  per address; password change (`POST /api/v28/me/password`, active once the platform shell route merges) 10/15 min per
+  account and 50/15 min per address; social sign-in start 20/10 min and callback 30/min per address (through `enforce()`).
+  429 with Retry-After and a sentence in Hebrew, Arabic and English; the store down or 047 missing: 503 (fail closed),
+  logged, and `GET /api/v28/deployment` "rate_limits" says MIGRATION_MISSING with 047's name. On Vercel the address is
+  `x-real-ip`; off Vercel the socket peer; forwarding headers from the client are never read.
+- **Removed by the owner's decision (2026-11-26 10:01, "(א)"):** no per-account limit on the conversation, builds or change
+  requests (an earlier draft had them).
+- **Account enumeration:** an unknown e-mail's login does the same password hashing as a wrong password; a reset request
+  answers in at least 0.5 s whether a token row is written or not.
+- **Evidence:** `tests/test_rate_limits.py` 23 passed; `tests/test_rate_limits_pg.py` 21 passed (two copies of the real app
+  on one local PostgreSQL 16, every migration applied); controls `rate_limits` 4/4 PASS without a database, 9/9 PASS with
+  `NC_ENV=pg`; touched suites 319 + 8 passed; fast suite 1042 passed in 15.2 s; deletions, weakening, system map, CI
+  coverage and changed-files guards exit 0 against f1961d0.
+- **Not verified:** nothing on Vercel (the `x-real-ip` behaviour is from Vercel's documentation and SDK, not observed);
+  047 is not applied anywhere but the throw-away databases -- the coordinator applies it to production before the release
+  (CLAUDE.md section 5). Signup still answers 409 for an existing e-mail with a wrong password (existence shows there).
+- **046/047:** `schema_manifest.py` lists 47 on lines of its own (a dry merge with the social sign-in branch 8e3c238 merges
+  it cleanly to 1-21, 26-47 and requires 47); `tests/test_migration_rollback_tolerance.py` conflicts on two lines in that
+  merge -- keep this branch's version, which reads the list from the files.
+
 # 2026-11-26 — Law 2: the four red evidence runs root-caused; three cleared, one still listed (Claude Code; local commits on `claude/practical-hopper-oi3qj2-red-evidence`, not pushed, NOT run on GitHub)
 
 - Vision probe 43657047045 (2026-11-15, f02404a): all six models named both pictures; the step runs under `bash -e`, set `pipefail`, and `grep -v` on an empty stderr exited 1 before `exit $rc`. Fixed on main by 7d79150; the green re-run 43689691749 (be831c6, six of six) is now cited by `omni_prod/vision_models.py:16` ("vision-probe run ...": law 2 also checks the workflow). `tests/test_vision_probe_step.py` runs the step's own text on the real report output: the old step exits 1 with no exit notice, the current one exits 0. Controls `vision_probe_step` 3/3.
