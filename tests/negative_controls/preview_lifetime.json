@@ -1,31 +1,99 @@
 {
  "pr": "caps-a-preview-lifetime",
- "sha256": ["tests/test_preview_lifetime.py", "omni_prod/preview_repository.py", "omni_prod/preview_access.py",
-            "omni_prod/investor_app.py"],
+ "sha256": [
+  "tests/test_preview_lifetime.py",
+  "omni_prod/preview_repository.py",
+  "omni_prod/preview_access.py",
+  "omni_prod/investor_app.py"
+ ],
  "controls": [
   {
    "id": "NC1",
    "what": "the old limit is back: a preview lives one hour",
-   "mutations": [{"file": "omni_prod/preview_repository.py", "old": "DEFAULT_TTL_SECONDS = 86_400\n", "new": "DEFAULT_TTL_SECONDS = 3600\n"}],
-   "targets": ["tests/test_preview_lifetime.py"],
-   "expect_failed": ["test_the_default_is_a_day_and_the_route_reads_it", "test_the_row_expires_a_day_after_launch",
-                     "test_the_owners_link_never_ends_before_the_preview"]
+   "mutations": [
+    {
+     "file": "omni_prod/preview_repository.py",
+     "old": "DEFAULT_TTL_SECONDS = 86_400\n",
+     "new": "DEFAULT_TTL_SECONDS = 3600\n"
+    }
+   ],
+   "targets": [
+    "tests/test_preview_lifetime.py"
+   ],
+   "expect_failed": [
+    "test_the_default_is_a_day_and_the_route_reads_it",
+    "test_the_row_expires_a_day_after_launch",
+    "test_the_owners_link_never_ends_before_the_preview"
+   ]
   },
   {
    "id": "NC2",
    "what": "the route keeps its own one-hour default",
-   "mutations": [{"file": "omni_prod/investor_app.py", "old": "os.getenv('OMNI_PREVIEW_TTL_SECONDS', str(_PREVIEW_DEFAULT_TTL))",
-                  "new": "os.getenv('OMNI_PREVIEW_TTL_SECONDS', '3600')"}],
-   "targets": ["tests/test_preview_lifetime.py"],
-   "expect_failed": ["test_the_default_is_a_day_and_the_route_reads_it"]
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "os.getenv('OMNI_PREVIEW_TTL_SECONDS', str(_PREVIEW_DEFAULT_TTL))",
+     "new": "os.getenv('OMNI_PREVIEW_TTL_SECONDS', '3600')"
+    }
+   ],
+   "targets": [
+    "tests/test_preview_lifetime.py"
+   ],
+   "expect_failed": [
+    "test_the_default_is_a_day_and_the_route_reads_it"
+   ]
   },
   {
    "id": "NC3",
    "what": "the owner's link ends after 8 hours, before the preview it opens",
-   "mutations": [{"file": "omni_prod/preview_access.py", "old": "OWNER_TTL = max(timedelta(hours=8), timedelta(seconds=_PREVIEW_TTL))",
-                  "new": "OWNER_TTL = timedelta(hours=8)"}],
-   "targets": ["tests/test_preview_lifetime.py"],
-   "expect_failed": ["test_the_owners_link_never_ends_before_the_preview"]
+   "mutations": [
+    {
+     "file": "omni_prod/preview_access.py",
+     "old": "OWNER_TTL = max(timedelta(hours=8),\n",
+     "new": "OWNER_TTL = timedelta(hours=8) or max(timedelta(hours=8),\n"
+    }
+   ],
+   "targets": [
+    "tests/test_preview_lifetime.py"
+   ],
+   "expect_failed": [
+    "test_the_owners_link_never_ends_before_the_preview",
+    "test_a_longer_preview_life_lengthens_the_link"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "review S3: every launch starts a new container, even with the same version's preview running",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    if live is not None:\n        return JSONResponse(status_code=202, content={\"status\": \"REUSED\"",
+     "new": "    if False:\n        return JSONResponse(status_code=202, content={\"status\": \"REUSED\""
+    }
+   ],
+   "targets": [
+    "tests/test_preview_lifetime.py::ALaunchReusesTheLivePreview"
+   ],
+   "expect_failed": [
+    "test_a_running_preview_of_the_same_version_is_reused"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the owner's link ignores an override of the preview's life",
+   "mutations": [
+    {
+     "file": "omni_prod/preview_access.py",
+     "old": "timedelta(seconds=int(os.getenv('OMNI_PREVIEW_TTL_SECONDS', '').strip() or _PREVIEW_TTL)))",
+     "new": "timedelta(seconds=_PREVIEW_TTL))"
+    }
+   ],
+   "targets": [
+    "tests/test_preview_lifetime.py::TheOwnersLinkFollowsAnOverride"
+   ],
+   "expect_failed": [
+    "test_a_longer_preview_life_lengthens_the_link"
+   ]
   }
  ]
 }

@@ -60,6 +60,23 @@ class PostgresPreviewRepository:
                         (preview_id, project_id, version_id, ttl_seconds),
                     )
 
+    def live_for(self, project_id: str, version_id: str) -> str | None:
+        """The preview of this version that is starting or running and not expired, if any (review S3, 2026-11-26):
+        a launch of the same version reuses it, so a preview that now lives a day is not started again and again."""
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id FROM project_previews
+                    WHERE project_id = %s AND version_id = %s AND status IN ('STARTING', 'RUNNING')
+                      AND expires_at > now()
+                    ORDER BY created_at DESC LIMIT 1
+                    """,
+                    (project_id, version_id),
+                )
+                row = cur.fetchone()
+        return row[0] if row else None
+
     def _conditional_update(self, sql: str, params: tuple) -> bool:
         with self.pool.connection() as conn:
             with conn.transaction():

@@ -3098,8 +3098,13 @@ def _v28_preview_launch(project_id: str, version_id: str, request: Request) -> d
         # of creating a row and spending a worker slot to learn the same thing.
         return JSONResponse(status_code=422, content={'status': 'NOT_PREVIEWABLE', 'reason': str(exc)})
 
-    preview_id = f"prv_{uuid.uuid4().hex}"
     preview_repo = PostgresPreviewRepository(_v28_pool)
+    # review S3 (2026-11-26): the same version's preview, still starting or running, is reused -- a day-long preview is
+    # not a new container on every launch (one host carries them all)
+    live = preview_repo.live_for(key, version_id)
+    if live is not None:
+        return JSONResponse(status_code=202, content={"status": "REUSED", "preview_id": live})
+    preview_id = f"prv_{uuid.uuid4().hex}"
     preview_repo.create(preview_id, key, version_id, ttl_seconds=_PREVIEW_TTL_SECONDS)
 
     redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')

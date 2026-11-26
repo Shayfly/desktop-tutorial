@@ -18,6 +18,7 @@ reaches the generated app (cookie and header are stripped before proxying).
 from __future__ import annotations
 
 import hashlib
+import os
 import secrets
 import threading
 import time
@@ -25,8 +26,11 @@ from datetime import datetime, timedelta, timezone
 
 # The owner's link lasted 8 hours; the preview now lives a day (preview_repository.DEFAULT_TTL_SECONDS), so the link
 # follows it and never ends before the preview it opens (the owner, 2026-11-26). The share link (7 days) already outlives it.
+# It follows an override of the preview's life too (OMNI_PREVIEW_TTL_SECONDS, the same variable and default the API
+# reads), here and in the router's cookie; a value that is not a whole number raises, never a silent default.
 from .preview_repository import DEFAULT_TTL_SECONDS as _PREVIEW_TTL
-OWNER_TTL = max(timedelta(hours=8), timedelta(seconds=_PREVIEW_TTL))
+OWNER_TTL = max(timedelta(hours=8),
+                timedelta(seconds=int(os.getenv('OMNI_PREVIEW_TTL_SECONDS', '').strip() or _PREVIEW_TTL)))
 SHARE_TTL = timedelta(days=7)
 MODES = ('PRIVATE', 'SHARED', 'PUBLIC')
 QUERY_PARAM = '__148ai_access'

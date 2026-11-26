@@ -88,5 +88,72 @@ class APreviewLivesADay(unittest.TestCase):
         self.assertIn("WHERE id = %s AND status = 'RUNNING' AND expires_at > now()", router_sql)     # past it: closed
 
 
+class ALaunchReusesTheLivePreview(unittest.TestCase):
+    """Review S3 (2026-11-26): a preview now lives a day, so a launch of a version whose preview is still starting or
+    running reuses it instead of starting another container. The real launch function, with the database, queue and
+    sandbox seams stubbed; the repository's query on a recording pool."""
+
+    def launch(self, live):
+        from types import SimpleNamespace
+        from unittest import mock
+        import omni_prod.investor_app as ia
+        calls = {'create': [], 'enqueue': []}
+
+        class Repo:
+            def __init__(self, pool):
+                pass
+
+            def live_for(self, project_id, version_id):
+                return live
+
+            def create(self, *a, **k):
+                calls['create'].append(a)
+        version = SimpleNamespace(repository=lambda: {})
+        with mock.patch.object(ia, '_require_durable_backend', lambda *_: None), \
+                mock.patch.object(ia, 'external_preview_url', lambda *_: 'x'), \
+                mock.patch.object(ia, '_preview_key', lambda *_: 'k'), \
+                mock.patch.object(ia, 'parse_preview_contract', lambda *_: None), \
+                mock.patch.object(ia, 'parse_web_saas_acceptance_plan', lambda *_: None), \
+                mock.patch.object(ia, 'PostgresPreviewRepository', Repo), \
+                mock.patch.object(ia, 'enqueue_build', lambda *a, **k: calls['enqueue'].append(a)), \
+                mock.patch.object(ia._v28.engine.workspace, 'get', lambda **_: version):
+            response = ia._v28_preview_launch('p', 'v1', None)
+        return __import__('json').loads(response.body), calls
+
+    def test_a_running_preview_of_the_same_version_is_reused(self):
+        body, calls = self.launch('prv_live')
+        self.assertEqual(body, {'status': 'REUSED', 'preview_id': 'prv_live'})
+        self.assertEqual(calls, {'create': [], 'enqueue': []})              # no new row, no new container
+
+    def test_with_none_live_a_new_preview_starts(self):
+        body, calls = self.launch(None)
+        self.assertEqual(body['status'], 'STARTING')
+        self.assertEqual((len(calls['create']), len(calls['enqueue'])), (1, 1))
+
+    def test_the_query_reads_only_a_live_preview_of_that_version(self):
+        pool = Recording()
+        pool._conn.cursor().__class__.fetchone = lambda self: None
+        self.assertIsNone(PR.PostgresPreviewRepository(pool).live_for('k', 'v1'))
+        sql, params = pool.sql[0]
+        self.assertIn("WHERE project_id = %s AND version_id = %s AND status IN ('STARTING', 'RUNNING') "
+                      "AND expires_at > now()", sql)
+        self.assertEqual(params, ('k', 'v1'))
+
+
+class TheOwnersLinkFollowsAnOverride(unittest.TestCase):
+    def test_a_longer_preview_life_lengthens_the_link(self):
+        import importlib
+        import os
+        from unittest import mock
+        try:
+            with mock.patch.dict(os.environ, {'OMNI_PREVIEW_TTL_SECONDS': str(48 * 3600)}):
+                self.assertEqual(importlib.reload(PA).OWNER_TTL, timedelta(hours=48))
+            with mock.patch.dict(os.environ, {'OMNI_PREVIEW_TTL_SECONDS': 'a day'}):
+                with self.assertRaises(ValueError):
+                    importlib.reload(PA)
+        finally:
+            importlib.reload(PA)
+
+
 if __name__ == '__main__':
     unittest.main()
