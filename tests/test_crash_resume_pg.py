@@ -219,8 +219,15 @@ class KilledWorkersContinue(unittest.TestCase):
                 self.assertEqual(recovery['ledger']['without_an_answer'], 1)
                 first = [a for a in self.db.all("SELECT metered_cost_usd FROM task_attempts WHERE build_id=%s AND "
                                                  "kind='provider_call' AND trace_id=%s", run['build_id'], run['attempts'][0][0])]
-                self.assertEqual(resumed['carried_budget'], {'carried': True, 'external_calls': len(first), 'metered_usd':
-                                 str(sum((Decimal(str(m)) for m, in first if m is not None), Decimal('0')))})
+                carried = resumed['carried_budget']
+                self.assertEqual((carried['carried'], carried['external_calls'], carried['metered_usd']),
+                                 (True, len(first), str(sum((Decimal(str(m)) for m, in first if m is not None),
+                                                            Decimal('0')))))
+                self.assertEqual(Decimal(carried['budget_left_usd']), self.H.LLM_BUDGET - Decimal(carried['metered_usd']))
+                # the settlement counts the earlier workers once, from the ledger: this worker's own calls only
+                basis = run['evidence']['economics_settlement']['cost_basis']
+                self.assertEqual(basis['external_calls'], sum(run['second']['calls'].values()))
+                self.assertEqual(basis['earlier_workers']['calls'], str(len(first)))
                 self.assertEqual(run['events'][-1], __import__('omni_prod.maintenance', fromlist=['x'])
                                  .RECOVERY_LINES['resumed']['he'])
 

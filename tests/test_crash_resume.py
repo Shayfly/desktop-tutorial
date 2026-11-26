@@ -341,11 +341,22 @@ class TheVerificationHistoryIsCarried(unittest.TestCase):
 
 class TheSameBudgets(unittest.TestCase):
     def test_the_earlier_workers_recorded_calls_and_cost_count_against_the_build_budget(self):
+        from omni_prod.model_policy import ModelPolicyViolation, authorize_model_call
         _, gateway = engine(Model())
         gateway.state.external_calls, gateway.state.external_spend_usd = 1, Decimal('0.01')
+        version = gateway.policy_version
         out = C.carry_budget(gateway, {'external_calls': 3, 'metered_usd': Decimal('0.004')})
-        self.assertEqual((gateway.state.external_calls, gateway.state.external_spend_usd), (4, Decimal('0.014')))
-        self.assertEqual(out, {'carried': True, 'external_calls': 3, 'metered_usd': '0.004'})
+        self.assertEqual(out, {'carried': True, 'external_calls': 3, 'metered_usd': '0.004', 'budget_left_usd': '4.996',
+                               'calls_left': 57})
+        self.assertEqual((gateway.policy.external_budget_usd, gateway.policy.max_external_calls_per_build),
+                         (Decimal('4.996'), 57))
+        self.assertNotEqual(gateway.policy_version, version)
+        # this worker's own spend is untouched: the settlement adds the earlier workers from the ledger itself
+        self.assertEqual((gateway.state.external_calls, gateway.state.external_spend_usd), (1, Decimal('0.01')))
+        endpoint = ModelEndpoint(name='x', base_url='http://127.0.0.1:9/v1', model='x', api_key='k', external=True)
+        with self.assertRaises(ModelPolicyViolation):     # 0.01 spent + 4.99 > 4.996 left of the build's 5
+            authorize_model_call(endpoint=endpoint, policy=gateway.policy, state=gateway.state,
+                                 estimated_cost_usd=Decimal('4.99'))
 
 
 class TheTerminalEvidenceCarriesTheRecord(unittest.TestCase):

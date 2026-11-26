@@ -158,8 +158,8 @@
    "mutations": [
     {
      "file": "omni_prod/build_checkpoint.py",
-     "old": "    state.external_spend_usd += Decimal(str(spend['metered_usd']))\n    return {'carried': True,",
-     "new": "    return {'carried': False,"
+     "old": "        policy, external_budget_usd=max(policy.external_budget_usd - metered, Decimal('0')),",
+     "new": "        policy, external_budget_usd=policy.external_budget_usd,  # NEGATIVE CONTROL"
     }
    ],
    "targets": [
@@ -184,6 +184,26 @@
    ],
    "expect_failed": [
     "test_the_build_log_shows_a_janitor_line_in_the_customers_language"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the earlier workers' calls are put into this worker's spend state: the settlement counts them twice",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "    gateway.policy = lowered\n",
+     "new": "    gateway.policy = lowered\n    gateway.state.external_calls += calls  # NEGATIVE CONTROL\n    gateway.state.external_spend_usd += metered\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_record_names_the_checkpoint_it_continued_from"
    ]
   }
  ]

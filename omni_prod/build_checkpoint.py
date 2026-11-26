@@ -190,14 +190,26 @@ def recorded_spend(pool, build_id: str) -> dict:
 
 
 def carry_budget(gateway, spend: dict) -> dict:
-    """The same model budget for a build that continues: the earlier workers' recorded calls and metered cost count
-    against the build's call limit and its reserved budget, which bind_budget set for the whole build."""
-    state = getattr(gateway, 'state', None)
-    if state is None:
-        return {'carried': False, 'why': 'the gateway keeps no budget state'}
-    state.external_calls += int(spend['external_calls'])
-    state.external_spend_usd += Decimal(str(spend['metered_usd']))
-    return {'carried': True, 'external_calls': int(spend['external_calls']), 'metered_usd': str(spend['metered_usd'])}
+    """The same model budget for a build that continues: the earlier workers' recorded calls and metered cost come off
+    the build's call limit and its reserved budget (bind_budget set them for the whole build). The limits are lowered,
+    never this worker's spend state: the settlement reads that state as THIS worker's spend and adds the earlier
+    workers from the ledger (worker_tasks.prior_worker_metered_cost), so counting them in the state too would count
+    them twice."""
+    import dataclasses
+    policy = getattr(gateway, 'policy', None)
+    if policy is None:
+        return {'carried': False, 'why': 'the gateway has no model-use policy'}
+    calls, metered = int(spend['external_calls']), Decimal(str(spend['metered_usd']))
+    lowered = dataclasses.replace(
+        policy, external_budget_usd=max(policy.external_budget_usd - metered, Decimal('0')),
+        max_external_calls_per_build=max(policy.max_external_calls_per_build - calls, 0))
+    gateway.policy = lowered
+    if hasattr(gateway, 'policy_version'):
+        from .attempt_ledger import content_version
+        gateway.policy_version = content_version('model-use', lowered.zero_cost_mode, lowered.allow_external_fallback,
+                                                 str(lowered.external_budget_usd), lowered.max_external_calls_per_build)
+    return {'carried': True, 'external_calls': calls, 'metered_usd': str(metered),
+            'budget_left_usd': str(lowered.external_budget_usd), 'calls_left': lowered.max_external_calls_per_build}
 
 
 # ------------------------------------------------------------------------------------------- the verification history
