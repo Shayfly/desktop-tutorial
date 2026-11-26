@@ -351,6 +351,19 @@ def validate(doc, sheet, offered: dict, outline_titles: dict | None = None, *, l
         if not name_allowed(name, sheet.name_candidates):
             out.append(Problem('name', 'NAME_NOT_GIVEN', 'the business name must be one the customer quoted: '
                                + ', '.join(repr(c) for c in sheet.name_candidates[:4])))
+    shortened = doc.get('shortened')
+    if shortened is not None:                     # review S5: a list shortened to fit one answer, said by name
+        lists = [p for p in K.SHORTENABLE if p.split('.')[0] in offered]
+        if not isinstance(shortened, list):
+            out.append(Problem('shortened', 'SCHEMA_SHAPE', 'expected a list of {list, left_out, why}'))
+        else:
+            for i, s in enumerate(shortened):
+                if (not isinstance(s, dict) or set(s) != {'list', 'left_out', 'why'} or s.get('list') not in lists
+                        or not isinstance(s.get('left_out'), int) or isinstance(s.get('left_out'), bool)
+                        or s['left_out'] < 1 or not isinstance(s.get('why'), str) or not s['why'].strip()
+                        or len(s['why']) > 200):
+                    out.append(Problem(f'shortened[{i}]', 'SCHEMA_SHAPE',
+                                       f'expected {{list: one of {lists}, left_out: 1 or more, why: text}}'))
     layout = doc.get('layout')
     if layout is not None:
         if not isinstance(layout, dict):

@@ -91,7 +91,12 @@ SECTIONS = {
     'contact': {**_head(), 'topics': Lst(2, 12, Str(30), True)},
 }
 TOP = {'schema': None, 'name': Str(60), 'tagline': Str(50), 'description': Str(160), 'layout': None,
-       'sections': None}
+       'sections': None, 'shortened': None}
+# Review S5 (2026-11-26): the raised maxima do not all fit one answer of MAX_CONTENT_TOKENS (a money bound, unchanged).
+# When the model must shorten a list to fit, it says which in `shortened` -- never silently, and never by spending the
+# corrections on TOO_MANY. The lists it may name (section.field), each only when its section is offered:
+SHORTENABLE = ('stats.items', 'services.items', 'about.paragraphs', 'about.facts', 'process.steps', 'faq.items',
+               'testimonials.items', 'pricelist.groups', 'contact.topics')
 NAV_SECTIONS = ('services', 'about', 'process', 'faq', 'testimonials', 'pricelist', 'contact')
 # sections the library has that this route never offers in slice 1, and why (said in `skipped`)
 NEVER = {'team': 'no team members in the customer\'s facts', 'gallery': 'gallery images are not on this route yet'}
@@ -170,5 +175,8 @@ def schema_for_model(offered: dict, outline_titles: dict, *, name_given: bool, l
                        "' – ', at most 60 characters")
     top.update({'tagline': _describe(TOP['tagline']), 'description': _describe(TOP['description']),
                 'layout (optional)': {axis: f'one of {list(opts)}' for axis, opts in layouts.items()},
-                'sections': sections})
+                'sections': sections,
+                'shortened (optional)': [{'list': 'one of ' + str([p for p in SHORTENABLE if p.split('.')[0] in offered]),
+                                          'left_out': 'how many of the customer\'s items this list leaves out (1 or more)',
+                                          'why': 'one short English sentence'}]})
     return top

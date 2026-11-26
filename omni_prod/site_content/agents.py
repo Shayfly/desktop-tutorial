@@ -24,8 +24,10 @@ no fallback to the legacy generator once the route was chosen.
 
 What a correction costs: one model call on the build's own model budget (a money limit, unchanged) -- the content
 document again (input: the request, the schema, the previous document and the problems; output at most
-MAX_CONTENT_TOKENS) or a rewrite of the named paths (output at most MAX_REWRITE_TOKENS). The estimate in dollars is
-measured from a real payload in tests/test_content_corrections.py and reported there, labelled as an estimate.
+MAX_CONTENT_TOKENS) or a rewrite of the named paths (output at most MAX_REWRITE_TOKENS). ESTIMATE, measured in
+tests/test_content_corrections.py (TheCostOfACorrection) on the owner's brief bld_b0eb47a5 at the catalogue's prices
+(infra/worker-host/model-catalog.json): a correction is at most about $0.11 on claude-sonnet-5-5 ($0.04 on
+gemini-3.8-flash), so three are at most about $0.33 -- an upper bound from token bounds, not a billed amount.
 """
 from __future__ import annotations
 
@@ -54,6 +56,12 @@ MAX_REWRITE_TOKENS = 3000
 # section 3). It was 1. Each round is logged in the build evidence (site_route.correction_rounds) and the bound is
 # said there (site_route.correction_bound) and in the failure message.
 MAX_CORRECTIONS = 3
+# Review S5 (2026-11-26): one answer holds MAX_CONTENT_TOKENS (a money bound, unchanged); the raised item maxima can be
+# more than that (the schema's largest document is 90,966 characters, measured from schema.SECTIONS). The model is
+# told the room it has and, when a list must be shorter to fit, names it in the document's `shortened`; the evidence
+# records it and the customer is told which list and why (site_route.shortened, .shortened_said). ESTIMATE: about 2.5
+# characters of Hebrew JSON per token (not measured on a tokenizer here), so about 20,000 characters.
+OUTPUT_CHARS = MAX_CONTENT_TOKENS * 5 // 2
 
 
 class SiteContentInvalid(RuntimeError):
@@ -342,6 +350,17 @@ def skipped_report(skipped: list[tuple[str, str]], lib_skipped: list[str], offer
     return out
 
 
+_LIST_NAMES = {'stats.items': 'המספרים', 'services.items': 'השירותים', 'about.paragraphs': 'הפסקאות על העסק',
+               'about.facts': 'העובדות על העסק', 'process.steps': 'שלבי העבודה', 'faq.items': 'השאלות הנפוצות',
+               'testimonials.items': 'ההמלצות', 'pricelist.groups': 'קבוצות המחירון', 'contact.topics': 'נושאי הפנייה'}
+
+
+def shortened_said(s: dict) -> str:
+    """A list the model shortened to fit one answer, in the customer's words (Hebrew: the route's pages are Hebrew)."""
+    return (f'ברשימת {_LIST_NAMES[s["list"]]} נכנסו פחות פריטים ממה שכתבתם ({s["left_out"]} לא נכנסו), כי כל התוכן '
+            'לא נכנס בתשובה אחת של המודל. אפשר לבקש שינוי ולהוסיף אותם.')
+
+
 class ContentSiteGenerator:
     def __init__(self, core, agent: ContentAgent, repair_agent: ContentRepairAgent):
         self.core, self.agent, self.repair_agent = core, agent, repair_agent
@@ -354,7 +373,12 @@ class ContentSiteGenerator:
                 'trade_words': list(getattr(route, 'domain_words', None) or []),
                 'schema': K.schema_for_model(offered, route.outline_titles, name_given=bool(sheet.name),
                                              layouts=LAYOUTS),
-                'checks': G.rules_text(('HE', 'G10', 'BRAND'))}
+                'checks': G.rules_text(('HE', 'G10', 'BRAND')),
+                'output_room': {'characters': OUTPUT_CHARS, 'rule': (
+                    'Your whole answer must stay under about this many characters. If it would not: shorten '
+                    'descriptions first; if a list must still be shorter, keep the customer\'s own items first, never '
+                    'leave out a price, and name each list you shortened in "shortened" with how many items it leaves '
+                    'out.')}}
 
     def generate(self, spec):
         core = self.core
@@ -423,6 +447,10 @@ class ContentSiteGenerator:
                 doc = set_path(doc, path, text)
         else:
             raise RuntimeError(f'the content corrections ran past their bound of {MAX_CORRECTIONS}')
+        report['shortened'] = list(doc.get('shortened') or [])
+        report['shortened_said'] = [shortened_said(s) for s in report['shortened']]
+        if report['shortened']:
+            _LOG.warning('SITE_CONTENT_SHORTENED %s', report['shortened'])
         report.update(prepass=found, warnings=[p.to_dict() for p in problems if p.severity == 'warn'],
                       skipped=skipped_report(skipped, lib_skipped, offered, doc),
                       content_calls=self.agent.calls + self.repair_agent.calls,

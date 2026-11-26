@@ -3,7 +3,9 @@
  "sha256": [
   "tests/test_content_corrections.py",
   "tests/test_site_content_agents.py",
-  "omni_prod/site_content/agents.py"
+  "omni_prod/site_content/agents.py",
+  "omni_prod/site_content/validate.py",
+  "omni_prod/site_content/schema.py"
  ],
  "controls": [
   {
@@ -17,7 +19,7 @@
     }
    ],
    "targets": [
-    "tests/test_content_corrections.py"
+    "tests/test_content_corrections.py::TheBound"
    ],
    "expect_failed": [
     "test_the_bound_is_three_and_stated_in_the_evidence",
@@ -39,7 +41,7 @@
     }
    ],
    "targets": [
-    "tests/test_content_corrections.py"
+    "tests/test_content_corrections.py::TheBound"
    ],
    "expect_failed": [
     "test_a_document_fixed_by_its_third_correction_is_built"
@@ -56,7 +58,7 @@
     }
    ],
    "targets": [
-    "tests/test_content_corrections.py"
+    "tests/test_content_corrections.py::TheBound"
    ],
    "expect_failed": [
     "test_the_bound_is_three_and_stated_in_the_evidence",
@@ -78,10 +80,78 @@
     }
    ],
    "targets": [
-    "tests/test_content_corrections.py"
+    "tests/test_content_corrections.py::TheBound"
    ],
    "expect_failed": [
     "test_validation_and_copy_rounds_share_the_one_bound"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "review S5: the model is not told the room one answer has",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "                'output_room': {'characters': OUTPUT_CHARS, 'rule': (",
+     "new": "                'output_room_off': {'characters': OUTPUT_CHARS, 'rule': ("
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py::AShortenedListIsSaidByName"
+   ],
+   "expect_failed": [
+    "test_the_room_is_in_the_payload_and_the_largest_document_needs_it"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a list the model shortened is not recorded nor said",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        report['shortened'] = list(doc.get('shortened') or [])\n",
+     "new": "        report['shortened'] = []\n"
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py::AShortenedListIsSaidByName"
+   ],
+   "expect_failed": [
+    "test_a_shortened_list_is_recorded_and_said_without_a_correction"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a shortened entry that names no offered list passes",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "                if (not isinstance(s, dict) or set(s) != {'list', 'left_out', 'why'}",
+     "new": "                if False and (not isinstance(s, dict) or set(s) != {'list', 'left_out', 'why'}"
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py::AShortenedListIsSaidByName"
+   ],
+   "expect_failed": [
+    "test_a_shortened_entry_that_names_no_offered_list_is_corrected"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "review S6: the cost estimate is no longer measured (the correction's payload is cut out)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "MAX_CONTENT_TOKENS = 8000\n",
+     "new": "MAX_CONTENT_TOKENS = 16000\n"
+    }
+   ],
+   "targets": [
+    "tests/test_content_corrections.py::TheCostOfACorrection"
+   ],
+   "expect_failed": [
+    "test_one_correction_is_at_most_about_eleven_cents_on_the_code_station"
    ]
   }
  ]
