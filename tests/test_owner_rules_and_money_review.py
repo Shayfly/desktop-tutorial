@@ -152,7 +152,7 @@ class AnUnpricedCallIsChargedItsStandIn(unittest.TestCase):
         self.assertEqual(subs.kw['computed_provider_cost_usd'], stand_in)
         record = evidence['cost_record']
         self.assertEqual((Decimal(record['stand_in_usd']), Decimal(record['llm_known_usd'])), (stand_in, Decimal('0')))
-        self.assertIsNone(worker_tasks.recorded_ai_cost(evidence))            # no known model cost: ai_cost untouched
+        self.assertEqual(worker_tasks.recorded_ai_cost(evidence), 'unknown')  # no known model cost: NULL (048)
 
     def test_the_stand_in_is_capped_at_the_reservation(self):
         from omni_prod import worker_tasks

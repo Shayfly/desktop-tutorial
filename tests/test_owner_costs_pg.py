@@ -187,7 +187,7 @@ class OwnerCostsOnTheRealPath(unittest.TestCase):
         with self.pool.connection() as conn:
             row = conn.execute('SELECT status, error_code, ai_cost, actual_provider_cost_usd, build_seconds, '
                                'evidence_json FROM build_jobs WHERE id=%s', (build_id,)).fetchone()
-        return row[0], row[1], Decimal(str(row[2])), row[3], row[4], row[5]
+        return row[0], row[1], (None if row[2] is None else Decimal(str(row[2]))), row[3], row[4], row[5]
 
     def attempts(self, build_id):
         with self.pool.connection() as conn:
@@ -216,6 +216,53 @@ class OwnerCostsOnTheRealPath(unittest.TestCase):
         self.assertEqual(evidence['cost_data_missing'], [])
         near = {b['bound'] for b in evidence['economics_settlement']['cost_record']['bounds_near']}
         self.assertEqual(near, set())                                  # $8 of $25 is not near
+
+    def test_a_build_that_never_started_has_no_duration_not_zero(self):
+        # migration 048: build_seconds is NULL for a build that never ran (QUEUED -> CANCELLED), never 0
+        from omni_prod.job_repository import PostgresBuildRepository
+        from omni_prod.models import BuildStatus
+        build_id = f'bld_{uuid.uuid4().hex}'
+        with self.pool.connection() as conn:
+            conn.execute("INSERT INTO build_jobs (id, project_id, status) VALUES (%s, 'tenant_q', 'queued')", (build_id,))
+            conn.commit()
+        self.assertTrue(PostgresBuildRepository(self.pool).transition(
+            build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.CANCELLED, error_code='cancelled_by_user'))
+        try:
+            self.assertIsNone(self.job(build_id)[4])
+            self.assertGreaterEqual(self.job(self.runs['owner'][0])[4], 0)  # a build that ran has its seconds
+        finally:                                    # the other tests count exactly the three real-path builds
+            with self.pool.connection() as conn:
+                conn.execute('DELETE FROM build_jobs WHERE id=%s', (build_id,))
+                conn.commit()
+
+    def test_an_unpriced_image_event_stores_no_estimate_and_the_report_does_not_add_it(self):
+        from omni_prod.capability_repository import PostgresCapabilityRepository
+        build_id = self.runs['owner'][0]
+        with self.pool.connection() as conn:
+            conn.execute("INSERT INTO build_capability_requirements (build_id, requirement_id, capability_key, purpose, "
+                         "required, quantity, status) VALUES (%s, 'cap-img', 'media.image.generate', 'hero', true, 1, "
+                         "'VERIFIED') ON CONFLICT DO NOTHING", (build_id,))
+            conn.commit()
+        repo = PostgresCapabilityRepository(self.pool)
+        repo.record_usage_event(event_key=f'{build_id}:cap-img:x', build_id=build_id, requirement_id='cap-img',
+                                provider='replicate', pricing_version='unpriced:operator-config:no-price',
+                                estimated_cost_usd=None, maximum_cost_usd=Decimal('0'), actual_cost_usd=None,
+                                usage={'outputs': 1})
+        event = next(e for e in repo.usage_for_build(build_id=build_id) if e['requirement_id'] == 'cap-img')
+        self.assertIsNone(event['estimated_cost_usd'])
+        owner = {b['build_id']: b for b in self.report()['builds']}[build_id]
+        self.assertEqual(owner['stages']['images']['calls_without_cost'], 1)
+        self.assertEqual(Decimal(owner['stages']['images']['known_cost_usd']), Decimal('0'))
+        with self.pool.connection() as conn:                          # the same event, read without the marker
+            conn.execute("UPDATE provider_usage_events SET pricing_version='operator-config' WHERE requirement_id='cap-img'")
+            conn.commit()
+        try:
+            owner = {b['build_id']: b for b in self.report()['builds']}[build_id]
+            self.assertEqual(owner['stages']['images']['calls_without_cost'], 1)   # NULL is unknown, never 0
+        finally:
+            with self.pool.connection() as conn:
+                conn.execute("DELETE FROM provider_usage_events WHERE requirement_id='cap-img'")
+                conn.commit()
 
     def test_another_account_with_the_same_calls_stops_at_its_budget(self):
         build_id, status = self.runs['customer']
@@ -249,7 +296,7 @@ class OwnerCostsOnTheRealPath(unittest.TestCase):
         self.assertGreater(stand_in, Decimal('0'))
         self.assertEqual(Decimal(record['llm_known_usd']), Decimal('0'))
         self.assertEqual(Decimal(record['llm_usd']), stand_in)
-        self.assertEqual(ai_cost, Decimal('0'))
+        self.assertIsNone(ai_cost)                    # migration 048: unknown is NULL, never 0
         with self.pool.connection() as conn:
             settled = conn.execute('SELECT settled_provider_cost_usd FROM credit_reservations WHERE build_id=%s',
                                    (build_id,)).fetchone()[0]

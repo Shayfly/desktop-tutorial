@@ -34,6 +34,11 @@ PHASE_LABELS = {
 }
 
 
+# Migration 048 (the owner 2026-11-26, "לא ידועה במיגרציה"): transition(ai_cost_usd=UNKNOWN_COST) writes NULL --
+# the model cost of a build with an unpriced call is unknown, never 0.
+UNKNOWN_COST = 'unknown'
+
+
 class PostgresBuildRepository:
     def __init__(self, database):
         # `database` may be a raw database_url string (legacy call sites) or a
@@ -82,9 +87,9 @@ class PostgresBuildRepository:
         original five keyword arguments are unaffected.
 
         The owner 2026-11-26 (cost data "from our side"): ai_cost (migration 004, never written before) is recorded
-        at the source -- the measured model spend, worker_tasks.recorded_ai_cost; left as is when None (the column is
-        NOT NULL). Duration is not written to build_seconds (also NOT NULL: a build that never started would read 0);
-        the cost report derives it from started_at and finished_at."""
+        at the source -- the measured model spend, worker_tasks.recorded_ai_cost; left as is when None, and NULL
+        (unknown, migration 048) when it is UNKNOWN_COST. build_seconds is written on every terminal state, NULL for a
+        build that never started."""
         from .build_state import assert_transition
         from .db import transaction
         assert_transition(expected, target)
@@ -93,6 +98,9 @@ class PostgresBuildRepository:
         finished_sql = "finished_at = NOW()," if target in {
             BuildStatus.READY, BuildStatus.FAILED, BuildStatus.CANCELLED
         } else ""
+        if finished_sql:    # migration 048: NULL for a build that never started, never 0
+            finished_sql += (" build_seconds = CASE WHEN started_at IS NULL THEN NULL"
+                             " ELSE GREATEST(0, EXTRACT(EPOCH FROM (NOW() - started_at)))::integer END,")
         phase = target.value.upper()
 
         sql = f"""
@@ -108,7 +116,7 @@ class PostgresBuildRepository:
                 evidence_json = COALESCE(%s::jsonb, evidence_json),
                 estimated_provider_cost_usd = COALESCE(%s, estimated_provider_cost_usd),
                 actual_provider_cost_usd = COALESCE(%s, actual_provider_cost_usd),
-                ai_cost = COALESCE(%s, ai_cost)
+                ai_cost = CASE WHEN %s THEN NULL ELSE COALESCE(%s, ai_cost) END
             WHERE id = %s AND status = %s
         """
         with transaction(self.database_url) as conn:
@@ -117,7 +125,8 @@ class PostgresBuildRepository:
                     target.value, phase, artifact_key, error_code, error_message,
                     result_version_id, repair_rounds,
                     dumps_evidence_for_terminal_state(evidence_json) if evidence_json is not None else None,
-                    estimated_provider_cost_usd, actual_provider_cost_usd, ai_cost_usd,
+                    estimated_provider_cost_usd, actual_provider_cost_usd,
+                    ai_cost_usd == UNKNOWN_COST, None if ai_cost_usd == UNKNOWN_COST else ai_cost_usd,
                     build_id, expected.value
                 ))
                 return cur.rowcount == 1

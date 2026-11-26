@@ -314,6 +314,83 @@
    "expect_failed": [
     "test_the_owners_reservation_carries_the_safety_bound_not_the_caps"
    ]
+  },
+  {
+   "id": "NC17",
+   "what": "migration 048: a reader adds a NULL image estimate as 0 (the report)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/owner_costs.py",
+     "old": "            if value is None:        # migration 048: a NULL estimate is unknown, never added as 0",
+     "new": "            if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_an_unpriced_image_event_stores_no_estimate_and_the_report_does_not_add_it"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "migration 048: an unknown model cost is written as 0, not NULL",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "                ai_cost = CASE WHEN %s THEN NULL ELSE COALESCE(%s, ai_cost) END",
+     "new": "                ai_cost = CASE WHEN %s THEN 0 ELSE COALESCE(%s, ai_cost) END  -- NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_model_without_a_price_completes_and_records_an_unknown_cost_with_its_tokens"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "migration 048: a build that never started gets 0 seconds, not NULL",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "            finished_sql += (\" build_seconds = CASE WHEN started_at IS NULL THEN NULL\"",
+     "new": "            finished_sql += (\" build_seconds = CASE WHEN started_at IS NULL THEN 0\""
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_build_that_never_started_has_no_duration_not_zero"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "migration 048: an unpriced image event stores the quote's 0 placeholder as its estimate",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_executor.py",
+     "old": "                                   if getattr(assignment.quote, \"price_known\", True) else None),",
+     "new": "                                   if True else None),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_google_image_direct.py"
+   ],
+   "expect_failed": [
+    "test_an_unpriced_image_is_made_and_its_usage_event_has_no_estimate"
+   ]
   }
  ]
 }

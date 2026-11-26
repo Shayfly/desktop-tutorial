@@ -219,6 +219,12 @@ def _assemble(builds, attempts, usage, losses, refunds, intake, project_builds, 
                 continue
             value = act if act is not None else (uj.get('computed_cost_usd') if uj.get('computed_cost_usd') is not None
                                                  else est)
+            if value is None:        # migration 048: a NULL estimate is unknown, never added as 0
+                images['calls_without_cost'] += 1
+                agg_stage['images']['calls_without_cost'] += 1
+                unknown_items += 1
+                gap('capability', f'{provider}:{rid}', 'price_missing: no estimate recorded (NULL)', bid, when, calls=1)
+                continue
             images['basis'].append('actual' if act is not None else
                                    ('computed_from_usage' if uj.get('computed_cost_usd') is not None else 'estimate'))
             images['known_cost_usd'] += _d(value)

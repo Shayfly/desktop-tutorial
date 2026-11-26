@@ -1012,7 +1012,7 @@ def _evidence_gaps(settlement_evidence, gateway, capability_evidence, economics_
     return cost_data_missing(gateway, capability_evidence, economics_quote)
 
 
-def recorded_ai_cost(settlement_evidence) -> Decimal | None:
+def recorded_ai_cost(settlement_evidence) -> Decimal | str | None:
     """build_jobs.ai_cost (migration 004; never written before 2026-11-26): the model spend of the build as measured --
     metered or computed, never the reservation and never a stand-in for a model without a price. None when nothing
     was measured: the column is then left as it is and the evidence says why (cost_record.basis)."""
@@ -1021,10 +1021,10 @@ def recorded_ai_cost(settlement_evidence) -> Decimal | None:
     if raw in (None, '', 'None'):
         return None
     if Decimal(str((record or {}).get('stand_in_usd') or 0)) > 0:
-        # money review B1: a build with an unpriced call has no known model cost. The column is NOT NULL (migration
-        # 004), so it is left as it is (0) and the evidence carries llm_known_usd and stand_in_usd; NULL needs a
-        # migration, which the owner decides.
-        return None
+        # money review B1 + migration 048 (the owner 2026-11-26): a build with an unpriced call has no known model
+        # cost -- written as NULL (unknown); the evidence keeps llm_known_usd and stand_in_usd
+        from .job_repository import UNKNOWN_COST
+        return UNKNOWN_COST
     try:
         value = Decimal(str(raw))
     except ArithmeticError:

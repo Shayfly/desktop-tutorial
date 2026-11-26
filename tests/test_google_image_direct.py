@@ -251,3 +251,21 @@ def test_lost_response_cannot_dispatch_to_a_replacement_provider(first, second):
         execute(second, 10000)
     assert repository.requirements(build_id='b1')[0]['selected_provider'] == initial_provider
     post.assert_called_once()
+
+
+def test_an_unpriced_image_is_made_and_its_usage_event_has_no_estimate():
+    # The owner 2026-11-26 + migration 048: the image is made through the real executor; its usage event stores NO
+    # estimate (None -> NULL), never the quote's 0 placeholder, and keeps the 'unpriced:' marker.
+    env = {k: v for k, v in ENV.items() if k != 'OMNI_GOOGLE_IMAGE_MAXIMUM_USD'}
+    calls, journal, store, repository = [], DurableTestJournal(), MemoryArtifactStore(), MemoryCapabilityRepository()
+    plan = CapabilityPlan((REQ,), ('media.image.generate',))
+    quotes = build_image_quote_resolver(env)(plan)
+    assert quotes[REQ.id].quote.price_known is False
+    stage = build_image_capability_stage(env=env, repository=repository, artifact_store=store,
+                                        journal=journal, worker_id='test-worker', urlopen=transport(calls))
+    repository.create_plan(build_id='b1', plan=plan)
+    result = stage.executor.execute_plan(build_id='b1', project_id='p1', plan=plan, assignments=quotes, now=100)
+    assert result.status == 'VERIFIED'
+    event, = repository.usage_for_build(build_id='b1')
+    assert event['estimated_cost_usd'] is None
+    assert event['pricing_version'].startswith('unpriced:')
