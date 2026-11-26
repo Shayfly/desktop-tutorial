@@ -10,7 +10,6 @@
 | S1-GOV | Claude Code (the owner merged #532) | Merged; 23 review fixes on a follow-up branch | #532 `d7b861d` -> `18dba53`; v24-ci negative-controls timeout, run 45713038574; STATUS.md 2026-11-26 |
 | GOA-ROUTE | Claude Code | In progress | bld_3938e570; branch route-honesty |
 | FLEET-ROOTS | Claude Code | In progress | diagnosis w2fwdjhzk; branches image-subject, repair-converge |
-| RED-EVIDENCE | Claude Code | In progress | runs 37814803770, 37954236866, 39377332673, 43657047045; branch red-evidence |
 | TENANT-S4.5 | Claude Code | In progress | branch tenant-isolation |
 | MEDIA-137 | the owner | In the warehouse (item 137) | the owner, 2026-11-26: music and video wait; STATUS.md 2026-11-26 |
 | LAW2-EVIDENCE-RUNS | Claude Code | Implemented with review fixes, verified locally; branch not pushed; real read-only run exit 0 (18 of 22 green, 4 known red listed in docs/evidence-runs-known-red.json, not fixed) | `claude/practical-hopper-oi3qj2-law2-evidence`; `scripts/resolve_evidence_runs.py`, `.github/workflows/evidence-runs.yml`; tests 76 passed, controls 52/52; STATUS.md 2026-11-25 |
