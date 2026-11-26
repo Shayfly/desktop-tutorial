@@ -195,7 +195,14 @@ class ProviderMatrixTests(unittest.TestCase):
                                     'gpt-6-luna'})          # 6 ok calls, inspect-build 39378559811 (2026-10-20)
         self.assertNotIn(S.PRODUCTION_LIVE, json.dumps(m['summary']))
         blocked = {r['provider_model_id'] for r in m['models'] if r['availability'] == S.INSUFFICIENT_CREDIT}
-        self.assertEqual(blocked, {'gpt-6.1-sol', 'claude-sonnet-5-5'})
+        # 2026-11-26: the no-credit answers of 2026-10-08 were the red model-probe run 37814803770; in the green
+        # re-run 42527017456 (2026-11-08 and 2026-11-18) sol and sonnet answered, so no model is blocked on credit --
+        # and neither is routable: no successful build call, so their availability is UNKNOWN, not AVAILABLE
+        self.assertEqual(blocked, set())
+        routed_unverified = {r['provider_model_id']: r['availability'] for r in m['models']
+                             if r['in_worker_catalog'] and r['availability'] != 'NOT_ROUTED'
+                             and r['verification_state'] != S.REAL_EXECUTION_VERIFIED}
+        self.assertEqual(routed_unverified, {'gpt-6.1-sol': S.UNKNOWN, 'claude-sonnet-5-5': S.UNKNOWN})
 
 
 class TaskPolicyRoutingTests(unittest.TestCase):

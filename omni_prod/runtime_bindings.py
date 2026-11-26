@@ -57,7 +57,7 @@ class Binding:
 
 
 _MODEL = Requirement(('GEMINI_API_KEY', 'OMNI_MODEL_CATALOG_JSON'),
-                     'deploy-worker run 37739774562 notice "model catalog": gemini-* CONFIGURED; model-probe 37814803770 ok')
+                     'deploy-worker run 37739774562 notice "model catalog": gemini-* CONFIGURED; model-probe 42527017456 ok')
 _SANDBOX = Requirement(('OMNI_SANDBOX_RUNNER_URL', 'OMNI_SANDBOX_SHARED_SECRET'), 'deploy-worker sandbox probe PASS (every deploy)')
 _DB = Requirement(('OMNI_DATABASE_URL',), 'deploy-worker migrations + queue probe PASS')
 _S3 = Requirement(('OMNI_S3_ENDPOINT', 'OMNI_S3_BUCKET', 'OMNI_S3_ACCESS_KEY', 'OMNI_S3_SECRET_KEY'), 'deploy-worker storage probe PASS')
@@ -195,8 +195,8 @@ BINDINGS: tuple[Binding, ...] = (
     Binding('registry_auditor', ('omni_prod.registry_audit:audit',), 'platform', (),
             (Evidence('unit', 'tests/test_registry_audit.py'),), '$0', ()),
     Binding('provider_evaluator', ('omni_prod.model_probe:probe', 'omni_prod.rehearsal:cost_projection'), 'platform', (_MODEL,),
-            (Evidence('live', 'model-probe run 37814803770', '3 Gemini models ok; OpenAI/Anthropic refused: no credit', 'ff6b4f6',
-                      'worker-host', ('availability of each catalog model',)),),
+            (Evidence('live', 'model-probe run 42527017456', 'all six catalog models answered OK (2026-11-08 and 2026-11-18)',
+                      'f299889', 'worker-host', ('availability of each catalog model',)),),
             '< $0.001 per probe', ('no quality benchmark across providers yet',),
             verified_scope=('model availability probe',)),
 )

@@ -1,0 +1,61 @@
+{
+ "pr": "red-evidence",
+ "sha256": [
+  "tests/test_model_probe_runs.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the probe passes when any configured model answered (run 37814803770, three refusals, would be green)",
+   "mutations": [
+    {
+     "file": "omni_prod/model_probe.py",
+     "old": "    return 0 if configured and all(r['result'] == 'ok' for r in configured) else 1",
+     "new": "    return 0 if configured and any(r['result'] == 'ok' for r in configured) else 1"
+    }
+   ],
+   "targets": [
+    "tests/test_model_probe_runs.py"
+   ],
+   "expect_failed": [
+    "test_run_37814803770_is_reproduced_from_its_log_and_fails_closed",
+    "test_the_step_ends_with_the_probes_verdict"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the workflow step swallows the probe's exit code",
+   "mutations": [
+    {
+     "file": ".github/workflows/model-probe.yml",
+     "old": " | tail -30\n",
+     "new": " | tail -30 || true  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_model_probe_runs.py"
+   ],
+   "expect_failed": [
+    "test_the_step_ends_with_the_probes_verdict"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a refused call no longer carries the provider's own words (the record could not say why a model failed)",
+   "mutations": [
+    {
+     "file": "omni_prod/model_probe.py",
+     "old": "            row['result'] = f'error: {exc}'[:300]",
+     "new": "            row['result'] = 'error'  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_model_probe_runs.py"
+   ],
+   "expect_failed": [
+    "test_run_37814803770_is_reproduced_from_its_log_and_fails_closed",
+    "test_the_step_ends_with_the_probes_verdict"
+   ]
+  }
+ ]
+}

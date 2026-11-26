@@ -700,6 +700,56 @@ def stage_paid_verify(state: dict) -> None:
     state['paid_preview'] = (view4 or {}).get('preview_url')
 
 
+# Provider-call steps a build makes once: the spec (architecture) and the first code (codegen). A repair or a review is
+# made again in every round, so the ledger alone cannot say whether one was repeated.
+# Limit (review of 78d3b79): on the content-site route (omni_prod/site_content, OMNI_SITE_LIBRARY) one generation makes
+# two 'codegen' calls -- the writer and its one corrective call (site_content/agents.py ContentAgent.write and
+# .correct, both through TaskTaggedGateway(..., 'codegen')). A kill between the two followed by a correct resume would
+# be judged "started over". crash-verify builds an app (CRASH_PROMPT), not a content site, so it is not affected today.
+# resume_verdict also does not compare the record's checkpoint name with the ledger: the ledger holds task types per
+# worker, not checkpoint ids; the checkpoint vocabulary is for S4.2's implementation to define.
+ONCE_PER_BUILD = ('architecture', 'codegen')
+
+
+def resume_verdict(attempts, recovery) -> tuple[bool, str]:
+    """S4.2 (plan v3), the crash step's acceptance: the worker is killed mid-build and the build continues from its last
+    checkpoint instead of starting over, and the build record shows it.
+
+    `attempts`: the build's provider calls from the ledger, (trace_id, attempt_seq, task_type, outcome, created_at); one
+    trace per worker. `recovery`: build_jobs.evidence_json -> 'recovery'. It passes only when (1) at least two workers
+    called, (2) the lost workers finished a step a build makes once (ONCE_PER_BUILD) -- a kill before that tests no
+    resume --, (3) the worker that finished the build made no call of such a step (calling it again is starting over),
+    and (4) the record names its checkpoint: recovery.resumed_from.checkpoint. Run 37954236866 (2026-10-09, inspect
+    37955419872): the recovered worker called architecture again, which the killed one had finished and paid."""
+    first: dict = {}
+    for trace, seq, task, outcome, created in attempts:
+        key = (created is None, created or '', seq)
+        if trace not in first or key < first[trace]:
+            first[trace] = key
+    order = sorted(first, key=lambda t: first[t])
+    lost, last = set(order[:-1]), (order[-1] if order else None)
+    finished = sorted({task for trace, _, task, outcome, _ in attempts
+                       if trace in lost and outcome == 'ok' and task in ONCE_PER_BUILD})
+    called = sorted({task for trace, _, task, _, _ in attempts if trace == last})
+    repeated = sorted(set(finished) & set(called))
+    resumed = (recovery or {}).get('resumed_from') if isinstance(recovery, dict) else None
+    checkpoint = resumed.get('checkpoint') if isinstance(resumed, dict) else None
+    problems = []
+    if len(order) < 2:
+        problems.append(f'{len(order)} worker(s) in the ledger: no recovery to judge')
+    elif not finished:
+        problems.append('the killed worker finished no step a build makes once: the kill came before anything could '
+                        'be continued')
+    if repeated:
+        problems.append(f'started over: the recovered worker called {", ".join(repeated)} again, which the killed '
+                        'worker had finished')
+    if not checkpoint:
+        problems.append('the build record does not name the checkpoint it continued from (recovery.resumed_from)')
+    detail = (f"workers={len(order)} killed worker finished={finished} recovered worker called={called} "
+              f"repeated={repeated} recovery.resumed_from={json.dumps(resumed, ensure_ascii=False, default=str)}")
+    return not problems, ('; '.join(problems) + ' | ' if problems else '') + detail
+
+
 CRASH_PROMPT = ('אתר בעברית לרשימת ספרים לקריאה: הוספת ספר עם שם וסופר, רשימה, וסימון שנקרא. בלי התחברות משתמשים. '
                 '(בדיקת התאוששות מקריסה)')
 
@@ -742,6 +792,11 @@ def stage_crash_verify(state: dict) -> None:
            ledger[2] >= 2 and bool(basis.get('earlier_workers')) and abs(settled - Decimal(str(ledger[1]))) < Decimal('0.000001'),
            f"ledger calls={ledger[0]} metered={ledger[1]} workers(traces)={ledger[2]} settled={settled} "
            f"earlier_workers={basis.get('earlier_workers')}")
+    # S4.2: recovered is not enough -- the build must continue from its last checkpoint, not start over (resume_verdict)
+    attempts = sql("SELECT trace_id, attempt_seq, task_type, outcome, created_at FROM task_attempts "
+                   "WHERE build_id = %s AND kind = 'provider_call' ORDER BY created_at, attempt_seq", (b,))
+    recovery = sql("SELECT evidence_json->'recovery' FROM build_jobs WHERE id = %s", (b,))[0][0]
+    record('crash: build continued from its last checkpoint (S4.2)', *resume_verdict(attempts, recovery))
 
 
 STAGES = {'free': stage_free, 'cancel-setup': stage_cancel_setup, 'cancel-verify': stage_cancel_verify,

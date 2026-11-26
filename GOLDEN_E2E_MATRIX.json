@@ -53,17 +53,11 @@
   },
   {
    "scenario": "Golden 5 — Crash recovery",
-   "status": "PASS",
-   "evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
-   ],
-   "commits": [
-    "2b4bafd"
-   ],
-   "at": [
-    "2026-10-09T15:46Z"
-   ],
-   "note": ""
+   "status": "FAIL",
+   "evidence": [],
+   "commits": [],
+   "at": [],
+   "note": "S4.2 (the build continues from its last checkpoint) is not implemented: a recovered build starts over, and since 2026-10-14 (e5e11e5) a build whose lost worker made a paid call ends FAILED provider_liability_unknown instead of being requeued. crash-verify checks S4.2 (postdeploy_checks.resume_verdict); no crash-verify run has been green since 2026-10-09"
   },
   {
    "scenario": "Golden 6 — Provider failure",
@@ -71,7 +65,7 @@
    "evidence": [],
    "commits": [],
    "at": [],
-   "note": "fallback proven by injection tests; OpenAI/Anthropic have no credit, so no real second provider"
+   "note": "fallback proven by injection tests; OpenAI and Anthropic answer again (model-probe run 42527017456, 2026-11-18) but are not AVAILABLE to planning (no successful build call), so no real second provider yet"
   },
   {
    "scenario": "Golden 7 — Budget guard",
