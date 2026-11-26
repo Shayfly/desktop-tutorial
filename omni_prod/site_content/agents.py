@@ -37,6 +37,7 @@ import re
 from dataclasses import replace
 
 from ..autonomous_core import AcceptanceFailure, ExecutionReport, RepairDeclined
+from ..preview_smoke import served_cut
 from ..repository_patch import FilePatch
 from . import facts as Fx
 from . import owners as O
@@ -300,8 +301,10 @@ def prepass(core, route, html: str, sheet) -> dict:
     from ..fact_canon import build_canon, needs_customer_input
     canon = build_canon(route.prompt)
     seen = set()
+    # (the served cut is what the review stage reads: up to the last complete section, never a fact cut in half --
+    # preview_smoke.served_cut, which the route switches on for its preview stage in site_content.install)
     for label, ctx in (('served cut', {'request': route.prompt, 'canon': canon,
-                                       'rendered_pages': {'/': served[:PREVIEW_CUT]}}),
+                                       'rendered_pages': {'/': served_cut(served)}}),
                        ('whole page', {'request': route.prompt, 'canon': canon})):
         for f in _invented_contact({R.PAGE: served}, ctx):
             if f.severity != 'blocking':
@@ -664,7 +667,8 @@ class SiteParityExecutor:
             self.last_parity = {'status': 'NOT_RUN', 'mode': self.mode, 'reason': 'no served page from the preview',
                                 'findings': findings}
         else:
-            if pages['/'] != str(repository.get(R.PAGE, ''))[:PREVIEW_CUT]:
+            # both sides as the preview returns them: a long page up to its last complete section (served_cut)
+            if served_cut(pages['/']) != served_cut(str(repository.get(R.PAGE, ''))):
                 findings.append('the served GET / is not the rendered public/index.html')
             self.last_parity = {'status': 'fail' if findings else 'pass', 'mode': self.mode, 'findings': findings}
         self._core.site_report['parity'] = self.last_parity

@@ -1,8 +1,12 @@
 """The content document's schema: what the copy model may write, per section, and which sections it is offered.
 
-SCHEMA names the document format. Every field has a type and a bound sized for the page (a title that fits the
-320 px phone and G-APPLE's 30/60-character render test; a list long enough for a real page and short enough for the
-45,000 characters the truth gate reads). Unknown keys are an error, never dropped (validate.py). A section is offered
+SCHEMA names the document format. Every field has a type and a bound sized for the page: a heading's length is a
+layout rule (it fits the 320 px phone and G-APPLE's 30/60-character render test; the correction fixes a long one), and
+a list holds what a real business has (the owner, 2026-11-26, WAREHOUSE 136 option a: the item counts were limits that
+are not money -- 8 services, 8 questions, 6 groups of 12 prices -- and were raised; ITEM_MAXIMA_2026_11_26 keeps the
+old and new numbers side by side). A page longer than the 45,000 characters the preview smoke returns is judged whole
+before the sandbox (agents.prepass) and, in the sandbox, up to its last complete section (preview_smoke.served_cut):
+never a fact cut in half. Unknown keys are an error, never dropped (validate.py). A section is offered
 only when the customer's facts give it a basis: the palette's sections (directions.json 'sections') always; a numbers
 strip with at least two numbers the customer wrote; testimonials only with reviews the customer gave (references);
 a price list only with prices the customer gave (references). With the customer's own outline (page_outline), the
@@ -57,20 +61,34 @@ def _head(nav: bool = True) -> dict:
     return {'eyebrow': Str(40, True), 'title': Str(_H['h2']), 'lead': Str(220, True), **({'nav': Str(24)} if nav else {})}
 
 
+# The owner, 2026-11-26 (WAREHOUSE 136, option a): how many items a section holds is not money, so a real business
+# fits. {(section, list): (old maximum, new maximum)}; the minimums are unchanged. Why each number:
+#   services, faq 24     a clinic, a law firm or a salon lists 10-20 services and as many questions; 24 leaves room
+#   process 12           a renovation or an onboarding in 10-12 steps
+#   testimonials 12      references to reviews the customer gave; a wall of twelve quotes
+#   pricelist 12 x 30    a cafe or restaurant menu: up to 12 categories of up to 30 dishes (360 prices)
+#   contact topics 12    one form topic per service category
+#   about 6 paragraphs, 12 facts; stats 6 (one row on a desktop, two on a tablet)
+# The layout at these maxima is proven in a real browser (tests/test_section_library.py, ItemMaxima: no sideways
+# scroll at 320-1440 px, nothing clipped, body text at least 14 px, the production visual check clean).
+ITEM_MAXIMA_2026_11_26 = {('stats', 'items'): (4, 6), ('services', 'items'): (8, 24), ('about', 'paragraphs'): (3, 6),
+                          ('about', 'facts'): (4, 12), ('process', 'steps'): (6, 12), ('faq', 'items'): (8, 24),
+                          ('testimonials', 'items'): (6, 12), ('pricelist', 'groups'): (6, 12),
+                          ('pricelist', 'groups.items'): (12, 30), ('contact', 'topics'): (6, 12)}
 SECTIONS = {
     'hero': {'eyebrow': Str(40, True), 'title': Str(_H['h1']), 'lead': Str(220), 'cta': Str(30), 'note': Str(90, True),
              'panel_label': Str(40, True), 'panel_figure': Obj({'value': Num(), 'caption': Str(40)}, True)},
-    'stats': {'label': Str(40, True), 'items': Lst(2, 4, Obj({'value': Num(), 'label': Str(30)}))},
-    'services': {**_head(), 'items': Lst(2, 8, Obj({'title': Str(_H['h3']), 'desc': Str(220)}))},
-    'about': {**_head(), 'paragraphs': Lst(1, 3, Str(400)),
-              'facts': Lst(1, 4, Obj({'label': Str(20), 'value': Str(80)}), True)},
-    'process': {**_head(), 'steps': Lst(2, 6, Obj({'title': Str(_H['h3']), 'desc': Str(200)}))},
-    'faq': {**_head(), 'items': Lst(2, 8, Obj({'q': Str(90), 'a': Str(400)}))},
+    'stats': {'label': Str(40, True), 'items': Lst(2, 6, Obj({'value': Num(), 'label': Str(30)}))},
+    'services': {**_head(), 'items': Lst(2, 24, Obj({'title': Str(_H['h3']), 'desc': Str(220)}))},
+    'about': {**_head(), 'paragraphs': Lst(1, 6, Str(400)),
+              'facts': Lst(1, 12, Obj({'label': Str(20), 'value': Str(80)}), True)},
+    'process': {**_head(), 'steps': Lst(2, 12, Obj({'title': Str(_H['h3']), 'desc': Str(200)}))},
+    'faq': {**_head(), 'items': Lst(2, 24, Obj({'q': Str(90), 'a': Str(400)}))},
     'cta': {'title': Str(_H['h2']), 'text': Str(200, True)},
-    'testimonials': {**_head(), 'items': Lst(1, 6, Ref('@review'))},
-    'pricelist': {**_head(), 'groups': Lst(1, 6, Obj({'title': Str(_H['h3']), 'items': Lst(1, 12, Obj(
+    'testimonials': {**_head(), 'items': Lst(1, 12, Ref('@review'))},
+    'pricelist': {**_head(), 'groups': Lst(1, 12, Obj({'title': Str(_H['h3']), 'items': Lst(1, 30, Obj(
         {'name': Str(_H['h4']), 'price': Ref('@price'), 'desc': Str(120, True)}))}))},
-    'contact': {**_head(), 'topics': Lst(2, 6, Str(30), True)},
+    'contact': {**_head(), 'topics': Lst(2, 12, Str(30), True)},
 }
 TOP = {'schema': None, 'name': Str(60), 'tagline': Str(50), 'description': Str(160), 'layout': None,
        'sections': None}

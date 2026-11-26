@@ -199,6 +199,27 @@ sys.exit(0 if verdict == "OK" else 1)
 ''' % {'seconds': SMOKE_SECONDS}
 
 
+SERVED_CUT = 45_000     # _SMOKE prints at most this many characters of GET / (the line rides in the stdout tail)
+
+
+def served_cut(page):
+    """The part of a captured page a check can judge as written. The smoke prints page[:45000], so a longer page
+    arrives cut mid-text: a street address, an hours range, a phone or a testimonial split at character 45,000 reads as
+    another fact -- 'רחוב הנביאים 1' for 'רחוב הנביאים 12' is an invented address (scan of 2026-11-26, caps-a: a page
+    of 88,331 characters cut at 85,892). A page of SERVED_CUT characters or more is trimmed back to the end of its last
+    complete </section>, or, when it has none, to before its last tag; a shorter page is returned as it is. Used where
+    the content route judges or compares the served page (PreviewReadyExecutor.trim_cut, agents.prepass,
+    agents.SiteParityExecutor)."""
+    if not isinstance(page, str) or len(page) < SERVED_CUT:
+        return page
+    cut = page[:SERVED_CUT]
+    end = cut.rfind('</section>')
+    if end >= 0:
+        return cut[:end + len('</section>')]
+    tag = cut.rfind('<')
+    return cut[:tag] if tag >= 0 else cut
+
+
 def _rendered_pages(stdout: str) -> dict | None:
     for line in reversed(stdout.splitlines()):
         if line.startswith('PREVIEW-PAGE '):
@@ -222,6 +243,9 @@ class PreviewReadyExecutor:
         self.last_smoke: dict | None = None
         # The page GET / served in the last passing smoke run, as the user receives it: {'/': html, 'assets': css+js}.
         self.last_pages: dict | None = None
+        # The content route (site_content.install) sets this: a captured page cut at SERVED_CUT is trimmed to its last
+        # complete section (served_cut) before any check reads it. Off elsewhere: every other route reads it as before.
+        self.trim_cut = False
 
     def __getattr__(self, item):
         return getattr(self._inner, item)
@@ -258,6 +282,8 @@ class PreviewReadyExecutor:
         if int(result.get('returncode', 1)) == 0:
             self.last_smoke = {'status': 'PASS'}
             self.last_pages = _rendered_pages(str(result.get('stdout', '')))
+            if self.trim_cut and self.last_pages:
+                self.last_pages = {**self.last_pages, '/': served_cut(self.last_pages['/'])}
             return report
         self.last_pages = None
         self.last_smoke = {'status': 'FAIL'}

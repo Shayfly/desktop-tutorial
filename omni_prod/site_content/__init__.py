@@ -244,6 +244,7 @@ def install(engine, *, prompt: str, gateway, request=None, plan_governed: bool =
     # here, and the engine stays exactly as it was: never a half-installed route); then all parts are set together.
     from ..attempt_ledger import TaskTaggedGateway
     from ..behavior_acceptance import find_in_chain
+    from ..preview_smoke import PreviewReadyExecutor
     from ..quality_gate import QualityAwareExecutor
     from ..skill_units import gate as G
     from ..verification_group import VerificationGroup
@@ -256,12 +257,17 @@ def install(engine, *, prompt: str, gateway, request=None, plan_governed: bool =
     repairer = A.ContentSiteRepairer(core, rewriter)
     quality = find_in_chain(core.executor, QualityAwareExecutor)
     group = find_in_chain(quality._inner if quality is not None else core.executor, VerificationGroup)
+    preview = find_in_chain(core.executor, PreviewReadyExecutor)
     recorder = A.ThresholdRecorder(group._threshold) if group is not None else None
     core.site_route = route
     _LOG.info('SITE_ROUTE route=%s reason=%s palette=%s contract=%s', route.route, route.reason, route.palette,
               route.contract_fp)
     core.site_report, core.site_feedback, core.site_sheet = {}, [], None
     core.architect, core.generator, core.repairer = architect, generator, repairer
+    if preview is not None:
+        # the owner, 2026-11-26: a page may now run past the 45,000 characters the preview smoke returns (raised item
+        # maxima); the review stage reads it up to its last complete section, never a fact cut in half (served_cut)
+        preview.trim_cut = True
     if group is not None:
         group._threshold = recorder
     if quality is not None:
