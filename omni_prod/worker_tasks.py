@@ -2022,7 +2022,7 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
 # promoted modifications) decides the demand-driven acceptance scope. Read from
 # the immutable contract, never from generated files.
 #
-# Lineage (2026-11-25). A version has at most ONE origin, so the walk is a single chain and its answer does not depend
+# Lineage (2026-11-26). A version has at most ONE origin, so the walk is a single chain and its answer does not depend
 # on row order. The first rule that applies names the origin:
 #   1. a promoted change (modification_requests.promoted_version_id): the version the change was proposed on
 #      (source_version_id). The change was built and judged on that version (execute_modification), also when it was
@@ -2043,16 +2043,18 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
 # scans project_versions: neither has an index for it yet (a migration needs the owner's word). ORDER BY l.depth is a
 # second guard: while the walk ends at the first build, only its last row can have a contract.
 #
-# History. Until 2026-11-25 only rule 1 existed, so a version made by an undo or a rollback had no contract and a
+# History. Before #530 only rule 1 existed, so a version made by an undo or a rollback had no contract and a
 # content site was judged on the strict floor (verify-replay run 45607249874: v_88812e8a4066448e and
 # v_8fd6c2ad3b174200 required auth/role/data_* although their build, bld_c35b8332, was an approved content site).
-# Two fixes were rejected in review before merge, both for following parent_id:
-#   - for every version: a data app restored after a later content-site build of the same project took the content
-#     site's contract, with auth, role and data checks waived, and a change accepted with force had two edges at the
-#     same depth, so LIMIT 1 picked one arbitrarily;
-#   - as a last rule: a build commits its version before it records result_version_id (_run_live_build_job: commit,
-#     then jobs.transition). A job killed in between (queue timeout, restart, the reaper) leaves a version with no
-#     build row, and parent_id lent it the PREVIOUS build's contract -- weaker than main, where it had none.
+# Two fixes followed parent_id and were wrong, both found by review:
+#   - #530 (merged as 5bcfefe on 2026-11-26; no release had followed it when this replaced it) followed it for every
+#     version: a data app restored after a later content-site build of the same project took the content site's
+#     contract, with auth, role and data checks waived, and a change accepted with force had two edges at the same
+#     depth, so LIMIT 1 picked one arbitrarily;
+#   - the next version (never merged) kept it as a last rule: a build commits its version before it records
+#     result_version_id (_run_live_build_job: commit, then jobs.transition). A job killed in between (queue timeout,
+#     restart, the reaper) leaves a version with no build row, and parent_id lent it the PREVIOUS build's contract --
+#     weaker than before #530, when it had none.
 _CONTRACT_SCOPE_FOR_VERSION_SQL = """
 WITH RECURSIVE lineage(version_id, depth) AS (
     SELECT %s::text, 0

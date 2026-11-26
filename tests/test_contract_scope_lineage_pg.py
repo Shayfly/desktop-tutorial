@@ -10,17 +10,18 @@ The lineage followed modification_requests alone, so the undo and the rollback h
 strict floor (auth, role, data_create, data_update, data_delete, integration). The same lookup feeds a customer's
 change request (worker_tasks.execute_modification) and the preview's acceptance (execute_preview_launch).
 
-The first fix followed project_versions.parent_id for every version. Review of #530 (2026-11-25, reproduced): parent_id
-is the project's head at commit time, not the version the content came from. A project can be built again under
-another contract (7 projects in production have more than one build), so a data app restored after a later
-content-site build took the content site's contract -- auth, role and data checks waived -- and the reverse gave a
-false FAIL. A change accepted with force had two edges at the same depth and LIMIT 1 picked one arbitrarily.
+The first fix (#530, merged as 5bcfefe on 2026-11-26; no release had followed it when this file replaced its
+tests) followed project_versions.parent_id for every version. Review of #530 (2026-11-25, reproduced): parent_id is
+the project's head at commit time, not the version the content came from. A project can be built again under another
+contract (7 projects in production have more than one build), so a data app restored after a later content-site
+build took the content site's contract -- auth, role and data checks waived -- and the reverse gave a false FAIL. A
+change accepted with force had two edges at the same depth and LIMIT 1 picked one arbitrarily.
 
-The second fix kept parent_id as a last rule. Second review (2026-11-25, reproduced on PostgreSQL 16): a build commits
-its version BEFORE it records result_version_id (worker_tasks._run_live_build_job: commit, then jobs.transition). A job
-killed in between -- the queue's timeout, a restart, the reaper -- leaves a version with no build row, and parent_id
-lent it the PREVIOUS build's contract: a content-site build, then an orphaned data-app version, and that version was
-judged as a content site. On main it had no contract (strict floor), so this was weaker than main.
+The next version (never merged) kept parent_id as a last rule. Second review (2026-11-25, reproduced on PostgreSQL
+16): a build commits its version BEFORE it records result_version_id (worker_tasks._run_live_build_job: commit, then
+jobs.transition). A job killed in between -- the queue's timeout, a restart, the reaper -- leaves a version with no
+build row, and parent_id lent it the PREVIOUS build's contract: a content-site build, then an orphaned data-app
+version, and that version was judged as a content site. Before #530 it had no contract (strict floor).
 
 Now a version has at most ONE origin (worker_tasks._CONTRACT_SCOPE_FOR_VERSION_SQL): a promoted change -> the version
 it was made on; otherwise the earliest earlier version of the same project with the same repository_sha256 (a
