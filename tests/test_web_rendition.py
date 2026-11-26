@@ -299,6 +299,17 @@ class NothingIsRefusedForItsWeight(unittest.TestCase):
         self.assertTrue(any('IMAGE_WEIGHT_OVER_BUDGET' in line for line in logs.output))
         self.assertEqual(decoded(r).size, (r['width'], r['height']))           # a real, carried picture
 
+    def test_the_small_entry_point_takes_bytes_and_a_target(self):
+        target = W.rendition(self.data, 'image/jpeg', place='hero')['bytes'] // 2
+        out = W.fit_bytes(self.data, 'image/jpeg', target)
+        self.assertEqual(tuple(out), W.FIT_KEYS)
+        self.assertLessEqual(out['bytes'], target)
+        self.assertEqual((out['bytes'], out['sha256']), (len(out['data']), hashlib.sha256(out['data']).hexdigest()))
+        self.assertFalse(out['over_budget'])
+        self.assertEqual(decoded({'data': out['data']}).size, (out['width'], out['height']))
+        self.assertIn(out['mime'], W.OUTPUT_MIMES)
+        nothing_but_the_picture(self, out['data'])
+
     def test_the_budget_is_under_the_g4_unit_and_g4_cannot_see_a_carried_file(self):
         from omni_prod.skill_units.perf_inline_image_weight.probe import LIMIT
         self.assertLess(W.BUDGET_BYTES * 4 / 3, LIMIT)

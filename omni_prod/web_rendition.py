@@ -362,6 +362,19 @@ def rendition(data: bytes, mime: str, *, place: str = 'hero', max_bytes: int = B
     return r
 
 
+FIT_KEYS = ('data', 'mime', 'format', 'width', 'height', 'quality', 'similarity', 'bytes', 'sha256', 'over_budget')
+
+
+def fit_bytes(data: bytes, mime: str, max_bytes: int, *, place: str = 'hero') -> dict:
+    """The small, stable entry point (for any caller that only has bytes and a byte target, e.g. a generated picture
+    that must fit a page budget): {'data', 'mime', 'format', 'width', 'height', 'quality', 'similarity', 'bytes',
+    'sha256', 'over_budget'}. The same conversion as rendition(): upright, no metadata, sized for `place`, the lowest
+    bytes at THRESHOLD, then STEPS down to `max_bytes`; past the last step it is returned with over_budget True --
+    never an exception for weight. RenditionError for an unreadable, animated or bomb file."""
+    r = rendition(data, mime, place=place, max_bytes=max_bytes, label='fit_bytes')
+    return {k: r[k] for k in FIT_KEYS}
+
+
 def record(r: dict) -> dict:
     """A rendition as the build evidence keeps it: everything but the bytes."""
     return {k: v for k, v in r.items() if k != 'data'}

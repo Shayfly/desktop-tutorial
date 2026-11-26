@@ -333,7 +333,25 @@
    "expect_failed": [
     "test_over_its_budget_it_steps_down_until_it_fits",
     "test_past_the_last_step_the_last_step_is_carried_and_said",
-    "test_the_page_fits_its_budget_and_every_file_is_the_new_bytes"
+    "test_the_page_fits_its_budget_and_every_file_is_the_new_bytes",
+    "test_the_small_entry_point_takes_bytes_and_a_target"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "fit_bytes ignores the byte target it is given (the one-image budget is used instead)",
+   "mutations": [
+    {
+     "file": "omni_prod/web_rendition.py",
+     "old": "    r = rendition(data, mime, place=place, max_bytes=max_bytes, label='fit_bytes')\n",
+     "new": "    r = rendition(data, mime, place=place, label='fit_bytes')   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_the_small_entry_point_takes_bytes_and_a_target"
    ]
   }
  ]
