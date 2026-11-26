@@ -1,9 +1,12 @@
-<!-- The delivery report of the owner's plan (section 17). Every section below is required and checked on each push and
-each edit of this text (scripts/check_pr_report.py, the "PR report" workflow). Every piece of evidence refers to the head
-SHA of this PR. Write "none" or "not measured" with the reason where a field has nothing; never leave it empty. -->
+<!-- The delivery report of the owner's plan (section 17). Every section below is required, once, and checked on each
+push and each edit of this text (scripts/check_pr_report.py, the "PR report" workflow). Every piece of evidence refers
+to the head SHA of this PR. Write "none" or "not measured" with the reason where a field has nothing; never leave it
+empty. Text inside these comment marks is not shown and does not count. A GitHub revert with its generated body and a
+dependabot pull request need no report. -->
 
 ## Task ID
-<!-- The plan's task id(s), for example S1.7. The PR title names it too. -->
+<!-- The plan's task id(s), for example S1.7; the PR title names one of them. Outside the plan: "none: <the reason>"
+(a hotfix, an owner's order, a warehouse item); the title then needs no id. -->
 
 ## Requirement
 <!-- The original requirement, quoted from the plan or the owner's message, with its date. -->
@@ -48,10 +51,12 @@ SHA of this PR. Write "none" or "not measured" with the reason where a field has
 <!-- How to undo it: revert commit, flag, down migration, previous deployment. -->
 
 ## Reviewer
-<!-- The independent reviewer (ChatGPT, plan v3) and the full SHA the review covers; "pending" until then. -->
+<!-- There is no independent reviewer: the owner cancelled that review on 2026-11-25 (OWNERS.md rule 1). Write who
+reviewed the head SHA and how: Claude Code's own review by separate reviewer agents, what they checked, what they found
+and what was fixed. Say that it is the author's own check, not an independent approval. -->
 
 ## Blockers
 <!-- What still blocks it and who must act; "none" if none. -->
 
 ## Status
-<!-- PASS, FAIL or HOLD, as the first word. -->
+<!-- One of the three words first, then the reason, for example: "HOLD: waiting for CI on the head SHA". -->

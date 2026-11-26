@@ -17,6 +17,13 @@ For Vercel, verify current official platform constraints before selecting the ar
 
 Role ownership applies by responsibility, not historical path allowlists. Claude owns product and intake; Codex owns governance, CI and documentation; Matt independently verifies. Agents may edit paths needed for their assigned domain, subject to protected-file restrictions and independent review. No agent may approve its own change. Routine merges are permitted only when CI is green for the exact head SHA and an independent verifier has approved that SHA. The implementing agent cannot approve its own work. CEO approval is required only for irreversible changes: schema changes, provider replacement, or changes to the approval flow. This founder decision (2026-10-27) supersedes earlier blanket CEO-approval requirements for routine merges.
 
+> **Note, 2026-11-25 (the owner's decision governs merges now):** the owner cancelled the independent review ("מבטל את
+> הביקורת של מאט", 19:10 UTC) and gave Claude Code a standing approval to merge. A routine merge now needs CI green on
+> the exact head SHA and that standing approval; Claude Code's own review by separate reviewer agents is reported in
+> the pull request as the author's own check, not as an independent approval (OWNERS.md rule 1, CLAUDE.md section 2
+> rule 9, law 7 below; the owner's words in inbox/002). The paragraph above is kept as the record of the 2026-10-27
+> rule.
+
 | Role | Responsibility |
 |---|---|
 | Claude Code | Product and intake |
@@ -32,6 +39,10 @@ Changes to `omni_prod/**` follow role ownership and independent review. CEO appr
 Before starting any task, every agent MUST read root `STATUS.md`, `TASKS.md`, and `OWNERS.md`. At task completion, update `STATUS.md` with date, author, verified green/red/blocked status and evidence, and update `TASKS.md` with owner, status, SHA/run links. Do not report success without proof of executed work. Root files are the only shared state; do not create duplicate `docs/state/` files.
 
 Routine reversible PRs may merge only after green CI on exact SHA and approval by a different independent verifier. No force-push to main; never modify `tests/test_evidence_export.py:18`. Separate commits per topic.
+
+> **Note, 2026-11-25:** "approval by a different independent verifier" is replaced by the owner's standing approval
+> (the note above, OWNERS.md rule 1). The rest of the line stands: green CI on the exact SHA, no force-push to main,
+> `tests/test_evidence_export.py:18` untouched, separate commits per topic.
 
 ## Four working rules (founder, 2026-10-20; from docs/HANDOFF_FROM_VENICE_DESKTOP_HE.md §30.5)
 
@@ -138,14 +149,18 @@ GitHub rule. "Not required" means a red result does not block a merge.
    - *Enforced today:* **PARTIAL.**
      - Every deleted line needs a declaration bound to the sha256 of exactly those lines (`scripts/deletions_declared.py`,
        job `light`, `v24-ci.yml:53-63`). `light` is not required, and the reviewer field is a string (law 7).
-     - The negative controls run in job `negative-controls` (`v24-ci.yml:129-144`), which is not required. The required
-       `test` job only checks that the specs still apply (`tests/test_negative_controls_apply.py`).
+     - The negative controls run in job `negative-controls` (`v24-ci.yml:162-187`), as three parallel shards since the
+       change of 2026-11-26: the checks `negative-controls (1)`, `negative-controls (2)` and `negative-controls (3)`.
+       None of them is required. The required `test` job only checks that the specs still apply
+       (`tests/test_negative_controls_apply.py`).
      - The regression guardian keeps a minimum test count per area, but reads the minimum from the branch itself
        (`omni_prod/agent_os/meta.py:69`).
      - A weakening that only adds lines passes every check: a new `skip`, `xfail`, `continue-on-error` or `|| true`.
    - *Missing:* a required check that diffs the PR against main and fails on new skip or xfail markers,
      `continue-on-error` or `|| true`, unless declared and signed. The regression floor should be read from main
-     (CLAUDE.md §4). `light` and `negative-controls` should be required.
+     (CLAUDE.md §4). `light` and the three checks `negative-controls (1)`, `(2)` and `(3)` should be required. A rule
+     that required the old single check `negative-controls` would block every pull request: no job reports a check by
+     that name any more.
 
 6. **No hiding of failures, deleting of evidence or inventing of results.**
    - *Forbidden:* a failure that does not surface, evidence that is removed, or a result that no run produced.
@@ -199,7 +214,8 @@ GitHub rule. "Not required" means a red result does not block a merge.
      - four skill lists (`agent_os/skills.py`, `skill_catalog.py`, `skills_registry.py`, `skills_runtime.py`);
      - two status vocabularies;
      - nine workflow-local redactors.
-     `SYSTEM_MAP.json` (S1.5) maps those vocabularies onto the plan's six states without adding a third.
+     The system map (S1.5, `omni_prod/system_map.py`) maps those vocabularies onto the plan's six states without
+     adding a third; the mapping is in `docs/SYSTEM_MAP.md`, the full map is built in CI (artifact `system-map`).
    - *Missing:* a declared map from each shared concern to its one module, and a check that fails a diff adding a second
      implementation (a new `*_registry.py`, a new redaction regex outside `secret_redaction.py`, a new status enum).
 
@@ -210,9 +226,10 @@ GitHub rule. "Not required" means a red result does not block a merge.
       - `test` and `validate` are required for a non-admin; `drill-c16.yml` re-proves that twice a month.
       - The worker and Vercel deploy only on a `[release]` title or a manual dispatch (`scripts/release_gate.py`;
         `scripts/vercel_ignore_build.mjs`). The deploy does not read v24-ci's result for the SHA it deploys.
-      - Plan stages: no file records their acceptance conditions. From plan v3, every pull request names its task
-        (`.github/pull_request_template.md`, `scripts/check_pr_report.py`, S1.7). The title carries the stage, but no
-        check yet compares stages.
+      - Plan stages: no file records their acceptance conditions. From plan v3, every pull request names its task, or
+        says "none: <reason>" when it is outside the plan (`.github/pull_request_template.md`,
+        `scripts/check_pr_report.py`, S1.7; the "PR report" check is not required). The title carries the stage, but
+        no check yet compares stages.
     - *Missing:* a machine-readable stage file (stage id, acceptance conditions as test or workflow ids, status derived
       from their runs), with a check that fails a pull request of stage N+1 while stage N is open. The deploy job should
       read the required checks of its SHA.
