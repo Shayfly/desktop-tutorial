@@ -10,6 +10,9 @@ Acceptance per scenario, all measured, never judged by eye:
   approval      the conversation reaches the spec approval (an `approve_spec` action)
   facts         every fact the customer gave (phone, address) is in the brief the builder gets, as written
   model         the replies were written by a model (the interpreter name), not by the rules alone
+  asked_again   no reply asks for a fact the customer already gave in the conversation (GIVEN: name, phone, address,
+                hours) -- runs 45702506669 / 45702519795 passed while the agent asked a name the first message gave
+  one_message   no message both asks a question and shows the summary ("שלב 1 מתוך 2")
 Cost (the interpreter's metered USD) and the number of turns are reported.
 
 The path (the owner's human test, 2026-11-17): by default the agent runs on the PRODUCTION path -- the gateway the intake
@@ -23,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from decimal import Decimal
 
@@ -51,6 +55,14 @@ SCENARIOS = {
     'bare': {'lines': ['אתר', 'למספרה שלי, "תספורת טובה" בחולון, טלפון 03-5550000', 'מחירון ותיאום תור בוואטסאפ',
                        'נקי ומודרני'],
              'facts': ['03-5550000']},
+}
+# What each scenario's customer gives, by kind, as written: once the customer's messages contain the value, the agent
+# never asks for that kind again (asked_again). Written by the scenario's author, not read by the product's own
+# recogniser, so a recogniser that misses a name cannot also hide the question it causes.
+GIVEN = {
+    'doors': {'name': '148 דלתות', 'phone': '050-345-6723'},
+    'butcher': {'name': 'בשר השכונה', 'phone': '04-8123456', 'address': 'הרצל 12', 'hours': '8:00 עד 19:00'},
+    'bare': {'name': 'תספורת טובה', 'phone': '03-5550000'},
 }
 
 
@@ -275,6 +287,7 @@ def run_scenario(name: str, interpreter) -> dict:
     sup = _Supervisor(interpreter)
     lines, turns, cards, cost, models, reached = list(spec['lines']), [], 0, Decimal('0'), set(), False
     unknown = 0
+    spoken = []                          # every message in full: the checks read what was said, not a printed excerpt
     message = lines.pop(0)
     for _ in range(MAX_TURNS):
         t = sup.turn(project_id=name, account_id='rehearsal', message=message, lang='he')
@@ -287,6 +300,7 @@ def run_scenario(name: str, interpreter) -> dict:
         models.add(str(meta.get('interpreter') or (t.interpretation or {}).get('interpreter') or 'deterministic'))
         turns.append({'customer': message[:160], 'agent': t.reply[:600], 'asked': meta.get('asked') or [],
                       'cost_usd': None if t.cost_usd is None else str(t.cost_usd), 'cost_state': t.cost_state})
+        spoken.append({'customer': message, 'agent': t.reply})
         if any(a['type'] == 'approve_spec' for a in t.actions):
             reached = True
             break
@@ -300,13 +314,106 @@ def run_scenario(name: str, interpreter) -> dict:
               'models': sorted(models), 'cost_usd': None if unknown else str(cost), 'cost_unknown_turns': unknown,
               'transcript': turns, 'provider_models': sorted(set(used)) if used is not None else None,
               'route_failures': list(getattr(getattr(interpreter, 'gateway', None), 'route_failures', None) or [])[:20]}
-    result['passed'] = accepted(cards=cards, reached=reached, missing=missing, models=models)
+    result['asked_again'] = asked_again(spoken, GIVEN.get(name) or {})
+    result['question_with_summary'] = question_with_summary(spoken)
+    result['passed'] = accepted(cards=cards, reached=reached, missing=missing, models=models,
+                                asked_again=result['asked_again'], with_summary=result['question_with_summary'])
     return result
 
 
-def accepted(*, cards: int, reached: bool, missing, models) -> bool:
-    """No card, the approval reached, no fact missing, and at least one reply written by a model."""
+def accepted(*, cards: int, reached: bool, missing, models, asked_again=(), with_summary=()) -> bool:
+    """No card, the approval reached, no fact missing, at least one reply written by a model, no fact the customer gave
+    asked again, and no message that both asks a question and shows the summary."""
+    if asked_again or with_summary:
+        return False
     return cards == 0 and reached and not missing and any(str(m).startswith('model') for m in models)
+
+
+# ---- the conversation's own checks (2026-11-25). Runs 45702506669 (Flash-Lite) and 45702519795 (Haiku) reported
+# passed=True while the agent asked "איך קוראים לעסק?" twice after "שם העסק: 148 דלתות", asked "מה שם האטליז" after
+# 'לאטליז "בשר השכונה"', and showed the summary in the same message as a question. These read the agent's words
+# themselves, independently of the product's own recogniser (conversation_agent.asks_for_name), so the check catches
+# what the product misses.
+# a question mark, a request ("ספרו לי", "כתבו"), or a question word that opens a clause ("לפני שנמשיך, מה שם ...");
+# "זה מה שהבנתי" and "(מתוך מה שכתבתם)" say, they do not ask
+_ASKING = re.compile(r'[?؟]|(?:^|[\s,:;(])(?:האם|ספרו|כתבו|תכתבו|תגידו|שתפו|נשאר\s+רק\s+לדעת|tell\s+me|write)(?=[\s,:]|$)|'
+                     r'(?:^|[,:;(—–-]\s*)(?:מה|מהו|מהי|מהם|איך|איזה|אילו|באילו|מתי|איפה|היכן|what|how|which|when|where)'
+                     r'(?=[\s,:]|$)', re.I)
+_NOT_THIS_FACT = re.compile(r'פרטים\s+אישיים|personal\s+details', re.I)    # "האם יישמרו פרטים אישיים (שם, טלפון, מייל)?"
+# Each asks FOR the fact ("מה מספר הטלפון", "מהי הכתובת המלאה"); a question about showing it ("האם להציג את הטלפון
+# בראש העמוד?", "האם להציג את שם העסק בגדול?") is about the page, not a fact asked again.
+ASKS_FOR = {
+    'name': re.compile(r'(?:מה|מהו)\s+(?:ה)?שם|(?:מה|מהו)\s+שמ(?:ו|ה|כם)|איך\s+(?:קוראים|נקרא|נקראת|נקראים)|לקרוא\s+ל|'
+                       r'כתבו\s+את\s+השם|what\s+is\s+(?:the|your)\s+(?:business\s+)?name|what\s+is\s+.{0,30}called|'
+                       r'name\s+should\s+appear', re.I),
+    'phone': re.compile(r'מספר\s+(?:ה)?(?:טלפון|נייד)|(?:מה|מהו)\s+(?:ה)?טלפון|(?:באיזה|לאיזה)\s+(?:מספר|טלפון)|'
+                        r'להתקשר\s+(?:אליכם|אליך)|phone\s+number|number\s+to\s+call|what\s+number', re.I),
+    'address': re.compile(r'(?:מה|מהי)\s+(?:ה)?כתובת|כתובת\s+(?:המלאה|מלאה|העסק|של\s+העסק)|'
+                          r'איפה\s+(?:אתם|העסק|נמצא|נמצאים|המקום)|היכן\s+(?:אתם|העסק|נמצא)|'
+                          r"what(?:'s|\s+is)\s+(?:the|your)\s+(?:full\s+)?address|where\s+(?:are\s+you|is\s+the)", re.I),
+    'hours': re.compile(r'(?:מה|מהן|מהם)\s+(?:ה)?שעות|(?:באילו|אילו|איזה)\s+(?:ימים|שעות)|'
+                        r'מתי\s+(?:אתם\s+)?(?:פתוח|פתוחים|עובדים|פותחים)|what\s+(?:are\s+)?(?:your\s+)?(?:opening\s+)?hours|'
+                        r'when\s+are\s+you\s+open', re.I),
+}
+_NOT_THE_PHONE = re.compile(r'וואטסאפ|ווטסאפ|whats\s*app', re.I)        # a WhatsApp number is its own question
+SUMMARY_MARKS = ('שלב 1 מתוך 2', 'Step 1 of 2')
+_SENT = re.compile(r'[^.!?؟\n]*(?:[.!?؟]+|$)')
+
+
+def _sentences(text: str) -> list[str]:
+    return [s.strip() for s in _SENT.findall(text or '') if s.strip()]
+
+
+def _plain(text: str) -> str:
+    return ' '.join(str(text or '').split())
+
+
+def asks_for(fact: str, sentence: str) -> bool:
+    """Does this sentence ask the customer for this kind of fact?"""
+    s = sentence or ''
+    if not _ASKING.search(s) or _NOT_THIS_FACT.search(s) or not ASKS_FOR[fact].search(s):
+        return False
+    return not (fact == 'phone' and _NOT_THE_PHONE.search(s))
+
+
+def asked_again(transcript, given: dict) -> list[dict]:
+    """Each agent message that asks for a fact the customer had already given (the value is in their messages so
+    far, this turn's included): [{turn, fact, sentence}]. A sentence that quotes the value confirms it; it does not ask.
+    The summary's own lines are not read: they list the facts, they do not ask for them."""
+    out, said = [], ''
+    for i, t in enumerate(transcript, 1):
+        said += '\n' + _plain(t.get('customer'))
+        reply = _before_summary(str(t.get('agent') or ''))
+        for fact, value in given.items():
+            value = _plain(value)
+            if value not in said:
+                continue
+            hit = next((s for s in _sentences(reply) if value not in _plain(s) and asks_for(fact, s)), None)
+            if hit:
+                out.append({'turn': i, 'fact': fact, 'sentence': hit[:200]})
+    return out
+
+
+def question_with_summary(transcript) -> list[dict]:
+    """Each agent message that shows the summary and, before it, asks something: [{turn, sentence}]. The summary's own
+    lines (a needed fact it asks with the approval box) come after its mark and are part of the one approval."""
+    out = []
+    for i, t in enumerate(transcript, 1):
+        reply = str(t.get('agent') or '')
+        before = _before_summary(reply)
+        if before == reply:
+            continue
+        hit = next((s for s in _sentences(before) if re.search(r'[?؟]', s)
+                    or any(asks_for(f, s) for f in ASKS_FOR)), None)
+        if hit:
+            out.append({'turn': i, 'sentence': hit[:200]})
+    return out
+
+
+def _before_summary(reply: str) -> str:
+    """The message up to the summary's mark; the whole message when it shows no summary."""
+    at = min((reply.find(m) for m in SUMMARY_MARKS if m in reply), default=-1)
+    return reply if at < 0 else reply[:at]
 
 
 def main(argv=None) -> int:
@@ -369,6 +476,12 @@ def main(argv=None) -> int:
             print(f"::warning title=conversation {r['scenario']} route refused::{f}".replace('\n', ' '))
         for e in r.get('call_errors') or ():
             print(f"::warning title=conversation {r['scenario']} call failed::{e}".replace('\n', ' '))
+        for a in r.get('asked_again') or ():
+            print(f"::error title=conversation {r['scenario']} asked again::turn {a['turn']} asked for the {a['fact']} "
+                  f"the customer already gave: {a['sentence']}".replace('\n', ' '))
+        for q in r.get('question_with_summary') or ():
+            print(f"::error title=conversation {r['scenario']} question with the summary::turn {q['turn']} asked "
+                  f"and showed the summary in one message: {q['sentence']}".replace('\n', ' '))
         for i, t in enumerate(r['transcript'], 1):
             print(f"::notice title=conversation {r['scenario']} turn {i}::cost_usd={t['cost_usd']} ({t['cost_state']}) "
                   f"|| customer: {t['customer']} || agent: {t['agent']}".replace('\n', ' ')[:1800])

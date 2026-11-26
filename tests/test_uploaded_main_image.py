@@ -14,6 +14,7 @@ import unittest
 
 from omni_prod import discovery as d
 from omni_prod.conversation.store import MemoryConversationStore
+from tests import real_images
 from omni_prod.conversation.supervisor import ConversationSupervisor
 from tests.test_conversation_os import MemoryBriefs
 
@@ -209,7 +210,7 @@ class AsIsMeansAsIs(unittest.TestCase):
 
 
 class TheWorkerUsesTheBytes(unittest.TestCase):
-    DATA = b'\xff\xd8\xff' + b'grandfather' * 200
+    DATA = real_images.jpeg(7, (1080, 1920))      # a real photo: every photo is converted (image weight, 2026-11-26)
 
     def _image(self):
         from omni_prod.uploaded_assets import _MainImage
@@ -259,9 +260,14 @@ class TheWorkerUsesTheBytes(unittest.TestCase):
             Repo.return_value.read.return_value = self.DATA
             out = U.install_main_image(engine, prompt=prompt, pool=object(), store=object(), project_id='p',
                                        account_id='a')
-        self.assertIn(f'- image 1: src="148ai-asset://upload/1"; place: hero; 1080x1920 px; image/jpeg; alt="{WHO}"', out)
-        self.assertIn('- image 2: src="148ai-asset://upload/2"; place: products; 1080x1920 px; image/jpeg; '
-                      'alt="שיפודי פרגית"', out)
+        # image weight (2026-11-26): the model is told the size and type of the file the page carries -- the photo
+        # converted for its place (a 1080x1920 upload: 1600 px high as the hero, 1024 px in the products)
+        first, second = engine.executor.images
+        self.assertEqual((first.height, second.height), (1600, 1024))
+        self.assertIn(f'- image 1: src="148ai-asset://upload/1"; place: hero; {first.width}x1600 px; {first.mime}; '
+                      f'alt="{WHO}"', out)
+        self.assertIn(f'- image 2: src="148ai-asset://upload/2"; place: products; {second.width}x1024 px; '
+                      f'{second.mime}; alt="שיפודי פרגית"', out)
         self.assertEqual([i.alt for i in engine.executor.images], [WHO, 'שיפודי פרגית'])
         self.assertEqual(U.install_main_image(engine, prompt=SHIMON, pool=None, store=None, project_id='p',
                                               account_id='a'), SHIMON)   # no photo line: nothing changes
@@ -287,7 +293,7 @@ class TheWorkerUsesTheBytes(unittest.TestCase):
 class ThePlaceIsChecked(unittest.TestCase):
     """The owner, 2026-11-16 00:18 / 00:49: the same photo may sit in two places, each checked in its own place; a
     photo for a place the page does not have fails with what is missing and what to add."""
-    DATA = b'\xff\xd8\xff' + b'two-places'
+    DATA = real_images.jpeg(8)                     # a real photo: every photo is converted (image weight, 2026-11-26)
 
     def _run(self, page, images):
         from omni_prod.uploaded_assets import MainImageExecutor

@@ -1,0 +1,423 @@
+{
+ "pr": "font-range",
+ "sha256": [
+  "tests/test_font_question_content_only.py",
+  "tests/test_font_pair_range.py",
+  "tests/test_font_pair_range_live.py"
+ ],
+ "controls": [
+  {
+   "id": "FQ1",
+   "what": "the owner 2026-11-25: a content-only site is asked which font again (the question has no condition)",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "             recommended='heebo', ask_if=lambda v: not fonts_by_platform(v)),\n",
+     "new": "             recommended='heebo'),\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_question_content_only.py"
+   ],
+   "expect_failed": [
+    "test_a_content_only_site_is_never_asked_which_font",
+    "test_a_font_chosen_before_the_site_was_content_only_goes_with_the_question",
+    "test_content_only_is_the_content_routes_own_test",
+    "test_the_chat_does_not_ask_it_even_when_the_request_makes_it_material",
+    "test_the_server_never_sends_a_content_only_site_the_font_question"
+   ]
+  },
+  {
+   "id": "FQ2",
+   "what": "an app is no longer asked which font (the condition skips every brief)",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "             recommended='heebo', ask_if=lambda v: not fonts_by_platform(v)),\n",
+     "new": "             recommended='heebo', ask_if=lambda v: False),\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_question_content_only.py"
+   ],
+   "expect_failed": [
+    "test_a_font_chosen_before_the_site_was_content_only_goes_with_the_question",
+    "test_an_app_is_still_asked_which_font_with_the_same_four_options",
+    "test_an_apps_design_line_carries_the_customers_font_as_before",
+    "test_content_only_is_the_content_routes_own_test",
+    "test_the_chat_does_not_ask_it_even_when_the_request_makes_it_material",
+    "test_the_server_never_sends_a_content_only_site_the_font_question",
+    "test_the_summary_the_customer_approves_claims_no_font_choice"
+   ]
+  },
+  {
+   "id": "FQ3",
+   "what": "a content-only site's Design line carries the customer's font",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "        font, font_note = PLATFORM_FONT, PLATFORM_FONT_NOTE\n",
+     "new": "        font_note = PLATFORM_FONT_NOTE\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_question_content_only.py"
+   ],
+   "expect_failed": [
+    "test_a_content_only_design_line_names_no_customer_font"
+   ]
+  },
+  {
+   "id": "FQ4",
+   "what": "a content-only site's Design line does not say the font is 148AI's, not the customer's",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "        font, font_note = PLATFORM_FONT, PLATFORM_FONT_NOTE\n",
+     "new": "        font = PLATFORM_FONT\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_question_content_only.py"
+   ],
+   "expect_failed": [
+    "test_a_content_only_design_line_names_no_customer_font",
+    "test_content_only_is_the_content_routes_own_test"
+   ]
+  },
+  {
+   "id": "FQ5",
+   "what": "the summary the customer approves claims a font choice on a content-only site",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "        if fld == 'font' and fonts_by_platform(v):     # the owner 2026-11-25: the customer made no font choice here\n            return None\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_font_question_content_only.py"
+   ],
+   "expect_failed": [
+    "test_the_summary_the_customer_approves_claims_no_font_choice"
+   ]
+  },
+  {
+   "id": "FQ6",
+   "what": "content-only is defined a second way, not by the content route's own test",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "    return _content_only(v, v.get('login', 'none'))\n",
+     "new": "    return v.get('content_only') == 'yes'\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_question_content_only.py"
+   ],
+   "expect_failed": [
+    "test_content_only_is_the_content_routes_own_test"
+   ]
+  },
+  {
+   "id": "FR1",
+   "what": "a family not on the allowed list passes (it borrows a listed entry)",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    entry = _LIBRARY['families'].get(face['family'])\n",
+     "new": "    entry = _LIBRARY['families'].get(face['family']) or _LIBRARY['families']['Heebo']\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range.py"
+   ],
+   "expect_failed": [
+    "test_the_library_check_refuses_each_kind_of_invalid_pair"
+   ]
+  },
+  {
+   "id": "FR2",
+   "what": "a licence that is not OFL or Apache 2.0 passes",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    if entry['licence'] not in LICENCES:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range.py"
+   ],
+   "expect_failed": [
+    "test_the_library_check_refuses_each_kind_of_invalid_pair"
+   ]
+  },
+  {
+   "id": "FR3",
+   "what": "a family that does not cover the pair's script passes",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    if name not in entry['scripts']:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range.py"
+   ],
+   "expect_failed": [
+    "test_the_library_check_refuses_each_kind_of_invalid_pair"
+   ]
+  },
+  {
+   "id": "FR4",
+   "what": "a weight the family is not served in passes",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    if set(face['weights']) - set(entry['weights']):\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range.py"
+   ],
+   "expect_failed": [
+    "test_the_library_check_refuses_each_kind_of_invalid_pair"
+   ]
+  },
+  {
+   "id": "FR5",
+   "what": "a display face set as body text passes (two display faces)",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    if role == 'body' and not text_face(entry):\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range.py"
+   ],
+   "expect_failed": [
+    "test_the_library_check_refuses_each_kind_of_invalid_pair"
+   ]
+  },
+  {
+   "id": "FR6",
+   "what": "the range falls back to two pairs a tone",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "MIN_PAIRS_PER_TONE = 3\n",
+     "new": "MIN_PAIRS_PER_TONE = 2\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range.py",
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_a_range_of_pairs_per_script_with_the_contracts_two_weights_for_every_tone",
+    "test_every_tone_of_every_script_offers_at_least_three_pairs",
+    "test_the_library_check_refuses_each_kind_of_invalid_pair"
+   ]
+  },
+  {
+   "id": "FR7",
+   "what": "the allowed list names a family no pair uses and passes",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    if unused:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range.py"
+   ],
+   "expect_failed": [
+    "test_the_library_check_refuses_each_kind_of_invalid_pair"
+   ]
+  },
+  {
+   "id": "FR8",
+   "what": "a family entry without its evidence keys passes",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    if set(entry) != FAMILY_KEYS:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range.py"
+   ],
+   "expect_failed": [
+    "test_the_library_check_refuses_each_kind_of_invalid_pair"
+   ]
+  },
+  {
+   "id": "FR9",
+   "what": "pair_for reaches only two of a tone's pairs (the old range)",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    eligible = sorted((p for p in pairs(name) if tone in p['tones']), key=lambda p: p['id'])\n",
+     "new": "    eligible = sorted((p for p in pairs(name) if tone in p['tones']), key=lambda p: p['id'])[:2]\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range.py",
+    "tests/test_typography_scripts.py"
+   ],
+   "expect_failed": [
+    "test_no_pair_takes_most_of_a_category",
+    "test_thirty_businesses_of_every_category_use_every_pair_of_their_tone",
+    "test_two_businesses_in_one_category_get_different_pairs"
+   ]
+  },
+  {
+   "id": "FR10",
+   "what": "the business is ignored: every business of a category gets one pair",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    digest = hashlib.sha256('|'.join((name, category.strip(), key)).encode('utf-8')).digest()\n",
+     "new": "    digest = hashlib.sha256('|'.join((name, category.strip())).encode('utf-8')).digest()\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range.py"
+   ],
+   "expect_failed": [
+    "test_no_pair_takes_most_of_a_category",
+    "test_thirty_businesses_of_every_category_use_every_pair_of_their_tone"
+   ]
+  },
+  {
+   "id": "FR11",
+   "what": "a pair's stylesheet loses display=swap: the text is hidden until the font loads (a skill unit fails)",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "            f'<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?{families_q}&display=swap\">')\n",
+     "new": "            f'<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?{families_q}\">')\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range.py"
+   ],
+   "expect_failed": [
+    "test_every_hebrew_pair_passes_the_librarys_gates_in_every_direction_and_shape"
+   ]
+  },
+  {
+   "id": "FB1",
+   "what": "browser: headings may not wrap -- a long heading runs out of its box",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": "h1, h2, h3, .faq summary { text-wrap: balance; }\n",
+     "new": "h1, h2, h3, .faq summary { text-wrap: balance; white-space: nowrap; }\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range_live.py"
+   ],
+   "expect_failed": [
+    "test_every_hebrew_pair_fits_and_loads_in_every_direction_it_serves"
+   ],
+   "envs": [
+    "browser"
+   ]
+  },
+  {
+   "id": "FB2",
+   "what": "browser: the display face is declared but never loaded -- the headings fall back silently",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    faces = [p['body']] + ([p['display']] if p['display']['family'] != p['body']['family'] else [])\n",
+     "new": "    faces = [p['body']]\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range_live.py"
+   ],
+   "expect_failed": [
+    "test_every_hebrew_pair_fits_and_loads_in_every_direction_it_serves"
+   ],
+   "envs": [
+    "browser"
+   ]
+  },
+  {
+   "id": "FB3",
+   "what": "browser: the allowed list records a licence Google Fonts does not state (still an allowed one)",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/font_pairs.json",
+     "old": "\"Heebo\": {\"licence\": \"OFL\"",
+     "new": "\"Heebo\": {\"licence\": \"APACHE2\""
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range_live.py"
+   ],
+   "expect_failed": [
+    "test_the_allowed_list_is_what_google_fonts_states_today"
+   ],
+   "envs": [
+    "browser"
+   ]
+  },
+  {
+   "id": "FB4",
+   "what": "browser: a weight the family does not have, recorded and loaded (Bellefair bold)",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/font_pairs.json",
+     "old": "  \"Bellefair\": {\"licence\": \"OFL\", \"source\": \"google/fonts ofl/bellefair/METADATA.pb\", \"categories\": [\"SERIF\"], \"classifications\": [], \"scripts\": [\"hebrew\", \"latin\"], \"weights\": [400], \"read_on\": \"2026-11-25\"},\n",
+     "new": "  \"Bellefair\": {\"licence\": \"OFL\", \"source\": \"google/fonts ofl/bellefair/METADATA.pb\", \"categories\": [\"SERIF\"], \"classifications\": [], \"scripts\": [\"hebrew\", \"latin\"], \"weights\": [400, 700], \"read_on\": \"2026-11-25\"},\n"
+    },
+    {
+     "file": "omni_prod/typography/font_pairs.json",
+     "old": "    \"display\": {\"family\": \"Bellefair\", \"fallback\": \"serif\", \"weights\": [400]},\n",
+     "new": "    \"display\": {\"family\": \"Bellefair\", \"fallback\": \"serif\", \"weights\": [400, 700]},\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range_live.py"
+   ],
+   "expect_failed": [
+    "test_every_hebrew_pair_fits_and_loads_in_every_direction_it_serves",
+    "test_the_allowed_list_is_what_google_fonts_states_today"
+   ],
+   "envs": [
+    "browser"
+   ]
+  },
+  {
+   "id": "FB5",
+   "what": "browser: a single-weight display face is drawn bold in the header (synthetic bold, no face loaded)",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": "[data-display-weight=\"regular\"] .brand b { font-weight: var(--weight-regular); }\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range_live.py"
+   ],
+   "expect_failed": [
+    "test_every_hebrew_pair_fits_and_loads_in_every_direction_it_serves"
+   ],
+   "envs": [
+    "browser"
+   ]
+  }
+ ]
+}

@@ -16,6 +16,11 @@ This gate reads the repository exactly as the sandbox receives it. Any placehold
 - one the model invented (an image number the prompt never gave) fails the round with the file, the address and the
   rule, and the repair removes it.
 A page with a real URL or a data URI passes.
+
+A test file of the generated app is not read: the browser never loads it (production 2026-11-25, the owner's
+"148 דלתות": bld_4de8e7e4 and bld_d3222f81 failed after 3 and 4 repair rounds because tests/test_site.py and
+tests/test_app.py asserted that no 148ai-asset:// address is left, and the gate read the assertion as a broken image;
+the customer was told a picture on the site was broken, and no picture was).
 """
 from __future__ import annotations
 
@@ -31,6 +36,9 @@ SERVED = ('.html', '.htm', '.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.vue',
           '.svg', '.webmanifest')
 _MARKER = re.compile(r'148ai-asset://[A-Za-z0-9_./-]*')
 MAX_LISTED = 10
+# the generated app's own tests: a directory the browser is never served from, or a test file's name
+_TEST_DIRS = ('tests', 'test', '__tests__', 'spec')
+_TEST_NAME = re.compile(r'^(?:test_.*\.py|.*_test\.py|conftest\.py|.*\.(?:test|spec)\.[cm]?[jt]sx?)$', re.I)
 
 
 def _code(path: str, source: str) -> str:
@@ -40,11 +48,20 @@ def _code(path: str, source: str) -> str:
     return stripped if stripped or not source.strip() else source
 
 
+def is_test_file(path: str) -> bool:
+    """A file of the generated app's own tests: under a tests/ (test/, __tests__/, spec/) directory or named like one
+    (test_x.py, x_test.py, conftest.py, x.test.js, x.spec.ts). The browser never loads it."""
+    parts = path.replace('\\', '/').split('/')
+    return any(p.lower() in _TEST_DIRS for p in parts[:-1]) or bool(_TEST_NAME.match(parts[-1]))
+
+
 def unresolved(repository: dict) -> list[tuple[str, str]]:
     """(path, address) of every 148ai-asset:// address left in a file the browser loads, in path order."""
     found: list[tuple[str, str]] = []
     for path in sorted(repository or {}):
         source = repository[path]
+        if is_test_file(path):
+            continue
         if not isinstance(source, str) or not path.lower().endswith(SERVED) or SCHEME not in source:
             continue
         for address in dict.fromkeys(_MARKER.findall(_code(path, source))):

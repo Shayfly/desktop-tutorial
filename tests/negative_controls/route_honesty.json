@@ -1,0 +1,357 @@
+{
+ "pr": "route-honesty",
+ "sha256": [
+  "tests/test_route_honesty.py",
+  "tests/test_route_one_page.py",
+  "tests/test_route_invented_facts.py",
+  "tests/fixtures/site_content_bld_3938e570.json",
+  "omni_prod/vertical_palettes.py",
+  "omni_prod/site_content/__init__.py",
+  "omni_prod/site_content/schema.py",
+  "omni_prod/site_content/one_page.py",
+  "omni_prod/site_content/agents.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the palette's category is the business again: a smoke shop with no signal reads the lawyer domain",
+   "mutations": [
+    {
+     "file": "omni_prod/vertical_palettes.py",
+     "old": "    return {'category': None, 'palette_category': near,",
+     "new": "    return {'category': near, 'palette_category': near,"
+    }
+   ],
+   "targets": [
+    "tests/test_route_honesty.py"
+   ],
+   "expect_failed": [
+    "test_a_near_word_or_an_inflection_lends_the_palette_only",
+    "test_no_signal_is_no_category",
+    "test_the_model_is_never_told_a_trade_the_brief_did_not_name",
+    "test_the_neutral_palettes_process_and_faq_are_offered_not_required"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "no signal is reported as found by similarity",
+   "mutations": [
+    {
+     "file": "omni_prod/vertical_palettes.py",
+     "old": "'found': 'nearest' if score else 'none',",
+     "new": "'found': 'nearest',"
+    }
+   ],
+   "targets": [
+    "tests/test_route_honesty.py"
+   ],
+   "expect_failed": [
+    "test_a_near_word_or_an_inflection_lends_the_palette_only",
+    "test_no_signal_is_no_category"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a business the brief does not name is still required the neutral palette's process and FAQ",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    entry = DIRECTIONS['palettes'][palette] if category else unnamed_entry(DIRECTIONS['palettes'][palette])\n",
+     "new": "    entry = DIRECTIONS['palettes'][palette]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_route_honesty.py"
+   ],
+   "expect_failed": [
+    "test_the_model_is_never_told_a_trade_the_brief_did_not_name",
+    "test_the_neutral_palettes_process_and_faq_are_offered_not_required"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the schema never offers a palette's optional sections",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "        for key in palette.get('optional_sections', ()):",
+     "new": "        for key in ():  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_honesty.py"
+   ],
+   "expect_failed": [
+    "test_the_model_is_never_told_a_trade_the_brief_did_not_name",
+    "test_the_neutral_palettes_process_and_faq_are_offered_not_required"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the copy model is told the neutral palette's trade name ('counsel') for a business the brief does not name",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "'palette': route.palette if named else None,",
+     "new": "'palette': route.palette,"
+    }
+   ],
+   "targets": [
+    "tests/test_route_honesty.py"
+   ],
+   "expect_failed": [
+    "test_the_model_is_never_told_a_trade_the_brief_did_not_name"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the route never reads what one page cannot hold: the owner's request is accepted again",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    if asked:\n        return Route(LEGACY, ('beyond_one_page: '",
+     "new": "    if False:  # NEGATIVE CONTROL\n        return Route(LEGACY, ('beyond_one_page: '"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_on_the_route_names_itself",
+    "test_the_owners_request_goes_to_the_legacy_path_by_name"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a picture for each item is not recognised (only a number next to the picture word counts)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/one_page.py",
+     "old": "KINDS = (('picture_per_item', _picture_per_item), ('separate_pages', _separate_pages),",
+     "new": "KINDS = (('separate_pages', _separate_pages),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_on_the_route_names_itself",
+    "test_every_kind_in_hebrew_and_english",
+    "test_the_owners_request_goes_to_the_legacy_path_by_name"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "separate pages are not recognised",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/one_page.py",
+     "old": "    for pattern in (_PAGE_FOR_EACH_HE, _EACH_HAS_PAGE_HE, _EACH_GETS_PAGE_HE, _SEPARATE_HE, _SEPARATE_EN):",
+     "new": "    for pattern in ():  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_on_the_route_names_itself",
+    "test_every_kind_in_hebrew_and_english",
+    "test_the_owners_request_goes_to_the_legacy_path_by_name"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the owner adding products later is not recognised",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/one_page.py",
+     "old": "         ('owner_edits_later', _owner_edits_later))",
+     "new": "         )  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_on_the_route_names_itself",
+    "test_every_kind_in_hebrew_and_english",
+    "test_the_owners_request_goes_to_the_legacy_path_by_name"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a negation is not read: 'בלי תמונות', 'בלי עמוד נפרד' leave the content route",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/one_page.py",
+     "old": "    return bool(_NEGATION.search(' '.join(clause[:start].split()[-3:])))",
+     "new": "    return False  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_near_misses_stay_on_the_content_route"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "'כל' before anything is 'each item': a hero that fits 'כל מסך' leaves the content route",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/one_page.py",
+     "old": "(?:ליד\\s+|עבור\\s+|בשביל\\s+)?כל\\s+' + _ONE_HE + _E)",
+     "new": "(?:ליד\\s+|עבור\\s+|בשביל\\s+)?כל\\s+\\S+')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_near_misses_stay_on_the_content_route"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the customer sending pictures to the builder now counts as editing the site later",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/one_page.py",
+     "old": "            if _negated(clause, m.start()) or to_you.match(clause[m.end():]):",
+     "new": "            if _negated(clause, m.start()):  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_near_misses_stay_on_the_content_route"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the build dies on one invented sentence again: nothing is removed after the one correction",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            if V.blocking(problems):\n                doc, problems = self._without_invented(doc, problems, sheet, offered, route)\n            if V.blocking(problems):\n                report['problems']",
+     "new": "            if V.blocking(problems):\n                report['problems']"
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_an_optional_field_left_empty_is_removed",
+    "test_one_invented_sentence_is_removed_and_the_build_goes_on"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "a required field left with no sentence is removed instead of failing",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        elif getattr(leaf_spec(path, outline_titles), 'optional', False):",
+     "new": "        elif True:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_strip_invented_alone"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "any blocking problem is stripped, not only an invented fact (a customer's phone in copy)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "    other = sorted({p.code for p in blocking if p.code not in INVENTED})",
+     "new": "    other = []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_strip_invented_alone"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "the whole field goes, not the one sentence",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        kept = [s for i, s in enumerate(sentences) if i not in bad]",
+     "new": "        kept = []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_one_invented_sentence_is_removed_and_the_build_goes_on",
+    "test_strip_invented_alone"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "a text is written in place of the sentence removed",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            out = set_path(out, path, ' '.join(kept))",
+     "new": "            out = set_path(out, path, ' '.join(kept + ['מחירים משתלמים.']))  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_one_invented_sentence_is_removed_and_the_build_goes_on",
+    "test_strip_invented_alone"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "the evidence does not say what was removed",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        report.setdefault('stripped', []).extend(removed)",
+     "new": "        report.setdefault('stripped', [])  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_an_optional_field_left_empty_is_removed",
+    "test_one_invented_sentence_is_removed_and_the_build_goes_on"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "a customer fact in the wrong place joins the invented family",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "INVENTED = ('PRICE_NOT_GIVEN', ",
+     "new": "INVENTED = ('FACT_IN_COPY', 'PRICE_NOT_GIVEN', "
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_strip_invented_alone",
+    "test_the_family_is_the_validators"
+   ]
+  }
+ ]
+}

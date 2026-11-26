@@ -1,0 +1,371 @@
+{
+ "pr": "picture-questions-answered",
+ "sha256": [
+  "tests/test_picture_questions_answered.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the customer's answer to a picture question is not recorded on the brief (the loop of S1)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            self._picture_answer(project_id, new_brief, message, edited=edited)\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_i_dont_know_takes_the_stated_default_at_once",
+    "test_no_answer_is_asked_twice_then_the_stated_default",
+    "test_the_answer_the_question_asks_for_clears_it_for_the_clothes_shop",
+    "test_the_restaurant_is_asked_once_and_the_answer_is_the_items"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the planner does not read the recorded items answer",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "        if line.startswith(PICTURE_ITEMS_ANSWER):\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_the_answer_the_question_asks_for_clears_it_for_the_clothes_shop",
+    "test_the_restaurant_is_asked_once_and_the_answer_is_the_items"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the Hebrew label reader knows only the plural item words (no construct form, no תפריט)",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "    he = set(ITEMS_HE) | set(_LABELS_HE_EXTRA) | {w[:-2] + \"י\" for w in ITEMS_HE if w.endswith(\"ים\")}\n",
+     "new": "    he = set(ITEMS_HE)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_common_labels_in_three_languages_case_and_spacing_tolerant"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the English label reader does not know 'menu'",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "    en_rx = r\"\\b(?:\" + _ITEMS_EN_PLURAL + \"|\" + _LABELS_EN_EXTRA + r\")\\b\"\n",
+     "new": "    en_rx = r\"\\b(?:\" + _ITEMS_EN_PLURAL + r\")\\b\"  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_common_labels_in_three_languages_case_and_spacing_tolerant"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the label reader has no Arabic labels",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "    return re.compile(he_rx + \"|\" + en_rx + \"|\" + ar_rx, re.I)\n",
+     "new": "    return re.compile(he_rx + \"|\" + en_rx, re.I)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_an_arabic_list_with_arabic_commas_and_wa",
+    "test_common_labels_in_three_languages_case_and_spacing_tolerant"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "no bound: after two unanswered asks the default is never recorded",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        elif self._times_contract_asked(project_id, qid) >= ASK_PICTURE_AT_MOST:\n",
+     "new": "        elif False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_no_answer_is_asked_twice_then_the_stated_default"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the answer or the stated default is not said in the summary",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        excluded += _picture_notes(row.brief, lang)",
+     "new": "        excluded += []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_an_approve_press_after_two_asks_records_the_default_and_shows_it",
+    "test_i_dont_know_takes_the_stated_default_at_once",
+    "test_no_answer_is_asked_twice_then_the_stated_default",
+    "test_the_restaurant_is_asked_once_and_the_answer_is_the_items"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the planner ignores the recorded items default and asks again",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "            elif _brief_says(text, PICTURE_ITEMS_DEFAULT):\n",
+     "new": "            elif False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_an_approve_press_after_two_asks_records_the_default_and_shows_it",
+    "test_i_dont_know_takes_the_stated_default_at_once",
+    "test_no_answer_is_asked_twice_then_the_stated_default"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the planner does not read the recorded picture-subject answer",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "        if answered:                      # the customer's answer to the picture question (recorded by the supervisor)\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_the_customers_answer_is_the_pictures_subject"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the picture question always says 'site', also for a game or an app",
+   "mutations": [
+    {
+     "file": "omni_prod/product_architect.py",
+     "old": "        kind = _product_kind(target_keys)\n",
+     "new": "        kind = 'site'  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_a_game_is_asked_about_the_games_picture_never_the_site",
+    "test_the_wording_per_product_kind"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the second ask does not say the answer was not read (the reply repeats and becomes 'nothing new')",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        return again + [intro, open_qs[0].question]\n",
+     "new": "        return [intro, open_qs[0].question]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_a_change_a_phone_or_an_address_is_never_recorded_and_the_question_is_asked_again",
+    "test_no_answer_is_asked_twice_then_the_stated_default"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "review B1: a reply that hands the choice back or says it does not know ('תעשו מה שנראה לכם', 'no idea', 'skip') is not the stated default",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "    if _DECLINE_ALONE.match(text) or (_DECLINE.search(text) and len(text.split()) <= 12):\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_i_dont_know_takes_the_stated_default_at_once",
+    "test_the_answer_reader",
+    "test_the_reader",
+    "test_the_subject_question_records_only_a_description"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "review B1 (the reviewer's M1): the supervisor records every reply as the picture answer",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        kind, value = read_picture_answer(message, qid)\n",
+     "new": "        kind, value = 'answer', None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_a_change_a_phone_or_an_address_is_never_recorded_and_the_question_is_asked_again",
+    "test_i_dont_know_takes_the_stated_default_at_once",
+    "test_no_answer_is_asked_twice_then_the_stated_default",
+    "test_the_subject_question_records_only_a_description"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "review B1: a change to the request ('תשנו את הצבע לכחול', 'Also add ...') is read as the answer",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "    if _CHANGE.search(text):\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_the_answer_reader",
+    "test_the_reader",
+    "test_the_subject_question_records_only_a_description"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "review B1: a phone or another fact ('הטלפון שלנו 03-5559999') is read as an item",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "    if _LONG_NUMBER.search(text) or fact_spans(text):\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_a_change_a_phone_or_an_address_is_never_recorded_and_the_question_is_asked_again",
+    "test_the_answer_reader",
+    "test_the_reader"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "review B1: a labelled field that is not an items list ('כתובת: הרצל 5, חיפה') is read as items",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "        if not _items_label().search(label):\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_the_reader"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "review B1: a reply the interpreter also took as a change of the request is recorded as the answer",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if kind == 'answer' and edited:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_a_reply_the_interpreter_took_as_a_change_is_not_the_answer"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "review B1: 'I don't know / skip' is asked again instead of taking the stated default now",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        elif kind == 'decline':\n",
+     "new": "        elif False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_i_dont_know_takes_the_stated_default_at_once",
+    "test_the_subject_question_records_only_a_description"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "review nit: an Arabic picture question gets the English intro",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        intro = _ASK_ONE_AR if re.search(r'[؀-ۿ]', open_qs[0].question) else T['ask_one']\n",
+     "new": "        intro = T['ask_one']  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_the_arabic_question_has_an_arabic_intro"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "review nit: a store that cannot be read fails the turn instead of counting as never asked",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            logging.getLogger(__name__).error('CONTRACT_ASKED_UNCOUNTED project=%s question=%s', project_id, qid,\n",
+     "new": "            raise  # NEGATIVE CONTROL\n            logging.getLogger(__name__).error('CONTRACT_ASKED_UNCOUNTED project=%s question=%s', project_id, qid,\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_questions_answered.py"
+   ],
+   "expect_failed": [
+    "test_a_store_that_cannot_be_read_counts_as_never_asked_and_is_said"
+   ]
+  }
+ ]
+}

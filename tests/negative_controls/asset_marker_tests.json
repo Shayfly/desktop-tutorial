@@ -1,0 +1,80 @@
+{
+ "pr": "asset-marker-tests",
+ "sha256": [
+  "tests/test_asset_marker_tests_are_not_served.py",
+  "tests/test_contract_prompt_readers.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the gate reads the generated app's tests again (the production failure, bld_4de8e7e4 and bld_d3222f81)",
+   "mutations": [
+    {
+     "file": "omni_prod/asset_markers.py",
+     "old": "        if is_test_file(path):\n            continue\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n            continue\n"
+    }
+   ],
+   "targets": [
+    "tests/test_asset_marker_tests_are_not_served.py"
+   ],
+   "expect_failed": [
+    "test_a_clean_page_with_the_generated_tests_passes",
+    "test_test_directories_and_names_are_not_read",
+    "test_the_page_itself_is_still_read_beside_its_tests"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a tests/ directory is no longer a test file (only names count)",
+   "mutations": [
+    {
+     "file": "omni_prod/asset_markers.py",
+     "old": "_TEST_DIRS = ('tests', 'test', '__tests__', 'spec')",
+     "new": "_TEST_DIRS = ()  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_asset_marker_tests_are_not_served.py"
+   ],
+   "expect_failed": [
+    "test_test_directories_and_names_are_not_read"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a test file's name no longer counts (only directories)",
+   "mutations": [
+    {
+     "file": "omni_prod/asset_markers.py",
+     "old": "_TEST_NAME = re.compile(r'^(?:test_.*\\.py|.*_test\\.py|conftest\\.py|.*\\.(?:test|spec)\\.[cm]?[jt]sx?)$', re.I)",
+     "new": "_TEST_NAME = re.compile(r'(?!)')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_asset_marker_tests_are_not_served.py"
+   ],
+   "expect_failed": [
+    "test_test_directories_and_names_are_not_read"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "anything with 'test' in its path is skipped (a served page about testimonials would hide a broken image)",
+   "mutations": [
+    {
+     "file": "omni_prod/asset_markers.py",
+     "old": "    return any(p.lower() in _TEST_DIRS for p in parts[:-1]) or bool(_TEST_NAME.match(parts[-1]))\n",
+     "new": "    return 'test' in path.lower()  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_asset_marker_tests_are_not_served.py"
+   ],
+   "expect_failed": [
+    "test_served_files_with_test_like_words_are_still_read",
+    "test_test_directories_and_names_are_not_read"
+   ]
+  }
+ ]
+}

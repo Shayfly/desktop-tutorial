@@ -1,0 +1,94 @@
+{
+ "pr": "font-range-upstream",
+ "sha256": [
+  "tests/test_font_range_upstream.py",
+  "tests/test_font_pair_range_live.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a family renamed upstream is not a failure",
+   "mutations": [
+    {
+     "file": "tests/test_font_pair_range_live.py",
+     "old": "    if live['name'] != family:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_range_upstream.py"
+   ],
+   "expect_failed": [
+    "test_missing_or_renamed_or_not_served_or_another_licence_breaks"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "every upstream difference fails again (the red-on-every-PR behaviour of F2)",
+   "mutations": [
+    {
+     "file": "tests/test_font_pair_range_live.py",
+     "old": "            drift.append(f'{key}: recorded {recorded[key]}, upstream {live[key]}')\n",
+     "new": "            breaks.append(f'{key}: recorded {recorded[key]}, upstream {live[key]}')  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_range_upstream.py"
+   ],
+   "expect_failed": [
+    "test_every_other_upstream_difference_is_a_notice_not_a_failure"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a family missing upstream is not a failure",
+   "mutations": [
+    {
+     "file": "tests/test_font_pair_range_live.py",
+     "old": "        return [f'missing upstream: no METADATA.pb at {recorded.get(\"source\", \"its recorded source\")}'], []\n",
+     "new": "        return [], []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_range_upstream.py"
+   ],
+   "expect_failed": [
+    "test_missing_or_renamed_or_not_served_or_another_licence_breaks"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a weight a pair loads, no longer served, is not a failure",
+   "mutations": [
+    {
+     "file": "tests/test_font_pair_range_live.py",
+     "old": "    if not set(weights) <= set(letters):\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_range_upstream.py"
+   ],
+   "expect_failed": [
+    "test_missing_or_renamed_or_not_served_or_another_licence_breaks"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "upstream differences are not said: no notice line is written",
+   "mutations": [
+    {
+     "file": "tests/test_font_pair_range_live.py",
+     "old": "            out.write(f'::notice title=font-range upstream::{note}\\n')\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_range_upstream.py"
+   ],
+   "expect_failed": [
+    "test_the_notices_are_workflow_lines"
+   ]
+  }
+ ]
+}

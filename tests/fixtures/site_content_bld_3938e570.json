@@ -1,0 +1,102 @@
+{
+ "_source": "Production database 148ai-db-v2 (Neon project aged-tree-68103298), table build_requests, row build_id bld_3938e57065794a6495ddfea04dc5dcd1 (the owner's account, 2026-11-25 21:56 UTC), column prompt, read-only export 2026-11-25 (SET TRANSACTION READ ONLY; SELECT only). Its bound contract m5_build_contracts bc_13c07a3cd995bb2a2d87553b (READY) holds the identical prompt. production_prompt_sha256 = encode(sha256(convert_to(prompt,'UTF8')),'hex') computed in the database; the export was checked against it before the redaction.",
+ "_redaction": "Three personal details replaced before commit, every occurrence, nothing else changed: the manager's name (2 occurrences) -> 'ישראל ישראלי'; the phone (4) -> '+972 50-555-1234' (the same format); the street address (4) -> 'רחוב הרצל 10 ירושלים' (the same shape). prompt_sha256 is the sha256 of the redacted prompt. The fact sheet's canon hash differs from production's for that reason only (production 67da856ecc1a0600); the palette, the font pair and the design contract do not depend on the redacted values and are production's.",
+ "build_id": "bld_3938e57065794a6495ddfea04dc5dcd1",
+ "build_contract_id": "bc_13c07a3cd995bb2a2d87553b",
+ "production_prompt_sha256": "cb5cb3b81ec48e9f454412524b2635f5360acfcd3a5a85f9784f0acf8e3e7433",
+ "prompt_sha256": "13a2b07f1249e6c1a62920f7dceda3d16b7a5c9b434d2527640f24ebb6b10788",
+ "prompt": "תבנה לי אתר לעסק למוצרי עישון , השם של העסק GOA, בהנהלת ישראל ישראלי טלפון +972 50-555-1234 , רחוב הרצל 10 ירושלים .\nאנחנו מוכרים נרגילות , סיגריות , טבק לנרגילה , מוצרים נלווים לנרגילות , באנגים , ניירות גילגול , גרינדרים , קופסאות אחסון , מצתים .\nליד כל נושא ממה שאנחנו מוכרים תשים תמונה של הנושא\nכאילו שיהיה תפריט הנושאים למכירה עם תמונה של כל נושא .\nושאני יוכל לפתוח כל נושא של מכירה לעמוד חדש ששם אני יוכל אחר כך להעלות עוד מוצרים .\nשם העסק: GOA - מוצרי עישון.\n--- Approved project brief (binding; fingerprint 090bd6d8b66780e1) ---\nCustomer facts (the customer's own words from the conversation; show exactly these values and never other or additional ones): +972 50-555-1234 | רחוב הרצל 10 ירושלים\nSign-in: NONE. Do not add login, sessions, users or roles.\nDo not store personal or contact details of people.\nProduct kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given.\nProduct decisions v1: {\"version\":1,\"persistence\":\"none\",\"source\":\"customer\"}\nAudience: Customers / the public\nMain action: הצגת קטגוריות ומוצרים בעסק למוצרי עישון, עם אפשרות להרחיב כל קטגוריה בעמוד משלה\nScreens: עמוד ראשי עם קטגוריות מוצרים, ועמוד נפרד לכל קטגוריה להוספת מוצרים בהמשך\nInitial content: GOA, בהנהלת ישראל ישראלי; כתובת: רחוב הרצל 10 ירושלים; טלפון: +972 50-555-1234; קטגוריות: נרגילות, סיגריות, טבק לנרגילה, מוצרים נלווים לנרגילות, באנגים, ניירות גילגול, גרינדרים, קופסאות אחסון ומצתים\nGOA – מוצרי עישון\nVisual references (inspiration only): בוב מארלי\nLanguage: Hebrew, right-to-left; dates shown as DD/MM/YYYY.\nDesign: style clean; primary colour #1e3a5f; palette #1e3a5f, #b45309, #f8fafc, #0f172a (primary, accent, background, text: the neutral \"counsel\" palette -- the customer stated no colour and no category is near this business); font 'Heebo', system-ui, sans-serif (load it from Google Fonts with a system fallback); define these as CSS custom properties.\nLogo: a text logo with the product name in the header.\nSemantic capability decisions v1: {\"version\":1,\"decisions\":[{\"key\":\"integration.maps\",\"reason\":\"נמסרה כתובת, אך לא נאמר שנדרשת מפה אינטראקטיבית.\",\"decision\":\"uncertain\",\"evidence\":\"רחוב הרצל 10 ירושלים\"},{\"key\":\"integration.messaging\",\"reason\":\"נמסר מספר טלפון להצגה; לא התבקשה שליחת הודעות.\",\"decision\":\"not_required\",\"evidence\":\"טלפון +972 50-555-1234\"},{\"key\":\"integration.payment\",\"reason\":\"נאמר שהאתר יציג נושאים למכירה, אך לא התבקשה סליקה או קבלת תשלום באתר.\",\"decision\":\"not_required\",\"evidence\":\"תפריט הנושאים למכירה עם תמונה של כל נושא\"},{\"key\":\"media.image.generate\",\"reason\":\"נדרשות תמונות לקטגוריות, אך לא צוין אם ליצור אותן או להשתמש בתמונות קיימות.\",\"decision\":\"uncertain\",\"evidence\":\"ליד כל נושא ממה שאנחנו מוכרים תשים תמונה של הנושא\"}]}\nRejected windows (the customer said no; do not add them to the page): mega_menu, age_gate, cookie_banner, entry_popup, cart_drawer, promo_bar, chips.",
+ "production_site_route": {
+  "_source": "build_jobs.evidence_json->'site_route' of the same build (read-only), the fields the fixes read",
+  "route": "section_library",
+  "reason": "all preconditions hold",
+  "category": "lawyers",
+  "category_found": "nearest",
+  "domain": "lawyer",
+  "palette": "counsel",
+  "direction": "formal",
+  "font_pair": "he-david-assistant",
+  "contract": "d5bf92111ab8c48e",
+  "canon_hash": "67da856ecc1a0600",
+  "domain_facts": [
+   "Name",
+   "What you handle",
+   "For whom",
+   "Where you are licensed",
+   "Who the lawyers are",
+   "Where",
+   "Phone and hours",
+   "The first step",
+   "Fees, or the decision not to show them",
+   "Regulatory details",
+   "Who is the business legally"
+  ],
+  "corrected": [
+   {
+    "why": "9 items; at most 8",
+    "code": "TOO_MANY",
+    "path": "sections.services.items",
+    "severity": "block"
+   },
+   {
+    "why": "a required section is missing",
+    "code": "SCHEMA_SHAPE",
+    "path": "sections.process",
+    "severity": "block"
+   },
+   {
+    "why": "a required section is missing",
+    "code": "SCHEMA_SHAPE",
+    "path": "sections.faq",
+    "severity": "block"
+   }
+  ],
+  "problems": [
+   {
+    "why": "a price in copy: write the customer's price as its @price:N",
+    "code": "PRICE_NOT_GIVEN",
+    "path": "sections.process.lead",
+    "severity": "block"
+   }
+  ]
+ },
+ "production_failure": {
+  "_source": "build_jobs, task_attempts, company_loss_events and credit_ledger rows of the same build (read-only)",
+  "error_code": "site_content_invalid",
+  "error_message": "SiteContentInvalid: 1 problem(s) after the one correction: sections.process.lead PRICE_NOT_GIVEN",
+  "created_at": "2026-11-25T21:56:03.578Z",
+  "started_at": "2026-11-25T21:56:07.587Z",
+  "finished_at": "2026-11-25T21:57:00.961Z",
+  "model_calls": [
+   {
+    "task_type": "codegen",
+    "model": "claude-sonnet-5-5",
+    "input_tokens": 3668,
+    "output_tokens": 1471,
+    "metered_cost_usd": "0.02204600"
+   },
+   {
+    "task_type": "codegen",
+    "model": "claude-sonnet-5-5",
+    "input_tokens": 5394,
+    "output_tokens": 1990,
+    "metered_cost_usd": "0.03068800"
+   }
+  ],
+  "provider_spend_usd": "0.05273400",
+  "company_loss_event": {
+   "id": "18",
+   "source": "release_failed",
+   "cause": "failed_build_refunded",
+   "quoted_usd": "0.00000000",
+   "actual_usd": "0.05573400",
+   "overrun_usd": "0.05573400"
+  },
+  "credit_ledger": {
+   "id": "39",
+   "delta": 500,
+   "reason": "failed_build_released"
+  },
+  "the content document": "not stored in production (rejected_model_json: NO_REJECTIONS; no table holds it)"
+ }
+}
