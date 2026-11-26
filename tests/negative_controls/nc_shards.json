@@ -10,8 +10,8 @@
    "mutations": [
     {
      "file": "scripts/run_negative_controls.py",
-     "old": "    for i in sorted(range(len(loaded)), key=lambda i: (-len(loaded[i][1]['controls']), loaded[i][0].name)):\n",
-     "new": "    for i in sorted(range(len(loaded) - 1), key=lambda i: (-len(loaded[i][1]['controls']), loaded[i][0].name)):  # NEGATIVE CONTROL\n"
+     "old": "    for i in sorted(range(len(loaded)), key=lambda i: (-work(loaded[i][1]), loaded[i][0].name)):\n",
+     "new": "    for i in sorted(range(len(loaded) - 1), key=lambda i: (-work(loaded[i][1]), loaded[i][0].name)):  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
@@ -123,6 +123,57 @@
    ],
    "expect_failed": [
     "test_ci_runs_every_shard"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "review 2026-11-26, finding 5: a matrix exclude drops shard 3",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "        shard: [1, 2, 3]\n",
+     "new": "        shard: [1, 2, 3]\n        exclude:\n          - shard: 3  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_ci_runs_every_shard"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "review 2026-11-26, finding 5: a condition on the controls step skips shard 3",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - name: Negative controls (one SPEC ::notice per spec; per-control NC-EVIDENCE log lines; ::error on FAIL)\n",
+     "new": "      - name: Negative controls (one SPEC ::notice per spec; per-control NC-EVIDENCE log lines; ::error on FAIL)\n        if: matrix.shard != 3  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_ci_runs_every_shard"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "review 2026-11-26, finding 6: a shard's work counts every control, the pg job's own too (two bases again)",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "    return sum(1 for c in spec['controls'] if runs_here(c))\n",
+     "new": "    return len(spec['controls'])  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_every_spec_of_the_repository_is_in_exactly_one_shard"
    ]
   }
  ]

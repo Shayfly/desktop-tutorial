@@ -65,10 +65,11 @@ _ENV_TARGETS = {'pg': ('_pg', 'postgres')}
 
 def parse_shard(value: str) -> tuple[int, int] | None:
     """NC_SHARD (2026-11-26): 'i/n' runs shard i of n (1 <= i <= n); unset or empty runs every spec. v24-ci ran every
-    control in one job on 4 workers: 1,200 controls in 9.6 minutes (run 45711355778), then 1,296 past the step's
-    18-minute limit (run 45713038574) on a runner about 1.9 times slower (the specs both runs share: 71.5 worker-minutes
-    instead of 37.9). The job may not exceed 20 minutes, so parallel jobs share the controls instead of a raised limit.
-    Any other value raises: a shard is never guessed."""
+    control in one job on 4 workers. Counted as the controls that run in v24-ci (not the pg job's own): all 1,200 of
+    main 4690d01 took 9.6 minutes (run 45711355778); of the 1,217 of main 18dba53, 1,186 had run and 31 had not when
+    the step's 18-minute limit stopped it (run 45713038574), on a runner about 1.9 times slower (the specs both runs
+    share: 71.5 worker-minutes instead of 37.9). The job may not exceed 20 minutes, so parallel jobs share the controls
+    instead of a raised limit. Any other value raises: a shard is never guessed."""
     if not value:
         return None
     m = re.fullmatch(r'(\d+)/(\d+)', value)
@@ -80,15 +81,21 @@ def parse_shard(value: str) -> tuple[int, int] | None:
 SHARD = parse_shard((os.getenv('NC_SHARD') or '').strip())
 
 
+def work(spec: dict) -> int:
+    """The controls of a spec that run here (runs_here): what a shard's time follows, and what its notice counts. A
+    control for another environment only is named in its spec's SPEC line, not run."""
+    return sum(1 for c in spec['controls'] if runs_here(c))
+
+
 def shards(loaded: list, n: int) -> list[list[int]]:
     """The spec indexes of each of n shards. Every spec is in exactly one shard, whole (its SPEC notice stays one
-    line): the specs with the most controls go first, each to the shard with the fewest controls so far, the lowest
-    shard on a tie. The same specs always give the same shards."""
+    line): the specs with the most controls that run here (work) go first, each to the shard with the least work so
+    far, the lowest shard on a tie. The same specs always give the same shards."""
     totals, out = [0] * n, [[] for _ in range(n)]
-    for i in sorted(range(len(loaded)), key=lambda i: (-len(loaded[i][1]['controls']), loaded[i][0].name)):
+    for i in sorted(range(len(loaded)), key=lambda i: (-work(loaded[i][1]), loaded[i][0].name)):
         k = min(range(n), key=lambda s: (totals[s], s))
         out[k].append(i)
-        totals[k] += len(loaded[i][1]['controls'])
+        totals[k] += work(loaded[i][1])
     return [sorted(x) for x in out]
 _marked: dict = {}
 
@@ -286,8 +293,8 @@ def main(argv: list[str]) -> int:
             notice('negative-controls', f'FAIL shard {index}/{count} holds no spec ({len(loaded)} specs matched)')
             return 1
         notice(f'negative-controls shard {index}/{count}',
-               f"{len(mine)} of {len(loaded)} specs, {sum(len(loaded[i][1]['controls']) for i in mine)} of "
-               f"{sum(len(spec['controls']) for _p, spec in loaded)} controls; the other shards run the rest")
+               f"{len(mine)} of {len(loaded)} specs; {sum(work(loaded[i][1]) for i in mine)} of the "
+               f"{sum(work(spec) for _p, spec in loaded)} controls that run here; the other shards run the rest")
         loaded = [loaded[i] for i in mine]
     results = {}                                      # (spec index, control index) -> future of (ok, detail, lines)
     pool = None

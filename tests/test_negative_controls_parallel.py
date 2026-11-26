@@ -115,12 +115,14 @@ class Shards(unittest.TestCase):
         nc = self.load_with('')
         loaded = [(p, json.loads(p.read_text(encoding='utf-8')))
                   for p in sorted((ROOT / 'tests' / 'negative_controls').glob('*.json'))]
+        work = [sum(1 for c in s['controls'] if not c.get('envs') or '' in c['envs']) for _p, s in loaded]
+        self.assertEqual(work, [nc.work(s) for _p, s in loaded])        # v24-ci's controls: not the pg job's own
         for n in (1, 2, 3, 4):
             with self.subTest(shards=n):
                 parts = nc.shards(loaded, n)
                 self.assertEqual(sorted(i for part in parts for i in part), list(range(len(loaded))))
-                sizes = [sum(len(loaded[i][1]['controls']) for i in part) for part in parts]
-                self.assertLessEqual(max(sizes) - min(sizes), max(len(s['controls']) for _p, s in loaded))
+                sizes = [sum(work[i] for i in part) for part in parts]
+                self.assertLessEqual(max(sizes) - min(sizes), max(work))
         self.assertEqual(nc.shards(loaded, 3), nc.shards(list(loaded), 3))          # the same specs, the same shards
 
     def test_a_shard_runs_only_its_specs_and_together_they_run_all(self):
@@ -174,12 +176,16 @@ class Shards(unittest.TestCase):
             'negative-controls']
         shards = job['strategy']['matrix']['shard']
         self.assertFalse(job['strategy']['fail-fast'])                  # one red shard does not cancel the others
+        # the review of 2026-11-26: an `exclude` of a shard, or a condition on the step, drops a shard silently
+        self.assertEqual(set(job['strategy']), {'fail-fast', 'matrix'})
+        self.assertEqual(set(job['strategy']['matrix']), {'shard'})      # no exclude, no include
         [step] = [s for s in job['steps'] if 'run_negative_controls.py' in s.get('run', '')]
         self.assertEqual(step['run'], 'python scripts/run_negative_controls.py')
         self.assertEqual(step['env']['NC_SHARD'], '${{ matrix.shard }}/' + str(len(shards)))
         self.assertEqual(shards, list(range(1, len(shards) + 1)))       # 1..n: no shard is missing
-        self.assertNotIn('continue-on-error', step)
-        self.assertNotIn('if', job)
+        for where in (step, job):
+            self.assertNotIn('if', where)                               # no shard's controls are skipped
+            self.assertNotIn('continue-on-error', where)
 
 
 if __name__ == '__main__':
