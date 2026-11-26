@@ -2,6 +2,7 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| IMG-SUBJECT | Claude Code | Local commits, not pushed; the full suite, independent review and the owner's SHA approval pending (carries route-honesty, merged by the coordinator's instruction) | bld_7b541f93, bld_4bb6207f, bld_6c8c2d3a, bld_3938e570; branch `claude/practical-hopper-oi3qj2-image-subject`; `tests/test_image_subject.py`, `tests/test_image_per_item.py`; controls image_subject 8/8, image_caps 7/7; STATUS.md 2026-11-26 |
 | ROUTE-HONESTY | Claude Code | Local commits, not pushed; PR, CI and the owner's SHA approval pending | bld_3938e570; branch `claude/practical-hopper-oi3qj2-route-honesty`, code `3d14edc` `de20aff` `2e24906`, merged main `18dba53`; `tests/test_route_honesty.py`, `tests/test_route_one_page.py`, `tests/test_route_invented_facts.py`; controls route_honesty 19/19; STATUS.md 2026-11-26 |
 | LAW2-EVIDENCE-RUNS | Claude Code | Implemented with review fixes, verified locally; branch not pushed; real read-only run exit 0 (18 of 22 green, 4 known red listed in docs/evidence-runs-known-red.json, not fixed) | `claude/practical-hopper-oi3qj2-law2-evidence`; `scripts/resolve_evidence_runs.py`, `.github/workflows/evidence-runs.yml`; tests 76 passed, controls 52/52; STATUS.md 2026-11-25 |
 | LAW6-FRESHNESS-ISSUES | Claude Code | Implemented with review fixes, verified locally; branch not pushed | `.github/workflows/critical-path-freshness.yml` issue step (not-verified titles, close on PASS); tests 22 + 8 passed, controls 25/25 + 3/3; STATUS.md 2026-11-25 |
