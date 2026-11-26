@@ -2,6 +2,7 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| IMG-WEIGHT | Claude Code | Implemented, verified locally; branch not pushed, no PR (by instruction); A4 call and the logo still open | `claude/practical-hopper-oi3qj2-image-weight`; `tests/test_web_rendition.py` 38/38; controls image_weight 18/18, photo_weight 4/4; STATUS.md 2026-11-26 |
 | LAW2-EVIDENCE-RUNS | Claude Code | Implemented with review fixes, verified locally; branch not pushed; real read-only run exit 0 (18 of 22 green, 4 known red listed in docs/evidence-runs-known-red.json, not fixed) | `claude/practical-hopper-oi3qj2-law2-evidence`; `scripts/resolve_evidence_runs.py`, `.github/workflows/evidence-runs.yml`; tests 76 passed, controls 52/52; STATUS.md 2026-11-25 |
 | LAW6-FRESHNESS-ISSUES | Claude Code | Implemented with review fixes, verified locally; branch not pushed | `.github/workflows/critical-path-freshness.yml` issue step (not-verified titles, close on PASS); tests 22 + 8 passed, controls 25/25 + 3/3; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525-APPROVAL | Codex | Owner approved exact declarations; HOLD for CI and independent merge review | #525, approved candidate `e1c8a7d7`, base `042253f5`; STATUS.md 2026-11-25 |
