@@ -5,7 +5,7 @@
       "run_id": "39377332673",
       "workflow": "postdeploy-checks.yml",
       "cited_in": ["omni_prod/intelligence/inventory.py"],
-      "backs": "intelligence/inventory.py PAID_20261020 (the paid run that inspect run 39378559811 reads): the gpt-6-luna and gemini-3.1-flash-lite successful calls of PAID_20261020_OK_CALLS, which intelligence/matrix.py adds to the ledger's OK calls, and the gpt-6-luna limits text (inventory.py:155).",
+      "backs": "intelligence/inventory.py PAID_20261020 (the paid run that inspect run 39378559811 reads): the gpt-6-luna and gemini-3.1-flash-lite successful calls of PAID_20261020_OK_CALLS, which intelligence/matrix.py adds to the ledger's OK calls, and the gpt-6-luna limits text (inventory.py:159).",
       "why_red": "Run completed with conclusion failure (read 2026-11-25): job 'checks' failed at step 'Paid build', annotation 'paid build outcome: FAIL status=failed code=verification_failed repairs=3 ... behavioural acceptance failed'. The record counts calls made inside a build that failed.",
       "listed_on": "2026-11-25",
       "reason": "law2-evidence: red when the check was introduced; listed so that it is shown on every run instead of failing every PR that touches an evidence file. Not fixed by this listing.",

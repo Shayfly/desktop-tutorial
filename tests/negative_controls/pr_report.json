@@ -20,26 +20,30 @@
    "expect_failed": [
     "test_a_missing_or_empty_field_fails",
     "test_an_unfilled_template_does_not_pass",
+    "test_comments_are_removed_from_the_whole_body_before_the_split",
     "test_it_has_the_18_fields_of_section_17_in_order",
     "test_the_command_line_fails_loudly"
    ]
   },
   {
    "id": "NC2",
-   "what": "an empty section (only the template's guidance) counts as filled",
+   "what": "an empty section (only guidance, headings, fences, breaks) counts as filled",
    "mutations": [
     {
      "file": "scripts/check_pr_report.py",
-     "old": "        elif not _COMMENT.sub('', found[field.casefold()]).strip():\n",
-     "new": "        elif not found[field.casefold()].strip():  # NEGATIVE CONTROL\n"
+     "old": "        elif not content_lines(texts[0]):\n",
+     "new": "        elif not texts[0]:  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
     "tests/test_pr_report.py"
    ],
    "expect_failed": [
+    "test_a_comment_still_hides_what_it_holds",
     "test_a_missing_or_empty_field_fails",
-    "test_an_unfilled_template_does_not_pass"
+    "test_an_unfilled_template_does_not_pass",
+    "test_comments_are_removed_from_the_whole_body_before_the_split",
+    "test_what_draws_nothing_is_not_content"
    ]
   },
   {
@@ -48,7 +52,7 @@
    "mutations": [
     {
      "file": "scripts/check_pr_report.py",
-     "old": "    if status and not _STATUS.match(status):\n",
+     "old": "    if status and len(by_name['status']) == 1 and not _STATUS.match(status[0]):\n",
      "new": "    if False:  # NEGATIVE CONTROL\n"
     }
    ],
@@ -56,7 +60,8 @@
     "tests/test_pr_report.py"
    ],
    "expect_failed": [
-    "test_a_status_outside_the_three_fails"
+    "test_a_status_outside_the_three_fails",
+    "test_the_guidance_with_its_marks_removed_does_not_pass"
    ]
   },
   {
@@ -65,7 +70,7 @@
    "mutations": [
     {
      "file": "scripts/check_pr_report.py",
-     "old": "        print('::error title=PR report::the title or the body could not be read (PR_TITLE / PR_BODY unset)')\n        return 1\n",
+     "old": "        print(f'::error title=PR report::the body could not be read ({source} unset)')\n        return 1\n",
      "new": "        return 0  # NEGATIVE CONTROL\n"
     }
    ],
@@ -95,19 +100,19 @@
   },
   {
    "id": "NC6",
-   "what": "the body is interpolated into the shell (injection)",
+   "what": "the title is interpolated into the shell (injection)",
    "mutations": [
     {
      "file": ".github/workflows/pr-report.yml",
-     "old": "        run: python3 scripts/check_pr_report.py\n",
-     "new": "        run: python3 scripts/check_pr_report.py --title \"${{ github.event.pull_request.title }}\"  # NEGATIVE CONTROL\n"
+     "old": "        run: python3 scripts/check_pr_report.py --event \"$GITHUB_EVENT_PATH\"\n",
+     "new": "        run: python3 scripts/check_pr_report.py --event \"$GITHUB_EVENT_PATH\" --title \"${{ github.event.pull_request.title }}\"  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
     "tests/test_pr_report.py"
    ],
    "expect_failed": [
-    "test_the_body_reaches_the_script_through_the_environment_only"
+    "test_the_body_reaches_the_script_as_data_only"
    ]
   },
   {
@@ -116,15 +121,729 @@
    "mutations": [
     {
      "file": "scripts/check_pr_report.py",
-     "old": "    elif ids and not any(i in title for i in ids):\n",
-     "new": "    elif False:  # NEGATIVE CONTROL\n"
+     "old": "            elif not set(ids) & set(TASK_ID.findall(title)):\n",
+     "new": "            elif False:  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
     "tests/test_pr_report.py"
    ],
    "expect_failed": [
-    "test_the_task_id_is_a_plan_id_and_is_in_the_title"
+    "test_the_task_id_is_a_plan_id_and_is_in_the_title",
+    "test_the_title_names_a_whole_id"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "finding 12.1: the status word may run on (PASSED, PASSING, PASS/FAIL)",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "                     r'(?=$|[ \\t:.\\-–—])'\n",
+     "new": "                     r''  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_status_outside_the_three_fails"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "finding 12.2: the status word may come anywhere (match -> search)",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    if status and len(by_name['status']) == 1 and not _STATUS.match(status[0]):\n",
+     "new": "    if status and len(by_name['status']) == 1 and not _STATUS.search(status[0]):  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_status_outside_the_three_fails",
+    "test_the_guidance_with_its_marks_removed_does_not_pass"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "finding 12.3: CRLF line endings are not normalised",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    text = body.replace('\\r\\n', '\\n').replace('\\r', '\\n')\n",
+     "new": "    text = body  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_crlf_body_passes"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "finding 12.4: a duplicate section is accepted",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "        elif len(texts) > 1:\n",
+     "new": "        elif False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_duplicate_section_fails"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "finding 12.5: a comment over several lines is not read as one comment",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "_COMMENT = re.compile(r'<!--(?:-?>|.*?-->)', re.S)",
+     "new": "_COMMENT = re.compile(r'<!--(?:-?>|.*?-->)')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_comment_mark_inside_code_is_text",
+    "test_a_comment_still_hides_what_it_holds",
+    "test_a_crlf_body_passes",
+    "test_a_duplicate_section_fails",
+    "test_a_fenced_block_with_text_is_content",
+    "test_a_filled_report_passes",
+    "test_a_heading_inside_a_code_fence_is_text",
+    "test_a_mark_closed_after_the_stop_passes",
+    "test_a_missing_or_empty_field_fails",
+    "test_a_null_or_empty_body_fails_loudly",
+    "test_a_status_outside_the_three_fails",
+    "test_an_unfilled_template_does_not_pass",
+    "test_comments_are_removed_from_the_whole_body_before_the_split",
+    "test_headings_are_matched_without_regard_to_case",
+    "test_none_with_a_reason_needs_no_task_id",
+    "test_none_without_a_reason_fails",
+    "test_the_command_line_fails_loudly",
+    "test_the_task_id_is_a_plan_id_and_is_in_the_title",
+    "test_the_title_names_a_whole_id",
+    "test_what_draws_nothing_is_not_content",
+    "test_what_draws_something_is_content"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "finding 12.6: a task id may be S<digits> alone, or part of a longer id",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "TASK_ID = re.compile(r'(?<![\\w.])S\\d+\\.\\d+(?![\\w]|\\.\\d)')",
+     "new": "TASK_ID = re.compile(r'S\\d+(?:\\.\\d+)?')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_the_task_id_is_a_plan_id_and_is_in_the_title",
+    "test_the_title_names_a_whole_id"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "finding 12.7: a null or empty body passes",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    if body is None or not body.strip():\n        print(",
+     "new": "    if False:  # NEGATIVE CONTROL\n        print("
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_null_or_empty_body_fails_loudly"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "finding 5, 14: HTML comments are not removed (their text counts as content)",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "        elif text.startswith('<!--', pos) and not _escaped(text, pos):\n",
+     "new": "        elif False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_comment_mark_inside_code_is_text",
+    "test_a_comment_still_hides_what_it_holds",
+    "test_a_crlf_body_passes",
+    "test_a_fenced_block_with_text_is_content",
+    "test_a_filled_report_passes",
+    "test_a_heading_inside_a_code_fence_is_text",
+    "test_a_mark_closed_after_the_stop_passes",
+    "test_a_missing_or_empty_field_fails",
+    "test_a_null_or_empty_body_fails_loudly",
+    "test_an_unfilled_template_does_not_pass",
+    "test_comments_are_removed_from_the_whole_body_before_the_split",
+    "test_headings_are_matched_without_regard_to_case",
+    "test_none_with_a_reason_needs_no_task_id",
+    "test_none_without_a_reason_fails",
+    "test_the_command_line_fails_loudly",
+    "test_the_task_id_is_a_plan_id_and_is_in_the_title",
+    "test_the_title_names_a_whole_id",
+    "test_what_draws_nothing_is_not_content",
+    "test_what_draws_something_is_content"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "finding 5, 14: an unclosed comment does not hide the rest",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "            pos = comment.end() if comment else n       # an unclosed comment hides the rest of the body, as on GitHub\n",
+     "new": "            pos = comment.end() if comment else pos + 4  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_comment_still_hides_what_it_holds",
+    "test_comments_are_removed_from_the_whole_body_before_the_split"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "finding 6: a heading inside a code fence starts a section",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "            mark = _FENCE.match(text[pos:end])\n",
+     "new": "            mark = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_comment_mark_inside_code_is_text",
+    "test_a_heading_inside_a_code_fence_is_text",
+    "test_a_missing_or_empty_field_fails"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "finding 7, 15, 21: \"none: <reason>\" is not accepted",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "        none = _NONE.match(task[0])\n",
+     "new": "        none = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_none_with_a_reason_needs_no_task_id",
+    "test_none_without_a_reason_fails"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "finding 7, 15, 21: \"none\" without a reason is accepted",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "            if not (none.group('reason').strip(' \\t:-–—,.;') or task[1:]):\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_none_without_a_reason_fails"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "finding 7, 15, 21: a GitHub revert needs the full report",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    return f'a GitHub revert ({first}, branch {head_ref})'\n",
+     "new": "    return None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_github_revert_passes_with_its_generated_body",
+    "test_each_part_of_a_github_revert_is_required"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "a revert title alone skips the report (any body passes)",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    reverts = _REVERT_BODY.fullmatch(first)\n",
+     "new": "    reverts = _REVERT_BODY.fullmatch(f'Reverts {repository}#{branch.group(\"number\")}')  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_revert_title_alone_is_not_enough",
+    "test_each_part_of_a_github_revert_is_required"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "finding 7, 15: a dependabot pull request needs the full report",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    if author in BOTS:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_dependabot_passes_and_another_login_does_not"
+   ]
+  },
+  {
+   "id": "NC23",
+   "what": "any login ending in \"bot\" skips the report",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    if author in BOTS:\n",
+     "new": "    if author and 'bot' in author:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_dependabot_passes_and_another_login_does_not"
+   ]
+  },
+  {
+   "id": "NC24",
+   "what": "finding 13a: a newly opened pull request is not checked",
+   "mutations": [
+    {
+     "file": ".github/workflows/pr-report.yml",
+     "old": "    types: [opened, edited, synchronize, reopened, ready_for_review]",
+     "new": "    types: [edited, synchronize, reopened, ready_for_review]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_it_runs_on_every_pull_request_and_on_an_edited_body"
+   ]
+  },
+  {
+   "id": "NC25",
+   "what": "finding 13b: documentation pull requests skip the check",
+   "mutations": [
+    {
+     "file": ".github/workflows/pr-report.yml",
+     "old": "    types: [opened, edited, synchronize, reopened, ready_for_review]\n",
+     "new": "    types: [opened, edited, synchronize, reopened, ready_for_review]\n    paths-ignore: ['docs/**', '**.md']  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_it_runs_on_every_pull_request_and_on_an_edited_body"
+   ]
+  },
+  {
+   "id": "NC26",
+   "what": "finding 13c: the job never runs",
+   "mutations": [
+    {
+     "file": ".github/workflows/pr-report.yml",
+     "old": "    runs-on: ubuntu-latest\n",
+     "new": "    if: false  # NEGATIVE CONTROL\n    runs-on: ubuntu-latest\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_nothing_skips_it_or_widens_it"
+   ]
+  },
+  {
+   "id": "NC27",
+   "what": "finding 13d: an earlier step puts the title into the shell",
+   "mutations": [
+    {
+     "file": ".github/workflows/pr-report.yml",
+     "old": "      - name: Check the delivery report fields\n",
+     "new": "      - run: echo \"${{ github.event.pull_request.title }}\"  # NEGATIVE CONTROL\n      - name: Check the delivery report fields\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_the_body_reaches_the_script_as_data_only"
+   ]
+  },
+  {
+   "id": "NC28",
+   "what": "finding 13f: the workflow may write",
+   "mutations": [
+    {
+     "file": ".github/workflows/pr-report.yml",
+     "old": "permissions:\n  contents: read\n",
+     "new": "permissions: write-all  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_nothing_skips_it_or_widens_it"
+   ]
+  },
+  {
+   "id": "NC29",
+   "what": "the check step may fail without failing the job",
+   "mutations": [
+    {
+     "file": ".github/workflows/pr-report.yml",
+     "old": "      - name: Check the delivery report fields\n",
+     "new": "      - name: Check the delivery report fields\n        continue-on-error: true  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_nothing_skips_it_or_widens_it"
+   ]
+  },
+  {
+   "id": "NC30",
+   "what": "the template asks for the cancelled independent reviewer again (finding 8, 17)",
+   "mutations": [
+    {
+     "file": ".github/pull_request_template.md",
+     "old": "<!-- There is no independent reviewer:",
+     "new": "<!-- The independent reviewer (ChatGPT, plan v3); \"pending\" until then. There is no independent reviewer:"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_the_reviewer_guidance_follows_the_owner_rule"
+   ]
+  },
+  {
+   "id": "NC31",
+   "what": "review 2026-11-26, finding 2: the head branch is not checked (a branch GitHub does not make passes as a revert)",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    if body is None or not _REVERT_TITLE.match(title) or branch is None:\n",
+     "new": "    if body is None or not _REVERT_TITLE.match(title):  # NEGATIVE CONTROL\n"
+    },
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    if reverts is None or reverts.group('number') != branch.group('number'):\n",
+     "new": "    if reverts is None:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_each_part_of_a_github_revert_is_required"
+   ]
+  },
+  {
+   "id": "NC32",
+   "what": "review 2026-11-26, finding 2: the body of a revert may name any repository",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    if not repository or reverts.group('repository').casefold() != repository.casefold():\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_each_part_of_a_github_revert_is_required"
+   ]
+  },
+  {
+   "id": "NC33",
+   "what": "review 2026-11-26, finding 2: #532's exemption (a title and a body alone) is back: the reviewer's spoof passes",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    if body is None or not _REVERT_TITLE.match(title) or branch is None:\n",
+     "new": "    if body is None or not _REVERT_TITLE.match(title):  # NEGATIVE CONTROL\n"
+    },
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    if reverts is None or reverts.group('number') != branch.group('number'):\n",
+     "new": "    if reverts is None:  # NEGATIVE CONTROL\n"
+    },
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    if not repository or reverts.group('repository').casefold() != repository.casefold():\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_each_part_of_a_github_revert_is_required",
+    "test_the_spoofed_revert_of_the_review_needs_the_report"
+   ]
+  },
+  {
+   "id": "NC34",
+   "what": "review 2026-11-26, finding 3: code spans are not read, so a <!-- inside one starts a comment",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "            close = same[k] + run if k < len(same) else None\n",
+     "new": "            close = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_comment_mark_inside_code_is_text"
+   ]
+  },
+  {
+   "id": "NC35",
+   "what": "review 2026-11-26, finding 3: comments are removed before code is read (the order of #532)",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    text = body.replace('\\r\\n', '\\n').replace('\\r', '\\n')\n",
+     "new": "    text = re.sub(r'<!--(?:-?>|.*?-->)|<!--.*', '', body.replace('\\r\\n', '\\n').replace('\\r', '\\n'), flags=re.S)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_comment_mark_inside_code_is_text"
+   ]
+  },
+  {
+   "id": "NC36",
+   "what": "review 2026-11-26, finding 3: a code span runs over a blank line and keeps a comment after it",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    return not line.strip() or bool(_FENCE.match(line) or _HEADING.match(line) or _COMMENT_LINE.match(line))\n",
+     "new": "    return bool(_FENCE.match(line) or _HEADING.match(line) or _COMMENT_LINE.match(line))  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_comment_still_hides_what_it_holds"
+   ]
+  },
+  {
+   "id": "NC37",
+   "what": "review 2026-11-26, finding 3: ```x``` at the start of a line opens a fence that swallows the rest of the body",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "_FENCE = re.compile(r'^ {0,3}(`{3,}(?=[^`]*$)|~{3,})')",
+     "new": "_FENCE = re.compile(r'^ {0,3}(`{3,}|~{3,})')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_comment_still_hides_what_it_holds"
+   ]
+  },
+  {
+   "id": "NC38",
+   "what": "review 2026-11-26, finding 8: a link reference definition ([none]: <>) counts as content",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "        if kind == 'fence' or (kind == 'text' and _LINK_DEF.fullmatch(line)):\n",
+     "new": "        if kind == 'fence':  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_what_draws_nothing_is_not_content"
+   ]
+  },
+  {
+   "id": "NC39",
+   "what": "review 2026-11-26, finding 8: fillers that draw nothing (U+3164, U+2800) count as content",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "_FILLERS = frozenset('\\u115f\\u1160\\u3164\\uffa0\\u2800\\U0001d159')",
+     "new": "_FILLERS = frozenset()  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_what_draws_nothing_is_not_content"
+   ]
+  },
+  {
+   "id": "NC40",
+   "what": "review 2026-11-26, finding 8: character references (&#8203;, &ensp;) are not decoded",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    line = _REFERENCE.sub(lambda ref: html.unescape(ref.group(0)), line)\n",
+     "new": "    line = line  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_mark_closed_after_the_stop_passes",
+    "test_a_missing_or_empty_field_fails",
+    "test_what_draws_nothing_is_not_content"
+   ]
+  },
+  {
+   "id": "NC41",
+   "what": "review 2026-11-26, finding 8: HTML tags without text (<span></span>) count as content",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    line = _TAG.sub(lambda tag: '\\u25a1' if tag.group(1).lower() in _DRAWN else '', line)\n",
+     "new": "    line = line  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_mark_closed_after_the_stop_passes",
+    "test_a_missing_or_empty_field_fails",
+    "test_what_draws_nothing_is_not_content"
+   ]
+  },
+  {
+   "id": "NC42",
+   "what": "review 2026-11-26, finding 8: a mark closed after the stop (**PASS:** reason) is rejected",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "                     r'|(?(mark)[:.\\-–—](?P=mark)(?=$|[ \\t])|(?!)))')    # **PASS:** reason: closed after the stop\n",
+     "new": "                     r')')  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_mark_closed_after_the_stop_passes"
+   ]
+  },
+  {
+   "id": "NC43",
+   "what": "review 2026-11-26, finding 8: zero-width and format characters (U+200B, U+00AD) count as content",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "        elif kind not in ('Cc', 'Cf') and ch not in _NO_WIDTH:\n",
+     "new": "        else:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_or_empty_field_fails",
+    "test_what_draws_nothing_is_not_content"
+   ]
+  },
+  {
+   "id": "NC44",
+   "what": "review 2026-11-26, finding 8: an image without text is not content",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "_DRAWN = frozenset({'img', 'picture',",
+     "new": "_DRAWN = frozenset({'picture',  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_what_draws_something_is_content"
+   ]
+  },
+  {
+   "id": "NC45",
+   "what": "review 2026-11-26, finding 3: a code span runs over a line that begins a comment and keeps it",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    return not line.strip() or bool(_FENCE.match(line) or _HEADING.match(line) or _COMMENT_LINE.match(line))\n",
+     "new": "    return not line.strip() or bool(_FENCE.match(line) or _HEADING.match(line))  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_comment_still_hides_what_it_holds"
    ]
   }
  ]

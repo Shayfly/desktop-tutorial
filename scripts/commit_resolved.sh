@@ -21,6 +21,9 @@ for f in $(printf '%s\n' $files | sort -u); do
 done
 [ "$markers" = "0" ] || { echo "refusing to commit: $markers conflict marker line(s)"; exit 3; }
 for f in $(printf '%s\n' $files | sort -u | grep '\.json$' || true); do
+  # a .json the resolution deletes is staged as deleted and has nothing to parse (2026-11-26: main deleted
+  # SYSTEM_MAP.json in #536 while the sites bundle changed it; reading the missing file refused with "invalid json")
+  [ -e "$f" ] || continue
   python3 -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$f" \
     || { echo "::error title=invalid json::$f"; exit 4; }
 done

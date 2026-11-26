@@ -158,7 +158,8 @@ GOLDEN_SCENARIOS = (
      'recovered build starts over, and since 2026-10-14 (e5e11e5) a build whose lost worker made a paid call ends FAILED '
      'provider_liability_unknown instead of being requeued. crash-verify checks S4.2 (postdeploy_checks.resume_verdict); '
      'no crash-verify run has been green since 2026-10-09'),
-    ('Golden 6 — Provider failure', (), 'PARTIAL', 'fallback proven by injection tests; OpenAI/Anthropic have no credit, so no real second provider'),
+    ('Golden 6 — Provider failure', (), 'PARTIAL', 'fallback proven by injection tests; OpenAI and Anthropic answer again (model-probe run 42527017456, 2026-11-18) '
+     'but are not AVAILABLE to planning (no successful build call), so no real second provider yet'),
     ('Golden 7 — Budget guard', (), 'PARTIAL', 'ceiling enforced in the paid run ($0.15 effective); refusal proven by injection test'),
     ('Golden 8 — Backup / restore', (BACKUP,), 'PASS', 'restore into a throw-away database; no destructive drill'),
     ('Golden 9 — Automation', (), 'NOT_RUN', 'Automation agent NOT_IMPLEMENTED'),

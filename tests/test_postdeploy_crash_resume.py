@@ -4,8 +4,9 @@ The plan's acceptance for the crash step: kill the worker mid-build and the buil
 instead of starting over, with the build record showing it. crash-verify (omni_prod/postdeploy_checks.py) now records
 'crash: build continued from its last checkpoint (S4.2)' through resume_verdict, beside the checks it had.
 
-The real ledger of the one crash build whose recovery finished READY, bld_5e344e95 (run 37954236866, ledger printed by
-inspect run 37955419872, 2026-10-09): the killed worker called architecture (gpt-6-luna HTTP 429, then
+The real ledger of crash build bld_5e344e95, the recovery CRASH cited (run 37954236866, ledger printed by inspect run
+37955419872, 2026-10-09; an earlier crash run that day, 37940033628 at d1c7482, also recovered a build to READY, but it
+printed no ledger and predates e5e11e5 and these checks): the killed worker called architecture (gpt-6-luna HTTP 429, then
 gemini-3.1-flash-lite ok, $0.00120675); the worker that finished called architecture again -- the same two calls, paid
 twice -- and then codegen, repair and review. That is starting over, and the build record named no checkpoint. The log
 prints no trace ids: 'trc_killed' and 'trc_recovered' stand for the two workers, whose rows the log shows twice for
