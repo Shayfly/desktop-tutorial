@@ -36,3 +36,5 @@ Thumbs.db
 # Runtime / local artifacts
 *.log
 *.pid
+# the full system map: python -m omni_prod.system_map --write; CI keeps it as the artifact system-map
+/SYSTEM_MAP.json

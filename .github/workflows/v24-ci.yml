@@ -82,6 +82,25 @@ jobs:
           set -euo pipefail
           anchor="$(python3 scripts/deletions_declared.py --anchor "${PR_BASE:-}")"
           python3 scripts/changed_files_sane.py "$anchor"
+      # The system map (plan v3 S1.5; the review of #532, 2026-11-25): the full map changes with almost every pull
+      # request, so it is not committed (a committed copy went stale on main when a branch cut before it merged). It is
+      # built here on every push and pull request, kept as the artifact `system-map` and summed up in the run summary.
+      # Not a required check; a failing generator fails this step. It runs even when an earlier step of `light` failed
+      # (success() || failure(): not when the run is cancelled).
+      - name: System map (the artifact system-map and the run summary)
+        if: success() || failure()
+        run: |
+          set -euo pipefail
+          mkdir -p system-map
+          python -m omni_prod.system_map --json system-map/SYSTEM_MAP.json --summary "$GITHUB_STEP_SUMMARY"
+      - name: Keep the system map
+        if: success() || failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: system-map
+          path: system-map/SYSTEM_MAP.json
+          if-no-files-found: error
+          retention-days: 30
   test:
     runs-on: ubuntu-latest
     # 15 -> 20 (2026-11-11), the CI-cost policy maximum (tests/test_ci_workflow_concurrency.py): successful runs on
