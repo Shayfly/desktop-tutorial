@@ -429,7 +429,9 @@ class TwoInstancesOneDatabase(_Database):
     def test_one_counter_is_counted_atomically_by_two_pools_at_once(self):
         from omni_prod.db import DatabasePool
         from omni_prod.rate_limits import PostgresRateLimitStore
-        pools = [DatabasePool(self.url, max_size=20), DatabasePool(self.url, max_size=20)]
+        # opened here, not lazily by 40 threads at once: DatabasePool.open() is not thread-safe, and a pool opened twice
+        # leaks one that keeps reconnecting after the database is dropped
+        pools = [DatabasePool(self.url, max_size=20).open(), DatabasePool(self.url, max_size=20).open()]
         stores = [PostgresRateLimitStore(p) for p in pools]
         row = ('concurrency_test', uuid.uuid4().hex * 2, 1_000_000, 1_000_120, 999_940, 1000)
         counts, barrier = [], threading.Barrier(40)
