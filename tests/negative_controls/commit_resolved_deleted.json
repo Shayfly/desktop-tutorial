@@ -1,0 +1,26 @@
+{
+ "pr": "commit-resolved-deleted",
+ "sha256": [
+  "tests/test_commit_resolved.py",
+  "scripts/commit_resolved.sh"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a .json file the resolution deletes is read again by the JSON check, and the commit is refused as invalid json (2026-11-26, SYSTEM_MAP.json after #536)",
+   "mutations": [
+    {
+     "file": "scripts/commit_resolved.sh",
+     "old": "  [ -e \"$f\" ] || continue",
+     "new": "  :  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_commit_resolved.py"
+   ],
+   "expect_failed": [
+    "test_a_json_file_the_resolution_deletes_is_committed_deleted"
+   ]
+  }
+ ]
+}
