@@ -148,7 +148,7 @@
   "POST /api/v28/billing/stripe/webhook": {"kind": "public", "gate": "verify_stripe_signature", "note": "Stripe-signed events only"},
   "POST /api/v28/auth/register": {"kind": "public", "gate": "credentials", "note": "signs in or creates the caller's own account"},
   "POST /api/v28/auth/login": {"kind": "public", "gate": "credentials", "note": "signs in or creates the caller's own account"},
-  "POST /api/v28/auth/logout": {"kind": "account", "gate": "logout"},
+  "POST /api/v28/auth/logout": {"kind": "account", "gate": "logout", "anonymous": 200, "anonymous_note": "always 200 so the browser's cookie is cleared: without a session it revokes nothing and says so (server_session_revoked false)"},
   "GET /api/v28/auth/sessions": {"kind": "account", "gate": "list_sessions"},
   "POST /api/v28/auth/sessions/{session_id}/revoke": {"kind": "tenant", "world": "v28", "gate": "revoke_session", "ids": ["session_id"], "owner": "destructive"},
   "POST /api/v28/auth/email-verification/request": {"kind": "account", "gate": "account"},

@@ -1,12 +1,24 @@
 """S4.5 (the owner's plan v3, 2026-11-25): one customer can never read or change another customer's data.
 
 The REAL served app (app.py: omni_prod.investor_app plus the live_core router) runs over a REAL PostgreSQL
-(M4D2_DATABASE_URL, migrated with `python -m omni_prod.migrate`), in the deployed configuration: OMNI_ENV=production
-(bearer authentication on /api/, the legacy in-process paths refused), OMNI_CREATOR_PERSISTENCE=postgres, and the
-durable PostgresProjectWorkspace. Two real accounts are registered through the real routes; account B then uses
-account A's identifiers on every route that takes one (tests/tenant_isolation_routes.json, which
-tests/test_tenant_isolation_registry.py compares with the app) and must get exactly the answer it gets for an
-identifier that does not exist -- never A's data, and never a change to A's rows.
+(M4D2_DATABASE_URL, migrated with `python -m omni_prod.migrate`) with the durable PostgresProjectWorkspace, in two
+configurations:
+
+  deployed  Vercel production's own: OMNI_ENV is NOT set (tests/fixtures/vercel_env_keys_148aiv28_2026_11_15.json has
+            no OMNI_ENV; on 2026-11-26 09:19 UTC an unknown /api/v28 route answered 404 without credentials, where the
+            production_auth middleware would have answered 401), VERCEL_ENV=production, OMNI_CREATOR_PERSISTENCE=postgres
+            with OMNI_S3_* (durable, so the legacy in-process paths are refused by _async_build_mode, not by OMNI_ENV).
+            The Bearer middleware is off and every route must check the session itself. Accounts sign in the way the
+            web app does (omni_prod/assets/app.js: fetch with credentials 'same-origin', no Authorization header): the
+            HttpOnly 148ai_session cookie set by /api/v28/auth/register, over https, with a same-origin Origin header.
+  strict    the same process with OMNI_ENV=production for the duration of a test (production_auth on: a Bearer token
+            on every non-public /api route); the matrix runs in both.
+  v26, v27 and live_core have no cookie session: their accounts use a Bearer token in both configurations.
+
+Two real accounts are registered through the real routes; account B then uses account A's identifiers on every route
+that takes one (tests/tenant_isolation_routes.json, which tests/test_tenant_isolation_registry.py compares with the
+app) and must get exactly the answer it gets for an identifier that does not exist -- never A's data, and never a change
+to A's rows. An anonymous caller (no cookie, no token) gets only the unauthenticated answer from every non-public route.
 
 Object storage: omni_prod has S3ArtifactStore (boto3, a real bucket) and the in-process
 omni_prod.memory_adapters.MemoryArtifactStore. The workspace and the attachments here use the latter through ExactKeyStore
@@ -20,6 +32,7 @@ Run alone -- investor_app reads its configuration once, at import:  python -m py
 from __future__ import annotations
 
 import base64
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -61,15 +74,22 @@ def _skip_reason() -> str | None:
 _SKIP = _skip_reason()
 pytestmark = pytest.mark.skipif(_SKIP is not None, reason=str(_SKIP))
 
+ORIGIN = 'https://testserver'                  # the browser clients' own origin (TestClient base_url below)
+BROWSER = {'Origin': ORIGIN, 'Sec-Fetch-Site': 'same-origin'}
+
 if _SKIP is None:
-    for name in ('OMNI_INTAKE_MODEL', 'OMNI_INTAKE_VIA_WORKER', 'OMNI_S3_ENDPOINT', 'OMNI_S3_BUCKET', 'OMNI_MEDIA_READER',
-                 'VERCEL_ENV', *[n for n in os.environ if n.endswith(('_API_KEY', '_API_TOKEN'))]):
-        os.environ.pop(name, None)             # no provider key: no route can reach a provider from here
+    # Vercel production's names (values never read): no OMNI_ENV and no OMNI_GENERATED_APP_TOKEN_SECRET. Unset here
+    # although production has them: OMNI_INTAKE_MODEL / OMNI_INTAKE_VIA_WORKER (they would send the conversation to a
+    # paid model through the worker) and every provider key -- no route can reach a model or provider from this test.
+    for name in ('OMNI_ENV', 'OMNI_GENERATED_APP_TOKEN_SECRET', 'OMNI_INTAKE_MODEL', 'OMNI_INTAKE_VIA_WORKER',
+                 'OMNI_S3_ENDPOINT', 'OMNI_S3_BUCKET', 'OMNI_MEDIA_READER', 'OMNI_SESSION_COOKIE_SECURE',
+                 *[n for n in os.environ if n.endswith(('_API_KEY', '_API_TOKEN'))]):
+        os.environ.pop(name, None)
     os.environ.update({
-        'OMNI_ENV': 'production', 'OMNI_CREATOR_PERSISTENCE': 'postgres', 'OMNI_DATABASE_URL': DATABASE_URL,
+        'VERCEL_ENV': 'production', 'OMNI_CREATOR_PERSISTENCE': 'postgres', 'OMNI_DATABASE_URL': DATABASE_URL,
         'OMNI_SECRET_KEY': 'tenant-isolation-control-plane-' + 'k' * 40,
-        'OMNI_GENERATED_APP_TOKEN_SECRET': 'tenant-isolation-generated-apps-' + 'g' * 40,
-        'OMNI_ALLOWED_ORIGINS': 'https://app.148ai.test', 'OMNI_LIVE_ENABLED': '1',
+        'OMNI_ALLOWED_ORIGINS': ORIGIN, 'OMNI_LIVE_ENABLED': '1',
+        # set here, absent in production (each lets a probe reach a deeper check; absent, the route refuses everyone):
         'OMNI_BILLING_ADMIN_KEY': 'tenant-isolation-billing-admin-key',
         'OMNI_RIGHTS_REVIEW_KEY': 'tenant-isolation-rights-review-key',
         'PREVIEW_DOMAIN_TEMPLATE': 'https://{preview_id}.preview.148ai.test',
@@ -120,6 +140,11 @@ def _png(w=3, h=2) -> bytes:
             + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b''))
 
 
+def _browser():
+    """A browser of its own: https, its own cookie jar, and the headers a same-origin fetch sends. No Authorization."""
+    return TestClient(served.app, base_url=ORIGIN, raise_server_exceptions=False, headers=BROWSER)
+
+
 class Customer:
     def __init__(self, name: str):
         self.name = name
@@ -128,6 +153,14 @@ class Customer:
         self.gen_ids: dict[str, dict[str, str]] = {}
         self.tokens: dict[str, str] = {}
         self.account: dict[str, str] = {}
+        self.browser = _browser()          # signed in by the 148ai_session cookie, as the web app is
+
+    def signed_in(self, gen: str, config: str, shared):
+        """(client, headers) this customer uses: the cookie session for v28 in the deployed configuration (as the web
+        app does), a Bearer token otherwise (strict: the middleware requires one; v26/v27/live have no cookie)."""
+        if gen == 'v28' and config == 'deployed':
+            return self.browser, {}
+        return shared, self.headers(gen)
 
     def objects(self) -> set[str]:
         """This customer's objects now: the repositories of every version of the project, and the attachments."""
@@ -157,7 +190,8 @@ def _ok(response, *codes):
 def _register(client, customer: Customer) -> None:
     email = f'{customer.name.lower()}-{uuid.uuid4().hex[:10]}@tenant.example'
     password = 'Tenant-isolation-123!'
-    reg = _ok(client.post('/api/v28/auth/register', json={'email': email, 'password': password}))
+    reg = _ok(customer.browser.post('/api/v28/auth/register', json={'email': email, 'password': password}))
+    assert customer.browser.cookies.get('148ai_session') == reg['token'], 'the register route set no session cookie'
     customer.tokens['v28'] = reg['token']
     customer.account = {'id': reg['user']['id'], 'email': email}
     _ok(client.post('/api/v28/admin/subscription', json={'user_id': reg['user']['id'], 'plan': 'business'},
@@ -183,15 +217,15 @@ def _seed_v28(client, customer: Customer) -> None:
     from omni_prod.product_spec import ProductSpec
     from omni_prod.spec_repository import PostgresSpecRepository
 
-    h, pool = customer.headers(), IA._v28_pool
-    pid = _ok(client.post('/api/v28/projects', headers=h, json={'title': f'Project {customer.marker}'}))['id']
+    web, pool = customer.browser, IA._v28_pool          # the routes are called with the cookie session
+    pid = _ok(web.post('/api/v28/projects', json={'title': f'Project {customer.marker}'}))['id']
     _, key = IA._v28.resolve_project_key(token=customer.tokens['v28'], project_id=pid)
     customer.ids.update(project_id=pid, internal_key=key)
-    _ok(client.post(f'/api/v28/projects/{pid}/discovery', headers=h,
+    _ok(web.post(f'/api/v28/projects/{pid}/discovery',
                     json={'prompt': f'A landing page for a bakery called {customer.marker}', 'mode': 'guided'}))
-    _ok(client.post(f'/api/v28/projects/{pid}/conversation', headers=h,
+    _ok(web.post(f'/api/v28/projects/{pid}/conversation',
                     json={'message': f'The bakery is named {customer.marker} and sells bread'}))
-    att = _ok(client.post(f'/api/v28/projects/{pid}/attachments', headers=h,
+    att = _ok(web.post(f'/api/v28/projects/{pid}/attachments',
                           json={'kind': 'image', 'data_base64': base64.b64encode(_png()).decode()}))
     customer.ids['attachment_id'] = att['id']
     customer.ids['attachment_sha256'] = att['sha256']
@@ -243,7 +277,7 @@ def _seed_v28(client, customer: Customer) -> None:
     PostgresBuildContractRepository(pool).save(contract)
     customer.ids['build_contract_id'] = contract.id
 
-    sessions = _ok(client.get('/api/v28/auth/sessions', headers=h))['sessions']
+    sessions = _ok(web.get('/api/v28/auth/sessions'))['sessions']
     customer.ids['session_id'] = sessions[0]['session_id']
 
 
@@ -293,13 +327,13 @@ def world():
         _register(client, customer)
         _seed_v28(client, customer)
         _seed_other_generations(client, customer, with_evidence=customer is a)
-        customer.ids['bare_project_id'] = _ok(client.post('/api/v28/projects', headers=customer.headers(),
-                                                          json={'title': 'Nothing in it yet'}))['id']
+        customer.ids['bare_project_id'] = _ok(customer.browser.post('/api/v28/projects',
+                                                                    json={'title': 'Nothing in it yet'}))['id']
         customer.ids['draft_fingerprint'] = secrets.token_hex(32)   # no reading draft exists (the reader is off)
         customer.ids['deployment_id'] = f'dep_{uuid.uuid4().hex[:12]}'
         customer.ids['account_id'] = customer.account['id']
     assert a.objects() and b.objects() and not a.objects() & b.objects()
-    yield {'client': client, 'A': a, 'B': b}
+    yield {'client': client, 'A': a, 'B': b, 'anonymous': _browser()}
     IA._v28_pool.close()
 
 
@@ -349,13 +383,18 @@ def test_the_identifiers_have_the_shape_production_uses(world):
                                       f'{"equal" if columns == PRODUCTION_COLUMNS_MD5 else "DIFFERENT"}')
 
 
+_VOLATILE_HEADERS = {'date', 'x-request-id', 'content-length'}   # differ between any two requests
+
+
 def _normalized(response, supplied: dict[str, str]):
-    """The answer with every identifier the caller supplied replaced by its name (an echo of the caller's own input
-    is not a difference)."""
-    text = response.text
-    for name, value in sorted(supplied.items(), key=lambda kv: -len(kv[1])):
-        text = text.replace(value, f'<{name}>')
-    return response.status_code, text
+    """Status, headers and body, with every identifier the caller supplied replaced by its name (an echo of the
+    caller's own input is not a difference). Only the date, the request id and the length are left out."""
+    def clean(text: str) -> str:
+        for name, value in sorted(supplied.items(), key=lambda kv: -len(kv[1])):
+            text = text.replace(value, f'<{name}>')
+        return text
+    headers = sorted((k.lower(), clean(v)) for k, v in response.headers.items() if k.lower() not in _VOLATILE_HEADERS)
+    return response.status_code, headers, clean(response.text)
 
 
 # ------------------------------------------------------------------------------------- build contract identifiers
@@ -364,13 +403,13 @@ def test_a_foreign_build_contract_id_is_answered_like_an_unknown_one(world):
     """LEAK FOUND 2026-11-26: POST .../builds with another project's build_contract_id answered 403 "build contract
     does not belong to project", and with an unknown id 500 -- an oracle for which contract ids exist elsewhere. B's
     own project and A's contract id must get B's answer for an id that names nothing: a 409 that says to plan again."""
-    client, a, b = world['client'], world['A'], world['B']
+    a, b = world['A'], world['B']
     # A project of B's own with no active build: a queued build is answered before the contract is read.
-    own = _ok(client.post('/api/v28/projects', headers=b.headers(), json={'title': 'Bob, no build yet'}))['id']
+    own = _ok(b.browser.post('/api/v28/projects', json={'title': 'Bob, no build yet'}))['id']
     path = f'/api/v28/projects/{own}/builds'
     foreign_id, missing_id = a.ids['build_contract_id'], _fresh('build_contract_id')
-    foreign = client.post(path, headers=b.headers(), json={'prompt': 'Build a CRM app', 'build_contract_id': foreign_id})
-    missing = client.post(path, headers=b.headers(), json={'prompt': 'Build a CRM app', 'build_contract_id': missing_id})
+    foreign = b.browser.post(path, json={'prompt': 'Build a CRM app', 'build_contract_id': foreign_id})
+    missing = b.browser.post(path, json={'prompt': 'Build a CRM app', 'build_contract_id': missing_id})
     assert _normalized(foreign, {'build_contract_id': foreign_id}) == _normalized(missing, {'build_contract_id': missing_id})
     assert foreign.status_code == 409, (foreign.status_code, foreign.text)
     assert foreign.json()['detail']['error'] == 'build_contract_invalid'
@@ -441,7 +480,21 @@ _STATE_SQL = {
     'm5_build_contracts': 'project_id = %(project)s', 'build_approvals': 'project_id = %(project)s',
     'live_projects': 'owner_id = %(live)s', 'live_versions': 'owner_id = %(live)s',
     'live_builds': 'owner_id = %(live)s', 'live_artifacts': 'owner_id = %(live)s', 'live_sessions': 'user_id = %(live)s',
+    # the account itself and everything else keyed by the account, the public id or the internal key
+    'creator_accounts': 'id = %(account)s', 'creator_subscriptions': 'user_id = %(account)s',
+    'creator_consents': 'user_id = %(account)s', 'creator_privacy_requests': 'user_id = %(account)s',
+    'creator_identity_tokens': 'user_id = %(account)s', 'project_memory': 'project_id IN (%(project)s, %(key)s)',
+    'modification_candidates': 'project_id = %(key)s',
+    'build_requests': 'user_id = %(account)s OR internal_project_id = %(key)s OR public_project_id = %(project)s',
+    'credit_ledger': 'account_id = %(account)s OR project_id IN (%(project)s, %(key)s)',
+    'intake_reservations': 'account_id = %(account)s OR project_id IN (%(project)s, %(key)s)',
+    'usage_events': 'account_id = %(account)s OR project_id IN (%(project)s, %(key)s)',
+    'agent_memory': 'project_id IN (%(project)s, %(key)s)',
+    'build_events': 'build_id IN (SELECT id FROM build_jobs WHERE project_id = %(key)s '
+                    'UNION SELECT id FROM modification_requests WHERE project_id = %(key)s)',
 }
+_V28_MEMORY = ('_project_brand_visible', '_project_white_label', '_rights_evidence', '_rights_assessment',
+               '_rights_prompt', '_rights_markets')   # V28Platform's in-process state, keyed by the internal key
 
 
 def _state(owner: Customer) -> dict:
@@ -460,6 +513,7 @@ def _state(owner: Customer) -> dict:
         out[gen] = sorted(repr(p) for p in platform.accounts.list_projects(owner_id=account.id))
         key = platform.accounts.internal_project_key(owner_id=account.id, project_id=owner.gen_ids[gen]['project_id'])
         out[gen + '_evidence'] = repr(getattr(platform, '_rights_evidence', {}).get(key))
+    out['v28_memory'] = [repr(getattr(IA._v28, name, {}).get(owner.ids['internal_key'])) for name in _V28_MEMORY]
     return out
 
 
@@ -475,22 +529,48 @@ def _validation_error(response) -> bool:
         return False
 
 
+CONFIGS = ('deployed', 'strict')
+
+
+@contextmanager
+def _configured(config: str):
+    """deployed: OMNI_ENV unset, as in Vercel production; strict: OMNI_ENV=production (production_auth on). Both
+    middlewares read OMNI_ENV on every request, so one process serves both."""
+    saved = os.environ.pop('OMNI_ENV', None)
+    if config == 'strict':
+        os.environ['OMNI_ENV'] = 'production'
+    try:
+        yield
+    finally:
+        os.environ.pop('OMNI_ENV', None)
+        if saved is not None:
+            os.environ['OMNI_ENV'] = saved
+
+
+@pytest.mark.parametrize('config', CONFIGS)
 @pytest.mark.parametrize('key', MATRIX)
-def test_another_account_gets_the_unknown_id_answer(world, key):
-    """B sends A's identifiers, then identifiers that name nothing, and must get the same answer (no existence leak)
-    with nothing of A's in it; then B's own project with A's child identifier (version, build, preview, ...) against an
-    unknown one. A's rows and objects are unchanged and B's requests read none of A's objects. Last, A's own request is
-    served (the refusals are not every route being broken)."""
+def test_another_account_gets_the_unknown_id_answer(world, key, config):
+    """B sends A's identifiers, then identifiers that name nothing, and must get the same answer -- status, headers and
+    body (no existence leak) -- with nothing of A's in it; then B's own project with A's child identifier (version,
+    build, preview, ...) against an unknown one. A's rows and objects are unchanged and B's requests read none of A's
+    objects. Last, A's own request gets past the ownership check (an answer other than B's refusal)."""
+    with _configured(config):
+        _matrix(world, key, config)
+
+
+def _matrix(world, key, config):
     spec = REGISTRY['routes'][key]
     gen, names = spec['world'], spec['ids']
-    client, a, b = world['client'], world['A'], world['B']
+    a, b = world['A'], world['B']
     a_ids, b_ids = a.ids_for(gen), b.ids_for(gen)
+    a_client, a_auth = a.signed_in(gen, config, world['client'])
+    b_client, b_auth = b.signed_in(gen, config, world['client'])
     before, reads = _state(a), len(STORE.reads)
 
     foreign = {n: a_ids[n] for n in names}
     missing = {n: _fresh(n, gen) for n in names}
-    got_foreign = _request(client, key, spec, foreign, b.headers(gen))
-    got_missing = _request(client, key, spec, missing, b.headers(gen))
+    got_foreign = _request(b_client, key, spec, foreign, b_auth)
+    got_missing = _request(b_client, key, spec, missing, b_auth)
     seen = [f'B with A ids {got_foreign.status_code} {_short(got_foreign)}']
     assert not _validation_error(got_foreign), f'{key}: the probe body never reaches the route ({got_foreign.text[:300]})'
     assert _normalized(got_foreign, foreign) == _normalized(got_missing, missing), \
@@ -502,8 +582,8 @@ def test_another_account_gets_the_unknown_id_answer(world, key):
         if spec.get('own_parent') == 'bare':
             own['project_id'] = b_ids['bare_project_id']
         with_foreign, with_missing = {**own, child: a_ids[child]}, {**own, child: _fresh(child, gen)}
-        got_foreign = _request(client, key, spec, with_foreign, b.headers(gen))
-        got_missing = _request(client, key, spec, with_missing, b.headers(gen))
+        got_foreign = _request(b_client, key, spec, with_foreign, b_auth)
+        got_missing = _request(b_client, key, spec, with_missing, b_auth)
         assert not _validation_error(got_foreign), f'{key} ({child}): {got_foreign.text[:300]}'
         assert _normalized(got_foreign, {child: a_ids[child]}) == _normalized(got_missing, {child: with_missing[child]}), \
             f'{key}: B\'s own project with A\'s {child} is answered differently from an unknown {child}'
@@ -515,23 +595,23 @@ def test_another_account_gets_the_unknown_id_answer(world, key):
     assert not touched, f'{key}: B\'s requests read A\'s objects {touched}'
 
     if spec['kind'] == 'legacy_refused':
-        for who in (a, b):
-            got = _request(client, key, spec, foreign, who.headers(gen))
+        for who, (who_client, who_auth) in ((a, (a_client, a_auth)), (b, (b_client, b_auth))):
+            got = _request(who_client, key, spec, foreign, who_auth)
             assert got.status_code == spec['refused'], (key, who.name, got.status_code, got.text[:300])
         seen.append(f'owner refused too {got.status_code}')
     elif spec['kind'] == 'legacy_demo':
-        got = _request(client, key, spec, foreign, a.headers(gen))
-        assert _normalized(got, foreign) == _normalized(_request(client, key, spec, foreign, b.headers(gen)), foreign)
+        got = _request(a_client, key, spec, foreign, a_auth)
+        assert _normalized(got, foreign) == _normalized(_request(b_client, key, spec, foreign, b_auth), foreign)
         _assert_no_trace(a, got, f'{key} (the demo store never holds a customer project)')
         seen.append(f'owner gets the same empty answer {got.status_code}')
     elif isinstance(spec.get('owner'), list):
-        got = _request(client, key, spec, foreign, a.headers(gen))
+        got = _request(a_client, key, spec, foreign, a_auth)
         assert got.status_code in spec['owner'], (key, 'owner', got.status_code, got.text[:300])
-        refused = _request(client, key, spec, foreign, b.headers(gen))
+        refused = _request(b_client, key, spec, foreign, b_auth)
         assert (got.status_code, got.content) != (refused.status_code, refused.content), \
             f'{key}: the owner gets the refusal another account gets'
         seen.append(f'owner {got.status_code} {_short(got)}')
-    notice('tenant isolation', f'{key}: ' + ' | '.join(seen))
+    notice('tenant isolation', f'{config} {key}: ' + ' | '.join(seen))
 
 
 def _short(response) -> str:
@@ -573,17 +653,18 @@ NOT_RUN_FOR_THE_OWNER = {'POST /api/live/builds/{build_id}/run': 'runs the gener
 
 def test_the_destructive_routes_work_for_their_owner(world):
     """The matrix leaves A's rows alone, so the routes that delete, cancel, revoke or change state are shown to work for
-    their owner here, on a third customer's own fresh rows -- the refusals are not routes that refuse everyone."""
+    their owner here, on a third customer's own fresh rows -- the refusals are not routes that refuse everyone. Carol
+    signs in with the cookie session, as the web app does (deployed configuration)."""
     client = world['client']
     c = Customer('Carol')
     _register(client, c)
     _seed_v28(client, c)
-    h, pid = c.headers(), c.ids['project_id']
+    web, pid = c.browser, c.ids['project_id']
     done = {}
 
     def call(key, path, expect, **kw):
         method = key.split(' ', 1)[0]
-        got = client.request(method, path, headers=kw.pop('headers', h), **kw)
+        got = web.request(method, path, **kw)
         assert got.status_code in expect, (key, got.status_code, got.text[:300])
         done[key] = got
         return got
@@ -593,7 +674,7 @@ def test_the_destructive_routes_work_for_their_owner(world):
     assert done['POST /api/v28/projects/{project_id}/builds/{build_id}/cancel'].json()['outcome'] in ('cancelled', 'cancel_requested')
     call('DELETE /api/v28/projects/{project_id}/previews/{preview_id}',
          f"/api/v28/projects/{pid}/previews/{c.ids['preview_id']}", (200, 202, 503))
-    assert _ok(client.get(f"/api/v28/projects/{pid}/previews/{c.ids['preview_id']}", headers=h))['status'] == 'STOPPED'
+    assert _ok(web.get(f"/api/v28/projects/{pid}/previews/{c.ids['preview_id']}"))['status'] == 'STOPPED'
     call('POST /api/v28/projects/{project_id}/modifications/{modification_id}/reject',
          f"/api/v28/projects/{pid}/modifications/{c.ids['modification_id']}/reject", (200,), json={'reason': 'no'})
     call('POST /api/v28/projects/{project_id}/modifications/{modification_id}/accept',
@@ -604,16 +685,18 @@ def test_the_destructive_routes_work_for_their_owner(world):
     call('DELETE /api/v28/projects/{project_id}/attachments/{attachment_id}',
          f"/api/v28/projects/{pid}/attachments/{c.ids['attachment_id']}", (200,))
     assert key_before and not key_before & set(STORE.objects), 'the attachment\'s object is not gone'
-    second = _ok(client.post('/api/v28/auth/login', json={'email': c.account['email'], 'password': 'Tenant-isolation-123!'}))
-    session = [s for s in _ok(client.get('/api/v28/auth/sessions', headers=h))['sessions']
+    other_device = _browser()
+    _ok(other_device.post('/api/v28/auth/login', json={'email': c.account['email'], 'password': 'Tenant-isolation-123!'}))
+    assert other_device.get('/api/v28/me').status_code == 200
+    session = [s for s in _ok(web.get('/api/v28/auth/sessions'))['sessions']
                if s['session_id'] != c.ids['session_id']][0]['session_id']
     call('POST /api/v28/auth/sessions/{session_id}/revoke', f'/api/v28/auth/sessions/{session}/revoke', (200,))
-    assert client.get('/api/v28/me', headers={'Authorization': 'Bearer ' + second['token']}).status_code == 401
+    assert other_device.get('/api/v28/me').status_code == 401              # that device's cookie no longer signs in
     call('PATCH /api/v28/projects/{project_id}', f'/api/v28/projects/{pid}', (200,), json={'title': 'Carol renamed'})
     call('POST /api/v28/projects/{project_id}/archive', f'/api/v28/projects/{pid}/archive', (200,))
     call('POST /api/v28/projects/{project_id}/unarchive', f'/api/v28/projects/{pid}/unarchive', (200,))
     call('DELETE /api/v28/projects/{project_id}', f'/api/v28/projects/{pid}', (202,))
-    assert client.get(f'/api/v28/projects/{pid}/state', headers=h).json()['deleted_at']
+    assert web.get(f'/api/v28/projects/{pid}/state').json()['deleted_at']
     assert set(done) | set(NOT_RUN_FOR_THE_OWNER) == set(DESTRUCTIVE), sorted(set(DESTRUCTIVE) ^ (set(done) | set(NOT_RUN_FOR_THE_OWNER)))
 
 
@@ -623,29 +706,177 @@ def _gen_of(path: str) -> str:
     return next((g for g in ('v26', 'v27', 'live') if path.startswith(f'/api/{g}/')), 'v28')
 
 
-def test_account_and_public_routes_never_show_another_customer(world):
+def _served_routes() -> dict:
+    from fastapi.routing import APIRoute, APIWebSocketRoute
+    out = {}
+    for r in served.app.routes:
+        if isinstance(r, APIRoute) or type(r).__name__ == 'Route':
+            out.update({f'{m} {r.path}': r for m in r.methods})
+        elif isinstance(r, APIWebSocketRoute):
+            out[f'WS {r.path}'] = r
+        elif type(r).__name__ == 'Mount':
+            out[f'MOUNT {r.path}'] = r
+    return out
+
+
+def _probe_value(annotation, owner: Customer):
+    """A value of the field's type that carries another customer's identifiers wherever text goes."""
+    import enum
+    import types
+    import typing
+    from pydantic import BaseModel
+    origin, args = typing.get_origin(annotation), typing.get_args(annotation)
+    if origin in (typing.Union, types.UnionType):
+        return _probe_value(next(t for t in args if t is not type(None)), owner)
+    if origin is typing.Literal:
+        return args[0]
+    if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
+        return next(iter(annotation)).value
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return {name: _probe_value(f.annotation, owner) for name, f in annotation.model_fields.items()}
+    if origin in (list, tuple, set, frozenset) or annotation in (list, tuple, set):
+        return [_probe_value(args[0] if args else str, owner)]
+    if origin is dict or annotation is dict:
+        return {name: owner.ids[name] for name in ('project_id', 'version_id', 'build_id', 'preview_id')}
+    if annotation is bool:
+        return False
+    if annotation in (int, float):
+        return 1
+    return owner.ids['project_id']
+
+
+_FIXED_PATH = {'platform': 'android', 'engine': 'godot', 'asset_name': '148ai-logo-64.png', 'department_id': 'engineering'}
+
+
+def _probe_call(client, key: str, owner: Customer, headers: dict):
+    """Call a route that takes no customer identifier with every text field and query parameter set to `owner`'s
+    project id (and every free-form object to `owner`'s ids): a route that uses one of them to look a row up shows it."""
+    method, template = key.split(' ', 1)
+    route = SERVED[key]
+    dependant = getattr(route, 'dependant', None)
+    path = re.sub(r'\{(\w+)(?::\w+)?\}', lambda m: _FIXED_PATH.get(m.group(1), owner.ids['project_id']), template)
+    query, body = {}, None
+    if dependant is not None:
+        query = {p.name: _probe_value(p.field_info.annotation, owner) for p in dependant.query_params}
+        params = dependant.body_params
+        if len(params) == 1 and not getattr(params[0].field_info, 'embed', False) and \
+                hasattr(params[0].field_info.annotation, 'model_fields'):
+            body = _probe_value(params[0].field_info.annotation, owner)
+        elif params:
+            body = {p.alias or p.name: _probe_value(p.field_info.annotation, owner) for p in params}
+    return client.request(method, path, params=query, json=body, headers=headers)
+
+
+if _SKIP is None:
+    SERVED = _served_routes()
+SWEEP = sorted(k for k, e in REGISTRY['routes'].items() if e['kind'] in ('account', 'public') and not k.startswith('MOUNT'))
+
+
+def _throwaway(world, gen: str):
+    """A fresh account of `gen` for a call that may change or end the caller's own session (logout, deletion)."""
+    t = Customer('Mallory')
+    email = f'mallory-{uuid.uuid4().hex[:10]}@tenant.example'
+    if gen == 'v28':
+        _ok(t.browser.post('/api/v28/auth/register', json={'email': email, 'password': 'Tenant-isolation-123!'}))
+        return t.browser, {}
+    prefix = '/api/live' if gen == 'live' else f'/api/{gen}'
+    token = _ok(world['client'].post(f'{prefix}/auth/register', json={'email': email, 'password': 'Tenant-isolation-123!'}))['token']
+    return world['client'], {'Authorization': 'Bearer ' + token}
+
+
+@pytest.mark.parametrize('key', SWEEP)
+def test_account_and_public_routes_never_show_another_customer(world, key):
+    """Every method of every route that takes no customer identifier, called by another account (a fresh one when the
+    call may change the caller's own account) or, for a public route, by an anonymous browser -- with A's ids in every
+    text field: nothing of A's comes back. Deployed configuration, the cookie session for v28."""
+    a, b = world['A'], world['B']
+    method, template = key.split(' ', 1)
+    gen = _gen_of(template)
+    if REGISTRY['routes'][key]['kind'] == 'public':
+        client, auth = world['anonymous'], {}
+        client.cookies.clear()
+    elif method in ('GET', 'HEAD'):
+        client, auth = b.signed_in(gen, 'deployed', world['client'])
+    else:
+        client, auth = _throwaway(world, gen)
+    before = _state(a)
+    got = _probe_call(client, key, a, auth)
+    _assert_no_trace(a, got, key)
+    assert _state(a) == before, f'{key}: a call by another account changed A\'s rows'
+    if client is world['anonymous']:
+        client.cookies.clear()
+
+
+def test_listings_and_search_show_only_the_callers_own_projects(world):
     client, a, b = world['client'], world['A'], world['B']
-    fixed = {'platform': 'android', 'engine': 'godot', 'asset_name': '148ai-logo-64.png', 'department_id': 'engineering'}
-    scanned = []
-    for key, entry in REGISTRY['routes'].items():
-        method, template = key.split(' ', 1)
-        if method != 'GET' or entry['kind'] not in ('account', 'public'):
-            continue
-        path = re.sub(r'\{(\w+)\}', lambda m: fixed[m.group(1)], template)
-        got = client.get(path, headers=b.headers(_gen_of(path)))
-        _assert_no_trace(a, got, key)
-        scanned.append(key)
-    assert len(scanned) >= 40, scanned
     for gen, listing in (('v28', '/api/v28/projects'), ('v26', '/api/v26/projects'), ('v27', '/api/v27/projects'),
                          ('live', '/api/live/projects')):
-        mine = {p['id'] for p in _ok(client.get(listing, headers=a.headers(gen)))['projects']}
-        theirs = {p['id'] for p in _ok(client.get(listing, headers=b.headers(gen)))['projects']}
+        mine = {p['id'] for p in _ok(_get(a, gen, client, listing))['projects']}
+        theirs = {p['id'] for p in _ok(_get(b, gen, client, listing))['projects']}
         assert a.ids_for(gen)['project_id'] in mine and not mine & theirs, (gen, mine, theirs)
     search = '/api/v28/projects/search'
-    assert _ok(client.get(search, headers=b.headers(), params={'q': a.marker, 'include_archived': True}))['projects'] == []
-    assert [p['id'] for p in _ok(client.get(search, headers=a.headers(), params={'q': a.marker}))['projects']] == [a.ids['project_id']]
-    sessions = _ok(client.get('/api/v28/auth/sessions', headers=b.headers()))['sessions']
+    assert _ok(b.browser.get(search, params={'q': a.marker, 'include_archived': True}))['projects'] == []
+    assert [p['id'] for p in _ok(a.browser.get(search, params={'q': a.marker}))['projects']] == [a.ids['project_id']]
+    sessions = _ok(b.browser.get('/api/v28/auth/sessions'))['sessions']
     assert a.ids['session_id'] not in {s['session_id'] for s in sessions}
+
+
+def _get(customer: Customer, gen: str, shared, path: str, **kw):
+    client, auth = customer.signed_in(gen, 'deployed', shared)
+    return client.get(path, headers=auth, **kw)
+
+
+def test_signing_in_does_not_tell_whether_an_account_exists(world):
+    """A's email with a wrong password is answered exactly like an email nobody registered (v28, v26, v27, live), and
+    a password reset for A's email like one for an unknown email."""
+    a, anon = world['A'], world['anonymous']
+    unknown = f'nobody-{uuid.uuid4().hex[:10]}@tenant.example'
+    for prefix, email in (('/api/v28', a.account['email']), ('/api/v26', 'v26-' + a.account['email']),
+                          ('/api/v27', 'v27-' + a.account['email']), ('/api/live', 'live-' + a.account['email'])):
+        anon.cookies.clear()
+        known = anon.post(f'{prefix}/auth/login', json={'email': email, 'password': 'Wrong-password-123!'})
+        nobody = anon.post(f'{prefix}/auth/login', json={'email': unknown, 'password': 'Wrong-password-123!'})
+        assert _normalized(known, {'email': email}) == _normalized(nobody, {'email': unknown}), prefix
+        assert known.status_code == 401, (prefix, known.status_code, known.text)
+    known = anon.post('/api/v28/auth/password-reset/request', json={'email': a.account['email']})
+    nobody = anon.post('/api/v28/auth/password-reset/request', json={'email': unknown})
+    assert _normalized(known, {'email': a.account['email']}) == _normalized(nobody, {'email': unknown})
+
+
+ANONYMOUS = sorted(k for k, e in REGISTRY['routes'].items() if e['kind'] not in ('legacy_ws', 'capability_url'))
+
+
+def _unauthenticated(spec: dict):
+    """The answer a caller without a session must get: None for a public route (anything, but no customer data)."""
+    if 'anonymous' in spec:
+        return spec['anonymous']
+    return {'public': None, 'legacy_refused': spec.get('refused'), 'admin': 403}.get(spec['kind'], 401)
+
+
+@pytest.mark.parametrize('key', ANONYMOUS)
+def test_an_anonymous_caller_gets_only_the_unauthenticated_answer(world, key):
+    """Deployed configuration (the Bearer middleware is off, as in Vercel production): every route that is not public
+    must refuse a caller with no cookie and no token by itself -- 401, or its own refusal for everyone (410/501 legacy,
+    403 for a staff key) -- even when the caller sends A's identifiers. Nothing of A's or B's comes back."""
+    spec = REGISTRY['routes'][key]
+    a, b, anon = world['A'], world['B'], world['anonymous']
+    anon.cookies.clear()
+    method, template = key.split(' ', 1)
+    before = _state(a)
+    if method == 'MOUNT':
+        got = anon.get(template + '/index.html')
+    elif 'ids' in spec:
+        got = _request(anon, key, spec, {n: a.ids_for(spec['world'])[n] for n in spec['ids']}, {})
+    else:
+        got = _probe_call(anon, key, a, {})
+    anon.cookies.clear()
+    expected = _unauthenticated(spec)
+    if expected is not None:
+        assert got.status_code == expected, \
+            f'{key} ({spec["kind"]}) answered {got.status_code} to a caller with no session, not {expected}: {got.text[:200]}'
+    for owner in (a, b):
+        _assert_no_trace(owner, got, f'{key} (anonymous)')
+    assert _state(a) == before, f'{key}: an anonymous call changed A\'s rows'
 
 
 def test_legacy_websockets_authorize_nothing(world):
