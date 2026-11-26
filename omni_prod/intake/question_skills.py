@@ -101,6 +101,14 @@ def domain_facts(text: str) -> list[str]:
             for f in domain['mandatory_facts'] if f['when'] is None]
 
 
+def names_the_business(item: str) -> bool:
+    """Is this domain_facts item the business name's own fact ("Name -- ask: ...", "Business name", "Name as shown",
+    "Agency name")? When the customer already stated the name it is not a topic to ask (rehearsals 45702506669 /
+    45702519795: both models asked it). A playbook item has no " -- ask:" and is never one."""
+    fact, sep, _ = (item or '').partition(' -- ask:')
+    return bool(sep) and 'name' in fact.lower()
+
+
 def checklist(family: str | None) -> list[str]:
     """The playbook for a family. An unknown or missing family is an error, never the web-app playbook: that silent
     default let a game be interviewed as a web app (warehouse 69, 2026-11-15). The router decides the family first."""

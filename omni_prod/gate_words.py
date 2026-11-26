@@ -457,6 +457,11 @@ WORDS: dict[str, Entry] = {
         ('الموقع يحاول تحميل صورة أو ملف غير موجود', 'سيرى الناس أجزاء معطوبة'),
         ('The site tries to load a picture or a file that does not exist', 'people will see broken parts')),
     'CONSISTENCY:manifest': _NO_START_FILE,
+    'CONSISTENCY:offscreen': _r(
+        ('חלק מוסתר בעמוד דוחף אותו הצידה, והעמוד נעשה רחב מהמסך', 'בטלפון העמוד נראה מוקטן, ואפשר לגלול אותו לצד'),
+        ('جزء مخفي في الصفحة يدفعها إلى الجانب، فتصبح أعرض من الشاشة', 'على الهاتف تبدو الصفحة مصغّرة، ويمكن تمريرها جانبيا'),
+        ('A hidden part of the page pushes it sideways, so the page is wider than the screen',
+         'on a phone the page looks shrunk, and it can be scrolled sideways')),
     'CONSISTENCY:accessibility': _r(
         ('העמוד לא מסומן נכון לשפה ולכיוון שלו, או שתמונה בו בלי תיאור',
          'הטקסט עלול להופיע הפוך, ומי שלא רואה לא ידע מה יש בתמונה'),

@@ -113,6 +113,72 @@ class RealBrowserTests(unittest.TestCase):
                   'unnamed_control', 'positive_tabindex', 'overlap', 'broken_image', 'low_contrast', 'console_error'):
             self.assertIn(k, kinds)
 
+    # bld_cb2d1b90a90f430c98603d14f8afa1a8 (2026-11-24): every round failed with "page width 11439px > viewport 1440px",
+    # "page width 10389px > viewport 1560px" and "no meta viewport", with no element named. One skip link at
+    # left:-9999px on a right-to-left page WITH a meta viewport gives exactly those numbers.
+    OFFSCREEN_PAGE = ('<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="utf-8">'
+                      '<meta name="viewport" content="width=device-width,initial-scale=1"><title>מספרה</title><style>'
+                      'body{margin:0;font-family:sans-serif;color:#111;background:#fff}'
+                      '.skip-link{position:absolute;left:-9999px;top:0;background:#111;color:#fff;padding:8px}'
+                      '.skip-link:focus{left:0}main{padding:16px}</style></head><body>'
+                      '<a class="skip-link" href="#main">דלג לתוכן</a><main id="main"><h1>מספרה בעיר</h1>'
+                      '<p>תורים בטלפון ובוואטסאפ</p></main></body></html>')
+
+    def _findings(self, page, viewport, port):
+        with tempfile.TemporaryDirectory() as d:
+            shutil.copy(FIXTURES / 'offscreen_app.py', Path(d) / 'app.py')
+            (Path(d) / 'page.html').write_text(page, encoding='utf-8')
+            (Path(d) / '.omni').mkdir()
+            (Path(d) / '.omni' / 'project.json').write_text(json.dumps(
+                {'port': port, 'start': [sys.executable, 'app.py'], 'health_path': '/'}))
+            proc = subprocess.run([sys.executable, '-c', SCRIPT, viewport], cwd=d, capture_output=True, text=True,
+                                  timeout=90, env=dict(os.environ, OMNI_CHROMIUM=CHROMIUM))
+        report, _ = parse(proc.stdout)
+        self.assertIsNotNone(report, proc.stderr[-800:])
+        return {f['kind']: f for f in report['findings'] if f['kind'] in ('h_overflow', 'no_mobile_viewport')}
+
+    def test_the_element_that_widens_the_page_is_named(self):
+        desktop = self._findings(self.OFFSCREEN_PAGE, 'desktop', 18734)
+        self.assertEqual(desktop['h_overflow']['at'], 'a.skip-link')
+        self.assertTrue(desktop['h_overflow']['detail'].startswith(
+            'page width 11439px > viewport 1440px; it sticks out at x -9999..'), desktop['h_overflow']['detail'])
+        mobile = self._findings(self.OFFSCREEN_PAGE, 'mobile', 18735)
+        self.assertEqual(mobile['h_overflow']['at'], 'a.skip-link')
+        self.assertTrue(mobile['h_overflow']['detail'].startswith('page width 10389px > viewport 390px'),
+                        mobile['h_overflow']['detail'])
+
+    def test_a_page_with_a_meta_viewport_is_never_called_one_without(self):
+        mobile = self._findings(self.OFFSCREEN_PAGE, 'mobile', 18736)
+        self.assertNotIn('no_mobile_viewport', mobile)                         # zoomed out by the overflow, not by it
+        bare = self.OFFSCREEN_PAGE.replace('<meta name="viewport" content="width=device-width,initial-scale=1">', '')
+        self.assertTrue(self._findings(bare, 'mobile', 18737)['no_mobile_viewport']['detail']
+                        .startswith('no meta viewport in the page'))
+
+    def test_the_platforms_rewrite_leaves_no_overflow(self):
+        from omni_prod.offscreen import rewrite
+        fixed, done = rewrite({'index.html': self.OFFSCREEN_PAGE})
+        self.assertEqual(done, ['index.html:1 left -9999px'])
+        for vp, port in (('desktop', 18738), ('mobile', 18739)):
+            self.assertEqual(self._findings(fixed['index.html'], vp, port), {}, vp)
+
+    def test_the_rewritten_skip_link_still_shows_when_focused(self):
+        from playwright.sync_api import sync_playwright
+        from omni_prod.offscreen import rewrite
+        page_html = rewrite({'index.html': self.OFFSCREEN_PAGE})[0]['index.html']
+        with sync_playwright() as p:
+            b = p.chromium.launch(executable_path=CHROMIUM, args=['--no-sandbox', '--disable-dev-shm-usage'])
+            page = b.new_context(viewport={'width': 1440, 'height': 900}).new_page()
+            page.set_content(page_html)
+            hidden = page.evaluate("() => document.querySelector('.skip-link').getBoundingClientRect().width")
+            page.keyboard.press('Tab')
+            shown = page.evaluate("() => { const e = document.activeElement, r = e.getBoundingClientRect();"
+                                  " return [e.className, r.width, r.left >= 0 && r.right <= innerWidth]; }")
+            b.close()
+        self.assertLessEqual(hidden, 1)
+        self.assertEqual(shown[0], 'skip-link')
+        self.assertGreater(shown[1], 20)
+        self.assertTrue(shown[2])
+
 
 if __name__ == '__main__':
     unittest.main()

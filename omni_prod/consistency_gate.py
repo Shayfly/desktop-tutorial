@@ -11,6 +11,8 @@ reported with an exact `file:line` and a concrete fix instead of a generic
                 behavioural acceptance plan calls exist on the server side
   static        local scripts/styles/images the page references exist or are served
   manifest      files named in .omni/project.json commands exist
+  offscreen     nothing is parked 999px or more off-screen on the side the page scrolls to (left on a right-to-left
+                page, right on a left-to-right one): omni_prod/offscreen.py, bld_cb2d1b90 (2026-11-24)
 
 Every check is conservative: when the repository's shape is not understood
 (no server source, dynamic paths) the check is skipped, never guessed. The
@@ -413,8 +415,18 @@ def _accessibility(repo: dict[str, str], out: list[Finding]) -> None:
                                    'add alt (empty alt="" for decoration)', blocking=False))
 
 
+# --------------------------------------------------------------- offscreen --
+def _offscreen(repo: dict[str, str], out: list[Finding]) -> None:
+    """The hiding idiom left:-9999px on a right-to-left page (right: on a left-to-right one) makes the page that much
+    wider. The worker's repository transform rewrites the plain cases before this runs (offscreen.rewrite); what is
+    left here could not be rewritten safely, so it blocks with its line and the platform's visually-hidden rule."""
+    from .offscreen import FIX, scan as offscreen_scan
+    for f in offscreen_scan(repo):
+        out.append(Finding('offscreen', f.path, f.line, f.message(), FIX))
+
+
 # -------------------------------------------------------------------- API --
-CHECKS = ('syntax', 'imports', 'routes', 'static', 'manifest', 'accessibility')
+CHECKS = ('syntax', 'imports', 'routes', 'static', 'manifest', 'accessibility', 'offscreen')
 
 
 def scan(repo: dict[str, str]) -> ConsistencyReport:
@@ -426,6 +438,7 @@ def scan(repo: dict[str, str]) -> ConsistencyReport:
     _static(repo, out); report.checks_run.append('static')
     _manifest(repo, out); report.checks_run.append('manifest')
     _accessibility(repo, out); report.checks_run.append('accessibility')
+    _offscreen(repo, out); report.checks_run.append('offscreen')
     return report
 
 

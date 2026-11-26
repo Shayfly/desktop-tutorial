@@ -27,7 +27,7 @@
    "mutations": [
     {
      "file": "omni_prod/conversation/supervisor.py",
-     "old": "                new_brief.prompt = (new_brief.prompt.rstrip() + '\\n' + line).strip()",
+     "old": "                new_brief.prompt = agent.with_name_line(new_brief.prompt, line)",
      "new": "                pass  # NEGATIVE CONTROL"
     }
    ],

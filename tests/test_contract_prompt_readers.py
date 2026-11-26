@@ -34,7 +34,9 @@ from omni_prod import discovery as d
 from omni_prod import fact_canon as F
 from omni_prod import uploaded_assets as U
 from omni_prod import window_catalog as W
-from omni_prod.repository_assets import file_bytes
+from omni_prod.repository_assets import asset_path, file_bytes
+from omni_prod.web_rendition import rendition
+from tests import real_images
 from omni_prod.autonomous_core import AutonomousProductEngine, ExecutionReport
 from omni_prod.build_contract import BuildContract
 from omni_prod.product_architect import ProductArchitect
@@ -44,10 +46,11 @@ from tests.test_window_catalog import AGE, COOKIES, _Arch, _Gen, _Rep, page
 ROW = json.loads((Path(__file__).parent / 'fixtures' / 'doors_contract_bc_8ffe6070.json').read_text(encoding='utf-8'))
 PROD_SHA = 'f1684ad30e8fbf976efc13145857740b50be2d3bd4cdea2722ef99656fd4126e'
 ATTACHMENT = 'att_6d5b3e6de6274a44829dd038da5c4539'
-PHOTO = b'\xff\xd8\xff' + b'doors' * 400
+PHOTO = real_images.jpeg(3, (1080, 720))          # a real photo: every photo is converted (image weight, 2026-11-26)
 PHOTO_SHA = hashlib.sha256(PHOTO).hexdigest()
 PHOTO_URI = 'data:image/jpeg;base64,' + base64.b64encode(PHOTO).decode('ascii')
-PHOTO_FILE = 'assets/148ai-upload-1.jpg'          # warehouse 118: the page references the photo as this file
+CARRIED = rendition(PHOTO, 'image/jpeg', place='hero')                   # what the page carries: the conversion
+PHOTO_FILE = asset_path('upload', 1, CARRIED['mime'])     # warehouse 118: the page references the photo as this file
 MARKER = '148ai-asset://upload/1'
 ALT = 'דלתות'
 
@@ -114,12 +117,14 @@ class TheProductionContract(unittest.TestCase):
         self.assertNotIn('148ai-asset://', seen)
         self.assertIn(f'src="{PHOTO_FILE}"', seen)                  # warehouse 118: a file, not a data URI
         self.assertNotIn('data:image', seen)
-        self.assertEqual(file_bytes(PHOTO_FILE, sandbox.seen[0][PHOTO_FILE]), PHOTO)   # the file holds the bytes
+        # the file holds the photo's conversion (image weight, 2026-11-26), made from the bytes the store returned
+        self.assertEqual(file_bytes(PHOTO_FILE, sandbox.seen[0][PHOTO_FILE]), CARRIED['data'])
+        self.assertEqual(CARRIED['original_sha256'], PHOTO_SHA)
         self.assertEqual((result.status, result.repair_rounds), ('ready', 0))
         Repo.return_value.get.assert_called_once_with(project_id='prj_-K3B8ZLIJawPEA', account_id='a',
                                                       attachment_id=ATTACHMENT)
-        self.assertIn(f'- image 1: src="{MARKER}"; place: hero; 1080x720 px; image/jpeg; alt="{ALT}"; file: {PHOTO_FILE}',
-                      build_prompt)
+        self.assertIn(f'- image 1: src="{MARKER}"; place: hero; 1080x720 px; {CARRIED["mime"]}; alt="{ALT}"; '
+                      f'file: {PHOTO_FILE}', build_prompt)
 
 
 class TheOwnersMutation(unittest.TestCase):

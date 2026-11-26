@@ -76,8 +76,10 @@ class GoogleImageProvider:
     def _validate(self, requirement):
         if requirement.key != 'media.image.generate':
             raise LookupError('Unsupported Google image capability')
-        if int(requirement.quantity) != requirement.quantity or not 1 <= requirement.quantity <= 3:
-            raise ValueError('Direct Google image generation supports 1 to 3 images per requirement')
+        # No upper bound (the owner, 2026-11-26: no image cap): each image is its own call below, so the loop's bound
+        # is the requirement's own quantity, and the quote (maximum x count) is what the build's ceiling admits.
+        if int(requirement.quantity) != requirement.quantity or requirement.quantity < 1:
+            raise ValueError('Direct Google image generation needs a whole number of images, at least 1')
         from .image_provider import PredictionImageProvider
         prompt = PredictionImageProvider._prompt(self, requirement)
         if not prompt.strip() or len(prompt.encode('utf-8')) > 16000:
