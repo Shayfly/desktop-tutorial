@@ -85,11 +85,23 @@ class ExecutorTests(unittest.TestCase):
         self.assertIsNone(shot)
 
 
+def _free_port() -> int:
+    """A port the OS says is free now. The tests passed fixed ports (18731-18739); two negative controls of
+    repair_converge_offscreen running at once (NC_JOBS=2) then started their pages on the same port and refused each
+    other (run 45860673027: ERR_CONNECTION_REFUSED at 127.0.0.1:18733). The fixed numbers stay as the tests'
+    arguments; this replaces them at the one place a page is started."""
+    import socket
+    with socket.socket() as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
+
+
 @unittest.skipUnless(HAVE_BROWSER, 'playwright + chromium not available')
 class RealBrowserTests(unittest.TestCase):
     """Runs the exact in-sandbox script against two fixture products."""
 
     def _run(self, app, viewport, port):
+        port = _free_port()
         with tempfile.TemporaryDirectory() as d:
             shutil.copy(FIXTURES / f'{app}_app.py', Path(d) / 'app.py')
             (Path(d) / '.omni').mkdir()
@@ -125,6 +137,7 @@ class RealBrowserTests(unittest.TestCase):
                       '<p>תורים בטלפון ובוואטסאפ</p></main></body></html>')
 
     def _findings(self, page, viewport, port):
+        port = _free_port()
         with tempfile.TemporaryDirectory() as d:
             shutil.copy(FIXTURES / 'offscreen_app.py', Path(d) / 'app.py')
             (Path(d) / 'page.html').write_text(page, encoding='utf-8')
