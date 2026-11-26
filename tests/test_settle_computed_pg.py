@@ -115,7 +115,7 @@ class SettleAtComputedCost(unittest.TestCase):
     def test_a_failed_build_keeps_the_computed_cost_not_the_estimate(self):
         self.check(FAILED, 'RELEASED')
 
-    def test_no_number_at_all_settles_at_the_reservation_loudly(self):
+    def test_no_number_at_all_is_named_and_not_settled_at_the_reservation(self):
         # The owner 2026-11-26: an image with NO number (no price configured) is no longer settled at the whole
         # reservation -- that recorded the reservation as the build's cost. It is left out of the measured sum and
         # named (cost_data_missing); the reservation remains only for liability that cannot be bounded (below).

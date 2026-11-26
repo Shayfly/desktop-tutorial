@@ -46,6 +46,15 @@ def content_version(*parts: Any) -> str:
     return h.hexdigest()[:12]
 
 
+PRICE_UNKNOWN_MARK = 'price unknown (authorized at the stand-in)'
+
+
+def price_unknown(selection_reason) -> bool:
+    """An attempt to a catalog model with no known price (routed_gateway marks it). Its metered cost is NULL; its
+    authorized amount is the stand-in worst case, which settlement and the plan meter charge (money review B1)."""
+    return PRICE_UNKNOWN_MARK in str(selection_reason or '')
+
+
 def metered_cost(option, input_tokens: int | None, output_tokens: int | None) -> Decimal | None:
     """usage x catalog price. Unknown when the provider did not report tokens."""
     if option is None or input_tokens is None or output_tokens is None:

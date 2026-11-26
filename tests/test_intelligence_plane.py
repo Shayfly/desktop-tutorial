@@ -116,7 +116,7 @@ class CatalogGovernanceTests(unittest.TestCase):
         self.assertEqual((m.option.input_per_million, m.option.output_per_million), (Decimal('1.50'), Decimal('7.50')))
         self.assertTrue(any('replaced by schedule' in n for n in m.governance_notes))
 
-    def test_managed_model_without_source_backed_price_fails_closed(self):
+    def test_managed_model_without_source_backed_price_routes_with_an_unknown_cost(self):
         # The owner 2026-11-26: "fail closed" is now about the PRICE, not the route. The catalog's unverified number is
         # still never trusted (price_known False, the stand-in for authorization), but the model is no longer left
         # out of a build: it routes and its calls are recorded with tokens and an unknown cost.

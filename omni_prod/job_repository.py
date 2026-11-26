@@ -81,9 +81,10 @@ class PostgresBuildRepository:
         unset so existing callers (acceptance_pipeline.py) that only pass the
         original five keyword arguments are unaffected.
 
-        The owner 2026-11-26 (cost data "from our side"): two columns of migration 004 that no path ever wrote are
-        recorded at the source -- ai_cost (the measured model spend, worker_tasks.recorded_ai_cost; left as is when
-        None) and build_seconds (started to finished, on every terminal state). bld_3938e570 had 0 in both."""
+        The owner 2026-11-26 (cost data "from our side"): ai_cost (migration 004, never written before) is recorded
+        at the source -- the measured model spend, worker_tasks.recorded_ai_cost; left as is when None (the column is
+        NOT NULL). Duration is not written to build_seconds (also NOT NULL: a build that never started would read 0);
+        the cost report derives it from started_at and finished_at."""
         from .build_state import assert_transition
         from .db import transaction
         assert_transition(expected, target)
@@ -92,9 +93,6 @@ class PostgresBuildRepository:
         finished_sql = "finished_at = NOW()," if target in {
             BuildStatus.READY, BuildStatus.FAILED, BuildStatus.CANCELLED
         } else ""
-        if finished_sql:
-            finished_sql += (" build_seconds = COALESCE(GREATEST(0, EXTRACT(EPOCH FROM (NOW() - started_at)))::integer,"
-                             " build_seconds),")
         phase = target.value.upper()
 
         sql = f"""

@@ -32,6 +32,7 @@ _TASK_STAGE = {'architecture': 'architecture', 'codegen': 'codegen', 'repair': '
                'modification': 'modification'}
 VISION_MARK = 'vision call'          # routed_gateway writes it into selection_reason of a call with images
 UNPRICED_PREFIX = 'unpriced:'
+from .attempt_ledger import price_unknown   # the one mark the gateway writes (money review B1)
 
 
 def _d(v) -> Decimal:
@@ -156,6 +157,7 @@ def _assemble(builds, attempts, usage, losses, refunds, intake, project_builds, 
         rounds = defaultdict(lambda: {'calls': 0, 'known_cost_usd': Decimal('0'), 'calls_without_cost': 0})
         verifications = 0
         known = Decimal('0')
+        stand_in = Decimal('0')
         unknown_items = 0
         for a in by_build_attempts.get(bid, ()):
             _, seq, kind, task, model, reason, tin, tout, metered, reported, authorized, outcome, when = a
@@ -186,9 +188,14 @@ def _assemble(builds, attempts, usage, losses, refunds, intake, project_builds, 
                     bucket['calls_without_cost'] += 1
                 if stage == 'repair':
                     rounds[max(1, verifications)]['calls_without_cost'] += 1
-                gap('model', model or '?', 'price_missing: tokens recorded, no price' if tin is not None or tout is not None
-                    else 'usage_not_reported: the provider answered nothing measurable (timeout)', bid, when,
-                    calls=1, tokens=int(tin or 0) + int(tout or 0))
+                if price_unknown(reason):     # money review B1: UNKNOWN; the plan was charged the stand-in
+                    stand_in += _d(authorized)
+                    why = 'price_missing: tokens recorded, no price (the plan is charged the stand-in worst case)'
+                elif tin is not None or tout is not None:
+                    why = 'flat_authorization: a configured route without a catalog price'
+                else:
+                    why = 'usage_not_reported: the provider answered nothing measurable (timeout)'
+                gap('model', model or '?', why, bid, when, calls=1, tokens=int(tin or 0) + int(tout or 0))
                 continue
             c = _d(cost)
             known += c
@@ -264,13 +271,16 @@ def _assemble(builds, attempts, usage, losses, refunds, intake, project_builds, 
             'duration_seconds': int((finished - started).total_seconds()) if finished and started else None,
             'repair_rounds': repair_rounds,
             'provider_cost_known_usd': _s(build_cost),
+            'stand_in_charged_usd': _s(stand_in),      # NOT a cost: the authorized worst case of price-unknown calls
             'cost_complete': unknown_items + conv['calls_without_cost'] == 0,
             'unknown_cost_items': unknown_items + conv['calls_without_cost'],
             'stages': stage_rows,
             'repair_rounds_cost': {str(k): {**v, 'known_cost_usd': _s(v['known_cost_usd'])}
                                    for k, v in sorted(rounds.items())},
             'models': {k: {**v, 'known_cost_usd': _s(v['known_cost_usd'])} for k, v in sorted(models.items())},
-            'recorded': {'ai_cost': _s(ai_cost), 'actual_provider_cost_usd': _s(actual),
+            'recorded': {'ai_cost': None if Decimal(str(record.get('stand_in_usd') or 0)) > 0 else _s(ai_cost),
+                         'llm_known_usd': record.get('llm_known_usd'), 'stand_in_usd': record.get('stand_in_usd'),
+                         'actual_provider_cost_usd': _s(actual),
                          'settled_provider_cost_usd': _s(settled), 'cost_record_basis': record.get('basis'),
                          'cost_record_total_usd': record.get('total_usd'),
                          'provider_cost_truth': settlement.get('provider_cost_truth'),

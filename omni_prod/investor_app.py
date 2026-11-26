@@ -1618,8 +1618,10 @@ def _owner_cost_report(request: Request, days: int, scope: str) -> dict:
 
 
 @app.get('/api/v28/owner/costs')
-def v28_owner_costs(request: Request, days: int = 14, scope: str = 'all') -> dict:
-    return _owner_cost_report(request, days, scope)
+def v28_owner_costs(request: Request, days: int = 14, scope: str = 'all'):
+    from fastapi.encoders import jsonable_encoder
+    return JSONResponse(jsonable_encoder(_owner_cost_report(request, days, scope)),
+                        headers={'Cache-Control': 'private, no-store'})
 
 
 @app.get('/owner/costs', response_class=HTMLResponse)

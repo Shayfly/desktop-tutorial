@@ -505,6 +505,12 @@ class ConversationSupervisor:
                 project = self.reservations.counted(pscope) - (held(pscope) if held else 0)
                 return project, self.reservations.counted(B.DAILY_SCOPE)
             return self.store.conversation_cost(project_id), self.store.daily_cost()
+        from ..pricing import owner_account
+        if owner_account(account_id):
+            # the owner 2026-11-26 ~16:10 UTC ("כן. רק מדידה"): his conversations have no per-project or daily cap --
+            # only measurement (intake_reservations keep every call, its tokens and cost; the cost report shows them).
+            # The reservation keeps a safety bound (OWNER_INTAKE_SAFETY_USD) so no loop is unbounded (CLAUDE.md §3).
+            spend = lambda: (Decimal('0'), Decimal('0'))   # noqa: E731
         worker_route_available = self.worker_interpreter is not None or (
             self.reservations is not None and self.enqueue is not None)
         return intake_mode.resolve_with_spend(spend, has_direct_gateway=self.gateway is not None,
@@ -536,6 +542,11 @@ class ConversationSupervisor:
             # Sonnet for the conversation agent only, on Venice (owner 2026-11-18): every other account keeps the
             # global list and ceiling, quoted exactly as before
             profile = agent.venice_profile() if VG.selected() else None
+        from ..pricing import owner_account
+        if owner_account(account_id):            # the owner 2026-11-26: measurement only, a safety bound per scope
+            import dataclasses
+            caps = dataclasses.replace(caps, project_usd=B.OWNER_INTAKE_SAFETY_USD,
+                                       daily_usd=B.OWNER_INTAKE_SAFETY_USD if caps.daily_usd is not None else None)
         return ReservedWorkerInterpreter(self.reservations, self.enqueue, account_id=account_id,
                                          project_id=project_id, request_key=request_key, caps=caps, task=task,
                                          venice_profile=profile)

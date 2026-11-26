@@ -243,8 +243,18 @@ class OwnerCostsOnTheRealPath(unittest.TestCase):
         record = evidence['economics_settlement']['cost_record']
         self.assertFalse(record['complete'])
         self.assertEqual(record['unpriced_model_calls'], 2)
-        self.assertEqual(Decimal(record['llm_usd']), Decimal('0'))    # the stand-in worst case is never a cost
+        # money review B1: the plan is charged the stand-in worst case (never $0), capped at the reservation; the
+        # model cost itself stays UNKNOWN -- llm_known_usd 0, ai_cost not written (NOT NULL column, left at its default)
+        stand_in = Decimal(record['stand_in_usd'])
+        self.assertGreater(stand_in, Decimal('0'))
+        self.assertEqual(Decimal(record['llm_known_usd']), Decimal('0'))
+        self.assertEqual(Decimal(record['llm_usd']), stand_in)
         self.assertEqual(ai_cost, Decimal('0'))
+        with self.pool.connection() as conn:
+            settled = conn.execute('SELECT settled_provider_cost_usd FROM credit_reservations WHERE build_id=%s',
+                                   (build_id,)).fetchone()[0]
+        self.assertEqual(Decimal(str(settled)), stand_in)
+        self.assertLessEqual(stand_in, Decimal('5.00'))
 
     # --------------------------------------------------------------- report
     def test_the_report_reads_each_build_back_per_stage_round_model_and_credit(self):
@@ -291,6 +301,9 @@ class OwnerCostsOnTheRealPath(unittest.TestCase):
         unpriced = {b['build_id']: b for b in r['builds']}[self.runs['unpriced'][0]]
         self.assertEqual(unpriced['stages']['codegen']['calls_without_cost'], 1)
         self.assertFalse(unpriced['cost_complete'])
+        self.assertEqual(Decimal(unpriced['provider_cost_known_usd']), Decimal('0'))      # UNKNOWN, not a cost
+        self.assertGreater(Decimal(unpriced['stand_in_charged_usd']), Decimal('0'))     # labelled as the stand-in
+        self.assertIsNone(unpriced['recorded']['ai_cost'])
 
     def test_the_report_carries_no_personal_data(self):
         text = json.dumps(self.report())

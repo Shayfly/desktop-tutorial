@@ -559,11 +559,11 @@ def computed_provider_cost(*, llm_actual, gateway_spend: Decimal, prior, capabil
     never relabelled as actual (COST_MODEL.md: computed != actual). None when a component has no number at all;
     the caller then settles at the reservation and says so loudly.
 
-    The owner 2026-11-26: a component whose PRICE is missing -- a capability event with no number or an 'unpriced:'
-    one, a model call with tokens but no price (`unpriced_llm_usd`, its stand-in worst case) -- is no longer a reason
-    to settle at the reservation (that would record the whole reservation as this build's cost). It is left out of
-    the sum and named in `cost_data_missing`: the computed cost is the measured part, the rest is unknown by name.
-    Only liability that cannot be bounded (an earlier worker's call with no exposure) still returns None."""
+    The owner 2026-11-26 and the money review of 00d7404 (B1): a model call whose PRICE is missing keeps its
+    authorized stand-in worst case in the gateway ledger, so the computed cost -- and the plan meter it settles --
+    is charged that amount (`unpriced_llm_usd` names it; never $0). A capability event with no number is named in
+    `cost_data_missing` and adds nothing it does not know. Only liability that cannot be bounded (an earlier worker's
+    call with no exposure) still returns None and settles at the reservation."""
     from .provider_contracts import unpriced
     missing = []
     price_missing = []
@@ -573,9 +573,8 @@ def computed_provider_cost(*, llm_actual, gateway_spend: Decimal, prior, capabil
     else:
         llm = Decimal(str(gateway_spend))
         llm_basis = 'gateway_spend_ledger'
-        if unpriced_llm_usd:
-            llm -= Decimal(str(unpriced_llm_usd))
-            price_missing.append('model calls without a price')
+        if unpriced_llm_usd:      # money review B1: charged at the stand-in worst case, never at $0 -- and named
+            price_missing.append(f'model calls without a price: charged at the stand-in worst case {unpriced_llm_usd}')
         if prior:
             llm += Decimal(str(prior.get('metered_usd') or 0)) + Decimal(str(prior.get('unknown_exposure_usd') or 0))
             if prior.get('unknown_calls') and not prior.get('unknown_exposure_usd'):
@@ -756,14 +755,16 @@ def capability_ceiling_for(request: dict) -> Decimal:
 
 
 def _unpriced_calls(gateway) -> list:
-    """Model calls whose provider reported tokens but whose model has no price (metered cost None with usage): the
-    owner 2026-11-26 -- they ran, their tokens are recorded, their cost is unknown. Their authorized worst case is a
-    stand-in, never a cost, so it is taken out of the computed model spend (computed_provider_cost)."""
+    """Model calls to a catalog model with no known price (routed_gateway marks them, attempt_ledger.price_unknown):
+    they ran, their tokens are recorded, their cost is UNKNOWN; the plan is charged their authorized stand-in worst
+    case (money review B1). Decided by the mark, never by "metered is None" (S1): a configured fallback route has no
+    catalog price either and keeps its flat per-call authorization as its cost, as before."""
+    from .attempt_ledger import price_unknown
     records = getattr(getattr(gateway, 'recorder', None), 'records', None) or []
     return [r for r in records if getattr(r, 'kind', None) == 'provider_call'
             and getattr(r, 'metered_cost_usd', None) is None and (getattr(r, 'authorized_cost_usd', None) or 0) > 0
             and getattr(r, 'provider_reported_cost_usd', None) is None
-            and (getattr(r, 'input_tokens', None) is not None or getattr(r, 'output_tokens', None) is not None)]
+            and price_unknown(getattr(r, 'selection_reason', None))]
 
 
 def cost_data_missing(gateway, capability_evidence=None, economics_quote=None) -> list[dict]:
@@ -781,11 +782,15 @@ def cost_data_missing(gateway, capability_evidence=None, economics_quote=None) -
         if not (getattr(r, 'authorized_cost_usd', None) or 0) > 0 or getattr(r, 'provider_reported_cost_usd', None) is not None:
             continue
         tin, tout = getattr(r, 'input_tokens', None), getattr(r, 'output_tokens', None)
-        if tin is not None or tout is not None:
+        from .attempt_ledger import price_unknown
+        if price_unknown(getattr(r, 'selection_reason', None)):
             gap = 'price_missing'
             why = ('the model has no known price (catalog / source-backed schedule): the tokens are recorded, the cost '
-                   'is unknown' if getattr(r, 'price_catalog_version', None) else
-                   'a configured route without a catalog price: the tokens are recorded, the cost is unknown')
+                   'is unknown; the plan is charged the stand-in worst case')
+        elif tin is not None or tout is not None:
+            gap = 'flat_authorization'
+            why = ('a configured route without a catalog price: the tokens are recorded; its cost is its flat per-call '
+                   'authorization (OMNI_EXTERNAL_MAX_ESTIMATED_COST_USD_PER_CALL), not a measured price')
         else:
             gap = 'usage_not_reported'
             why = ('the provider reported no usage (a timeout or an unreadable answer): the cost is unknown, bounded '
@@ -794,6 +799,8 @@ def cost_data_missing(gateway, capability_evidence=None, economics_quote=None) -
         row = rows.setdefault(('model', name, gap), {'kind': 'model', 'name': name, 'provider': getattr(r, 'provider', None),
                                                      'gap': gap, 'why': why, 'calls': 0, 'input_tokens': 0,
                                                      'output_tokens': 0, 'tasks': []})
+        row['authorized_usd'] = str(Decimal(str(row.get('authorized_usd') or 0))
+                                    + Decimal(str(getattr(r, 'authorized_cost_usd', 0) or 0)))
         row['calls'] += 1
         row['input_tokens'] += int(tin or 0)
         row['output_tokens'] += int(tout or 0)
@@ -851,18 +858,19 @@ def prior_worker_metered_cost(pool, build_id: str) -> dict | None:
     (lost) worker. None when nothing was recorded. `unknown` counts served
     calls without metered cost; the call in flight at the moment of a crash
     never reached the ledger and cannot be counted."""
+    from .attempt_ledger import PRICE_UNKNOWN_MARK
     try:
         with pool.connection() as conn:
             row = conn.execute(
                 "SELECT count(*), COALESCE(sum(metered_cost_usd), 0), "
                 "count(*) FILTER (WHERE metered_cost_usd IS NULL AND outcome IN ('ok', 'unknown') "
-                "                 AND COALESCE(authorized_cost_usd, 0) > 0 AND input_tokens IS NULL), "
-                "COALESCE(sum(authorized_cost_usd) FILTER (WHERE metered_cost_usd IS NULL AND outcome IN ('ok', 'unknown') "
-                "                                          AND input_tokens IS NULL), 0), "
-                # the owner 2026-11-26: tokens came back but the model has no price -- unknown by name, not liability
-                "count(*) FILTER (WHERE metered_cost_usd IS NULL AND input_tokens IS NOT NULL "
-                "                 AND COALESCE(authorized_cost_usd, 0) > 0) "
-                "FROM task_attempts WHERE build_id = %s AND kind = 'provider_call'", (build_id,)).fetchone()
+                "                 AND COALESCE(authorized_cost_usd, 0) > 0), "
+                "COALESCE(sum(authorized_cost_usd) FILTER (WHERE metered_cost_usd IS NULL AND outcome IN ('ok', 'unknown')), 0), "
+                # money review S1: a price-unknown call is named by its mark (it is charged its stand-in exposure,
+                # like any unmetered call above); a fallback route without a catalog price is not one of them
+                "count(*) FILTER (WHERE metered_cost_usd IS NULL AND selection_reason LIKE %s) "
+                "FROM task_attempts WHERE build_id = %s AND kind = 'provider_call'",
+                ('%' + PRICE_UNKNOWN_MARK + '%', build_id)).fetchone()
     except Exception:
         logging.getLogger(__name__).warning('prior attempt lookup failed for %s', build_id, exc_info=True)
         return None
@@ -939,6 +947,12 @@ def resolve_m5_billing(
             llm_actual=llm_actual, gateway_spend=gateway_spend, prior=prior,
             capability_evidence=capability_evidence, infra_max=infra_max, unpriced_llm_usd=unpriced_llm)
         cost_basis = {**cost_basis, 'settlement': computed_basis}
+        reserved_total = quote.get('total_authorized_variable_usd')
+        if computed is not None and unpriced_llm > 0 and reserved_total not in (None, '', 'None') \
+                and computed > Decimal(str(reserved_total)):
+            # money review B1: the stand-in is charged, but never above what this build reserved
+            computed = Decimal(str(reserved_total))
+            cost_basis['settlement'] = {**computed_basis, 'capped_at_reservation': str(computed)}
         if computed is None:
             # Fails loudly, never silently: the reservation is the only number left, and the log and the evidence
             # name the component that had none.
@@ -960,6 +974,11 @@ def resolve_m5_billing(
                                                                else computed_basis.get('capability_usd')),
         'infrastructure_usd': str(infra_max), 'external_model_calls': external_calls,
         'unpriced_model_calls': len(_unpriced_calls(gateway)), 'cost_data_missing': gaps,
+        # money review B1: what is KNOWN, and the stand-in charged for calls whose price is missing (not a price)
+        'stand_in_usd': str(unpriced_llm),
+        'llm_known_usd': (str(llm_actual) if actual is not None else
+                          (str(Decimal(str(computed_basis['llm_usd'])) - unpriced_llm)
+                           if computed_basis.get('llm_usd') is not None else None)),
         'complete': actual is not None or (computed is not None and not gaps),
         'bounds_near': list(getattr(gateway, 'near_bounds', None) or []),
     }
@@ -1000,6 +1019,11 @@ def recorded_ai_cost(settlement_evidence) -> Decimal | None:
     record = (settlement_evidence or {}).get('cost_record') if isinstance(settlement_evidence, dict) else None
     raw = (record or {}).get('llm_usd')
     if raw in (None, '', 'None'):
+        return None
+    if Decimal(str((record or {}).get('stand_in_usd') or 0)) > 0:
+        # money review B1: a build with an unpriced call has no known model cost. The column is NOT NULL (migration
+        # 004), so it is left as it is (0) and the evidence carries llm_known_usd and stand_in_usd; NULL needs a
+        # migration, which the owner decides.
         return None
     try:
         value = Decimal(str(raw))

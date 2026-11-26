@@ -348,9 +348,19 @@ def founder_no_build_limit_enabled() -> bool:
     raise ValueError(f"OMNI_FOUNDER_NO_BUILD_LIMIT must be '0' or '1', not {raw!r}")
 
 
+OWNER_ACCOUNT_ID = 'usr_GCWlMxENgr9vpwph'
+
+
+def owner_account(account_id) -> bool:
+    """The owner, 2026-11-26 ~16:10 UTC: "כרגע לא, רק באישור שלי" -- the removals of that day (build money limits,
+    conversation caps) apply to HIS account only. Deliberately NOT OMNI_FOUNDER_ACCOUNT_IDS: an operator value there
+    must not widen them without his approval. Widening is a code change he approves."""
+    return bool(account_id) and str(account_id) == OWNER_ACCOUNT_ID
+
+
 def founder_no_build_limit(account_id) -> bool:
-    """True for the founder account while the owner's rule of 2026-11-26 is on (see FOUNDER_SAFETY_BUILD_USD)."""
-    return founder_no_build_limit_enabled() and m5_founder_account(account_id)
+    """True for the owner's account while the owner's rule of 2026-11-26 is on (see FOUNDER_SAFETY_BUILD_USD)."""
+    return founder_no_build_limit_enabled() and owner_account(account_id)
 
 
 def founder_safety_bounds() -> dict:

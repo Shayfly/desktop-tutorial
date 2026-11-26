@@ -666,6 +666,13 @@ class ReservationService:
         return sent
 
 
+# The owner, 2026-11-26 ~16:10 UTC ("כן. רק מדידה"): his conversations keep no per-project or daily cap, only
+# measurement. This is the safety bound his reservations carry instead (CLAUDE.md §3: nothing unbounded) -- about
+# 350 times what all intake cost in the last 14 days ($0.14, production intake_reservations, 2026-11-26). His calls
+# still count in the shared daily scope that bounds the other accounts.
+OWNER_INTAKE_SAFETY_USD = Decimal('50')
+
+
 def caps_from_env(lane: str = PRODUCTION) -> Caps:
     def money(name, default='0'):
         try:

@@ -215,22 +215,36 @@ class RoutedModelGateway:
         return {'worker_env_calls_per_build': before, 'effective_calls_per_build': max_calls,
                 'policy_version': self.policy_version}
 
-    def _note_near_bounds(self) -> None:
+    def _note_near_bounds(self, refused: dict | None = None) -> None:
         """One log line per bound when this run passes pricing.SAFETY_NEAR_FRACTION of its call limit or of its model
         budget (the owner 2026-11-26: the founder's safety bounds are logged when a build comes near them; every
-        other build gets the same line about its own limits). The list is kept for the build evidence."""
+        other build gets the same line about its own limits). The list is kept for the build evidence.
+
+        The money value is the AUTHORIZED ledger (calls in flight at their worst case, finished calls at their metered
+        cost), not measured spend -- the line and the evidence say so. `refused`: the call that was refused at the
+        bound ({'bound', 'requested'}); a run that jumps from under 80% straight to a refusal is logged too."""
         from .pricing import SAFETY_NEAR_FRACTION
         seen = self.__dict__.setdefault('near_bounds', [])
         named = {item['bound'] for item in seen}
         for name, used, limit in (
                 ('external_calls', Decimal(self.state.external_calls), Decimal(self.policy.max_external_calls_per_build)),
-                ('external_spend_usd', Decimal(str(self.state.external_spend_usd)), Decimal(str(self.policy.external_budget_usd)))):
-            if name in named or limit <= 0 or used < limit * SAFETY_NEAR_FRACTION:
+                ('external_authorized_usd', Decimal(str(self.state.external_spend_usd)),
+                 Decimal(str(self.policy.external_budget_usd)))):
+            wanted = used + Decimal(str((refused or {}).get('requested') or 0)) \
+                if refused and refused.get('bound') == name else used
+            if name in named or limit <= 0 or wanted < limit * SAFETY_NEAR_FRACTION:
                 continue
-            seen.append({'bound': name, 'used': str(used), 'limit': str(limit)})
+            item = {'bound': name, 'used': str(used), 'limit': str(limit),
+                    'value': 'authorized ledger, not spend' if name == 'external_authorized_usd' else 'calls'}
+            if refused and refused.get('bound') == name:
+                item['refused_at_the_bound'] = str(wanted)
+            seen.append(item)
             import logging
-            logging.getLogger(__name__).warning('BOUND_NEAR %s %s of %s (%s%% of the bound)', name, used, limit,
-                                                (used * 100 / limit).quantize(Decimal('1')))
+            logging.getLogger(__name__).warning('BOUND_NEAR %s %s of %s (%s%% of the bound%s)%s', name, used, limit,
+                                                (wanted * 100 / limit).quantize(Decimal('1')),
+                                                '; authorized, not spend' if name == 'external_authorized_usd' else '',
+                                                f'; refused: would reach {wanted}' if 'refused_at_the_bound' in item
+                                                else '')
 
     @property
     def last_usage(self):
@@ -258,12 +272,21 @@ class RoutedModelGateway:
                  call_id: str = ''):
         if not call_id:
             raise ValueError('an attempt without a call id cannot be priced per call')
-        authorize_model_call(
-            endpoint=route.endpoint,
-            policy=self.policy,
-            state=self.state,
-            estimated_cost_usd=route.max_estimated_cost_usd,
-        )
+        from .model_policy import ModelPolicyViolation as _Refused
+        try:
+            authorize_model_call(
+                endpoint=route.endpoint,
+                policy=self.policy,
+                state=self.state,
+                estimated_cost_usd=route.max_estimated_cost_usd,
+            )
+        except _Refused as refusal:       # money review S3: a jump straight from under 80% to the bound is said too
+            text = str(refusal)
+            if 'budget exceeded' in text or 'call limit' in text:
+                self._note_near_bounds(refused={'bound': 'external_calls', 'requested': 1} if 'call limit' in text
+                                       else {'bound': 'external_authorized_usd',
+                                             'requested': route.max_estimated_cost_usd})
+            raise
         if route.endpoint.external:
             self._note_near_bounds()
         started = time.monotonic()
@@ -559,6 +582,12 @@ class RoutedModelGateway:
                 refused.append((route, why_not))
             else:
                 routes.append((route, kwargs, 'configured fallback', None))
+        # The owner 2026-11-26 / money review: a catalog model with no known price is marked in the attempt's
+        # selection_reason (attempt_ledger.PRICE_UNKNOWN_MARK) -- the one place every reader (settlement, the
+        # reconciler, the cost report) tells "price unknown" from "usage not reported" or a configured fallback route.
+        from .attempt_ledger import PRICE_UNKNOWN_MARK
+        routes = [(r, k, w if o is None or getattr(o, 'price_known', True) else f'{w}; {PRICE_UNKNOWN_MARK}', o)
+                  for r, k, w, o in routes]
         for route, why_not in refused:
             self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, 0,
                                     f'not contacted: {why_not}'[:300], call_id=call_id,
