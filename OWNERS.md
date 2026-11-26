@@ -64,6 +64,10 @@ later decision changed plan v3, the plan's wording is kept beside it.
    and a separate verification query. Each deletion is reported to the owner: the table, the rows and their count, the
    backup branch, and the old values. The same messages approve the declarations Claude Code types in his name
    (CLAUDE.md section 8), each with its `signature_note`.
+10. **The order of work (the owner, 22:14 and 22:16):** "בניית משחקים ואפליקציות הכי חשוב", and "אחרי אתרים
+    מעדיף שתבנה הכול ביחד, תמזג מה שאפשר". The customers' sites are finished first; after them everything is built
+    together, games and apps first among it, and changes that can share one pull request are merged as a bundle. Music
+    and video wait (the owner, 2026-11-26 08:34; WAREHOUSE.md item 137).
 
 ## 2026-11-21 — the owner: only Claude Code works
 

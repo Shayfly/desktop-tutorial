@@ -2,6 +2,16 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| A1-RELEASE | Claude Code | Released | #531 `8b7d204` -> `ac10e94` [release], #533 `91290f8` -> `8911e32` [release]; runs 45702506669, 45702519795; deploy-worker 45699791750, 45709671445; STATUS.md 2026-11-26 |
+| LAWS-5-6 | Claude Code | Merged | #534 `9d04b99` -> `4690d01`; STATUS.md 2026-11-26 |
+| LAWS-2-6 | Claude Code | Merged (CI only, no release) | #535 `5bf1522` -> `fa41a5d`; CI 25 passed; supersedes the rows LAW2-EVIDENCE-RUNS and LAW6-FRESHNESS-ISSUES below; STATUS.md 2026-11-26 |
+| REPLAY-530 | Claude Code (the owner merged #530) | Merged with a defect, not deployed; fix in the sites bundle | #530 `be137fd` -> `5bcfefe`; fix `9272dee`; 19 pg tests; controls 15/15 and 7/7; STATUS.md 2026-11-26 |
+| S1-GOV | Claude Code (the owner merged #532) | Merged; 23 review fixes on a follow-up branch | #532 `d7b861d` -> `18dba53`; v24-ci negative-controls timeout, run 45713038574; STATUS.md 2026-11-26 |
+| GOA-ROUTE | Claude Code | In progress | bld_3938e570; branch route-honesty |
+| FLEET-ROOTS | Claude Code | In progress | diagnosis w2fwdjhzk; branches image-subject, repair-converge |
+| RED-EVIDENCE | Claude Code | In progress | runs 37814803770, 37954236866, 39377332673, 43657047045; branch red-evidence |
+| TENANT-S4.5 | Claude Code | In progress | branch tenant-isolation |
+| MEDIA-137 | the owner | In the warehouse (item 137) | the owner, 2026-11-26: music and video wait; STATUS.md 2026-11-26 |
 | LAW2-EVIDENCE-RUNS | Claude Code | Implemented with review fixes, verified locally; branch not pushed; real read-only run exit 0 (18 of 22 green, 4 known red listed in docs/evidence-runs-known-red.json, not fixed) | `claude/practical-hopper-oi3qj2-law2-evidence`; `scripts/resolve_evidence_runs.py`, `.github/workflows/evidence-runs.yml`; tests 76 passed, controls 52/52; STATUS.md 2026-11-25 |
 | LAW6-FRESHNESS-ISSUES | Claude Code | Implemented with review fixes, verified locally; branch not pushed | `.github/workflows/critical-path-freshness.yml` issue step (not-verified titles, close on PASS); tests 22 + 8 passed, controls 25/25 + 3/3; STATUS.md 2026-11-25 |
 | AGENT-SKILLS-525-APPROVAL | Codex | Owner approved exact declarations; HOLD for CI and independent merge review | #525, approved candidate `e1c8a7d7`, base `042253f5`; STATUS.md 2026-11-25 |

@@ -1,3 +1,56 @@
+# 2026-11-26 — the evening of 2026-11-25 and this morning: two releases, four merges without a release, what is open (Claude Code)
+
+- **Released** (CI green on the exact head; the owner's standing approval of 2026-11-25, OWNERS.md rule 1):
+  - #531 `8b7d204` -> `ac10e94` [release]: A1 staged. The measured conversation profile (luna, then Sonnet) stayed
+    active and `CANDIDATES` listed both A1 models. deploy-worker 45699791750 success; Vercel
+    `dpl_HjuBGyt1MVgGWwApWesH4TJoayyc` READY.
+  - **A1 measurement** on the deployed worker `ac10e94` (conversation-rehearsal, path=agent, three scripted
+    conversations each): Gemini Flash-Lite 3/3 passed, $0.0288 in all, 2 of 16 calls answered invalid JSON (run
+    45702506669); Claude Haiku 3/3 passed, $0.0059, no failed call (run 45702519795). The owner chose Flash-Lite first
+    after the numbers ("א נבדוק אותו", 21:30 UTC).
+  - #533 `91290f8` -> `8911e32` [release]: Flash-Lite first, Haiku when the primary is ineligible. deploy-worker
+    45709671445 success; Vercel `dpl_2kmLPjTcYV1yQRVDnKQrHigMnX2A` READY. **Production (worker and Vercel) is
+    `8911e32`.**
+- **Merged without a release** (production unchanged: deploy-worker skipped, Vercel production CANCELED):
+  - #534 `9d04b99` -> `4690d01`: laws 5 and 6 in CI; an added weakening and a deleted binary need a signed declaration.
+  - #530 `be137fd` -> `5bcfefe` (merged by the owner, 22:24): the replay judges stored versions with the contract
+    production used. **Defect on main, not deployed:** the lineage SQL follows `project_versions.parent_id`, so a build
+    version whose build died before recording it borrows the previous build's contract (a data app can be judged with
+    a content-site scope), and one lookup costs 0.25 to 13 s at 200,000 versions (local PostgreSQL 16; an estimate of
+    scale, production row counts not read). Fix: `9272dee` on `claude/practical-hopper-oi3qj2-replay-scope-530`
+    (parent_id never followed; the project's builds read once; the walk stops at the first contracted build), 19 pg
+    tests, controls contract_scope_lineage_pg 15/15 and replay_content_scope 7/7; merged into the sites bundle, which
+    must land before any other release. My bug.
+  - #532 `d7b861d` -> `18dba53` (merged by the owner, 22:24): the system map, the eleven laws, the PR report, OWNERS.
+    Merged before its review's 23 fixes; they are on `claude/practical-hopper-oi3qj2-s1-governance-fixes`. On main
+    after the merge, v24-ci `negative-controls` ran out its 18-minute limit (run 45713038574); the required `test` job
+    passed.
+  - #535 `5bf1522` -> `fa41a5d` (08:35): laws 2 and 6 in CI. Every run id cited as evidence is looked up
+    (`scripts/resolve_evidence_runs.py`, workflow `evidence-runs.yml`, on pull requests and daily); the four red ones
+    are listed in `docs/evidence-runs-known-red.json` and each prints a warning. After each scheduled freshness run on
+    main, a broken critical path opens or updates one GitHub issue, and a recovered path closes it. CI on `5bf1522`:
+    25 checks passed, `publish-report` skipped by its own condition.
+- **The owner's failed builds:**
+  - GOA (bld_3938e57065794a6495ddfea04dc5dcd1): a smoke shop was written as a law firm. Root: the palette fallback
+    `NO_SIGNAL = 'lawyers'` (`omni_prod/vertical_palettes.py:74`) was read by `site_content`'s `domain_for(category)` as
+    the business domain. The content route also accepted what it cannot serve (several pages, a picture per category,
+    pictures uploaded later), and one PRICE_NOT_GIVEN after a correction failed the build. My bug. Fix in progress
+    (branch route-honesty), for the sites bundle.
+  - The last 14 days (production, read-only): 8 of 27 builds READY, none on the first pass. Four roots, each shown on
+    real rows (diagnosis workflow w2fwdjhzk): image requirements planned without `constraints.subject`
+    (image_mismatch; ShayFly would fail again); repairs ranked by the head stage only, so a good repair is discarded;
+    the customer told stale findings; an RTL element placed at -9999px makes an 11,439 px overflow. Fixes in progress
+    (branches image-subject, repair-converge), for the sites bundle.
+- **Law 2:** four run ids cited as evidence of verified capabilities are red on GitHub: 37814803770 (model-probe),
+  37954236866 (crash recovery), 39377332673 (paid build, a supporting id), 43657047045 (vision-probe). #535 lists
+  them; a repair branch is in progress (red-evidence).
+- **Started (plan v3 S4.5):** a tenant isolation audit of memory, files and previews, with two real accounts on real
+  PostgreSQL (branch tenant-isolation).
+- **The owner's decision, 2026-11-26 (about 08:35 UTC):** music and video wait ("מוזיקה ווידיאו לחכות בינתיים נטפל
+  בזב אחר כך"); WAREHOUSE.md item 137. The open question of (a) Google with a Hebrew test or (b) waiting is answered (b).
+- **Not verified:** no paid build has run since the two releases; the A1 order is measured on three scripted
+  conversations each, not on customer traffic.
+
 # 2026-11-25 — Law 2 evidence runs and Law 6 freshness issues (Claude Code; implemented, review fixes in, verified locally, NOT yet run on GitHub)
 
 - Law 2: `scripts/resolve_evidence_runs.py` looks up every GitHub Actions run cited as evidence -- the Evidence, Requirement.observed and ProviderEvidence records, and (review fix) every non-docstring string of `omni_prod/**.py` that names a run ("run <id>") -- 22 ids. One `::error` per id that GitHub no longer has (EXPIRED: run again and cite the new run), is not completed, not `success`, not on its cited commit, or not of the workflow the text names; an API error is unverified, never a pass. The guard against an undeclared evidence file resolves names (re-exports, `import *`, module aliases, aliases, `dataclasses.replace`). `.github/workflows/evidence-runs.yml`: on PRs touching a citing file, daily, by hand; not required. Local evidence: `tests/test_resolve_evidence_runs.py` 76 passed; controls evidence_runs 52/52 PASS.
