@@ -1,0 +1,133 @@
+{
+ "pr": "system-map",
+ "sha256": [
+  "tests/test_system_map.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "an unknown status word is guessed instead of raising",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "    if word not in PLAN_STATE:\n        raise ValueError(",
+     "new": "    if word not in PLAN_STATE:  # NEGATIVE CONTROL\n        return 'IMPLEMENTED'\n        raise ValueError("
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_word_raises"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a stale verification counts as verified",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "    'STALE': 'IMPLEMENTED',\n",
+     "new": "    'STALE': 'VERIFIED',  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_the_committed_map_is_what_the_code_gives",
+    "test_the_mapping_of_the_plan"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a gap list no longer makes a component PARTIAL",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "    if gaps and state in ('IMPLEMENTED', 'CONNECTED'):\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_the_committed_map_is_what_the_code_gives",
+    "test_the_mapping_of_the_plan"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a unit test is taken as an execution check",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "    'UNIT_TESTED': 'IMPLEMENTED',\n",
+     "new": "    'UNIT_TESTED': 'VERIFIED',  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_the_committed_map_is_what_the_code_gives",
+    "test_the_mapping_of_the_plan"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a source's LIVE is copied as LIVE without deployed evidence",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "    'LIVE': 'VERIFIED',\n",
+     "new": "    'LIVE': 'LIVE',  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_live_is_never_derived_here",
+    "test_the_committed_map_is_what_the_code_gives"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a model with a credential but no tested connection counts as CONNECTED",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "        elif m['connection_state'] == 'CONNECTION_TESTED':\n",
+     "new": "        elif m['credential_state'] == 'CREDENTIAL_PRESENT':  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_a_credential_alone_is_not_connected",
+    "test_the_committed_map_is_what_the_code_gives"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "relative imports resolve one level too high",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "    base = package[:len(package) - (node.level - 1)] if node.level > 1 else package\n",
+     "new": "    base = package[:len(package) - node.level]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_relative_imports_resolve_as_python_does",
+    "test_the_committed_map_is_what_the_code_gives"
+   ]
+  }
+ ]
+}
