@@ -25,6 +25,48 @@
 - Evidence: `tests/test_crash_resume_pg.py` (real worker processes SIGKILLed before any checkpoint, after the spec, after round 0 and while round 2 is verified; real PostgreSQL 16; scripted model over loopback HTTP behind the real gateway): 12 passed, 17 subtests; `tests/test_crash_resume.py` 16 passed, 16 subtests. Each continued build equals the uninterrupted one (READY, 3 rounds, same round snapshots); the second worker made generator 1 + repair 3 / repair 3 / repair 2 calls and never the architect; resume_verdict passes all three and still fails the logged ledger of run 37955419872. Controls `crash_resume` 10/10 (5 default + 6 pg, NC3 in both); every other control set whose mutations touch a file this changes: 287/287 default (45 specs) and 26/26 in the pg mode (8 specs; worker-build-not-found with a private Redis).
 - Found, not changed (cost is set aside): after a kill during a model call the settlement of the continued build includes that call's authorized worst case (`computed_provider_cost` adds `unknown_exposure_usd`): measured here 0.118852 settled (0.006582 metered + the in-flight codegen call's 0.11227 authorized) against 0.006582 metered; an uninterrupted build settles 0.006582. crash-verify's check "lost worker's calls are in the ledger and the settlement" (settled == ledger metered sum) will therefore fail on a real crash run; the S4.2 check itself is separate.
 - Not run: the whole `tests/` suite (by instruction); no workflow dispatched; nothing pushed; crash-verify on the worker host (needs the release).
+# 2026-11-26 — caps-a: the customer limits that are not money, cancelled (Claude Code; branch, not pushed)
+
+The owner's decision of 2026-11-26 10:01 UTC, option (א) (WAREHOUSE 136: money limits stay). Branch
+`claude/practical-hopper-oi3qj2-caps-a`, local commits only (no push, no PR, no release). Implemented and verified
+locally (tests and negative controls below); not verified in CI or production.
+
+- Content route: up to 3 corrections (was 1), each round in the build evidence (`site_route.correction_rounds`).
+- Content schema item maxima raised (services/FAQ 24, steps 12, testimonials 12, price list 12 x 30, topics 12, facts
+  12, paragraphs 6, numbers 6); a page past the preview's 45,000-character capture is judged up to its last complete
+  section (`preview_smoke.served_cut`), never a fact cut in half.
+- No silent cut of the customer's words: the model reads the whole message (8,000); the build prompt keeps every
+  approved decision (bound 64,000, a cut said in the prompt, the plan and the build evidence); a new brief carries 20
+  messages / 48,000 characters and says what it left out; model reply 4,000, requirements 60, proposals 200, each
+  applied bound said; the customer's outline 60 sections / 4,000 characters, a cut said at gate 1.
+- A live preview lives a day (was an hour); the owner's link follows it. An approval is valid a day (was 30 minutes);
+  any change to what it covers still refuses it.
+- The conversation history is paged by a cursor (GET .../conversation/messages?before=).
+- 20 images a message (was 6), 200 a project (was 40); 3 MiB and the 4.5 MB body stay.
+- The public plan view no longer promises max_projects, seats, priority or 'priority builds'.
+- Tokens (the owner, 2026-11-26 ~16:10 UTC, "לבטל מגבלה על טוקנים כרגע רק מדידה"): the content path's
+  MAX_CONTENT_TOKENS (8,000) and MAX_REWRITE_TOKENS (3,000) are removed; each call asks for the model's own documented
+  maximum (catalogue `max_output_tokens`; claude-sonnet-5-5 64,000, gemini-3.8-flash 32,768) and the router sends each
+  model exactly its own. Every content call is measured into `site_route.content_usage` (model, input/output tokens,
+  metered cost, finish reason, per call and the build's totals; a total is null, never 0, when a call is unmeasured);
+  a stop on max_tokens is logged `SITE_CONTENT_TRUNCATED` and listed as `truncated_at_model_maximum` or
+  `truncated_at_budget_allowance`. The money caps stay: the router still authorizes every call against the build's
+  budget, and `fit_to_budget` may send less than the maximum (never below 12,000 for codegen). Verified by
+  tests/test_content_corrections.py::TheTokensAreMeasuredNotCapped (real RoutedModelGateway, scripted provider) and
+  controls content_corrections 13/13. Not verified: a real paid build (no paid call was made).
+- Evidence: see TASKS.md CAPS-A and the branch's commit messages. Open: the UI shell's part (visual-edit.js MAX_IMAGES,
+  app.js notices, history paging, request_cut in the plan panel, the dead project_limit_reached branch).
+- **Follow-up of the apps bundle (the platform UI changes there; caps-a does not touch app.js or visual-edit.js).**
+  What caps-a records and returns by the API but is NOT on screen yet: (1) `messages[].notices` (a bound that applied
+  to a turn: reply cut, model output cut, request cut, outline cut) -- a cut reply and the request/outline notices are
+  also in the reply text, which is on screen; (2) `history: {has_older, before}` and
+  `GET /api/v28/projects/{id}/conversation/messages?before=<id>&limit=1..100` (older messages; error
+  `invalid_history_page`); (3) `plan.request_cut.message` in the plan panel; (4) `site_route.shortened_said` (a list
+  the model shortened to fit one answer); (5) `visual-edit.js:143` `MAX_IMAGES = 6` -> 20, the server's
+  `attachments.MAX_PER_MESSAGE`; (6) the dead `project_limit_reached` branch in `app.js:905-913` and its test
+  `tests/test_v7_readiness_regression.py::test_project_quota_has_distinct_client_remedy`; (7) the `site_content_invalid`
+  text "גם אחרי התיקון" (there are up to three corrections). A launch of a version whose preview is live now answers
+  `status: REUSED` with that preview's id (the screen reads only preview_id).
 
 # 2026-11-26 — The business name asked twice, the summary under a question, and a rehearsal checker that saw neither (Claude Code; branch committed, not pushed)
 

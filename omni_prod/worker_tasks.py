@@ -544,6 +544,17 @@ def _site_route_evidence(engine):
         return None
 
 
+def _request_cut_evidence(prompt):
+    """The owner, 2026-11-26: what the build prompt says it cut from the customer's request (discovery.build_prompt),
+    for the build evidence; None when nothing was cut. Evidence never fails a build."""
+    try:
+        from .discovery import request_cut_of
+        return request_cut_of(prompt)
+    except Exception:  # evidence must never fail a build
+        logging.getLogger(__name__).warning('request cut evidence failed', exc_info=True)
+        return None
+
+
 def _report_phase(jobs, build_id: str, phase: str, message: str = '') -> None:
     """M5-UX01: best-effort progress for the creator timeline; never fails a build."""
     update = getattr(jobs, 'update_phase', None)
@@ -1504,6 +1515,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'preview_smoke': preview_smoke_evidence(engine),
             'visual_qa': visual_evidence(engine),
             'site_route': site_content.report(engine),     # the content route: decided, why, and what it did
+            'request_cut': _request_cut_evidence(prompt),  # the owner, 2026-11-26: a cut of the request, never silent
             'quality_report': quality_report.to_dict() if quality_report is not None else None,
             'round_snapshots': round_snapshots,
             'kept_round': kept_round(engine, result),     # the round whose evidence the stage rows read
@@ -1615,6 +1627,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'provider_spend_usd': str(build_spend(gateway, spent)),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
                            'site_route': _site_route_evidence(engine),
+                           'request_cut': _request_cut_evidence(prompt),
                            'model_budget_binding': model_budget_binding},
             actual_provider_cost_usd=actual_cost,
         )

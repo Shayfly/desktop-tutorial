@@ -1,0 +1,21 @@
+{
+ "pr": "caps-a-plan-view",
+ "sha256": ["tests/test_plan_view_promises.py", "omni_prod/pricing.py"],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the plan view shows the project count, the seats and the priority again",
+   "mutations": [{"file": "omni_prod/pricing.py", "old": "'included_credits',\n                      'allowed_cost_classes',",
+                  "new": "'included_credits', 'max_projects', 'seats', 'priority',\n                      'allowed_cost_classes',"}],
+   "targets": ["tests/test_plan_view_promises.py"],
+   "expect_failed": ["test_no_unkept_promise_is_shown", "test_a_customers_subscription_view_does_not_promise_them"]
+  },
+  {
+   "id": "NC2",
+   "what": "Pro promises 'priority builds' again",
+   "mutations": [{"file": "omni_prod/pricing.py", "old": "'remove visible 148AI branding',\n", "new": "'remove visible 148AI branding', 'priority builds',\n"}],
+   "targets": ["tests/test_plan_view_promises.py"],
+   "expect_failed": ["test_no_unkept_promise_is_shown"]
+  }
+ ]
+}

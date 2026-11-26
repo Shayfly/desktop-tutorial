@@ -73,17 +73,20 @@ class AMessageSaidToBeKeptIsPartOfTheRequest(unittest.TestCase):
         self.assertEqual(self.briefs.latest('p1').brief.prompt, d.start('אתר תדמית למספרה בשם תספורת טובה').prompt)
 
     def test_what_is_carried_is_bounded(self):
-        for i in range(8):
+        # the owner, 2026-11-26: 20 messages and 48,000 characters (5 and 12,000 before); a drop is also said to the
+        # customer (tests/test_silent_cuts.py)
+        n = self.sup.MAX_CARRIED_MESSAGES + 3
+        for i in range(n):
             self.say(f'סרטון מספר {i} ' + 'א' * 3000)
         self.assertIsNone(self.briefs.latest('p1'))
         with self.assertLogs('omni_prod.conversation.supervisor', 'WARNING') as logs:
             self.say('אתר')
         prompt = self.briefs.latest('p1').brief.prompt
         self.assertLessEqual(len(prompt), self.sup.MAX_REQUEST_CHARS)
-        self.assertNotIn('סרטון מספר 0', prompt)                                 # only the last five are carried
+        self.assertNotIn('סרטון מספר 0 ', prompt)                                # the oldest are left out
         self.assertIn('REQUEST_CUT', logs.output[0])
         self.assertTrue(prompt.rstrip().endswith('אתר'))                         # the newest words are never cut
-        self.assertIn('סרטון מספר 7', prompt)
+        self.assertIn(f'סרטון מספר {n - 1} ', prompt)
 
 
 if __name__ == '__main__':

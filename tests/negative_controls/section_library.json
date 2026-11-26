@@ -123,7 +123,8 @@
     "test_the_render_check_sees_every_element_settled_after_300ms",
     "test_the_richer_page_still_passes_the_contract_and_every_unit",
     "test_the_richest_page_leaves_room_under_the_truth_gate_window",
-    "test_time_ranges_keep_their_order_on_a_right_to_left_page"
+    "test_time_ranges_keep_their_order_on_a_right_to_left_page",
+    "test_the_largest_page_fits_every_width_and_stays_readable"
    ]
   },
   {
@@ -171,7 +172,8 @@
     "tests/test_section_library.py"
    ],
    "expect_failed": [
-    "test_nothing_scrolls_sideways_on_a_phone_or_a_wide_screen"
+    "test_nothing_scrolls_sideways_on_a_phone_or_a_wide_screen",
+    "test_the_largest_page_fits_every_width_and_stays_readable"
    ],
    "envs": [
     "browser"

@@ -60,8 +60,8 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/schema.py",
-     "old": "'process': {**_head(), 'steps': Lst(2, 6, Obj({'title': Str(_H['h3']), 'desc': Str(200)}))},",
-     "new": "'process': {**_head(), 'steps': Lst(2, 6, Obj({'title': Str(60), 'desc': Str(200)}))},"
+     "old": "'process': {**_head(), 'steps': Lst(2, 12, Obj({'title': Str(_H['h3']), 'desc': Str(200)}))},",
+     "new": "'process': {**_head(), 'steps': Lst(2, 12, Obj({'title': Str(60), 'desc': Str(200)}))},"
     }
    ],
    "targets": ["tests/test_site_content_price_in_heading.py", "tests/test_typography_scripts.py"],
