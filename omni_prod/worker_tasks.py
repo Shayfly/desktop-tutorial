@@ -501,7 +501,10 @@ def failure_code(exc: BaseException) -> str:
     from .build_control import BuildDeadline
     from .verification_verdict import queue_timeouts
     from .site_content.agents import SiteContentInvalid, SiteRenderDefect
+    from .build_checkpoint import CheckpointUnusable
     text = str(exc)
+    if isinstance(exc, CheckpointUnusable):        # S4.2: requeued to continue, but its checkpoint cannot be trusted
+        return 'checkpoint_unusable'
     if isinstance(exc, SiteContentInvalid):        # the model's content document, still invalid after its correction
         return 'site_content_invalid'
     if isinstance(exc, SiteRenderDefect):          # the platform's own render (library, fact sheet, contract)
@@ -582,6 +585,15 @@ def provider_usage_evidence(gateway) -> dict:
 # --------------------------------------------------------------------------
 # M1: durable async build
 # --------------------------------------------------------------------------
+
+def build_spend(gateway, spent) -> Decimal:
+    """The build's provider spend for its evidence: this worker's (`spent`) and, on a recovered build, the metered cost
+    the earlier workers' calls left in the ledger (prior_metered) -- the ledger's metered total when every call was
+    metered (S4.2, re-review of 73ed4b7). A call with no metered cost adds nothing here, as in the ledger."""
+    prior = getattr(gateway, 'prior_metered', None)
+    extra = Decimal(str(prior.get('metered_usd') or 0)) if isinstance(prior, dict) else Decimal('0')
+    return Decimal(str(spent)) + extra
+
 
 def spend_snapshot(gateway) -> tuple[Decimal, int]:
     state = getattr(gateway, 'state', None) if gateway is not None else None
@@ -1331,10 +1343,28 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
     capability_evidence = None
     infrastructure_evidence = None
     model_budget_binding = None
+    # S4.2: the janitor's recovery record, the checkpoint this run continues from and this run's checkpoint writer. The
+    # terminal evidence carries the record and the build's last checkpoint whichever path ends the build.
+    from . import build_checkpoint
+    claim = recorded = recovery_evidence = checkpoints = None
+
+    def carried_evidence() -> dict:
+        last = checkpoints.last if checkpoints is not None and checkpoints.last is not None else recorded
+        return {'recovery': recovery_evidence, 'checkpoint': last,
+                'checkpoint_errors': (checkpoints.errors or None) if checkpoints is not None else None}
+    jobs = build_checkpoint.CarryEvidence(jobs, carried_evidence)
 
     try:
         if preflight is not None:
             preflight()
+        if attempt_pool is not None:
+            claim = build_checkpoint.read_claim(attempt_pool, build_id)
+            recovery_evidence = claim.get('recovery')
+            fence = getattr(jobs, 'fence', None)
+            if callable(fence):           # this run's transitions and heartbeats change the row only in its epoch
+                fence(build_id, claim['epoch'])
+            # ...and its settlement or release too (re-review of 73ed4b7): a stale epoch raises StaleWorker
+            subscriptions = build_checkpoint.FencedBilling(subscriptions, claim['epoch'])
         _report_phase(jobs, build_id, 'PLANNING', 'validating the build contract and product plan')
         # M5 Task 6: a contract-bound product cannot become READY without its
         # required generated-app infrastructure. Checked before any paid model
@@ -1395,6 +1425,21 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 gateway.on_attempt_start = control.flush_attempts   # write-ahead ledger
             # A recovered build: calls a lost worker already made are still owed.
             gateway.prior_metered = prior_worker_metered_cost(attempt_pool, build_id)
+        loaded = carried_budget = None
+        if claim is not None:
+            # S4.2: the janitor requeued this build to continue. Its checkpoint is read back and every byte checked
+            # HERE -- after the earlier workers' cost is known to the settlement (prior_metered), before any paid call of
+            # this run -- so a checkpoint that cannot be trusted fails the build before anything is spent again.
+            recorded = build_checkpoint.resume_record(claim)
+            if recorded is not None:
+                loaded = build_checkpoint.load(recorded, store=getattr(workspace, 'storage', None),
+                                               unzip=getattr(workspace, '_unzip_repo', None), build_id=build_id,
+                                               contract_fingerprint=request.get('build_contract_fingerprint'))
+                # the same budgets: what the earlier workers recorded (their metered cost and the authorized amount of
+                # their unanswered call, which the settlement adds) comes off the build's reserved budget and call limit,
+                # read in ONE snapshot that also becomes the settlement's prior_metered (re-review of 73ed4b7, S1)
+                carried_budget = build_checkpoint.resume_budget(
+                    gateway, attempt_pool, build_id, worker=getattr(getattr(gateway, 'recorder', None), 'trace_id', None))
         if capability_stage is not None:
             _report_phase(jobs, build_id, 'ASSETS', 'generating and verifying required assets')
             # #324 (Michael 2026-11-13): an image is generated from an ENGLISH prompt translated once from the brief
@@ -1414,7 +1459,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             )
         if agent_recorder is not None:  # Agent OS: the real build as a durable agent task graph
             control.recorder = agent_recorder
-            agent_recorder.start(from_brief='Approved project brief' in (prompt or ''))
+            # S4.2: a build that continues carries the lost worker's finished tasks into its run, never re-runs them
+            agent_recorder.start(from_brief='Approved project brief' in (prompt or ''),
+                                 **({'resume': {'checkpoint': build_checkpoint.label(recorded), 'stage': recorded['stage'],
+                                                'round': recorded.get('round'), 'written_at': recorded.get('written_at'),
+                                                'report_passed': recorded.get('report_passed')}}
+                                    if recorded is not None else {}))
             if hasattr(agent_recorder, 'bind'):     # plan-governed builds: plan limits + per-task charging
                 agent_recorder.bind(engine, gateway)
             if getattr(agent_recorder, 'enforce', False):   # ...and the approved criteria are the test basis (G3)
@@ -1442,7 +1492,10 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             build_prompt = install_generated_images(
                 engine, prompt=prompt, plan=capability_plan, evidence=capability_evidence,
                 store=getattr(getattr(capability_stage, 'executor', None), 'artifact_store', None),
-                vision=gateway if image_match_enabled(request) else None)   # lens 11 / I-01, before code
+                # lens 11 / I-01, before code. The questions are recorded for the checkpoint; a continued build
+                # replays a verdict only for the same image bytes and asks the model again for any other (S4)
+                vision=(None if not image_match_enabled(request) else build_checkpoint.vision_for(
+                    engine, gateway, recorded)))
             image_match = getattr(getattr(engine, 'core', engine), 'image_match', None)
             if image_match is None and getattr(getattr(engine, 'core', engine), 'generated_images', None):
                 # not run by rollout: said in the evidence and the log, never a silent pass
@@ -1498,7 +1551,31 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         from .fact_canon import needs_customer_input
         getattr(engine, 'core', engine).missing_input = (                    # #335 (d)
             lambda messages: needs_customer_input(messages, build_prompt))
-        result = engine.build(build_prompt)
+        # S4.2: every checkpoint of this run goes to object storage and to build_jobs.evidence_json (CheckpointWriter);
+        # a build the janitor requeued to continue reads its last checkpoint back, every byte checked, and goes on
+        resume = None
+        store, zip_repo = getattr(workspace, 'storage', None), getattr(workspace, '_zip_repo', None)
+        if claim is not None and callable(getattr(store, 'put_bytes', None)) and callable(zip_repo):
+            checkpoints = build_checkpoint.CheckpointWriter(
+                pool=attempt_pool, build_id=build_id, epoch=claim['epoch'], store=store, zip_repo=zip_repo,
+                contract_fingerprint=request.get('build_contract_fingerprint'), prompt=build_prompt, engine=engine,
+                round_snapshots=round_snapshots, flush=control.flush,
+                worker=getattr(getattr(gateway, 'recorder', None), 'trace_id', None),
+                why_not=build_checkpoint.not_resumable_reason(engine))
+            getattr(engine, 'core', engine).checkpoint_hook = checkpoints
+        if loaded is not None:
+            # loaded and checked before any paid call (above); the prompt is final only now
+            build_checkpoint.check_prompt(recorded, build_prompt)
+            not_restored = build_checkpoint.restore_executors(engine, loaded.executors)
+            round_snapshots[:0] = loaded.round_snapshots
+            recovery_evidence = {**(recovery_evidence or {}), 'resumed_from': loaded.resumed_from(
+                carried_budget=carried_budget, history_not_restored=not_restored)}
+            resume = loaded.resume
+            logging.getLogger(__name__).info('BUILD_RESUMED build=%s from %s', build_id, build_checkpoint.label(recorded))
+        if resume is not None:
+            result = engine.build(build_prompt, resume=resume)
+        else:
+            result = engine.build(build_prompt)
         if agent_recorder is not None and hasattr(agent_recorder, 'raise_if_violated'):
             agent_recorder.raise_if_violated()   # plan-governed: a swallowed violation still fails closed
         _report_phase(jobs, build_id, 'VERIFYING', 'running quality, security and rights gates')
@@ -1620,7 +1697,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'build_log_tail': result.report.build_log[-4000:],
             'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
             'provider_usage': provider_usage_evidence(gateway),
-            'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
+            'provider_spend_usd': str(build_spend(gateway, spent)), 'external_model_calls': calls,
+            'provider_spend_basis': SPEND_BASIS,
             'model_budget_binding': model_budget_binding,
             'design_review': {'enabled': bool(design_review_on), 'reviews': _design_reviews(engine)},
             'agentic_repair': {'enabled': bool(agentic_repair),
@@ -1672,7 +1750,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
-                           'provider_spend_usd': str(spent), 'external_model_calls': calls,
+                           'provider_spend_usd': str(build_spend(gateway, spent)), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS, 'model_budget_binding': model_budget_binding},
             actual_provider_cost_usd=actual_cost,
             ai_cost_usd=recorded_ai_cost(settlement_evidence),   # the owner 2026-11-26: recorded at the source
@@ -1700,7 +1778,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
-                           'provider_spend_usd': str(spent), 'external_model_calls': calls,
+                           'provider_spend_usd': str(build_spend(gateway, spent)), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
             ai_cost_usd=recorded_ai_cost(settlement_evidence),   # the owner 2026-11-26: recorded at the source
@@ -1730,7 +1808,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
-                           'provider_spend_usd': str(spent), 'external_model_calls': calls,
+                           'provider_spend_usd': str(build_spend(gateway, spent)), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
             ai_cost_usd=recorded_ai_cost(settlement_evidence),   # the owner 2026-11-26: recorded at the source
@@ -1757,7 +1835,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
-                           'provider_spend_usd': str(spent),
+                           'provider_spend_usd': str(build_spend(gateway, spent)),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
                            'site_route': _site_route_evidence(engine),
                            'request_cut': _request_cut_evidence(prompt),
@@ -1842,12 +1920,22 @@ def execute_live_build_job(build_id: str) -> None:
         from .agent_os.recorder import recorder_for
         recorder = recorder_for(_v28_pool, build_id, execution_plan_binding(_v28_pool, build_id),
                                 enforce=os.getenv('OMNI_PLAN_DRIVEN') == '1')
+    from .job_repository import StaleWorker
+    stale = False
     try:
         _run_live_build_job_with_components(build_id, jobs=jobs, workspace=workspace,
                                             components_factory=components_factory, agent_recorder=recorder)
+    except StaleWorker as exc:
+        # S4.2 (re-review of 73ed4b7): the janitor gave this build to another worker; this run stops where it is --
+        # no further paid call, no billing, no transition (each of them is fenced and raised this)
+        stale = True
+        logging.getLogger(__name__).error('STALE_WORKER_STOPPED build=%s: %s', build_id, exc)
     finally:
-        _persist_build_attempts(_v28_pool, jobs, build_id, captured.get('gateway'))
-        if recorder is not None and recorder.run_id is not None:
+        try:
+            _persist_build_attempts(_v28_pool, jobs, build_id, captured.get('gateway'))
+        except StaleWorker:
+            stale = True                      # refused and logged by the ledger itself
+        if recorder is not None and recorder.run_id is not None and not stale:
             try:
                 with _v28_pool.connection() as conn:
                     row = conn.execute('SELECT status, evidence_json FROM build_jobs WHERE id = %s', (build_id,)).fetchone()
@@ -1883,10 +1971,12 @@ def _persist_build_attempts(pool, jobs, build_id: str, gateway, *, required: boo
             request = jobs.get_request(build_id)
         except Exception:
             request = {}
+        fenced = getattr(jobs, 'fenced_epoch', None)
+        epoch = fenced(build_id) if callable(fenced) else None
         persist_attempts(pool, recorder.records, build_id=build_id,
                          tenant_id=request.get('user_id'), project_id=request.get('internal_project_id'),
                          reservation_id=build_id, final_outcome=getattr(status, 'value', None),
-                         require_active_reservation=required)
+                         require_active_reservation=required, epoch=epoch)
     except Exception as exc:
         logging.getLogger(__name__).exception('attempt ledger write failed for %s', build_id)
         if required:

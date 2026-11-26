@@ -60,6 +60,81 @@ class AutonomousResult:
     # customer's message cut the report at four items and dropped the summary line, so VISUAL never reached them.
     full_failures: tuple[AcceptanceFailure, ...] = ()
 
+
+# S4.2 (plan v3; the owner chose to continue, 2026-11-26 10:13 UTC): a build whose worker dies continues from its last
+# checkpoint. The engine hands every checkpoint to `checkpoint_hook` (the worker stores it: omni_prod/build_checkpoint)
+# and continues from a ResumePoint the worker loaded and verified. Three stages, in build order:
+#   spec      after the architect: the spec exists; code generation and everything after it still run
+#   round     after round 0 and after every repair round: the verified repository and the repair loop's whole state
+#   finished  after the loop: its result, returned as it was
+RESUME_STAGES = ('spec', 'round', 'finished')
+LOOP_STATE_VERSION = 2          # 2: the best version, its full failures, discarded signatures (#541)
+
+
+@dataclass(frozen=True)
+class ResumePoint:
+    """Where a recovered build continues. `round` is the number of repair rounds the checkpoint covers (0 = round 0);
+    `repository` is the verified repository of that round and `loop` the repair loop's state (loop_state below), both
+    required for 'round' and 'finished'."""
+    stage: str
+    spec: ProductSpec
+    round: int = 0
+    repository: dict | None = None
+    loop: dict | None = None
+    best_repository: dict | None = None     # #541: the best version, when it is not the current one
+
+    def __post_init__(self):
+        if self.stage not in RESUME_STAGES:
+            raise ValueError(f'unknown resume stage {self.stage!r} (one of {RESUME_STAGES})')
+        if self.stage != 'spec' and (not isinstance(self.repository, dict) or not isinstance(self.loop, dict)):
+            raise ValueError(f'a {self.stage!r} resume needs the verified repository and the loop state')
+        if self.stage != 'spec' and self.loop.get('version') != LOOP_STATE_VERSION:
+            raise ValueError(f"loop state version {self.loop.get('version')!r} is not {LOOP_STATE_VERSION}")
+        if (self.stage != 'spec' and not (self.loop.get('best') or {}).get('same_as_current', True)
+                and not isinstance(self.best_repository, dict)):
+            raise ValueError('the loop state names a best version other than the current one, and it is missing')
+
+
+def failure_to_dict(failure) -> dict:
+    evidence = getattr(failure, 'evidence', '')
+    return {'acceptance_id': str(failure.acceptance_id), 'message': str(failure.message),
+            'evidence': evidence if evidence is None or isinstance(evidence, str) else str(evidence)}
+
+
+def failure_from_dict(data: dict) -> AcceptanceFailure:
+    return AcceptanceFailure(str(data['acceptance_id']), str(data['message']), data.get('evidence', ''))
+
+
+def report_to_dict(report) -> dict:
+    return {'passed': bool(report.passed), 'failures': [failure_to_dict(f) for f in report.failures],
+            'build_log': str(getattr(report, 'build_log', '') or ''),
+            'tests_executed': getattr(report, 'tests_executed', None)}
+
+
+def report_from_dict(data: dict) -> ExecutionReport:
+    return ExecutionReport(bool(data['passed']), tuple(failure_from_dict(f) for f in data.get('failures') or ()),
+                           str(data.get('build_log') or ''), data.get('tests_executed'))
+
+
+def edit_ledger_to_dict(ledger) -> dict:
+    """The test-edit ledger of a build (DECISIONS 8): its counts decide when an edit escalates, so a resumed loop keeps
+    them. The customer's facts are not stored: they are read again from the same approved prompt."""
+    return {'builder_tests': sorted(ledger.builder_tests), 'counted': [dict(x) for x in ledger.counted],
+            'refused': [dict(x) for x in ledger.refused],
+            'seen': [[path, skeleton, int(n)] for (path, skeleton), n in ledger._seen.items()],
+            'escalate': ledger.escalate or ''}
+
+
+def edit_ledger_from_dict(data: dict, facts):
+    from .test_edit_guard import TestEditLedger
+    ledger = TestEditLedger(frozenset(data['builder_tests']), facts)
+    ledger.counted = [dict(x) for x in data['counted']]
+    ledger.refused = [dict(x) for x in data['refused']]
+    ledger._seen = {(path, skeleton): int(n) for path, skeleton, n in data['seen']}
+    ledger.escalate = data['escalate'] or ''
+    return ledger
+
+
 class Executor(Protocol):
     def execute(self, *, repository: dict[str, str], spec: ProductSpec) -> ExecutionReport:
         ...
@@ -142,6 +217,20 @@ class AutonomousProductEngine:
             if getattr(self, 'require_durable_snapshots', False):
                 # In verified strict mode, never claim READY without round evidence.
                 raise
+
+    # S4.2: called after the spec, after round 0, after every repair round and after the loop, with what a recovered
+    # build needs to continue from that point ({'spec'} or {'spec', 'repository', 'loop'}). The worker stores it
+    # durably (omni_prod/build_checkpoint.CheckpointWriter); None = no checkpoints (tests, the rehearsal).
+    checkpoint_hook = None
+
+    def _checkpoint(self, stage: str, payload: dict) -> None:
+        if self.checkpoint_hook is None:
+            return
+        try:
+            self.checkpoint_hook(stage, payload)
+        except Exception:  # a checkpoint must never change the build; the writer records its own failures
+            import logging
+            logging.getLogger(__name__).warning('checkpoint %s failed', stage, exc_info=True)
 
     def _preflight(self, repo, spec, round_index):
         """Remove statically visible defects before the chain runs, WITHOUT spending a repair round (round_preflight).
@@ -282,17 +371,23 @@ class AutonomousProductEngine:
         worse = new_check and cls.rank(candidate) < cls.rank(best)
         return worse, not worse and cls.rank(candidate) >= cls.rank(best)
 
-    def build(self, prompt: str) -> AutonomousResult:
+    def build(self, prompt: str, resume: ResumePoint | None = None) -> AutonomousResult:
         """C24 (2026-10-20): the failure taxonomy and first_pass are written whatever happens. They used to be computed
         only at the very end of a successful _build(), so a build that raised (a model or sandbox error) left the
-        previous build's values or nothing at all, and the rounds already verified were lost."""
+        previous build's values or nothing at all, and the rounds already verified were lost.
+
+        S4.2: `resume` continues a recovered build from its last checkpoint. A checkpoint that has the spec means no
+        architect call; one that has round 0 means no generator call either; the repair loop goes on from the
+        checkpoint's round with the budgets it had (rounds, second chances, the test-edit ledger) and stops as it would
+        have; a finished loop returns its result."""
         self._taxonomy_rounds, self._preflight_events = [], []
         self.round_failures = {}
         self._round0_passed = None
         self.failure_taxonomy, self.first_pass = [], None
+        self.resumed_from = None
         result = None
         try:
-            result = self._build(prompt)
+            result = self._build(prompt, resume)
             return result
         finally:
             self._refresh_taxonomy(result)
@@ -308,7 +403,7 @@ class AutonomousProductEngine:
         self.first_pass = (bool(rounds) and getattr(self, '_round0_passed', None) is True and not rounds[0][1]
                            and result is not None and result.status == 'ready')
 
-    def _build(self, prompt: str) -> AutonomousResult:
+    def _build(self, prompt: str, resume: ResumePoint | None = None) -> AutonomousResult:
         """Generate, verify, repair.
 
         Basic stop-loss (founder decision 2026-10-07): the sandbox is
@@ -317,46 +412,118 @@ class AutonomousProductEngine:
         that leaves the repository unchanged, or returns it to an earlier
         state, stops the loop instead of paying for more identical rounds.
         `stop_reason` records why the loop ended.
+
+        S4.2: with `resume`, every stage the checkpoint covers is taken from it, never run again (build() says which).
         """
-        spec = self.architect.create_spec(prompt)
-        initial = self.generator.generate(spec)
-        repo = apply_patch({}, initial)
-        if getattr(self,'repository_transform',None):
-            repo = self.repository_transform(repo)
-        repo = self._preflight(repo, spec, 0)
-        report = self.executor.execute(repository=repo, spec=spec)
-        observed = self._observed_failures(report)        # the round's full list, read right after its own execute
-        self._taxonomy_rounds = [(0, observed)]
-        self._round0_passed = bool(report.passed)
-        self._snapshot(0, repo, report, 'passed' if report.passed else 'initial', observed)
-        rounds = 0
-        seen = {self._fingerprint(repo)}
-        stop_reason = 'passed' if report.passed else 'max_repair_rounds'
-        self.trace = []  # per round: what failed and what the repair changed (diagnostics only)
-        # Paid builds 2026-10-09: a weaker repair turned "1 behaviour check
-        # fails" into "build fails" and later rounds drifted further. A repair
-        # that goes backwards is discarded; the next one starts from the best.
-        # bld_cb2d1b90 (2026-11-24): "backwards" is judged on each version's FULL failure list (judge()), never on the
-        # head stage of its report.
-        best_repo, best_report, best_failures = repo, report, observed
-        discarded_note = None
-        # Two discarded candidates that fail in exactly the same way (against the same best version) stop the loop:
-        # the repairer is not reaching the cause, and a third identical regression would be paid for again.
-        discarded_signatures: dict = {}
-        # The plan verified in round 0 is a floor for every repair round (plan_floor, founder 2026-11-02).
         from . import plan_floor
-        floor, plan_note = plan_floor.plan_block(repo), None
-        # DECISIONS 8 (the owner 2026-11-17): the repairer may fix an expected value in a test the builder wrote in
-        # this build -- never a test of the customer's facts; every edit counted; the same value twice escalates.
         from .test_edit_guard import TestEditLedger, customer_facts
         from .repair_contracts import _TEST_FILE
-        self.test_edits = TestEditLedger(frozenset(p for p in repo if _TEST_FILE.search(p)), customer_facts(prompt))
-        test_note = None
+        if resume is None:
+            spec = self.architect.create_spec(prompt)
+            self._checkpoint('spec', {'spec': spec})
+        else:
+            spec = resume.spec
+            self.resumed_from = {'stage': resume.stage, 'round': None if resume.stage == 'spec' else resume.round}
+        loop = resume.loop if resume is not None and resume.stage != 'spec' else None
+        if loop is None:
+            initial = self.generator.generate(spec)
+            repo = apply_patch({}, initial)
+            if getattr(self,'repository_transform',None):
+                repo = self.repository_transform(repo)
+            repo = self._preflight(repo, spec, 0)
+            report = self.executor.execute(repository=repo, spec=spec)
+            observed = self._observed_failures(report)        # the round's full list, read right after its own execute
+            self._taxonomy_rounds = [(0, observed)]
+            self._round0_passed = bool(report.passed)
+            self._snapshot(0, repo, report, 'passed' if report.passed else 'initial', observed)
+            rounds = 0
+            seen = {self._fingerprint(repo)}
+            stop_reason = 'passed' if report.passed else 'max_repair_rounds'
+            self.trace = []  # per round: what failed and what the repair changed (diagnostics only)
+            # Paid builds 2026-10-09: a weaker repair turned "1 behaviour check
+            # fails" into "build fails" and later rounds drifted further. A repair
+            # that goes backwards is discarded; the next one starts from the best.
+            # bld_cb2d1b90 (2026-11-24): "backwards" is judged on each version's FULL failure list (judge()), never on
+            # the head stage of its report.
+            best_repo, best_report, best_failures = repo, report, observed
+            # Two discarded candidates that fail in exactly the same way (against the same best version) stop the loop:
+            # the repairer is not reaching the cause, and a third identical regression would be paid for again.
+            discarded_signatures: dict = {}
+        else:
+            # The checkpoint's round, exactly as the lost worker left it: the current version and its report, the best
+            # version so far with its full failure list (they differ after a candidate that was adopted without
+            # becoming the best: judge()), the discarded-candidate signatures, the states already verified (the
+            # stop-loss), the round count and the taxonomy so far.
+            repo, report = dict(resume.repository), report_from_dict(loop['report'])
+            self._taxonomy_rounds = [(int(i), [failure_from_dict(f) for f in fs]) for i, fs in loop['taxonomy']]
+            self._preflight_events = [dict(e) for e in loop['preflight']]
+            self.round_failures = {int(i): [failure_from_dict(f) for f in fs] for i, fs in loop['round_failures']}
+            self._round0_passed = loop['round0_passed']
+            rounds = int(loop['rounds'])
+            seen = set(loop['seen'])
+            stop_reason = loop['stop_reason']
+            self.trace = [dict(t) for t in loop['trace']]
+            best = loop['best']
+            best_repo = repo if best['same_as_current'] else dict(resume.best_repository)
+            best_report = report_from_dict(best['report'])
+            best_failures = [failure_from_dict(f) for f in best['failures']]
+            discarded_signatures = {frozenset((str(a), str(m)) for a, m in pairs): int(n)
+                                    for pairs, n in loop['discarded_signatures']}
+            # the same budgets: never more rounds than the build had when it started
+            self.max_repair_rounds = min(self.max_repair_rounds, int(loop['max_repair_rounds']))
+        notes = (loop or {}).get('notes') or {}
+        discarded_note = notes.get('discarded')
+        # The plan verified in round 0 is a floor for every repair round (plan_floor, founder 2026-11-02).
+        floor, plan_note = (plan_floor.plan_block(repo) if loop is None else loop['floor']), notes.get('plan')
+        # DECISIONS 8 (the owner 2026-11-17): the repairer may fix an expected value in a test the builder wrote in
+        # this build -- never a test of the customer's facts; every edit counted; the same value twice escalates.
+        self.test_edits = (TestEditLedger(frozenset(p for p in repo if _TEST_FILE.search(p)), customer_facts(prompt))
+                           if loop is None else edit_ledger_from_dict(loop['test_edits'], customer_facts(prompt)))
+        test_note = notes.get('test')
         # Founder build bld_ca727ba7 (2026-11-08): the loop stopped after 2 of 6 rounds on one unchanged patch. The
         # stop-loss stays, but production gets `no_progress_retries` second chances: the next repair is told plainly
         # that its last answer changed nothing, before the loop gives up. 0 (the default) is the old behaviour.
-        chances = int(getattr(self, 'no_progress_retries', 0) or 0)
-        progress_note = None
+        chances = int(getattr(self, 'no_progress_retries', 0) or 0) if loop is None else int(loop['chances'])
+        progress_note = notes.get('progress')
+
+        def loop_state() -> dict:
+            """Everything the repair loop decides the next round with (S4.2: a checkpoint carries it, JSON only)."""
+            return {'version': LOOP_STATE_VERSION, 'rounds': rounds, 'max_repair_rounds': self.max_repair_rounds,
+                    'report': report_to_dict(report), 'seen': sorted(seen), 'stop_reason': stop_reason,
+                    'notes': {'discarded': discarded_note, 'plan': plan_note, 'progress': progress_note,
+                              'test': test_note},
+                    'floor': floor, 'test_edits': edit_ledger_to_dict(self.test_edits), 'chances': chances,
+                    'trace': [dict(t) for t in self.trace],
+                    'taxonomy': [[i, [failure_to_dict(f) for f in fs]] for i, fs in self._taxonomy_rounds],
+                    'preflight': [dict(e) for e in self._preflight_events], 'round0_passed': self._round0_passed,
+                    'needs_input': list(getattr(self, 'needs_input', None) or ()),
+                    'repair_model_error': getattr(self, 'repair_model_error', None),
+                    # #541 (repair converges): the best version is judged on its FULL failure list and may differ from
+                    # the current one; two identical discards stop the loop; the full list of every round is evidence
+                    'best': {'same_as_current': best_repo is repo or best_repo == repo,
+                             'report': report_to_dict(best_report),
+                             'failures': [failure_to_dict(f) for f in best_failures]},
+                    'discarded_signatures': [[sorted([a, m] for a, m in sig), n]
+                                             for sig, n in discarded_signatures.items()],
+                    'round_failures': [[i, [failure_to_dict(f) for f in fs]]
+                                       for i, fs in sorted((getattr(self, 'round_failures', None) or {}).items())]}
+
+        def payload() -> dict:
+            out = {'spec': spec, 'repository': repo, 'loop': loop_state()}
+            if not out['loop']['best']['same_as_current']:
+                out['best_repository'] = best_repo        # stored and checked like the current version
+            return out
+
+        if resume is not None and resume.stage == 'finished':
+            # the loop had ended: its result, with no model call and no check run again
+            self.needs_input = list(loop.get('needs_input') or ())
+            if loop.get('repair_model_error'):
+                self.repair_model_error = loop['repair_model_error']
+            return AutonomousResult('ready' if report.passed else 'failed', spec, repo, rounds, report, stop_reason,
+                                    () if report.passed else tuple(best_failures))
+        if loop is None:
+            self._checkpoint('round', payload())
+        checkpointed = rounds
 
         def second_chance(reason: str) -> bool:
             nonlocal chances, progress_note
@@ -377,6 +544,10 @@ class AutonomousProductEngine:
         missing_input = getattr(self, 'missing_input', None)
         out_of_time = getattr(self, 'out_of_time', None)
         while not report.passed and rounds < self.max_repair_rounds:
+            if rounds > checkpointed:
+                # S4.2: repair round `rounds` is done; a worker that dies from here on continues from this state
+                checkpointed = rounds
+                self._checkpoint('round', payload())
             if callable(out_of_time) and out_of_time():
                 # the owner 2026-11-16: a build ends itself, on its best version, before the queue kills the worker
                 stop_reason = 'time_budget'
@@ -527,6 +698,8 @@ class AutonomousProductEngine:
                 stop_reason = 'max_repair_rounds'
         if not report.passed:
             repo, report = best_repo, best_report
+        # S4.2: the loop's result -- a worker that dies after this (gates, version, settlement) repeats no model call
+        self._checkpoint('finished', payload())
         return AutonomousResult(                     # build()'s finally refreshes the taxonomy with this result
             'ready' if report.passed else 'failed',
             spec,

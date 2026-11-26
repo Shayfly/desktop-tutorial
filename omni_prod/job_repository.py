@@ -6,6 +6,13 @@ from dataclasses import asdict, dataclass
 from .models import BuildStatus
 
 
+class StaleWorker(BaseException):
+    """S4.2 (re-review of 73ed4b7): this worker claimed the build in an earlier recovery epoch; the janitor has given it
+    to another worker. Raised by the heartbeat, the billing and the attempt ledger when the epoch no longer matches.
+    A BaseException on purpose: no `except Exception` on the way may turn it into a failed build, a settlement or a
+    transition -- the run stops where it is (worker_tasks.execute_live_build_job logs STALE_WORKER_STOPPED)."""
+
+
 @dataclass
 class BuildJobDetails:
     build_id: str
@@ -48,6 +55,26 @@ class PostgresBuildRepository:
         # transactions and therefore require a DatabasePool specifically.
         self.database_url = database
         self.pool = database
+        # S4.2: build id -> the recovery epoch (build_jobs.recovery_attempts) the worker using this repository claimed
+        # it under (fence). Its transitions and heartbeats then change the row only while the epoch is unchanged.
+        self._fences: dict[str, int] = {}
+
+    def fence(self, build_id: str, epoch: int) -> None:
+        """A worker that claimed `build_id` under recovery epoch `epoch` (review of 1edee7b): when the janitor gives
+        the build to another worker it increments recovery_attempts, and from then on this worker's transitions and
+        heartbeats change nothing -- a live old worker can no longer end, or keep alive, the continuing worker's build.
+        A refused write is logged (STALE_WORKER_REFUSED)."""
+        self._fences[build_id] = int(epoch)
+
+    def fenced_epoch(self, build_id: str) -> int | None:
+        """The epoch this repository's worker fenced `build_id` in (None: not fenced)."""
+        return getattr(self, '_fences', {}).get(build_id)
+
+    def _stale(self, build_id: str, what: str) -> None:
+        import logging
+        logging.getLogger(__name__).warning('STALE_WORKER_REFUSED build=%s epoch=%s: %s changed nothing (the build '
+                                            'was given to another worker or is no longer running)', build_id,
+                                            self._fences.get(build_id), what)
 
     # ---- legacy, self-managed-transaction API -----------------------------
     # Preserved byte-for-byte: omni_prod/acceptance_pipeline.py calls
@@ -117,8 +144,9 @@ class PostgresBuildRepository:
                 estimated_provider_cost_usd = COALESCE(%s, estimated_provider_cost_usd),
                 actual_provider_cost_usd = COALESCE(%s, actual_provider_cost_usd),
                 ai_cost = CASE WHEN %s THEN NULL ELSE COALESCE(%s, ai_cost) END
-            WHERE id = %s AND status = %s
+            WHERE id = %s AND status = %s AND (%s::int IS NULL OR recovery_attempts = %s::int)
         """
+        epoch = getattr(self, '_fences', {}).get(build_id)    # S4.2: a fenced worker writes only in its own epoch
         with transaction(self.database_url) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql, (
@@ -127,9 +155,12 @@ class PostgresBuildRepository:
                     dumps_evidence_for_terminal_state(evidence_json) if evidence_json is not None else None,
                     estimated_provider_cost_usd, actual_provider_cost_usd,
                     ai_cost_usd == UNKNOWN_COST, None if ai_cost_usd == UNKNOWN_COST else ai_cost_usd,
-                    build_id, expected.value
+                    build_id, expected.value, epoch, epoch
                 ))
-                return cur.rowcount == 1
+                moved = cur.rowcount == 1
+        if not moved and epoch is not None:
+            self._stale(build_id, f'the transition {expected.value} -> {target.value}')
+        return moved
 
     def get_status(self, build_id: str) -> BuildStatus | None:
         from .db import transaction
@@ -428,10 +459,16 @@ class PostgresBuildRepository:
         with self.pool.connection() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
+                    epoch = getattr(self, '_fences', {}).get(build_id)   # S4.2: only in this worker's epoch
                     cur.execute("UPDATE build_jobs SET heartbeat_at = now() WHERE id = %s "
-                                "RETURNING cancel_requested_at IS NOT NULL", (build_id,))
+                                "AND (%s::int IS NULL OR recovery_attempts = %s::int) "
+                                "RETURNING cancel_requested_at IS NOT NULL", (build_id, epoch, epoch))
                     row = cur.fetchone()
-                    return bool(row and row[0])
+        if row is None and epoch is not None:
+            # re-review of 73ed4b7: "not cancelled" would keep a stale worker spending; it is stopped instead
+            self._stale(build_id, 'the heartbeat')
+            raise StaleWorker(f'build {build_id}: the heartbeat of epoch {epoch} was refused')
+        return bool(row and row[0])
 
     def cancel_requested(self, build_id: str) -> bool:
         with self.pool.connection() as conn:
