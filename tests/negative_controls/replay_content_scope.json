@@ -1,0 +1,24 @@
+{
+ "pr": "replay-content-scope",
+ "sha256": ["tests/test_replay_scope_matches_production.py", "omni_prod/gate_replay.py", "tests/fixtures/replay_content_site_contract.json"],
+ "controls": [
+  {"id": "NC1", "what": "the replay copies only some keys again: 'defaults' is dropped and every content site needs data_create (run 45607249874, 0/10)",
+   "mutations": [{"file": "omni_prod/gate_replay.py",
+                  "old": "        target.scope = dict(scope)",
+                  "new": "        target.scope = {k: scope.get(k) for k in ('infrastructure', 'required_integrations', 'user_roles', 'defaults_applied', 'prompt')}"}],
+   "targets": ["tests/test_replay_scope_matches_production.py"],
+   "expect_failed": ["test_a_content_site_replays_without_the_data_floor", "test_replay_requires_exactly_what_the_production_build_required"]},
+  {"id": "NC2", "what": "the replay never hands the contract over: every version is judged on the strict floor",
+   "mutations": [{"file": "omni_prod/gate_replay.py",
+                  "old": "    if target is not None and scope:\n        target.scope = dict(scope)",
+                  "new": "    if False:\n        target.scope = dict(scope)"}],
+   "targets": ["tests/test_replay_scope_matches_production.py"],
+   "expect_failed": ["test_a_content_site_replays_without_the_data_floor", "test_replay_requires_exactly_what_the_production_build_required"]},
+  {"id": "NC3", "what": "a version with no contract gets an empty scope instead of the strict floor (a silent waiver)",
+   "mutations": [{"file": "omni_prod/gate_replay.py",
+                  "old": "    if target is not None and scope:\n        target.scope = dict(scope)",
+                  "new": "    if target is not None:\n        target.scope = dict(scope or {'infrastructure': [], 'prompt': ''})"}],
+   "targets": ["tests/test_replay_scope_matches_production.py"],
+   "expect_failed": ["test_no_contract_keeps_the_strict_floor"]}
+ ]
+}

@@ -1,0 +1,131 @@
+{
+ "pr": "pr-report",
+ "sha256": [
+  "tests/test_pr_report.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the Rollback field is no longer required",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "'Security', 'Tests', 'Evidence', 'Cost', 'Performance', 'Deployment', 'Rollback', 'Reviewer', 'Blockers',",
+     "new": "'Security', 'Tests', 'Evidence', 'Cost', 'Performance', 'Deployment', 'Reviewer', 'Blockers',  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_or_empty_field_fails",
+    "test_an_unfilled_template_does_not_pass",
+    "test_it_has_the_18_fields_of_section_17_in_order",
+    "test_the_command_line_fails_loudly"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "an empty section (only the template's guidance) counts as filled",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "        elif not _COMMENT.sub('', found[field.casefold()]).strip():\n",
+     "new": "        elif not found[field.casefold()].strip():  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_or_empty_field_fails",
+    "test_an_unfilled_template_does_not_pass"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "any status word passes",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    if status and not _STATUS.match(status):\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_a_status_outside_the_three_fails"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a body that cannot be read passes",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "        print('::error title=PR report::the title or the body could not be read (PR_TITLE / PR_BODY unset)')\n        return 1\n",
+     "new": "        return 0  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_the_command_line_fails_loudly"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the check no longer runs when only the body is edited",
+   "mutations": [
+    {
+     "file": ".github/workflows/pr-report.yml",
+     "old": "    types: [opened, edited, synchronize, reopened, ready_for_review]",
+     "new": "    types: [opened, synchronize, reopened, ready_for_review]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_it_runs_on_every_pull_request_and_on_an_edited_body"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the body is interpolated into the shell (injection)",
+   "mutations": [
+    {
+     "file": ".github/workflows/pr-report.yml",
+     "old": "        run: python3 scripts/check_pr_report.py\n",
+     "new": "        run: python3 scripts/check_pr_report.py --title \"${{ github.event.pull_request.title }}\"  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_the_body_reaches_the_script_through_the_environment_only"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the task id does not have to appear in the title",
+   "mutations": [
+    {
+     "file": "scripts/check_pr_report.py",
+     "old": "    elif ids and not any(i in title for i in ids):\n",
+     "new": "    elif False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_pr_report.py"
+   ],
+   "expect_failed": [
+    "test_the_task_id_is_a_plan_id_and_is_in_the_title"
+   ]
+  }
+ ]
+}
