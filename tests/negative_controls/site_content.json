@@ -725,7 +725,7 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/agents.py",
-     "old": "            if served_cut(pages['/']) != served_cut(str(repository.get(R.PAGE, ''))):",
+     "old": "            if served_cut(pages['/'], full_length=len(page)) != served_cut(page):",
      "new": "            if False:"
     }
    ],

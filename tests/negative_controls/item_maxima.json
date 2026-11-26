@@ -120,7 +120,7 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/__init__.py",
-     "old": "        preview.trim_cut = True\n",
+     "old": "        preview.trim_cut = A.R.PAGE\n",
      "new": "        pass\n"
     }
    ],
@@ -154,8 +154,8 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/agents.py",
-     "old": "            if served_cut(pages['/']) != served_cut(str(repository.get(R.PAGE, ''))):",
-     "new": "            if pages['/'] != str(repository.get(R.PAGE, ''))[:PREVIEW_CUT]:"
+     "old": "            if served_cut(pages['/'], full_length=len(page)) != served_cut(page):",
+     "new": "            if pages['/'] != page[:PREVIEW_CUT]:"
     }
    ],
    "targets": [
@@ -163,6 +163,40 @@
    ],
    "expect_failed": [
     "test_parity_holds_for_a_long_page_and_still_finds_another_page"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "review S7: a long page is no longer read whole each round: copy rewritten past the cut goes unreviewed",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        if whole:\n            return replace(report, passed=False",
+     "new": "        if False:\n            return replace(report, passed=False"
+    }
+   ],
+   "targets": [
+    "tests/test_item_maxima.py::TheWholePageIsReviewedEveryRound"
+   ],
+   "expect_failed": [
+    "test_an_invented_phone_past_the_cut_fails_the_round"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "review nit: a page of exactly 45,000 characters is trimmed as if it had been cut",
+   "mutations": [
+    {
+     "file": "omni_prod/preview_smoke.py",
+     "old": "(len(page) if full_length is None else full_length) <= SERVED_CUT:",
+     "new": "(len(page) if full_length is None else full_length) < SERVED_CUT:"
+    }
+   ],
+   "targets": [
+    "tests/test_item_maxima.py::TheServedCut"
+   ],
+   "expect_failed": [
+    "test_the_cut_keeps_a_short_page_whole_and_is_stable"
    ]
   }
  ]

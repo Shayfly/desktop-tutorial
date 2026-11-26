@@ -696,11 +696,33 @@ class SiteParityExecutor:
                                 'findings': findings}
         else:
             # both sides as the preview returns them: a long page up to its last complete section (served_cut)
-            if served_cut(pages['/']) != served_cut(str(repository.get(R.PAGE, ''))):
+            page = str(repository.get(R.PAGE, ''))
+            if served_cut(pages['/'], full_length=len(page)) != served_cut(page):
                 findings.append('the served GET / is not the rendered public/index.html')
             self.last_parity = {'status': 'fail' if findings else 'pass', 'mode': self.mode, 'findings': findings}
         self._core.site_report['parity'] = self.last_parity
         if findings and self.mode == 'block':
             return ExecutionReport(False, tuple(AcceptanceFailure('gate-SITE_PARITY', f) for f in findings),
                                    report.build_log)
+        whole = self._whole_page_review(repository)
+        if whole:
+            return replace(report, passed=False, failures=tuple(report.failures) + whole)
         return report
+
+    def _whole_page_review(self, repository) -> tuple:
+        """Review S7 (2026-11-26): the review stage reads a long page up to its last complete section (served_cut),
+        and a repair round may rewrite copy past it. Every round, a page longer than the preview's capture is read
+        whole by the same truth gate the pre-pass runs, and a blocking finding fails the round as the review's own
+        would -- so the copy checked is never less than on main, where the raw 45,000 characters were read."""
+        from ..preview_smoke import SERVED_CUT
+        route = getattr(self._core, 'site_route', None)
+        page = str(repository.get(R.PAGE, ''))
+        if route is None or len(page) < SERVED_CUT:
+            return ()
+        from ..fact_canon import build_canon
+        from ..skills_runtime import _invented_contact
+        out = tuple(AcceptanceFailure('REVIEW', f'QA review ({f.skill}): {f.problem}', 'truth gate on the whole page')
+                    for f in _invented_contact({R.PAGE: page}, {'request': route.prompt, 'canon': build_canon(route.prompt)})
+                    if f.severity == 'blocking')
+        self._core.site_report['whole_page_review'] = {'chars': len(page), 'blocking': [f.message for f in out]}
+        return out

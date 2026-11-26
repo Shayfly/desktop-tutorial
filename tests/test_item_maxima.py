@@ -148,7 +148,11 @@ class TheServedCut(unittest.TestCase):
         self.assertEqual(served_cut(page), page)
         long = long_page_cut_inside_the_footer_address()
         self.assertEqual(served_cut(served_cut(long)), served_cut(long))
-        self.assertEqual(served_cut(long[:SERVED_CUT]), served_cut(long))  # the smoke's capture trims the same way
+        # the smoke's capture of the long page trims the same way, told the served page's length
+        self.assertEqual(served_cut(long[:SERVED_CUT], full_length=len(long)), served_cut(long))
+        exact = long[:SERVED_CUT]                                          # review nit: exactly 45,000 is whole
+        self.assertEqual(served_cut(exact), exact)
+        self.assertEqual(served_cut(exact, full_length=SERVED_CUT), exact)
         no_sections = '<p>' + 'א' * (SERVED_CUT + 10) + '</p>'
         self.assertEqual(served_cut(no_sections), '')                      # nothing whole to judge before the tag
         tagged = '<div>' + '<p>שלום</p>' * 6000
@@ -207,13 +211,13 @@ class TheServedCut(unittest.TestCase):
         from omni_prod import site_content
         preview = PreviewReadyExecutor(Passing())
         routed(ScriptedGateway(), executor=preview)
-        self.assertTrue(preview.trim_cut)
+        self.assertEqual(preview.trim_cut, 'public/index.html')
         other = PreviewReadyExecutor(Passing())
         engine = type('E', (), {})()
         engine.executor = other
         with mock.patch.dict(os.environ, {'OMNI_SITE_LIBRARY': 'off'}):
             site_content.install(engine, prompt=PROMPT, gateway=None, request={'user_id': 'u'})
-        self.assertFalse(other.trim_cut)
+        self.assertIsNone(other.trim_cut)
 
     def test_the_preview_stage_hands_the_checks_the_trimmed_page(self):
         from tests.test_content_corrections import SequenceGateway, generate
@@ -221,6 +225,7 @@ class TheServedCut(unittest.TestCase):
         _, files = generate(SequenceGateway([CONTENT]))
         repository = {f.path: f.content for f in files}
         page = long_page_cut_inside_the_footer_address()
+        repository['public/index.html'] = page                      # the page the smoke served
 
         class Sandbox:
             def execute(self, *, repository, spec):
@@ -232,13 +237,54 @@ class TheServedCut(unittest.TestCase):
         for trim, expected in ((True, served_cut(page)), (False, page[:SERVED_CUT])):
             with self.subTest(trim=trim):
                 preview = PreviewReadyExecutor(Sandbox())
-                preview.trim_cut = trim
+                preview.trim_cut = 'public/index.html' if trim else None
                 report = preview.execute(repository=repository, spec=None)
                 self.assertTrue(report.passed)
                 self.assertEqual(preview.last_pages['/'], expected)
                 if trim:                                       # whole sections only, short of the cut
                     self.assertTrue(preview.last_pages['/'].endswith('</section>'))
                     self.assertLess(len(preview.last_pages['/']), SERVED_CUT)
+
+
+class TheWholePageIsReviewedEveryRound(unittest.TestCase):
+    """Review S7 (2026-11-26): the review stage reads a long page up to its last complete section; copy a repair round
+    rewrote past it is read whole every round by the same truth gate, so coverage is never narrower than on main."""
+
+    def run_parity(self, page):
+        from types import SimpleNamespace
+        from omni_prod.autonomous_core import ExecutionReport
+        from omni_prod.site_content import agents as A
+        from omni_prod.site_content import render as R
+        preview = object.__new__(PreviewReadyExecutor)
+        preview.last_pages = {'/': served_cut(page)}
+
+        class Inner:
+            def __init__(self):
+                self._inner = preview
+
+            def execute(self, *, repository, spec):
+                return ExecutionReport(True, (), 'ok', tests_executed=5)
+        core = SimpleNamespace(site_report={}, site_route=SimpleNamespace(prompt=PROMPT))
+        report = A.SiteParityExecutor(Inner(), core, 'warn').execute(repository={R.PAGE: page}, spec=None)
+        return report, core.site_report
+
+    def test_an_invented_phone_past_the_cut_fails_the_round(self):
+        page = long_page_cut_inside_the_footer_address()
+        planted = page.replace('</footer>', '<p>התקשרו 04-8123456</p></footer>', 1)
+        self.assertGreater(planted.index('04-8123456'), SERVED_CUT)
+        report, site_report = self.run_parity(planted)
+        self.assertFalse(report.passed)
+        self.assertTrue(any(f.acceptance_id == 'REVIEW' and 'invented' in f.message for f in report.failures))
+        self.assertEqual(report.tests_executed, 5)
+        self.assertTrue(site_report['whole_page_review']['blocking'])
+
+    def test_a_clean_long_page_passes_and_a_short_one_is_left_to_the_review(self):
+        report, site_report = self.run_parity(long_page_cut_inside_the_footer_address())
+        self.assertTrue(report.passed)
+        self.assertEqual(site_report['whole_page_review']['blocking'], [])
+        report, site_report = self.run_parity(L.page(D.CONTENT, D.build()[1])[0])
+        self.assertTrue(report.passed)
+        self.assertNotIn('whole_page_review', site_report)
 
 
 if __name__ == '__main__':

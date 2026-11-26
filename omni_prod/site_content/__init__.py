@@ -267,7 +267,7 @@ def install(engine, *, prompt: str, gateway, request=None, plan_governed: bool =
     if preview is not None:
         # the owner, 2026-11-26: a page may now run past the 45,000 characters the preview smoke returns (raised item
         # maxima); the review stage reads it up to its last complete section, never a fact cut in half (served_cut)
-        preview.trim_cut = True
+        preview.trim_cut = A.R.PAGE
     if group is not None:
         group._threshold = recorder
     if quality is not None:
