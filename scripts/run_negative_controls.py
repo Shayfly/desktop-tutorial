@@ -49,6 +49,7 @@ def _git(repo, *args, check=False):
 ENV = (os.getenv('NC_ENV') or '').strip()      # '' (v24-ci, no Postgres) | 'pg' (intake-budget-pg, real Postgres)
 JOBS = int(os.getenv('NC_JOBS') or '1')        # not a number -> ValueError at start, never a silent default
 RUNNER_SETTINGS = ('NC_JOBS', 'NC_DB_URL', 'NC_REDIS_URL', 'NC_SCOPE')
+RUNNER_SETTINGS += ('NC_SHARD',)               # 2026-11-26: the shard (parse_shard below) never reaches a test either
 if JOBS < 1:
     raise ValueError(f'NC_JOBS must be at least 1, not {JOBS}')
 # NC_SCOPE (2026-11-22): 'all' runs every control that may run in this environment (v24-ci, and the default);
@@ -60,6 +61,35 @@ SCOPE = (os.getenv('NC_SCOPE') or 'all').strip()
 if SCOPE not in ('all', 'declared'):
     raise ValueError(f"NC_SCOPE must be 'all' or 'declared', not {SCOPE!r}")
 _ENV_TARGETS = {'pg': ('_pg', 'postgres')}
+
+
+def parse_shard(value: str) -> tuple[int, int] | None:
+    """NC_SHARD (2026-11-26): 'i/n' runs shard i of n (1 <= i <= n); unset or empty runs every spec. v24-ci ran every
+    control in one job on 4 workers: 1,200 controls in 9.6 minutes (run 45711355778), then 1,296 past the step's
+    18-minute limit (run 45713038574) on a runner about 1.9 times slower (the specs both runs share: 71.5 worker-minutes
+    instead of 37.9). The job may not exceed 20 minutes, so parallel jobs share the controls instead of a raised limit.
+    Any other value raises: a shard is never guessed."""
+    if not value:
+        return None
+    m = re.fullmatch(r'(\d+)/(\d+)', value)
+    if not m or not 1 <= int(m.group(1)) <= int(m.group(2)):
+        raise ValueError(f"NC_SHARD must be 'i/n' with 1 <= i <= n, not {value!r}")
+    return int(m.group(1)), int(m.group(2))
+
+
+SHARD = parse_shard((os.getenv('NC_SHARD') or '').strip())
+
+
+def shards(loaded: list, n: int) -> list[list[int]]:
+    """The spec indexes of each of n shards. Every spec is in exactly one shard, whole (its SPEC notice stays one
+    line): the specs with the most controls go first, each to the shard with the fewest controls so far, the lowest
+    shard on a tie. The same specs always give the same shards."""
+    totals, out = [0] * n, [[] for _ in range(n)]
+    for i in sorted(range(len(loaded)), key=lambda i: (-len(loaded[i][1]['controls']), loaded[i][0].name)):
+        k = min(range(n), key=lambda s: (totals[s], s))
+        out[k].append(i)
+        totals[k] += len(loaded[i][1]['controls'])
+    return [sorted(x) for x in out]
 _marked: dict = {}
 
 
@@ -249,6 +279,16 @@ def main(argv: list[str]) -> int:
     # controls ran -- one notice per spec, all of them visible. A FAIL is also an ::error with its full detail.
     all_ok = True
     loaded = [(path, json.loads(path.read_text(encoding='utf-8'))) for path in specs]
+    if SHARD is not None:
+        index, count = SHARD
+        mine = shards(loaded, count)[index - 1]
+        if not mine:
+            notice('negative-controls', f'FAIL shard {index}/{count} holds no spec ({len(loaded)} specs matched)')
+            return 1
+        notice(f'negative-controls shard {index}/{count}',
+               f"{len(mine)} of {len(loaded)} specs, {sum(len(loaded[i][1]['controls']) for i in mine)} of "
+               f"{sum(len(spec['controls']) for _p, spec in loaded)} controls; the other shards run the rest")
+        loaded = [loaded[i] for i in mine]
     results = {}                                      # (spec index, control index) -> future of (ok, detail, lines)
     pool = None
     if JOBS > 1:

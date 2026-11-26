@@ -1,0 +1,129 @@
+{
+ "pr": "nc-shards",
+ "sha256": [
+  "tests/test_negative_controls_parallel.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a spec is left out of every shard",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "    for i in sorted(range(len(loaded)), key=lambda i: (-len(loaded[i][1]['controls']), loaded[i][0].name)):\n",
+     "new": "    for i in sorted(range(len(loaded) - 1), key=lambda i: (-len(loaded[i][1]['controls']), loaded[i][0].name)):  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_a_shard_runs_only_its_specs_and_together_they_run_all",
+    "test_every_spec_of_the_repository_is_in_exactly_one_shard"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "NC_SHARD is ignored: every shard runs every spec",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "    if SHARD is not None:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_a_shard_runs_only_its_specs_and_together_they_run_all",
+    "test_an_empty_shard_fails_loudly"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a malformed NC_SHARD is accepted",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "    if not m or not 1 <= int(m.group(1)) <= int(m.group(2)):\n        raise ValueError(f\"NC_SHARD",
+     "new": "    if False:  # NEGATIVE CONTROL\n        raise ValueError(f\"NC_SHARD"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_a_shard_must_be_i_of_n"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "an empty shard passes",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "        if not mine:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_an_empty_shard_fails_loudly"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "NC_SHARD reaches the tests a control runs",
+   "mutations": [
+    {
+     "file": "scripts/run_negative_controls.py",
+     "old": "RUNNER_SETTINGS += ('NC_SHARD',)",
+     "new": "RUNNER_SETTINGS += ()  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_a_shard_must_be_i_of_n"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "CI runs two of the three shards",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "        shard: [1, 2, 3]\n",
+     "new": "        shard: [1, 2]  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_ci_runs_every_shard"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "one red shard cancels the others",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      fail-fast: false\n      matrix:\n        shard: [1, 2, 3]\n",
+     "new": "      fail-fast: true  # NEGATIVE CONTROL\n      matrix:\n        shard: [1, 2, 3]\n"
+    }
+   ],
+   "targets": [
+    "tests/test_negative_controls_parallel.py"
+   ],
+   "expect_failed": [
+    "test_ci_runs_every_shard"
+   ]
+  }
+ ]
+}

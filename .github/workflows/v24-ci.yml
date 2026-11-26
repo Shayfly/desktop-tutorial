@@ -160,8 +160,16 @@ jobs:
   # the follow-up the comment on `test` asked for: the controls run in their own job, beside the tests. Every spec
   # still runs on every push; nothing is skipped.
   negative-controls:
+    # 2026-11-26: three shards run in parallel (NC_SHARD; every spec in exactly one shard). In one job, 1,200 controls
+    # took 9.6 minutes (run 45711355778, main 4690d01) and 1,296 passed the step's 18-minute limit (run 45713038574,
+    # main 18dba53) on a runner about 1.9 times slower: the specs both runs share took 71.5 worker-minutes instead of
+    # 37.9. The job may not exceed 20 minutes, so the work is shared instead of raising a limit. Nothing is skipped.
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -174,6 +182,7 @@ jobs:
         timeout-minutes: 18
         env:
           NC_JOBS: "4"    # 2026-11-17: the 4 cores of the runner; output is the same as a serial run, in the same order
+          NC_SHARD: "${{ matrix.shard }}/3"
         run: python scripts/run_negative_controls.py
   publish-report:
     # smoke/ci-last-run.md (the latest main CI result, readable without job logs) is published where it cannot rot
