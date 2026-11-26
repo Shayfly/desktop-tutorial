@@ -97,6 +97,9 @@ jobs:
       - name: PostgreSQL files no job ran before (warehouse 112), each in its own process
         if: always()
         timeout-minutes: 12
+        env:
+          # S4.5: the tenant-isolation evidence (one line per route, the schema md5) reaches the next step's printout
+          OMNI_EVIDENCE_NOTICES: ${{ github.workspace }}/evidence-notices.txt
         run: |
           fail=0
           for f in tests/test_actual_cost_settlement.py tests/test_agent_os.py tests/test_build_cancel_and_log.py \
@@ -108,6 +111,7 @@ jobs:
                    tests/test_crash_recovery_and_change_parity.py tests/test_golden_mod_path_live_postgres.py \
                    tests/test_intelligence_plane.py tests/test_janitor_redispatch.py tests/test_m4d2_live_fastapi_redis.py \
                    tests/test_m4d2_live_postgres.py \
+                   tests/test_tenant_isolation_pg.py \
                    tests/test_maintenance_live_postgres.py tests/test_preview_access.py tests/test_release_policy.py; do
             n=$(basename "$f" .py)
             if python -m pytest -q -rs -p no:cacheprovider --junitxml="pg112-$n.xml" "$f"; then
