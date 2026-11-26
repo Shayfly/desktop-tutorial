@@ -62,6 +62,10 @@ class Interpretation:
     semantic_decisions: list[dict] = field(default_factory=list)  # evidence-bound; no paid action
     # owner 2026-11-18: a conversation limit (budget / daily / turns) stopped the paid call. {kind, source} only.
     limit: dict | None = None
+    # the owner, 2026-11-26: a bound that applied to this turn, in the customer's words ({kind, message}); stored with the
+    # assistant message, recorded and returned by the API (investor_app._conversation_view 'notices'); not on screen
+    # until the apps bundle shows it (STATUS.md, caps-a)
+    notices: list[dict] = field(default_factory=list)
 
     def to_dict(self):
         return {'schema': SCHEMA, 'language': self.language, 'product_family': self.product_family,
@@ -69,7 +73,8 @@ class Interpretation:
                 'requirements': list(self.requirements), 'interpreter': self.interpreter, 'dropped': list(self.dropped),
                 'cost_usd': self.cost_usd, 'cost_state': self.cost_state, 'reservation_id': self.reservation_id,
                 'reply':self.reply, 'semantic_decisions': list(self.semantic_decisions),
-                **({'limit': dict(self.limit)} if self.limit else {})}
+                **({'limit': dict(self.limit)} if self.limit else {}),
+                **({'notices': [dict(n) for n in self.notices]} if self.notices else {})}
 
 
 def language_of(text: str) -> str:
@@ -184,8 +189,23 @@ class DeterministicInterpreter:
 _ALLOWED = {q.field: (q.kind, {o.value for o in q.options}) for q in d.QUESTIONS}
 
 PROMPT_VERSION = 'intake-prompt/6-semantic-integrations'
-MAX_MESSAGE_CHARS = 4000          # longer messages are truncated before any model call (cost bound)
+# The owner, 2026-11-26 (WAREHOUSE 136, option a): the model read only the first 4,000 characters of a message, and the
+# rest of the customer's words were cut silently. It now reads the whole message, up to the conversation's message
+# limit (investor_app.V28ConversationMessage, 8,000 characters, refused out loud above it; tests/test_silent_cuts.py
+# holds the two equal). The money bound is unchanged: every paid call is quoted on its real size and reserved against
+# the conversation's budgets (intake.budget.quote).
+MAX_MESSAGE_CHARS = 8000
 MAX_OUTPUT_TOKENS = 2400          # 700 truncated (2026-11-07); 1400 truncated a reply to a long brief (2026-11-09)
+
+
+def message_cut_note(message: str) -> str | None:
+    """A message past MAX_MESSAGE_CHARS cannot come through the conversation route (it refuses it with a 422); an
+    internal caller that sends one gets the cut logged and noted in the interpretation, never silent."""
+    if len(message or '') <= MAX_MESSAGE_CHARS:
+        return None
+    import logging
+    logging.getLogger(__name__).warning('INTAKE_MESSAGE_CUT chars=%s read=%s', len(message), MAX_MESSAGE_CHARS)
+    return f'message cut to its first {MAX_MESSAGE_CHARS} of {len(message)} characters before the model read it'
 
 
 def _agent_on() -> bool:
@@ -211,6 +231,7 @@ def _ask_next(brief, still_open) -> dict | None:
 def contextual_user(message: str, brief=None, history=()) -> str:
     """Bounded context for both model routes. Evidence is still validated only
     against the current message; historic decisions are not new proposals."""
+    message_cut_note(message)                # a message past the bound is logged on both routes (never silent)
     current = message[:MAX_MESSAGE_CHARS]
     # CEO 2026-11-08: station 1 skill -- what an expert must know for this kind of product (intake.question_skills)
     from .question_skills import checklist
@@ -356,9 +377,30 @@ SYSTEM = ('You extract software-product requirements from a customer message. Mo
 
 
 MAX_RAW_CHARS = 50_000
-MAX_PROPOSALS = 30
-MAX_REQUIREMENTS = 12
+# The owner, 2026-11-26 (WAREHOUSE 136, option a): the model's reply was cut at 1,200 characters, its requirements at 12
+# (each dropped past 300 characters) and its proposals at 30 -- each recorded only in an internal note. Raised; when a
+# bound still applies it is logged (INTAKE_OUTPUT_BOUND), noted, and recorded and returned by the API
+# (Interpretation.notices; on screen once the apps bundle shows it). A cut reply says so in its own text, on screen today. MAX_RAW_CHARS bounds the whole output first, so every list here is finite.
+MAX_PROPOSALS = 200               # one per question field at most counts; the rest are duplicates or invalid
+MAX_REQUIREMENTS = 60
+MAX_REQUIREMENT_CHARS = 1000      # a longer requirement is cut to this, and noted (it was dropped past 300)
+MAX_REPLY_CHARS = 4000            # under the 8,000 characters a stored message holds (conversation.store)
+_NOTICE = {
+    'reply_cut': {'he': '(התשובה קוצרה כאן כי הייתה ארוכה מדי. אפשר לבקש את ההמשך.)',
+                  'en': '(This reply was shortened here because it was too long. You can ask for the rest.)'},
+    'model_output_cut': {'he': 'חלק ממה שזוהה בהודעה הזו לא נקרא כי היה ארוך מדי. כדאי לבדוק את הסיכום ולהשלים בו מה שחסר.',
+                         'en': 'Part of what was picked up from this message was not read because it was too long. '
+                               'Please check the summary and add anything missing.'},
+}
 _TOP_KEYS = {'language', 'product_family', 'proposals', 'delegate_rest', 'requirements', 'reply', 'semantic_decisions'}
+
+
+def _bound_applied(kind: str, note: str, lang: str, dropped: list, notices: list) -> None:
+    import logging
+    logging.getLogger(__name__).warning('INTAKE_OUTPUT_BOUND kind=%s %s', kind, note)
+    dropped.append(note)
+    if not any(n['kind'] == kind for n in notices):
+        notices.append({'kind': kind, 'message': _NOTICE[kind]['he' if lang == 'he' else 'en']})
 
 
 def validate_model_output(raw, message: str) -> tuple[Interpretation | None, list[str]]:
@@ -373,13 +415,15 @@ def validate_model_output(raw, message: str) -> tuple[Interpretation | None, lis
     if size > MAX_RAW_CHARS:
         return None, [f'output too large ({size} chars)']
     dropped: list[str] = [f'unknown key {k!r}' for k in sorted(set(map(str, raw)) - _TOP_KEYS)][:10]
+    notices: list[dict] = []
     proposals, requirements = raw.get('proposals', []), raw.get('requirements', [])
     if not isinstance(proposals, list) or not isinstance(requirements, list):
         return None, dropped + ['proposals/requirements must be lists']
-    if len(proposals) > MAX_PROPOSALS:
-        dropped.append(f'{len(proposals) - MAX_PROPOSALS} proposals over the limit ignored')
-        proposals = proposals[:MAX_PROPOSALS]
     lang = raw.get('language') if raw.get('language') in ('he', 'en') else language_of(message)
+    if len(proposals) > MAX_PROPOSALS:
+        _bound_applied('model_output_cut', f'{len(proposals) - MAX_PROPOSALS} proposals over the limit of '
+                       f'{MAX_PROPOSALS} not read', lang, dropped, notices)
+        proposals = proposals[:MAX_PROPOSALS]
     fam = raw.get('product_family')
     from .families import FAMILIES
     family = fam if isinstance(fam, str) and fam in FAMILIES else classify_family(message)
@@ -413,11 +457,17 @@ def validate_model_output(raw, message: str) -> tuple[Interpretation | None, lis
         seen.add(fld)
         props.append(Proposal(fld, val, conf, ev[:120], 'model'))
     reqs = []
+    if len(requirements) > MAX_REQUIREMENTS:
+        _bound_applied('model_output_cut', f'{len(requirements) - MAX_REQUIREMENTS} requirements over the limit of '
+                       f'{MAX_REQUIREMENTS} not read', lang, dropped, notices)
     for r in requirements[:MAX_REQUIREMENTS]:
-        if isinstance(r, str) and r.strip() and len(r) <= 300:
-            reqs.append(r.strip())
-        else:
-            dropped.append('requirement item dropped (not a short string)')
+        if not (isinstance(r, str) and r.strip()):
+            dropped.append('requirement item dropped (not text)')
+            continue
+        if len(r) > MAX_REQUIREMENT_CHARS:
+            _bound_applied('model_output_cut', f'a requirement of {len(r)} characters cut to {MAX_REQUIREMENT_CHARS}',
+                           lang, dropped, notices)
+        reqs.append(r.strip()[:MAX_REQUIREMENT_CHARS])
     delegate = raw.get('delegate_rest', False)
     if not isinstance(delegate, bool):
         dropped.append('delegate_rest not a boolean')
@@ -426,14 +476,17 @@ def validate_model_output(raw, message: str) -> tuple[Interpretation | None, lis
     if not isinstance(reply,str):
         reply=''
         dropped.append('reply must be text')
-    elif len(reply)>1200:          # 2026-11-08: a long reply is cut at a sentence, never thrown away
-        cut=reply[:1200]
-        reply=cut[:max(cut.rfind('. '), cut.rfind('? '), cut.rfind('\n'))+1] or cut
-        dropped.append('reply cut to 1200 characters')
+    elif len(reply) > MAX_REPLY_CHARS:     # 2026-11-08: a long reply is cut at a sentence, never thrown away
+        cut = reply[:MAX_REPLY_CHARS]
+        reply = cut[:max(cut.rfind('. '), cut.rfind('? '), cut.rfind('\n')) + 1] or cut
+        _bound_applied('reply_cut', f'reply of {len(raw.get("reply", ""))} characters cut to {len(reply)} (bound '
+                       f'{MAX_REPLY_CHARS})', lang, dropped, notices)
+        said = next(n['message'] for n in notices if n['kind'] == 'reply_cut')
+        reply = reply.rstrip() + '\n' + said                           # said where it was cut, in the reply itself
     semantic, semantic_drops = validate_decisions(raw.get('semantic_decisions', []), customer_text=message)
     dropped.extend(semantic_drops)
     return Interpretation(lang, family, props, delegate, reqs, 'model', dropped,
-                          reply=reply.strip(), semantic_decisions=semantic), dropped
+                          reply=reply.strip(), semantic_decisions=semantic, notices=notices), dropped
 
 
 def merge(base: Interpretation, model: Interpretation, *, interpreter: str, cost_usd, cost_state: str,
@@ -447,7 +500,8 @@ def merge(base: Interpretation, model: Interpretation, *, interpreter: str, cost
     return Interpretation(model.language, model.product_family, list(merged.values()),
                           model.delegate_rest or base.delegate_rest, model.requirements or base.requirements,
                           interpreter, model.dropped, None if cost_usd is None else str(cost_usd), cost_state,
-                          reservation_id, model.reply, model.semantic_decisions)
+                          reservation_id, model.reply, model.semantic_decisions,
+                          notices=list(base.notices) + [n for n in model.notices if n not in base.notices])
 
 
 class ModelInterpreter:
@@ -467,6 +521,9 @@ class ModelInterpreter:
         from .reservation_worker import MeterError, ledger_mark, meter
         from ..attempt_ledger import new_call_id
         base = self.fallback.interpret(message, brief)
+        cut = message_cut_note(message)      # unreachable through the route (it refuses a longer message); never silent
+        if cut:
+            base.dropped.append(cut)
         raw, error = None, None
         call_id = new_call_id()          # THIS turn: the meter sums only the attempts carrying it
         mark = ledger_mark(self.gateway)
@@ -500,6 +557,8 @@ class ModelInterpreter:
         merged = merge(base, model, interpreter='model+deterministic', cost_usd=cost, cost_state=m['cost_state'])
         if unmetered and unmetered not in merged.dropped:
             merged.dropped.append(unmetered)
+        if cut and cut not in merged.dropped:
+            merged.dropped.append(cut)
         return merged
 
 

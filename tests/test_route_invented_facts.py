@@ -59,12 +59,16 @@ SHOP = {
         'contact': {'title': 'צרו קשר', 'nav': 'צור קשר'},
     },
 }
+# caps-a 2: the first document is one item past the services maximum (TOO_MANY, so the one correction is asked for);
+# the maximum was 8, it is 24 now, so the shop's nine items are padded with lettered ones (no digit: no number invented)
+MORE = [(f'אביזר מסוג {letter}׳', f'אביזר לנרגילה מסוג {letter}׳.') for letter in 'אבגדהוזחטיכלמנסעפצקרשת']
+OVER = K.SECTIONS['services']['items'].max + 1
 PRICE = 'משלוח עד הבית ב-30 ₪.'          # the invented fact: a price and a number the customer never gave
 
 
 def shop(items=8, process_lead=None):
     doc = copy.deepcopy(SHOP)
-    doc['sections']['services']['items'] = doc['sections']['services']['items'][:items]
+    doc['sections']['services']['items'] = [{'title': t, 'desc': d} for t, d in (ITEMS + MORE)[:items]]
     if process_lead is not None:
         doc['sections']['process'] = {'title': 'איך מזמינים', 'nav': 'איך מזמינים', 'lead': process_lead,
                                       'steps': [{'title': 'בוחרים', 'desc': 'בוחרים את המוצרים מהרשימה.'},
@@ -86,15 +90,18 @@ class AnInventedFactAfterTheOneCorrection(unittest.TestCase):
 
     def test_the_production_shape_needs_no_lawyer_sections_now(self):
         # production's first document lacked process and FAQ (SCHEMA_SHAPE x2) and had 9 items; now only the 9 items
+        # caps-a 2 (the owner, 2026-11-26, WAREHOUSE 136 option a): services may list up to 24 items, so production's
+        # 9 items need no correction at all: one content call, nothing corrected, nothing stripped
         gw, engine, files = generate_shop(shop(items=9), shop(items=8))
-        self.assertEqual([p['code'] for p in engine.site_report['corrected']], ['TOO_MANY'])
+        self.assertNotIn('corrected', engine.site_report)
         self.assertNotIn('stripped', engine.site_report)
         self.assertIn('process: offered, the model left it out', engine.site_report['skipped'])
-        self.assertEqual([r for r, _ in gw.calls].count('content'), 2)
+        self.assertEqual([r for r, _ in gw.calls].count('content'), 1)
+        self.assertEqual(len(json.loads(files['content/site.json'])['document']['sections']['services']['items']), 9)
 
     def test_one_invented_sentence_is_removed_and_the_build_goes_on(self):
         lead = 'בוחרים מוצר ומתקשרים אלינו. ' + PRICE
-        gw, engine, files = generate_shop(shop(items=9), shop(process_lead=lead))
+        gw, engine, files = generate_shop(shop(items=OVER), shop(process_lead=lead))
         stored = json.loads(files['content/site.json'])['document']
         self.assertEqual(stored['sections']['process']['lead'], 'בוחרים מוצר ומתקשרים אלינו.')    # the rest, as written
         [entry] = engine.site_report['stripped']
@@ -104,7 +111,7 @@ class AnInventedFactAfterTheOneCorrection(unittest.TestCase):
         self.assertEqual(SC.report(engine)['stripped'], engine.site_report['stripped'])        # in the evidence
 
     def test_an_optional_field_left_empty_is_removed(self):
-        gw, engine, files = generate_shop(shop(items=9), shop(process_lead=PRICE))
+        gw, engine, files = generate_shop(shop(items=OVER), shop(process_lead=PRICE))
         stored = json.loads(files['content/site.json'])['document']
         self.assertNotIn('lead', stored['sections']['process'])
         self.assertTrue(engine.site_report['stripped'][0]['field_removed'])
@@ -113,13 +120,13 @@ class AnInventedFactAfterTheOneCorrection(unittest.TestCase):
         corrected = shop()
         corrected['sections']['hero']['lead'] = PRICE                  # hero.lead is required
         with self.assertRaises(A.SiteContentInvalid) as caught:
-            generate_shop(shop(items=9), corrected)
+            generate_shop(shop(items=OVER), corrected)
         self.assertIn('sections.hero.lead PRICE_NOT_GIVEN', str(caught.exception))
 
     def test_another_problem_beside_it_still_fails_loudly(self):
-        corrected = shop(items=9, process_lead='בוחרים מוצר. ' + PRICE)            # TOO_MANY is not invented
+        corrected = shop(items=OVER, process_lead='בוחרים מוצר. ' + PRICE)         # TOO_MANY is not invented
         with self.assertRaises(A.SiteContentInvalid):
-            generate_shop(shop(items=9), corrected)
+            generate_shop(shop(items=OVER), corrected)
 
     def test_strip_invented_alone(self):
         sheet = Fx.fact_sheet(LAW)

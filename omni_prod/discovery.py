@@ -1195,6 +1195,72 @@ def requirements_text(brief: Brief) -> str:
     return '\n'.join(lines)
 
 
+# The owner, 2026-11-26 (WAREHOUSE 136, option a): the build prompt was cut at 12,000 characters, and the approved
+# decisions -- appended LAST -- were what the cut removed, silently. Now the decisions are never cut, the bound is
+# BUILD_PROMPT_MAX (the request may be up to 48,000 characters, ConversationSupervisor.MAX_REQUEST_CHARS, and the
+# decisions have the rest), and when anything must still go it is the request's OLDEST words (it starts with the
+# earliest message carried), said in the decisions block itself, in the build evidence and to the customer.
+BUILD_PROMPT_MAX = 64_000
+# The request a new brief starts from (ConversationSupervisor.MAX_REQUEST_CHARS reads it), and the bound of the
+# `prompt` field of the plan and build routes (investor_app.V28PlanRequest / V27BuildRequest read BUILD_PROMPT_MAX):
+# one place, so a request the conversation accepts is never a 422 at the plan or the build (review B1, 2026-11-26).
+REQUEST_MAX_CHARS = 48_000
+REQUEST_CUT_PREFIX = 'Request cut: '
+_REQUEST_CUT_ROOM = 200                       # the line that says so, inside the decisions block
+_REQUEST_CUT = re.compile(r'^' + re.escape(REQUEST_CUT_PREFIX) + r'the first (\d+) of (\d+) characters', re.M)
+
+
+def build_prompt(brief: Brief) -> tuple[str, dict | None]:
+    """(the prompt a build starts from, the cut or None): the customer's request, then the approved decisions block
+    (requirements_text), whole. Within BUILD_PROMPT_MAX nothing is cut. Past it, the request's start is cut, a line of
+    the decisions block says how much (so the cut is bound into the contract, its fingerprint and the approval), and
+    the cut is returned: {'dropped_chars', 'kept_chars', 'request_chars', 'bound'}. A decisions block that alone fills
+    the bound raises ValueError: no request would be left to build."""
+    decisions = requirements_text(brief)
+    request = brief.prompt or ''
+    whole = request + '\n' + decisions
+    if len(whole) <= BUILD_PROMPT_MAX:
+        return whole, None
+    room = BUILD_PROMPT_MAX - len(decisions) - _REQUEST_CUT_ROOM - 2
+    if room <= 0:
+        raise ValueError(f'the approved decisions alone are {len(decisions)} characters, past the build prompt bound '
+                         f'of {BUILD_PROMPT_MAX}')
+    dropped = len(request) - room
+    line = (f'{REQUEST_CUT_PREFIX}the first {dropped} of {len(request)} characters of the customer\'s request (its '
+            f'earliest words) were left out to fit the build prompt bound of {BUILD_PROMPT_MAX}; the customer was told.')
+    if len(line) > _REQUEST_CUT_ROOM:          # unreachable while the numbers have fewer than 9 digits
+        raise ValueError(f'the request-cut line is {len(line)} characters, past its room of {_REQUEST_CUT_ROOM}')
+    import logging
+    logging.getLogger(__name__).warning('BUILD_PROMPT_CUT dropped=%s kept=%s decisions=%s bound=%s', dropped, room,
+                                        len(decisions), BUILD_PROMPT_MAX)
+    prompt = request[-room:] + '\n' + decisions + '\n' + line
+    return prompt, {'dropped_chars': dropped, 'kept_chars': room, 'request_chars': len(request),
+                    'bound': BUILD_PROMPT_MAX}
+
+
+def request_cut_of(prompt: str) -> dict | None:
+    """The cut a build prompt says it carries (build_prompt's line), for the build evidence; None when it carries none."""
+    m = _REQUEST_CUT.search(prompt or '')
+    if m is None:
+        return None
+    dropped, total = int(m.group(1)), int(m.group(2))
+    return {'dropped_chars': dropped, 'kept_chars': total - dropped, 'request_chars': total,
+            'bound': BUILD_PROMPT_MAX}
+
+
+def request_cut_message(cut: dict | None, lang: str = 'he') -> str | None:
+    """The cut in the customer's words (the plan view; the conversation says it when the brief starts)."""
+    if not cut:
+        return None
+    if lang == 'he':
+        return (f'הבקשה שלכם ארוכה מכדי להיכנס כולה לבנייה: {cut["dropped_chars"]:,} התווים הראשונים שלה (המילים '
+                f'המוקדמות ביותר) לא ייכנסו, ו-{cut["kept_chars"]:,} התווים האחרונים כן. כל ההחלטות שאישרתם נכנסות '
+                'במלואן. אם משהו חשוב נמצא בתחילת הבקשה, כתבו אותו שוב בקצרה.')
+    return (f'Your request is too long to go into the build whole: its first {cut["dropped_chars"]:,} characters (the '
+            f'earliest words) will be left out and its last {cut["kept_chars"]:,} kept. Every decision you approved '
+            'goes in whole. If something important is at the start of the request, write it again briefly.')
+
+
 def summary(brief: Brief, lang: str = 'he') -> dict:
     """Plain-language understanding for the approval screen (§5)."""
     v = brief.values()

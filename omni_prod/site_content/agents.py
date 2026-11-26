@@ -2,10 +2,13 @@
 
   ContentSpecArchitect   no model call: the content-only floor spec (ProductArchitect._content_only_spec); the worker's
                          wrappers add CUSTOMER-FACTS, the outline, PLATFORM-CHECKS and DESIGN-CONTRACT as today
-  ContentSiteGenerator   one ContentAgent call (copy only, one JSON document), validated; ONE corrective call for a
-                         blocking validation problem or a blocking gate finding inside the copy; then the platform
-                         renders, runs the gates that judge a page before any sandbox time (each in its own mode:
-                         a warn finding goes to the evidence), and writes the repository
+  ContentSiteGenerator   one ContentAgent call (copy only, one JSON document), validated; up to MAX_CORRECTIONS (3)
+                         corrective calls in all -- a whole-document correction for a blocking validation problem, or
+                         a rewrite of the named paths for a blocking gate finding inside the copy -- each one logged
+                         in the build evidence (site_route.correction_rounds); then the platform renders, runs the
+                         gates that judge a page before any sandbox time (each in its own mode: a warn finding goes to
+                         the evidence), and writes the repository. The owner, 2026-11-26 (WAREHOUSE 136, option a):
+                         one correction and then a failed build was a limit that is not money; it became three
   ContentSiteRepairer    after a failed round: attribute every failure with the OWNER table. Platform -> RepairDeclined
                          ('platform_render_defect'), zero model calls. Customer -> needs_customer_input. Content -> one
                          ContentRepairAgent call that may set ONLY the JSON paths the findings point at; validated,
@@ -15,13 +18,24 @@
   SiteParityExecutor     the served GET / is the rendered page (cut where the preview cuts it), and the repository
                          holds no other page; a new check, so it enters gate.CALIBRATING (SITE_PARITY) at warn
 
-After the one correction, a document whose only blocking problems are invented facts (INVENTED: a price, a number,
-a count, a channel, a review the customer never gave) loses exactly the sentences that state them, deterministically,
-recorded in the evidence ('stripped'); a required field that would be left empty still fails (strip_invented).
+After a correction, a document whose only blocking problems are invented facts (INVENTED: a price, a number, a
+count, a channel, a review the customer never gave) loses exactly the sentences that state them, deterministically,
+recorded in the evidence ('stripped'), before another correction is spent on them; a required field that would be
+left empty, or any other problem, goes on to the next correction and, once the MAX_CORRECTIONS are spent, fails
+(strip_invented).
 
-Every loop is bounded (one corrective call per generation, one rewrite call per repair round, the engine's own round
-bounds), every failure is loud (SiteContentInvalid, SiteRenderDefect, RepairDeclined), and there is no fallback to
-the legacy generator once the route was chosen.
+Every loop is bounded (at most MAX_CORRECTIONS corrective calls per generation, one rewrite call per repair round, the
+engine's own round bounds), every failure is loud (SiteContentInvalid, SiteRenderDefect, RepairDeclined), and there is
+no fallback to the legacy generator once the route was chosen.
+
+Tokens (the owner, 2026-11-26 ~16:10 UTC: "לבטל מגבלה על טוקנים כרגע רק מדידה"): there is no product-chosen
+output cap on the content path. Each call asks for its model's own documented maximum (output_maximum: the catalogue's
+max_output_tokens; the router then gives each model exactly its own), and every call is MEASURED -- its real input and
+output tokens, its metered cost, its model and why it stopped -- into the build evidence (site_route.content_usage:
+every call and the build's totals); the same attempts are in the attempt ledger. A call that stops at the model's
+maximum is said loudly there (truncated_at_model_maximum, SITE_CONTENT_TRUNCATED in the log). What a correction costs is
+that measurement, per build. The money caps stay (the build's reservation and the per-build ceiling, warehouse 136):
+the router still authorizes every call against the build's budget.
 """
 from __future__ import annotations
 
@@ -33,6 +47,7 @@ import re
 from dataclasses import replace
 
 from ..autonomous_core import AcceptanceFailure, ExecutionReport, RepairDeclined
+from ..preview_smoke import served_cut
 from ..repository_patch import FilePatch
 from . import facts as Fx
 from . import owners as O
@@ -43,12 +58,92 @@ from . import validate as V
 _LOG = logging.getLogger(__name__)
 PREVIEW_CUT = 45_000                  # preview_smoke keeps the first 45,000 characters of GET / for the truth gate
 PREPASS_GATES = ('G1', 'G3', 'G10', 'G11', 'HE', 'BRAND', 'SHARE', 'PRO')
-MAX_CONTENT_TOKENS = 8000
-MAX_REWRITE_TOKENS = 3000
+# The owner, 2026-11-26 (WAREHOUSE 136, option a): corrective calls per generation -- a fixed, stated bound (CLAUDE.md
+# section 3). It was 1. Each round is logged in the build evidence (site_route.correction_rounds) and the bound is
+# said there (site_route.correction_bound) and in the failure message.
+MAX_CORRECTIONS = 3
+# Review S5, narrowed by the owner's order of 2026-11-26 16:10: the only room left is the model's own output maximum.
+# The model is told that room and, only when a list would really not fit in it, names the list in the document's
+# `shortened`; the evidence records it with the sentence for the customer (site_route.shortened, .shortened_said):
+# recorded and returned by the API, on screen once the apps bundle shows it. ESTIMATE: about 2.5 characters of Hebrew
+# JSON per token (not measured on a tokenizer here).
+CHARS_PER_TOKEN_ESTIMATE = 2.5
+_REPO_CATALOG = __import__('pathlib').Path(__file__).resolve().parents[2] / 'infra' / 'worker-host' / 'model-catalog.json'
+
+
+def output_maximum(gateway) -> int:
+    """The model's own documented output maximum to ask for: the largest max_output_tokens of the catalogue the
+    gateway routes over (RoutedModelGateway.ranked -- each route is then clamped to ITS model's maximum by
+    ranked_routes); with no routed catalogue, the runtime catalogue (OMNI_MODEL_CATALOG_JSON), else the repository's
+    (infra/worker-host/model-catalog.json). A catalogue entry without the field counts 8,192, as model_catalog reads it."""
+    import os
+    ranked = getattr(gateway, 'ranked', None)
+    if isinstance(ranked, (list, tuple)) and ranked:
+        return max(int(m.max_output_tokens) for m in ranked)
+    raw = os.environ.get('OMNI_MODEL_CATALOG_JSON', '').strip()
+    items = json.loads(raw) if raw else json.loads(_REPO_CATALOG.read_text(encoding='utf-8'))
+    return max(int(i.get('max_output_tokens', 8192)) for i in items)
+
+
+_TRUNCATED = ('length', 'max_tokens')
+
+
+def _measured(gateway, start, role: str, max_tokens: int) -> dict:
+    """One content call as the router recorded it: every attempt's model, tokens, metered cost and why it stopped."""
+    recorder = getattr(gateway, 'recorder', None)
+    records = getattr(recorder, 'records', None)
+    if start is None or not isinstance(records, list):
+        return {'role': role, 'max_tokens': max_tokens, 'measured': False,
+                'why': 'the gateway keeps no attempt records (not a routed gateway)'}
+    output = getattr(gateway, 'attempt_output', None) or {}
+    attempts = []
+    for r in records[start:]:
+        if getattr(r, 'kind', None) != 'provider_call':
+            continue
+        seen = output.get(r.attempt_seq) or {}
+        reason, sent, maximum = seen.get('finish_reason'), seen.get('max_tokens_sent'), seen.get('model_maximum')
+        failure = str(getattr(r, 'failure_reason', '') or '')
+        truncated = reason in _TRUNCATED or any(f'finish_reason={t}' in failure for t in _TRUNCATED)
+        # stopped at the model's own maximum, or at a smaller allowance the build's money left (fit_to_budget)
+        at_maximum = truncated and (maximum is None or sent is None or int(sent) >= int(maximum))
+        attempts.append({'model': r.model, 'outcome': r.outcome, 'input_tokens': r.input_tokens,
+                         'output_tokens': r.output_tokens,
+                         'metered_cost_usd': None if r.metered_cost_usd is None else str(r.metered_cost_usd),
+                         'max_tokens_sent': sent, 'model_maximum': maximum, 'finish_reason': reason,
+                         'truncated_at_model_maximum': at_maximum,
+                         'truncated_at_budget_allowance': truncated and not at_maximum})
+        if truncated:
+            _LOG.error('SITE_CONTENT_TRUNCATED role=%s model=%s output_tokens=%s max_tokens_sent=%s model_maximum=%s '
+                       'at=%s', role, r.model, r.output_tokens, sent, maximum,
+                       'model_maximum' if at_maximum else 'budget_allowance')
+    return {'role': role, 'max_tokens': max_tokens, 'measured': True, 'attempts': attempts}
+
+
+def usage_summary(calls: list[dict]) -> dict:
+    """The build's content calls and their totals (site_route.content_usage). A total is None when any attempt did not
+    report its number -- never a silent 0."""
+    attempts = [a for c in calls if c.get('measured') for a in c['attempts']]
+    unmeasured = any(not c.get('measured') for c in calls)
+
+    def total(key, cast):
+        values = [a[key] for a in attempts]
+        if unmeasured or any(v is None for v in values):       # an unmeasured call makes the total unknown, not 0
+            return None
+        return sum(values) if cast is int else str(sum(cast(v) for v in values))
+    from decimal import Decimal
+    return {'calls': len(calls), 'attempts': len(attempts), 'unmeasured_calls': sum(1 for c in calls if not c.get('measured')),
+            'input_tokens': total('input_tokens', int), 'output_tokens': total('output_tokens', int),
+            'metered_cost_usd': total('metered_cost_usd', Decimal),
+            'truncated_at_model_maximum': [c['role'] for c in calls if any(a['truncated_at_model_maximum']
+                                                                           for a in c.get('attempts', ()))],
+            'truncated_at_budget_allowance': [c['role'] for c in calls if any(a['truncated_at_budget_allowance']
+                                                                              for a in c.get('attempts', ()))],
+            'per_call': calls}
 
 
 class SiteContentInvalid(RuntimeError):
-    """The model's content document is still invalid after its one correction. failure_code 'site_content_invalid'."""
+    """The model's content document is still invalid after its corrections (at most MAX_CORRECTIONS). failure_code
+    'site_content_invalid'."""
 
     def __init__(self, message: str, problems=()):
         super().__init__(message)
@@ -112,33 +207,43 @@ def rewrite_shape_guard(data) -> None:
         raise ModelJSONRejected('not a rewrite: no "set" object', raw='', diagnostic={'reason': 'rewrite_shape'})
 
 
-def _complete(gateway, *, system: str, user: str, max_tokens: int, guard) -> dict:
+def _complete(gateway, *, system: str, user: str, max_tokens: int, guard, usage: list | None = None,
+              role: str = 'content') -> dict:
     kwargs = dict(system=system, user=user, max_tokens=max_tokens)
     if getattr(gateway, 'accepts_task_tag', False):
         kwargs['validate'] = guard
-    data = gateway.complete_json(**kwargs)
-    guard(data)                        # a plain gateway has no router to escalate; the shape is still enforced
-    return data
+    records = getattr(getattr(gateway, 'recorder', None), 'records', None)
+    start = len(records) if isinstance(records, list) else None
+    try:
+        data = gateway.complete_json(**kwargs)
+        guard(data)                    # a plain gateway has no router to escalate; the shape is still enforced
+        return data
+    finally:                           # measured on success and on failure alike (the owner: "רק מדידה")
+        if usage is not None:
+            usage.append(_measured(gateway, start, role, max_tokens))
 
 
 class ContentAgent:
-    """Writes the content document: one call, and at most one corrective call (counted in `calls`)."""
+    """Writes the content document: one call, and corrective calls within the generator's MAX_CORRECTIONS (counted in
+    `calls`)."""
 
     def __init__(self, gateway):
         self.gateway = gateway
         self.calls = 0
+        self.usage: list[dict] = []       # every call, measured (site_route.content_usage)
 
     def write(self, payload: dict) -> dict:
         self.calls += 1
         return _complete(self.gateway, system=_CONTENT_SYSTEM, user=json.dumps(payload, ensure_ascii=False),
-                         max_tokens=MAX_CONTENT_TOKENS, guard=content_shape_guard)
+                         max_tokens=output_maximum(self.gateway), guard=content_shape_guard, usage=self.usage,
+                         role='content')
 
     def correct(self, payload: dict, doc: dict, problems) -> dict:
         self.calls += 1
         user = json.dumps({**payload, 'instruction': _CONTENT_CORRECTION, 'your_document': doc,
                            'problems': [p.to_dict() for p in problems]}, ensure_ascii=False)
-        return _complete(self.gateway, system=_CONTENT_SYSTEM, user=user, max_tokens=MAX_CONTENT_TOKENS,
-                         guard=content_shape_guard)
+        return _complete(self.gateway, system=_CONTENT_SYSTEM, user=user, max_tokens=output_maximum(self.gateway),
+                         guard=content_shape_guard, usage=self.usage, role='correction')
 
 
 class ContentRepairAgent:
@@ -147,6 +252,7 @@ class ContentRepairAgent:
     def __init__(self, gateway):
         self.gateway = gateway
         self.calls = 0
+        self.usage: list[dict] = []       # every call, measured (site_route.content_usage)
 
     def rewrite(self, doc: dict, paths: dict[str, str], findings: list[str], sheet) -> dict[str, str]:
         self.calls += 1
@@ -155,8 +261,9 @@ class ContentRepairAgent:
                                                     'counts': 'a year' if n['kind'] == 'year' else n['noun']}
                                                    for n in sheet.numbers],
                            'prices': [p['id'] for p in sheet.prices]}, ensure_ascii=False)
-        data = _complete(self.gateway, system=_CONTENT_REPAIR_SYSTEM, user=user, max_tokens=MAX_REWRITE_TOKENS,
-                         guard=rewrite_shape_guard)
+        data = _complete(self.gateway, system=_CONTENT_REPAIR_SYSTEM, user=user,
+                         max_tokens=output_maximum(self.gateway), guard=rewrite_shape_guard, usage=self.usage,
+                         role='rewrite')
         outside = sorted(set(data['set']) - set(paths))
         if outside:
             raise SiteContentInvalid(f'the rewrite set paths it was not given: {outside}')
@@ -375,8 +482,10 @@ def prepass(core, route, html: str, sheet) -> dict:
     from ..fact_canon import build_canon, needs_customer_input
     canon = build_canon(route.prompt)
     seen = set()
+    # (the served cut is what the review stage reads: up to the last complete section, never a fact cut in half --
+    # preview_smoke.served_cut, which the route switches on for its preview stage in site_content.install)
     for label, ctx in (('served cut', {'request': route.prompt, 'canon': canon,
-                                       'rendered_pages': {'/': served[:PREVIEW_CUT]}}),
+                                       'rendered_pages': {'/': served_cut(served)}}),
                        ('whole page', {'request': route.prompt, 'canon': canon})):
         for f in _invented_contact({R.PAGE: served}, ctx):
             if f.severity != 'blocking':
@@ -414,6 +523,17 @@ def skipped_report(skipped: list[tuple[str, str]], lib_skipped: list[str], offer
     return out
 
 
+_LIST_NAMES = {'stats.items': 'המספרים', 'services.items': 'השירותים', 'about.paragraphs': 'הפסקאות על העסק',
+               'about.facts': 'העובדות על העסק', 'process.steps': 'שלבי העבודה', 'faq.items': 'השאלות הנפוצות',
+               'testimonials.items': 'ההמלצות', 'pricelist.groups': 'קבוצות המחירון', 'contact.topics': 'נושאי הפנייה'}
+
+
+def shortened_said(s: dict) -> str:
+    """A list the model shortened to fit one answer, in the customer's words (Hebrew: the route's pages are Hebrew)."""
+    return (f'ברשימת {_LIST_NAMES[s["list"]]} נכנסו פחות פריטים ממה שכתבתם ({s["left_out"]} לא נכנסו), כי כל התוכן '
+            'לא נכנס בתשובה אחת של המודל. אפשר לבקש שינוי ולהוסיף אותם.')
+
+
 class ContentSiteGenerator:
     def __init__(self, core, agent: ContentAgent, repair_agent: ContentRepairAgent):
         self.core, self.agent, self.repair_agent = core, agent, repair_agent
@@ -421,6 +541,9 @@ class ContentSiteGenerator:
     def _payload(self, route, sheet, offered) -> dict:
         from ..section_library import LAYOUTS
         from ..skill_units import gate as G
+        # a generator built without its agent (tests/test_domain_registry builds one with __new__) has no routed
+        # gateway: output_maximum then reads the runtime or repository catalogue, as for any unrouted gateway
+        gateway = getattr(getattr(self, 'agent', None), 'gateway', None)
         # a palette's name is a trade's ('counsel'): the model is given it only for a business the brief names, so the
         # neutral palette of an unnamed business never reads as "a law firm" (bld_3938e570)
         named = getattr(route, 'category', None) is not None
@@ -429,7 +552,13 @@ class ContentSiteGenerator:
                 'trade_words': list(getattr(route, 'domain_words', None) or []),
                 'schema': K.schema_for_model(offered, route.outline_titles, name_given=bool(sheet.name),
                                              layouts=LAYOUTS),
-                'checks': G.rules_text(('HE', 'G10', 'BRAND'))}
+                'checks': G.rules_text(('HE', 'G10', 'BRAND')),
+                'output_room': {'characters': int(output_maximum(gateway) * CHARS_PER_TOKEN_ESTIMATE),
+                                'rule': (
+                    'Your whole answer must stay under about this many characters. If it would not: shorten '
+                    'descriptions first; if a list must still be shorter, keep the customer\'s own items first, never '
+                    'leave out a price, and name each list you shortened in "shortened" with how many items it leaves '
+                    'out.')}}
 
     def generate(self, spec):
         core = self.core
@@ -447,56 +576,66 @@ class ContentSiteGenerator:
         offered, skipped = K.offered_sections(sheet, route.palette_entry, route.order, route.outline_titles)
         payload = self._payload(route, sheet, offered)
         report = core.site_report
+        rounds: list[dict] = []                            # every corrective call of this generation, in order
+        report.update(correction_bound=MAX_CORRECTIONS, correction_rounds=rounds)
         doc = self.agent.write(payload)
-        problems = V.validate(doc, sheet, offered, route.outline_titles)
-        corrections = 1                                    # the one corrective call of this generation
-        if V.blocking(problems):
-            corrections -= 1
-            report['corrected'] = [p.to_dict() for p in V.blocking(problems)]
-            doc = self.agent.correct(payload, doc, V.blocking(problems))
+        # Bounded: a pass that neither breaks nor raises spends one correction, and at most MAX_CORRECTIONS are spent,
+        # so the loop body runs at most MAX_CORRECTIONS + 1 times; the `else` below is unreachable and raises.
+        for _ in range(MAX_CORRECTIONS + 1):
             problems = V.validate(doc, sheet, offered, route.outline_titles)
-            if V.blocking(problems):
+            block = V.blocking(problems)
+            if block and rounds:
+                # after a correction, invented facts alone lose their sentences (strip_invented, free and
+                # deterministic) before another paid correction is spent on them
                 doc, problems = self._without_invented(doc, problems, sheet, offered, route)
-            if V.blocking(problems):
-                report['problems'] = [p.to_dict() for p in problems]
-                raise SiteContentInvalid(f'{len(V.blocking(problems))} problem(s) after the one correction: '
-                                         + '; '.join(f'{p.path} {p.code}' for p in V.blocking(problems)[:6]), problems)
-        html, lib_skipped = self._render(doc, sheet, route)
-        found = prepass(core, route, html, sheet)
-        blocking = found['block']
-        if any(f['owner'] != 'content' for f in blocking):
-            report['prepass'] = found
-            raise SiteRenderDefect('a check failed outside the model\'s copy before the sandbox: '
-                                   + '; '.join(f"{f['acceptance_id']}: {f['message'][:160]}"
-                                               for f in blocking if f['owner'] != 'content')[:1500])
-        if blocking:
+                block = V.blocking(problems)
+            if block:
+                if len(rounds) >= MAX_CORRECTIONS:
+                    report['problems'] = [p.to_dict() for p in problems]
+                    raise SiteContentInvalid(f'{len(block)} problem(s) after {MAX_CORRECTIONS} corrections: '
+                                             + '; '.join(f'{p.path} {p.code}' for p in block[:6]), problems)
+                report.setdefault('corrected', [p.to_dict() for p in block])     # what the first correction was asked
+                rounds.append({'round': len(rounds) + 1, 'kind': 'validation', 'call': 'content',
+                               'asked': [{'path': p.path, 'code': p.code} for p in block]})
+                _LOG.info('SITE_CONTENT_CORRECTION round=%s/%s kind=validation problems=%s', len(rounds),
+                          MAX_CORRECTIONS, len(block))
+                doc = self.agent.correct(payload, doc, block)
+                continue
+            html, lib_skipped = self._render(doc, sheet, route)
+            found = prepass(core, route, html, sheet)
+            blocking = found['block']
+            if any(f['owner'] != 'content' for f in blocking):
+                report['prepass'] = found
+                raise SiteRenderDefect('a check failed outside the model\'s copy before the sandbox: '
+                                       + '; '.join(f"{f['acceptance_id']}: {f['message'][:160]}"
+                                                   for f in blocking if f['owner'] != 'content')[:1500])
+            if not blocking:
+                break
             paths, missed = attribute(blocking, doc, sheet)
             if missed:
                 report['prepass'] = found
                 raise SiteRenderDefect('a copy finding points at no model-written text: '
                                        + '; '.join(f['message'][:160] for f in missed)[:1500])
-            if corrections < 1:
+            if len(rounds) >= MAX_CORRECTIONS:
                 report['prepass'] = found
-                raise SiteContentInvalid('a copy finding remains after the one correction: '
+                raise SiteContentInvalid(f'a copy finding remains after {MAX_CORRECTIONS} corrections: '
                                          + '; '.join(f['message'][:160] for f in blocking)[:1500])
-            corrections -= 1
+            rounds.append({'round': len(rounds) + 1, 'kind': 'copy_check', 'call': 'rewrite',
+                           'asked': [{'path': p, 'findings': [m[:300] for m in ms]} for p, ms in sorted(paths.items())]})
+            _LOG.info('SITE_CONTENT_CORRECTION round=%s/%s kind=copy_check paths=%s', len(rounds), MAX_CORRECTIONS,
+                      len(paths))
             current = dict(V.leaves(doc))
             changes = self.repair_agent.rewrite(doc, {p: current[p] for p in paths},
                                                 [m for ms in paths.values() for m in ms], sheet)
             report['prepass_rewrite'] = sorted(changes)
             for path, text in changes.items():
                 doc = set_path(doc, path, text)
-            problems = V.validate(doc, sheet, offered, route.outline_titles)
-            if V.blocking(problems):
-                doc, problems = self._without_invented(doc, problems, sheet, offered, route)
-            if V.blocking(problems):
-                raise SiteContentInvalid('the rewrite made the document invalid', problems)
-            html, lib_skipped = self._render(doc, sheet, route)
-            found = prepass(core, route, html, sheet)
-            if found['block']:
-                report['prepass'] = found
-                raise SiteContentInvalid('the copy still fails a blocking check after the one correction: '
-                                         + '; '.join(f['message'][:160] for f in found['block'])[:1500])
+        else:
+            raise RuntimeError(f'the content corrections ran past their bound of {MAX_CORRECTIONS}')
+        report['shortened'] = list(doc.get('shortened') or [])
+        report['shortened_said'] = [shortened_said(s) for s in report['shortened']]
+        if report['shortened']:
+            _LOG.warning('SITE_CONTENT_SHORTENED %s', report['shortened'])
         report.update(prepass=found, warnings=[p.to_dict() for p in problems if p.severity == 'warn'],
                       skipped=skipped_report(skipped, lib_skipped, offered, doc),
                       content_calls=self.agent.calls + self.repair_agent.calls,
@@ -756,11 +895,34 @@ class SiteParityExecutor:
             self.last_parity = {'status': 'NOT_RUN', 'mode': self.mode, 'reason': 'no served page from the preview',
                                 'findings': findings}
         else:
-            if pages['/'] != str(repository.get(R.PAGE, ''))[:PREVIEW_CUT]:
+            # both sides as the preview returns them: a long page up to its last complete section (served_cut)
+            page = str(repository.get(R.PAGE, ''))
+            if served_cut(pages['/'], full_length=len(page)) != served_cut(page):
                 findings.append('the served GET / is not the rendered public/index.html')
             self.last_parity = {'status': 'fail' if findings else 'pass', 'mode': self.mode, 'findings': findings}
         self._core.site_report['parity'] = self.last_parity
         if findings and self.mode == 'block':
             return ExecutionReport(False, tuple(AcceptanceFailure('gate-SITE_PARITY', f) for f in findings),
                                    report.build_log)
+        whole = self._whole_page_review(repository)
+        if whole:
+            return replace(report, passed=False, failures=tuple(report.failures) + whole)
         return report
+
+    def _whole_page_review(self, repository) -> tuple:
+        """Review S7 (2026-11-26): the review stage reads a long page up to its last complete section (served_cut),
+        and a repair round may rewrite copy past it. Every round, a page longer than the preview's capture is read
+        whole by the same truth gate the pre-pass runs, and a blocking finding fails the round as the review's own
+        would -- so the copy checked is never less than on main, where the raw 45,000 characters were read."""
+        from ..preview_smoke import SERVED_CUT
+        route = getattr(self._core, 'site_route', None)
+        page = str(repository.get(R.PAGE, ''))
+        if route is None or len(page) < SERVED_CUT:
+            return ()
+        from ..fact_canon import build_canon
+        from ..skills_runtime import _invented_contact
+        out = tuple(AcceptanceFailure('REVIEW', f'QA review ({f.skill}): {f.problem}', 'truth gate on the whole page')
+                    for f in _invented_contact({R.PAGE: page}, {'request': route.prompt, 'canon': build_canon(route.prompt)})
+                    if f.severity == 'blocking')
+        self._core.site_report['whole_page_review'] = {'chars': len(page), 'blocking': [f.message for f in out]}
+        return out

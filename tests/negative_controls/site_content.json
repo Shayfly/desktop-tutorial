@@ -693,19 +693,19 @@
   },
   {
    "id": "NC39",
-   "what": "a document still invalid after its one correction is rendered",
+   "what": "a document still invalid after its corrections is not refused: the generator keeps correcting past its bound",
    "mutations": [
     {
      "file": "omni_prod/site_content/agents.py",
-     "old": "            if V.blocking(problems):\n                report['problems']",
-     "new": "            if False:\n                report['problems']"
+     "old": "                if len(rounds) >= MAX_CORRECTIONS:\n                    report['problems']",
+     "new": "                if False:\n                    report['problems']"
     }
    ],
    "targets": [
     "tests/test_site_content_agents.py::TheGenerator"
    ],
    "expect_failed": [
-    "test_a_document_still_invalid_after_its_one_correction_fails_loudly"
+    "test_a_document_still_invalid_after_its_corrections_fails_loudly"
    ]
   },
   {
@@ -731,7 +731,7 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/agents.py",
-     "old": "            if pages['/'] != str(repository.get(R.PAGE, ''))[:PREVIEW_CUT]:",
+     "old": "            if served_cut(pages['/'], full_length=len(page)) != served_cut(page):",
      "new": "            if False:"
     }
    ],

@@ -275,6 +275,7 @@ def install(engine, *, prompt: str, gateway, request=None, plan_governed: bool =
     # here, and the engine stays exactly as it was: never a half-installed route); then all parts are set together.
     from ..attempt_ledger import TaskTaggedGateway
     from ..behavior_acceptance import find_in_chain
+    from ..preview_smoke import PreviewReadyExecutor
     from ..quality_gate import QualityAwareExecutor
     from ..skill_units import gate as G
     from ..verification_group import VerificationGroup
@@ -287,12 +288,17 @@ def install(engine, *, prompt: str, gateway, request=None, plan_governed: bool =
     repairer = A.ContentSiteRepairer(core, rewriter)
     quality = find_in_chain(core.executor, QualityAwareExecutor)
     group = find_in_chain(quality._inner if quality is not None else core.executor, VerificationGroup)
+    preview = find_in_chain(core.executor, PreviewReadyExecutor)
     recorder = A.ThresholdRecorder(group._threshold) if group is not None else None
     core.site_route = route
     _LOG.info('SITE_ROUTE route=%s reason=%s palette=%s contract=%s', route.route, route.reason, route.palette,
               route.contract_fp)
     core.site_report, core.site_feedback, core.site_sheet = {}, [], None
     core.architect, core.generator, core.repairer = architect, generator, repairer
+    if preview is not None:
+        # the owner, 2026-11-26: a page may now run past the 45,000 characters the preview smoke returns (raised item
+        # maxima); the review stage reads it up to its last complete section, never a fact cut in half (served_cut)
+        preview.trim_cut = A.R.PAGE
     if group is not None:
         group._threshold = recorder
     if quality is not None:
@@ -310,6 +316,15 @@ def on_route(engine) -> bool:
     return isinstance(route, Route) and route.route == ROUTE
 
 
+def _content_usage(core) -> dict | None:
+    from .agents import usage_summary
+    generator = getattr(core, 'generator', None)
+    writer, rewriter = getattr(generator, 'agent', None), getattr(generator, 'repair_agent', None)
+    if writer is None and rewriter is None:
+        return None
+    return usage_summary(list(getattr(writer, 'usage', None) or []) + list(getattr(rewriter, 'usage', None) or []))
+
+
 def report(engine) -> dict | None:
     """For the build evidence ('site_route'): the decision and, on the route, what it did."""
     core = getattr(engine, 'core', engine)
@@ -323,5 +338,7 @@ def report(engine) -> dict | None:
         out.update(renderer=RENDERER_VERSION, headings=f'the display face of font pair {route.font_pair} (warehouse 126)',
                    **{k: v for k, v in (getattr(core, 'site_report', None) or {}).items()},
                    library_feedback=list(getattr(core, 'site_feedback', None) or [])[:40],
-                   repair_trace=list(getattr(repairer, 'trace', None) or [])[-20:])
+                   repair_trace=list(getattr(repairer, 'trace', None) or [])[-20:],
+                   # the owner, 2026-11-26 16:10 ("רק מדידה"): every content call's real tokens and cost, and totals
+                   content_usage=_content_usage(core))
     return out

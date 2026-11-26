@@ -80,7 +80,8 @@ class TheStructureReachesTheGenerator(unittest.TestCase):
         self.assertEqual(O.outline(text), [])
 
     def test_it_is_bounded_and_the_cut_is_said(self):
-        many = 'מבנה הדף:\n' + '\n'.join(f'סקשן {i} — תוכן {i}' for i in range(30))
+        # the owner, 2026-11-26: 60 sections (20 before); past them the customer is told too (tests/test_silent_cuts.py)
+        many = 'מבנה הדף:\n' + '\n'.join(f'סקשן {i} — תוכן {i}' for i in range(O.MAX_SECTIONS + 10))
         with self.assertLogs('omni_prod.page_outline', 'WARNING'):
             self.assertEqual(len(O.outline(many)), O.MAX_SECTIONS)
 

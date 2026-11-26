@@ -4,8 +4,8 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 28, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 3, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 91, UNIT_TESTED 30, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 27, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 29, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 2, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 95, UNIT_TESTED 30, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 23, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -30,7 +30,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 91, UNIT_TESTED 30, INTEGRATION
 | Browser Rehearsal Agent (`browser_rehearsal_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
 | Behavioral Acceptance Agent (`behavioral_acceptance_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py |  |
 | Repair Agent (`repair_agent`) | quality | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
-| Security Agent (`security_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 38083312245 |  |
+| Security Agent (`security_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/preview_access.py |  |
 | Compliance & IP Agent (`compliance_ip_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099 |  |
 | Provider Router Agent (`provider_router_agent`) | platform | **IMPLEMENTED** | compliance_ip_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
 | Cost & Economics Agent (`cost_economics_agent`) | platform | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
@@ -281,7 +281,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 91, UNIT_TESTED 30, INTEGRATION
 | `insecure_storage_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
 | `unsafe_endpoint_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
 | `security_header_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
-| `preview_access_check` | Security | **REAL_SERVER_VERIFIED** | security_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
+| `preview_access_check` | Security | **IMPLEMENTED** | security_agent | real-server evidence is stale; code changed since: omni_prod/preview_access.py |  |
 | `security_release_gate` | Security | **UNIT_TESTED** | security_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
 | `commercial_provider_validation` | Compliance | **UNIT_TESTED** | compliance_ip_agent | unit tests only |  |
 | `model_license_validation` | Compliance | **NOT_IMPLEMENTED** | compliance_ip_agent | no implementation | not implemented |
@@ -334,9 +334,9 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 91, UNIT_TESTED 30, INTEGRATION
 | `preview_prepare` | Deployment | **IMPLEMENTED** | deployment_agent | real-server evidence is stale; code changed since: omni_prod/preview_runtime.py |  |
 | `preview_deploy` | Deployment | **IMPLEMENTED** | deployment_agent | real-server evidence is stale; code changed since: omni_prod/preview_runtime.py |  |
 | `preview_health_check` | Deployment | **IMPLEMENTED** | deployment_agent | real-server evidence is stale; code changed since: omni_prod/preview_runtime.py |  |
-| `preview_access_protect` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `preview_token_issue` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `preview_token_revoke` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
+| `preview_access_protect` | Deployment | **IMPLEMENTED** | deployment_agent | real-server evidence is stale; code changed since: omni_prod/preview_access.py |  |
+| `preview_token_issue` | Deployment | **IMPLEMENTED** | deployment_agent | real-server evidence is stale; code changed since: omni_prod/preview_access.py |  |
+| `preview_token_revoke` | Deployment | **IMPLEMENTED** | deployment_agent | real-server evidence is stale; code changed since: omni_prod/preview_access.py |  |
 | `production_prepare` | Deployment | **NOT_IMPLEMENTED** | deployment_agent | no implementation | not implemented |
 | `production_deploy` | Deployment | **NOT_IMPLEMENTED** | deployment_agent | no implementation | not implemented |
 | `deployment_status_check` | Deployment | **NOT_IMPLEMENTED** | deployment_agent | no implementation | not implemented |

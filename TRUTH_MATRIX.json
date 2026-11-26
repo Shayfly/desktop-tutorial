@@ -568,23 +568,21 @@
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [
-    "postdeploy-checks run 38083312245"
-   ],
+   "evidence": [],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "IMPLEMENTED",
    "shown_to_customer": true,
    "note": "",
    "parts": [
     {
      "part": "skill:preview_access_protect",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/preview_access.py"
     },
     {
      "part": "skill:preview_token_revoke",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/preview_access.py"
     }
    ]
   },
@@ -1135,11 +1133,11 @@
   }
  ],
  "counts": {
-  "IMPLEMENTED": 12,
+  "IMPLEMENTED": 13,
   "UNIT_TESTED": 9,
   "INTEGRATION_TESTED": 3,
   "NOT_IMPLEMENTED": 5,
-  "REAL_SERVER_VERIFIED": 4,
+  "REAL_SERVER_VERIFIED": 3,
   "BLOCKED": 3
  },
  "customer_visible_findings": [
@@ -1149,6 +1147,7 @@
   "shown to the customer but IMPLEMENTED: Approval binds the build to the approved contract",
   "shown to the customer but UNIT_TESTED: Sign up / sign in to 148AI",
   "shown to the customer but IMPLEMENTED: Generate the product code",
+  "shown to the customer but IMPLEMENTED: Private preview; sharing only on purpose",
   "shown to the customer but IMPLEMENTED: Change the product in natural language",
   "shown to the customer but UNIT_TESTED: Download the product as ZIP",
   "shown to the customer but IMPLEMENTED: Stop a build; live progress journal"
