@@ -7,19 +7,24 @@ the customer read "משהו השתבש אצלנו", and a retry paid again for t
 112,128 bytes, so only 22 or 13 fitted: "עם 20 תמונות" was an easy trigger.
 
 The owner, 2026-11-26: no image cap at all, and every image reduced to the smallest size at the best quality. Now
-a4.install re-encodes the page's images to fit (web_rendition.fit_page: Pillow, each in its own type, descending
-quality and width, bounded steps, quality floor 60); what still does not fit is carried with a PAGE_WEIGHT_OVER_BUDGET
-warning in the build evidence. Declared as a weakening in docs/identity/allowed-deletions.json.
+every picture is converted when it is collected (the image-weight converter, web_rendition.rendition: SSIM 0.98), and
+a4.install fits the page's pictures together (web_rendition.fit_page, the same converter, from each picture's source,
+in its own type and path) before any code is paid for; what still does not fit is carried with a
+PAGE_WEIGHT_OVER_BUDGET warning in the build evidence (image_weight.page_fit). Declared in
+docs/identity/allowed-deletions.json.
+
+Measured here: the twenty production-size pictures weigh 1,840,213 bytes as delivered and about 1,414,000 converted --
+under the budget before any page fit. The page fit is shown with 26.
 
 Real path: the production engine (AutonomousProductEngine with the skill-gate test doubles of tests/test_skill_gates,
-as tests/test_a4_asset_plan.OnTheBuild), real GeneratedImage objects carrying real Pillow-encoded JPEG and WebP bytes of
-the production sizes, a4.install, the repository transform the build writes files with, and the part ledger's check.
+as tests/test_a4_asset_plan.OnTheBuild), GeneratedImage objects made as generated_images.collect makes them (real
+Pillow-encoded JPEG and WebP bytes of the production sizes, converted by the real converter), a4.install, the
+generated images' own repository transform, and the build.
 """
 from __future__ import annotations
 
 import hashlib
 import io
-import json
 import logging
 import os
 import random
@@ -29,7 +34,6 @@ from unittest import mock
 from PIL import Image, ImageDraw, ImageFilter
 
 from omni_prod import a4
-from omni_prod import part_ledger as PL
 from omni_prod import web_rendition as W
 from omni_prod.autonomous_core import AutonomousProductEngine
 from omni_prod.generated_images import GeneratedImage
@@ -68,16 +72,24 @@ def encoded(seed: int, fmt: str, target: int) -> bytes:
 _CACHE: dict = {}
 
 
-def picture(index: int) -> GeneratedImage:
-    """Picture `index` of the twenty: odd ones a JPEG near 65,240 bytes, even ones a WebP near 112,128 bytes."""
+def source(index: int) -> tuple[bytes, str]:
+    """Picture `index` as the provider delivered it: odd ones a JPEG near 65,240 bytes, even ones a WebP near 112,128."""
     fmt, mime, target = (('JPEG', 'image/jpeg', SIZES[0]) if index % 2 else ('WEBP', 'image/webp', SIZES[1]))
-    key = (index, fmt)
-    if key not in _CACHE:
-        _CACHE[key] = encoded(index, fmt, target)
-    data = _CACHE[key]
+    if ('src', index) not in _CACHE:
+        _CACHE[('src', index)] = encoded(index, fmt, target)
+    return _CACHE[('src', index)], mime
+
+
+def picture(index: int) -> GeneratedImage:
+    """Picture `index` as generated_images.collect binds it: converted for the hero, its source kept."""
+    data, mime = source(index)
+    if ('conv', index) not in _CACHE:
+        _CACHE[('conv', index)] = W.rendition(data, mime, place='hero', label=f'generated {index}')
+    light = _CACHE[('conv', index)]
     return GeneratedImage(index=index, requirement_id=f'r{index}', purpose=a4.ITEM_PURPOSE if index > 1 else
-                          'hero/brand visual', mime=mime, width=1344, height=768,
-                          sha256=hashlib.sha256(data).hexdigest(), alt=f'פריט {index}', data=data)
+                          'hero/brand visual', mime=light['mime'], width=light['width'], height=light['height'],
+                          sha256=hashlib.sha256(data).hexdigest(), alt=f'פריט {index}', data=light['data'],
+                          source=(data, mime), rendition=W.record(light))
 
 
 def img_tag(img):
@@ -100,40 +112,35 @@ def build(images):
     return e, prompt
 
 
-class TwentyPicturesOfTheProductionSize(unittest.TestCase):
-    def test_the_fixture_is_the_production_size(self):
+class PicturesOfTheProductionSize(unittest.TestCase):
+    def test_the_fixture_is_the_production_size_and_twenty_fit_once_converted(self):
         for index in (1, 2):
             with self.subTest(index):
-                self.assertLess(abs(len(picture(index).data) - SIZES[(index + 1) % 2]) / SIZES[(index + 1) % 2], 0.08)
-        self.assertGreater(sum(len(picture(i).data) for i in range(1, 21)), a4.PAGE_IMAGE_BUDGET_BYTES)
+                want = SIZES[(index + 1) % 2]
+                self.assertLess(abs(len(source(index)[0]) - want) / want, 0.08)
+        self.assertGreater(sum(len(source(i)[0]) for i in range(1, 21)), a4.PAGE_IMAGE_BUDGET_BYTES)
+        self.assertLessEqual(sum(len(picture(i).data) for i in range(1, 21)), a4.PAGE_IMAGE_BUDGET_BYTES)
 
-    def test_they_are_fitted_before_any_code_and_the_build_goes_on(self):
-        images = [picture(i) for i in range(1, 21)]
+    def test_a_page_over_the_budget_is_fitted_before_any_code_and_the_build_goes_on(self):
+        images = [picture(i) for i in range(1, 27)]
         before = {img.marker: (img.mime, len(img.data), img.carried.path) for img in images}
+        self.assertGreater(sum(b for _, b, _ in before.values()), a4.PAGE_IMAGE_BUDGET_BYTES)
         e, prompt = build(images)                          # no AssetPlanError: nothing to map to worker_exception
-        weight = a4.report(e)['page_weight']
-        self.assertGreater(weight['bytes_before'], a4.PAGE_IMAGE_BUDGET_BYTES)
-        self.assertTrue(weight['fits'], weight)
-        self.assertLessEqual(weight['bytes_after'], a4.PAGE_IMAGE_BUDGET_BYTES)
-        self.assertEqual(sum(len(img.data) for img in images), weight['bytes_after'])
-        self.assertIsNone(weight['warning'])
-        self.assertEqual((weight['count'], weight['budget']), (20, a4.PAGE_IMAGE_BUDGET_BYTES))
-        self.assertTrue(weight['images'])
-        for row in weight['images']:
-            self.assertGreaterEqual(row['step'][1], W.PAGE_FIT_QUALITY_FLOOR)
-            self.assertLess(row['bytes'], row['bytes_before'])
+        fit = W.report(e)['page_fit']                      # the build evidence: image_weight.page_fit
+        self.assertIs(fit, e.image_fit)
+        self.assertTrue(fit['fits'], fit)
+        self.assertLessEqual(fit['bytes_after'], a4.PAGE_IMAGE_BUDGET_BYTES)
+        self.assertEqual(sum(len(img.data) for img in images), fit['bytes_after'])
+        self.assertEqual((fit['warning'], fit['count'], fit['budget']), (None, 26, a4.PAGE_IMAGE_BUDGET_BYTES))
+        self.assertTrue(fit['images'])
         repo = e.repository_transform({'app.py': 'x'})
-        fit = json.loads(repo[a4.PAGE_FIT_PATH])
         for img in images:
             mime, _, path = before[img.marker]
             self.assertEqual((img.mime, img.carried.path), (mime, path))          # the same file, the same type
             self.assertEqual(decode(path, repo[path]), img.data)                  # the transform carries the new bytes
             Image.open(io.BytesIO(img.data)).load()                               # a real picture
-        self.assertEqual(set(fit['files']), {next(i.carried.path for i in images if i.marker == r['marker'])
-                                             for r in weight['images']})
-        self.assertEqual(len(a4.report(e)['plan']), 20)
-        result = e.build('a page')
-        self.assertEqual(result.status, 'ready', result)
+        self.assertEqual(len(a4.report(e)['plan']), 26)
+        self.assertEqual(e.build('a page').status, 'ready')
         self.assertIn('Asset plan (decided by 148AI', prompt)
 
     def test_what_cannot_fit_is_carried_and_said_never_a_failure(self):
@@ -141,57 +148,27 @@ class TwentyPicturesOfTheProductionSize(unittest.TestCase):
         with mock.patch.object(a4, 'PAGE_IMAGE_BUDGET_BYTES', 20_000), \
                 self.assertLogs(a4.__name__, level='WARNING') as logs:
             e, _ = build(images)
-        weight = a4.report(e)['page_weight']
-        self.assertFalse(weight['fits'])
-        self.assertGreater(weight['bytes_after'], 20_000)
-        self.assertTrue(weight['warning'].startswith(a4.PAGE_WEIGHT_WARNING))
-        for said in ('4 images', f'{weight["bytes_after"]:,} bytes', '20,000'):
-            self.assertIn(said, weight['warning'])
-        self.assertTrue(any('PAGE_FIT' in line and 'fits=False' in line for line in logs.output), logs.output)
+        fit = e.image_fit
+        self.assertFalse(fit['fits'])
+        self.assertGreater(fit['bytes_after'], 20_000)
+        self.assertTrue(fit['warning'].startswith(a4.PAGE_WEIGHT_WARNING))
+        for said in ('4 images', f'{fit["bytes_after"]:,} bytes', '20,000'):
+            self.assertIn(said, fit['warning'])
+        self.assertTrue(any(a4.PAGE_WEIGHT_WARNING in line for line in logs.output), logs.output)
+        self.assertEqual(e.build('a page').status, 'ready')
+
+    def test_a_fit_that_cannot_run_is_said_and_the_build_goes_on(self):
+        images = [picture(i) for i in range(1, 3)]
+        with mock.patch.object(W, 'fit_page', side_effect=W.RenditionError('unreadable')), \
+                self.assertLogs(a4.__name__, level='ERROR') as logs:
+            e, _ = build(images)
+        self.assertIn('RenditionError: unreadable', e.image_fit['error'])
+        self.assertTrue(any('PAGE_FIT_FAILED' in line for line in logs.output))
         self.assertEqual(e.build('a page').status, 'ready')
 
     def test_the_plan_never_refuses_weight(self):
-        heavy = [picture(i) for i in range(1, 21)]
-        self.assertEqual(len(a4.plan([], heavy)), 20)
-
-
-class TheFitIsBounded(unittest.TestCase):
-    def test_at_most_one_encode_per_step_per_image(self):
-        images = [picture(i) for i in range(1, 7)]
-        real, calls = W._reencode, []
-
-        def counted(*a, **kw):
-            calls.append(a[0][:8])
-            return real(*a, **kw)
-        with mock.patch.object(W, '_reencode', counted):
-            out = W.fit_page(images, budget=60_000)
-        self.assertLessEqual(len(calls), 6 * len(W.PAGE_FIT_STEPS))
-        self.assertFalse(out['fits'])
-        self.assertTrue(all(q >= W.PAGE_FIT_QUALITY_FLOOR for _, q in W.PAGE_FIT_STEPS))
-
-    def test_a_heavier_encode_is_never_taken(self):
-        images = [picture(1), picture(2)]
-        kept = [img.data for img in images]
-        with mock.patch.object(W, '_reencode', lambda data, mime, scale, quality: (data + b'\0' * 10, 1, 1)):
-            out = W.fit_page(images, budget=1_000)
-        self.assertEqual([img.data for img in images], kept)
-        self.assertEqual((out['images'], out['fits']), ([], False))
-
-    def test_a_bad_argument_raises(self):
-        for kw in ({'budget': 0}, {'budget': True}, {'budget': 10, 'places': {'nope': 'hero'}},
-                   {'budget': 10, 'places': {'148ai-asset://image/1': 'footer'}}):
-            with self.subTest(kw), self.assertRaises(ValueError):
-                W.fit_page([picture(1)], **kw)
-
-
-class TheLedgerAttestsAFittedFile(unittest.TestCase):
-    def test_page_fit_state(self):
-        row = {'from_sha256': 'a' * 64, 'sha256': 'b' * 64}
-        self.assertEqual(PL._bytes_state('b' * 64, 'image/png', 10, 'a' * 64, bound_over_budget=False, page_fit=row),
-                         'page_fit')
-        self.assertIsNone(PL._bytes_state('b' * 64, 'image/png', 10, 'c' * 64, bound_over_budget=False, page_fit=row))
-        self.assertIsNone(PL._bytes_state('d' * 64, 'image/png', 10, 'a' * 64, bound_over_budget=False, page_fit=row))
-        self.assertIn(a4.PAGE_FIT_PATH, PL.RECORD_FILES)
+        heavy = [picture(i) for i in range(1, 27)]
+        self.assertEqual(len(a4.plan([], heavy)), 26)
 
 
 class ImagesBeyondTheFirstScreenAreLazy(unittest.TestCase):

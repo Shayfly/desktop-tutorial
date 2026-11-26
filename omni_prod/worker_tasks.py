@@ -1565,6 +1565,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
     evidence['app_states'] = app_states_report(engine)        # warehouse 130: app or not (and why), the three states
     from .a4 import report as asset_plan_report
     evidence['asset_plan'] = asset_plan_report(engine)        # A4: which image is where, and the placement check
+    from .web_rendition import report as image_weight_report
+    evidence['image_weight'] = image_weight_report(engine)    # every image: both digests, bytes, format, size, similarity
     target = BuildStatus.READY if ready else BuildStatus.FAILED
     jobs.transition(
         build_id=build_id, expected=BuildStatus.RUNNING, target=target,

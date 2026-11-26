@@ -29,7 +29,7 @@ import io
 import logging
 import re
 import tokenize
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 
 from .autonomous_core import AcceptanceFailure, ExecutionReport
@@ -59,6 +59,10 @@ class GeneratedImage:
     sha256: str
     alt: str
     data: bytes
+    # image weight (2026-11-26): the verified artifact's own (bytes, mime), kept for the page fit, and the record of
+    # its conversion (web_rendition.record) for the build log and evidence. Neither takes part in equality.
+    source: tuple = field(default=(), repr=False, compare=False)
+    rendition: dict = field(default_factory=dict, repr=False, compare=False)
 
     @property
     def marker(self) -> str:
@@ -66,12 +70,14 @@ class GeneratedImage:
 
     def refit(self, r: dict) -> None:
         """New bytes from the page fit (web_rendition.fit_page), in the same file: the type, and so the path, stay.
-        `sha256` stays the verified artifact's digest (the page-fit record links the new bytes to it). The page fit is
-        the one writer of a bound image after collect, and it runs before any build round."""
+        The page fit is the one writer of a bound image after collect, and it runs before any build round."""
         if r['mime'] != self.mime:
             raise ValueError(f'generated image {self.index}: the page fit made {r["mime"]} of a {self.mime} file')
+        from .web_rendition import record
         for name in ('data', 'width', 'height'):
             object.__setattr__(self, name, r[name])          # frozen dataclass: set here, and only here
+        self.rendition.clear()
+        self.rendition.update(record(r))
         self.carried.rebind(r['data'])
 
     @cached_property
@@ -218,8 +224,12 @@ def collect(*, plan, evidence: dict | None, store, prompt: str) -> list[Generate
         mime, width, height = sniff_image(data)
         # warehouse 114 (the butcher, bld_83529c13: the generated hero went into the page as 1,735,408 base64
         # characters): the page carries a web-sized rendition; `sha256` stays the digest of the verified artifact.
-        from .web_rendition import rendition
-        light = rendition(data, mime)
+        # Image weight (2026-11-26): always a conversion, sized for its place -- an icon for the header, any other
+        # picture for the hero, the largest place; the asset plan (a4) may give it a smaller one (fit_page).
+        from .web_rendition import record, rendition
+        source = (data, mime)
+        light = rendition(data, mime, place='icon' if _kind(purposes.get(rid, 'image')) == 'icon' else 'hero',
+                          label=f'generated {index}')
         if light['changed']:
             data, mime, width, height = light['data'], light['mime'], light['width'], light['height']
         _LOG.info('GENERATED_IMAGE index=%s changed=%s bytes=%s original_bytes=%s size=%sx%s step=%s', index,
@@ -229,7 +239,7 @@ def collect(*, plan, evidence: dict | None, store, prompt: str) -> list[Generate
             index=index, requirement_id=rid, purpose=purposes.get(rid, 'image'), mime=mime, width=width,
             height=height, sha256=digest, data=data,
             alt=alt_text(prompt, purposes.get(rid, 'image'), number=seen[rid], of=per_requirement[rid],
-                         subject=subjects.get(rid))))
+                         subject=subjects.get(rid)), source=source, rendition=record(light)))
     return images
 
 

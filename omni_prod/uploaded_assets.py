@@ -115,10 +115,12 @@ class _MainImage:
         self.purpose = f"the customer's own photo, as is ({place})"
         # warehouse 114: the page carries a web-sized rendition (same picture and proportions, upright, light); the
         # customer's file stays as it is in the attachment store, and `sha256` stays the digest the brief bound.
-        from .web_rendition import rendition
-        r = rendition(data, mime)
-        self.rendition = {k: r[k] for k in ('changed', 'sha256', 'step', 'original_sha256', 'original_bytes')}
-        self.rendition.update(bytes=len(r['data']), mime=r['mime'])
+        # Image weight (the owner, 2026-11-26): ALWAYS a conversion -- no EXIF or GPS, sized for its place, the lowest
+        # bytes that keep the similarity threshold (web_rendition). `source` is kept for the page fit (fit_page).
+        from .web_rendition import record, rendition
+        self.source = (data, mime)
+        r = rendition(data, mime, place=place, label=f'upload {index}')
+        self.rendition = record(r)
         if r['changed']:
             self.data, self.mime, self.width, self.height = r['data'], r['mime'], r['width'], r['height']
         # warehouse 118: the page references the photo as a file (assets/148ai-upload-<n>.<ext>), never its bytes
@@ -130,8 +132,8 @@ class _MainImage:
         """New bytes from the page fit (web_rendition.fit_page), in the same file: the type, and so the path, stay."""
         if r['mime'] != self.mime:
             raise ValueError(f'uploaded image {self.index}: the page fit made {r["mime"]} of a {self.mime} file')
-        self.data, self.width, self.height = r['data'], r['width'], r['height']
-        self.rendition = {**self.rendition, 'page_fit': True, 'bytes': len(r['data'])}
+        from .web_rendition import record
+        self.data, self.width, self.height, self.rendition = r['data'], r['width'], r['height'], record(r)
         self.carried.rebind(r['data'])
 
 

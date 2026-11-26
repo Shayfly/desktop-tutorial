@@ -201,7 +201,7 @@ def install(engine, *, prompt: str) -> str:
     generated = getattr(core, 'generated_images', None)
     uploaded = uploaded if isinstance(uploaded, (list, tuple)) else ()
     generated = generated if isinstance(generated, (list, tuple)) else ()
-    core.page_weight = _fit_page(core, uploaded, generated)
+    core.image_fit = _fit_page(core, uploaded, generated)      # S2: before the plan; in image_weight.page_fit
     slots = plan(uploaded, generated)
     mode = G.mode(GATE)
     modes = dict(getattr(core, 'gate_modes', None) or {})
@@ -220,75 +220,39 @@ def install(engine, *, prompt: str) -> str:
 
 
 def report(engine) -> dict:
-    """For the build evidence: the plan (no bytes), the last placement check, and the page weight (S2)."""
+    """For the build evidence: the plan (no bytes) and the last placement check. The page fit is in image_weight."""
     core = getattr(engine, 'core', engine)
     slots = getattr(core, 'asset_plan', None)
     checker = getattr(core, 'asset_plan_check', None)
     modes = getattr(core, 'gate_modes', None)
-    weight = getattr(core, 'page_weight', None)
     return {'agent': 'A4', 'mode': modes.get(GATE) if isinstance(modes, dict) else None,
             'plan': slots if isinstance(slots, list) else None,
-            'check': checker.last_check if isinstance(checker, AssetPlanExecutor) else None,
-            'page_weight': weight if isinstance(weight, dict) else None}
+            'check': checker.last_check if isinstance(checker, AssetPlanExecutor) else None}
 
 
 PAGE_WEIGHT_WARNING = 'PAGE_WEIGHT_OVER_BUDGET'
-PAGE_FIT_PATH = 'assets/148ai-page-fit.json'     # part_ledger reads it: a re-encoded image is still its artifact
 
 
 def _fit_page(core, uploaded, generated) -> dict:
     """S2 (release review of 550320c; the owner, 2026-11-26: no image cap, every image the smallest at the best
-    quality): the page's images are re-encoded to fit PAGE_IMAGE_BUDGET_BYTES together (web_rendition.fit_page) BEFORE
-    any code is paid for. What still does not fit is carried, and the evidence and the log say so -- the bytes, the count
-    and the budget (PAGE_WEIGHT_WARNING) -- never a failure, never worker_exception. An image the fit cannot read is
-    logged at ERROR and recorded; its bytes stay as they were bound. The record of what was re-encoded is written into
-    the repository (PAGE_FIT_PATH) so the part ledger can attest the new bytes against the verified artifact."""
+    quality): the page's images are fitted to PAGE_IMAGE_BUDGET_BYTES together by the image-weight converter
+    (web_rendition.fit_page: each from its source, in its own type and path, its carried file rebound) BEFORE any code
+    is paid for. What still does not fit is carried, and the evidence (web_rendition.report -> image_weight.page_fit)
+    and the log say so -- the bytes, the count and the budget (PAGE_WEIGHT_WARNING) -- never a failure, never
+    worker_exception. A fit that cannot run is logged at ERROR and recorded; the bytes stay as they were bound."""
     from ..web_rendition import RenditionError, fit_page
     images = [*uploaded, *generated]
-    total = sum(len(getattr(img, 'data', b'') or b'') for img in images)
-    if total <= PAGE_IMAGE_BUDGET_BYTES:
-        return {'budget': PAGE_IMAGE_BUDGET_BYTES, 'bytes_before': total, 'bytes_after': total, 'fits': True,
-                'count': len(images), 'images': [], 'warning': None}
     try:
         out = fit_page(images, budget=PAGE_IMAGE_BUDGET_BYTES)
     except (RenditionError, ValueError) as exc:
+        total = sum(len(getattr(img, 'data', b'') or b'') for img in images)
         _LOG.error('PAGE_FIT_FAILED bytes=%s count=%s budget=%s: %s', total, len(images), PAGE_IMAGE_BUDGET_BYTES, exc)
-        out = {'budget': PAGE_IMAGE_BUDGET_BYTES, 'bytes_before': total, 'bytes_after': total, 'fits': False,
-               'count': len(images), 'images': [], 'error': f'{type(exc).__name__}: {exc}'[:300]}
+        out = {'budget': PAGE_IMAGE_BUDGET_BYTES, 'bytes_before': total, 'bytes_after': total,
+               'fits': total <= PAGE_IMAGE_BUDGET_BYTES, 'images': [], 'error': f'{type(exc).__name__}: {exc}'[:300]}
+    out['count'] = len(images)
     out['warning'] = None if out['fits'] else (
-        f'{PAGE_WEIGHT_WARNING}: {out["count"]} images weigh {out["bytes_after"]:,} bytes together after the page fit; '
+        f'{PAGE_WEIGHT_WARNING}: {len(images)} images weigh {out["bytes_after"]:,} bytes together after the page fit; '
         f'the page budget is {out["budget"]:,}. Carried by the owner\'s order (2026-11-26: no image cap).')
-    (_LOG.info if out['fits'] else _LOG.warning)(
-        'PAGE_FIT budget=%s count=%s bytes_before=%s bytes_after=%s fits=%s remade=%s', out['budget'], out['count'],
-        out['bytes_before'], out['bytes_after'], out['fits'], len(out['images']))
-    if out['images']:
-        by_marker = {img.marker: img for img in images}
-        files = {by_marker[r['marker']].carried.path: {'from_sha256': r['from_sha256'], 'sha256': r['sha256']}
-                 for r in out['images']}
-        core.repository_transform = _PageFitRecord(getattr(core, 'repository_transform', None), files,
-                                                   PAGE_IMAGE_BUDGET_BYTES)
+    if out['warning']:
+        _LOG.warning('%s', out['warning'])
     return out
-
-
-class _PageFitRecord:
-    """Writes PAGE_FIT_PATH -- which image file was re-encoded from which bytes -- after the transforms before it, on
-    every round (a repair cannot drop it); the reverse removes it from what a model reads."""
-
-    def __init__(self, inner, files: dict, budget: int):
-        import json
-        self._inner = inner
-        self._text = json.dumps({'schema': '148ai.page-fit/1', 'budget': budget, 'files': files}, sort_keys=True,
-                                indent=2)
-
-    def __call__(self, repo):
-        repo = self._inner(repo) if self._inner is not None else repo
-        return {**repo, PAGE_FIT_PATH: self._text}
-
-    def redact(self, repo):
-        out = {k: v for k, v in repo.items() if k != PAGE_FIT_PATH}
-        inner = getattr(self._inner, 'redact', None)
-        return inner(out) if inner else out
-
-    def redact_text(self, text):
-        inner = getattr(self._inner, 'redact_text', None)
-        return inner(text) if inner else text
