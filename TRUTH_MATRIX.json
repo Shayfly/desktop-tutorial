@@ -791,12 +791,12 @@
     {
      "part": "skill:job_resume",
      "status": "IMPLEMENTED",
-     "why": "real-server evidence is stale; code changed since: omni_prod/maintenance.py"
+     "why": "code exists; no evidence"
     },
     {
      "part": "skill:stale_job_recovery",
      "status": "IMPLEMENTED",
-     "why": "real-server evidence is stale; code changed since: omni_prod/maintenance.py"
+     "why": "code exists; no evidence"
     }
    ]
   },
@@ -837,12 +837,12 @@
     {
      "part": "skill:actual_cost_calculation",
      "status": "UNIT_TESTED",
-     "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py"
+     "why": "unit tests only"
     },
     {
      "part": "skill:credit_settlement",
      "status": "UNIT_TESTED",
-     "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py"
+     "why": "unit tests only"
     },
     {
      "part": "platform:write_ahead_cost_ledger",

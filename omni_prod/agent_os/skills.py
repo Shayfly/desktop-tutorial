@@ -14,7 +14,7 @@ from pathlib import Path
 
 from ..runtime_bindings import Evidence
 from .contracts import SkillContract
-from .evidence import BACKUP, CRASH, DEPLOY, ECONOMICS, FREE, PAID, REHEARSAL_ACCEPT, VERIFY_REPLAY
+from .evidence import BACKUP, DEPLOY, ECONOMICS, FREE, PAID, REHEARSAL_ACCEPT, VERIFY_REPLAY
 
 TAXONOMY: dict[str, list[str]] = json.loads((Path(__file__).with_name('skills_taxonomy.json')).read_text(encoding='utf-8'))
 
@@ -144,9 +144,9 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'requirement_traceability_test': (('omni_prod.web_saas_acceptance:WebSaaSAcceptanceRunner',), (VERIFY_REPLAY, REHEARSAL_ACCEPT), 'acceptance IDs -> steps'),
     'persistence_test': (('omni_prod.preview_durability:selftest',), (DEPLOY, FREE), ''),
     'restart_test': (('omni_prod.preview_durability:selftest',), (DEPLOY, FREE), ''),
-    'resume_test': (('omni_prod.maintenance:recover_lost_running',), (CRASH,), 'build restarts from the beginning'),
+    'resume_test': (('omni_prod.maintenance:recover_lost_running',), (), 'build restarts from the beginning'),
     'cancellation_test': (('omni_prod.postdeploy_checks:stage_cancel_verify',), (FREE,), ''),
-    'cost_test': (('omni_prod.worker_tasks:metered_llm_cost',), (CRASH, U('tests/test_actual_cost_settlement.py')), ''),
+    'cost_test': (('omni_prod.worker_tasks:metered_llm_cost',), (U('tests/test_actual_cost_settlement.py'),), ''),
     'regression_test': (('omni_prod.agent_os.meta:regression_guardian',), (U('tests/test_agent_os.py'),), ''),
     'migration_test': (('path:infra/staging/verify_neon_bootstrap.py',), (DEPLOY,), ''),
     'provider_failure_test': (('omni_prod.agent_os.meta:failure_injection',), (U('tests/test_failure_injection.py'),), 'simulated providers'),
@@ -189,11 +189,11 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     # Economics
     'build_quote': (('omni_prod.build_cost_plan:build_economics_quote',), (PAID,), ''),
     'credit_reservation': (('omni_prod.subscription_store:PostgresSubscriptionService',), (PAID, FREE), ''),
-    'usage_metering': (('omni_prod.attempt_ledger:metered_cost',), (CRASH,), ''),
-    'provider_price_lookup': (('omni_prod.model_catalog:load_model_catalog',), (CRASH,), 'versioned catalog'),
-    'actual_cost_calculation': (('omni_prod.worker_tasks:metered_llm_cost',), (CRASH, U('tests/test_actual_cost_settlement.py')), ''),
-    'credit_settlement': (('omni_prod.worker_tasks:resolve_m5_billing',), (CRASH, U('tests/test_actual_cost_settlement.py')), ''),
-    'unused_reservation_release': (('omni_prod.subscription_store:PostgresSubscriptionService',), (FREE, CRASH), ''),
+    'usage_metering': (('omni_prod.attempt_ledger:metered_cost',), (), ''),
+    'provider_price_lookup': (('omni_prod.model_catalog:load_model_catalog',), (), 'versioned catalog'),
+    'actual_cost_calculation': (('omni_prod.worker_tasks:metered_llm_cost',), (U('tests/test_actual_cost_settlement.py'),), ''),
+    'credit_settlement': (('omni_prod.worker_tasks:resolve_m5_billing',), (U('tests/test_actual_cost_settlement.py'),), ''),
+    'unused_reservation_release': (('omni_prod.subscription_store:PostgresSubscriptionService',), (FREE,), ''),
     'budget_guard': (('omni_prod.model_policy:authorize_model_call',), (PAID,), 'ceiling bound to the reservation'),
     'reconciliation': (('omni_prod.qa_budget:qa_used_usd',), (U('tests/test_golden_mod_path_live_postgres.py'),), 'QA ledger'),
     'margin_calculation': (('omni_prod.economics_report:compute',), (ECONOMICS, U('tests/test_economics_report.py')),
@@ -205,10 +205,10 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'storage_health_check': (('path:.github/workflows/deploy-worker.yml',), (DEPLOY,), ''),
     'database_health_check': (('omni_prod.postdeploy_checks:stage_free',), (FREE,), ''),
     'queue_job_submit': (('omni_prod.queueing:enqueue_build',), (PAID, FREE), ''),
-    'job_resume': (('omni_prod.maintenance:recover_lost_running',), (CRASH,), 'restart from the beginning, once'),
+    'job_resume': (('omni_prod.maintenance:recover_lost_running',), (), 'restart from the beginning, once; since e5e11e5 a lost build with a paid call is failed, not requeued'),
     'job_cancel': (('omni_prod.build_control:BuildControl', 'omni_prod.job_repository:PostgresBuildRepository.request_cancel'), (FREE,), ''),
     'job_timeout': (('omni_prod.sandbox:run_sandbox',), (U('tests/test_sandbox_cleanup.py'),), ''),
-    'stale_job_recovery': (('omni_prod.maintenance:recover_lost_running', 'omni_prod.maintenance:redispatch_lost'), (CRASH,), ''),
+    'stale_job_recovery': (('omni_prod.maintenance:recover_lost_running', 'omni_prod.maintenance:redispatch_lost'), (), ''),
     'environment_validation': (('path:infra/worker-host/write-env.sh',), (DEPLOY,), ''),
     # Deployment (previews)
     'preview_prepare': (('omni_prod.preview_runtime:DockerPreviewProvider',), (FREE,), ''),
@@ -229,7 +229,7 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'execution_trace': (('omni_prod.build_control:BuildControl',), (FREE, PAID), ''),
     'agent_trace': (('omni_prod.agent_os.recorder:BuildAgentRecorder',), (U('tests/test_agent_os.py'),), ''),
     'provider_trace': (('omni_prod.attempt_ledger:persist_attempts',), (PAID,), ''),
-    'cost_trace': (('omni_prod.attempt_ledger:AttemptRecorder',), (PAID, CRASH), ''),
+    'cost_trace': (('omni_prod.attempt_ledger:AttemptRecorder',), (PAID,), ''),
     'failure_trace': (('omni_prod.behavior_acceptance:BehaviorAcceptanceExecutor',), (REHEARSAL_ACCEPT,), ''),
     'structured_logging': (('omni_prod.build_control:BuildControl',), (FREE,), ''),
     # Backup / Recovery

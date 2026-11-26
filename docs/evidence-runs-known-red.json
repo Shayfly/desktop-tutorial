@@ -15,19 +15,6 @@
       "signature_note": "Signed by the owner's instruction, standing autonomy grant, 2026-11-16. The reviewer field was typed by the author (claude) on that instruction."
     },
     {
-      "run_id": "37954236866",
-      "workflow": "postdeploy-checks.yml",
-      "cited_in": ["omni_prod/agent_os/evidence.py"],
-      "backs": "agent_os/evidence.py CRASH: crash recovery (requeue once), build finished after recovery, settlement at metered usage, the lost worker's calls settled, superseded agent run closed. agent_os/agents.py cites CRASH for quality_gate_agent, sre_reliability_agent and other agents.",
-      "why_red": "Run completed with conclusion failure (read 2026-11-25): job 'checks' failed at step 'Crash recovery (kill the build worker mid-build)', annotation 'postdeploy agent task graph recorded: FAIL ... outcome=None'. evidence.py's comment says the agent-graph check read the run before the worker closed it and that inspect run 37955419872 (green) shows it closed later; the cited run itself is red.",
-      "listed_on": "2026-11-25",
-      "reason": "law2-evidence: red when the check was introduced; listed so that it is shown on every run instead of failing every PR that touches an evidence file. Not fixed by this listing.",
-      "author": "claude",
-      "reviewer": "shai",
-      "reviewed_at": "2026-11-16",
-      "signature_note": "Signed by the owner's instruction, standing autonomy grant, 2026-11-16. The reviewer field was typed by the author (claude) on that instruction."
-    },
-    {
       "run_id": "39377332673",
       "workflow": "postdeploy-checks.yml",
       "cited_in": ["omni_prod/intelligence/inventory.py"],

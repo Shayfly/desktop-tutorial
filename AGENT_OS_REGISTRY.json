@@ -22,11 +22,10 @@
    "why": "real-server evidence is stale; code changed since: omni_prod/agent_os/runtime.py, omni_prod/autonomous_core.py, omni_prod/worker_tasks.py",
    "evidence": [],
    "stale_evidence": [
-    "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "discovery_agent",
@@ -561,7 +560,6 @@
    "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [],
    "stale_evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -587,7 +585,6 @@
    "why": "real-server evidence is stale; code changed since: omni_prod/maintenance.py",
    "evidence": [],
    "stale_evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
     "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-10T20:15Z",
@@ -689,7 +686,6 @@
    "why": "real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml, omni_prod/maintenance.py",
    "evidence": [],
    "stale_evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
     "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-10T20:15Z",
@@ -1148,11 +1144,10 @@
    "evidence": [],
    "stale_evidence": [
     "postdeploy-checks run 38083312245",
-    "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "system_test_orchestrator",
@@ -1190,15 +1185,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "UNIT_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/agent_os/meta.py",
+   "why": "unit tests only",
    "evidence": [
     "tests/test_failure_injection.py"
    ],
-   "stale_evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
-   ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "agent_key": "quality_gate_agent",
@@ -3763,15 +3755,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "UNIT_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "why": "unit tests only",
    "evidence": [
     "tests/test_actual_cost_settlement.py"
    ],
-   "stale_evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
-   ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "provider_failure_test",
@@ -3821,13 +3810,10 @@
    "gap": "build restarts from the beginning",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/maintenance.py",
+   "why": "code exists; no evidence",
    "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
-   ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "cancellation_test",
@@ -4936,13 +4922,10 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py",
+   "why": "code exists; no evidence",
    "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
-   ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "provider_price_lookup",
@@ -4955,13 +4938,10 @@
    "gap": "versioned catalog",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/model_catalog.py",
+   "why": "code exists; no evidence",
    "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
-   ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "actual_cost_calculation",
@@ -4974,15 +4954,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "UNIT_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "why": "unit tests only",
    "evidence": [
     "tests/test_actual_cost_settlement.py"
    ],
-   "stale_evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
-   ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "credit_settlement",
@@ -4995,15 +4972,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "UNIT_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "why": "unit tests only",
    "evidence": [
     "tests/test_actual_cost_settlement.py"
    ],
-   "stale_evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
-   ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "unused_reservation_release",
@@ -5019,11 +4993,10 @@
    "why": "real-server evidence is stale; code changed since: omni_prod/subscription_store.py",
    "evidence": [],
    "stale_evidence": [
-    "postdeploy-checks run 38083312245",
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "margin_calculation",
@@ -5259,16 +5232,13 @@
    "implementation_location": [
     "omni_prod.maintenance:recover_lost_running"
    ],
-   "gap": "restart from the beginning, once",
+   "gap": "restart from the beginning, once; since e5e11e5 a lost build with a paid call is failed, not requeued",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/maintenance.py",
+   "why": "code exists; no evidence",
    "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
-   ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "job_cancel",
@@ -5320,13 +5290,10 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/maintenance.py",
+   "why": "code exists; no evidence",
    "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
-   ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "preview_prepare",
@@ -5744,11 +5711,10 @@
    "why": "real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py",
    "evidence": [],
    "stale_evidence": [
-    "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "failure_trace",

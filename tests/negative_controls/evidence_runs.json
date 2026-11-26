@@ -370,6 +370,7 @@
    ],
    "expect_failed": [
     "test_a_later_id_in_a_record_is_a_supporting_run_without_a_commit",
+    "test_a_listed_run_that_turned_green_fails_so_the_list_only_shrinks",
     "test_a_supporting_run_must_be_green_but_its_commit_is_not_compared"
    ]
   },
@@ -635,7 +636,6 @@
    ],
    "expect_failed": [
     "test_a_later_id_in_a_record_is_a_supporting_run_without_a_commit",
-    "test_a_listed_run_github_could_not_be_asked_about_is_not_a_pass",
     "test_a_listed_run_that_expired_is_still_shown_not_passed",
     "test_a_run_named_in_a_plain_string_is_collected",
     "test_a_run_that_is_not_green_fails[None]",
@@ -651,7 +651,6 @@
     "test_an_entry_without_a_reviewer_other_than_the_author_fails[]",
     "test_an_entry_without_a_reviewer_other_than_the_author_fails[claude]",
     "test_an_entry_without_a_reviewer_other_than_the_author_fails[pending]",
-    "test_cited_in_must_be_where_the_code_cites_the_run",
     "test_docstrings_and_comments_are_not_evidence",
     "test_each_listed_red_run_is_a_warning_that_says_what_it_is",
     "test_every_failing_id_has_its_own_error_line",
@@ -691,6 +690,7 @@
     "test_an_entry_without_a_reviewer_other_than_the_author_fails[]",
     "test_an_entry_without_a_reviewer_other_than_the_author_fails[claude]",
     "test_an_entry_without_a_reviewer_other_than_the_author_fails[pending]",
+    "test_cited_in_must_be_where_the_code_cites_the_run",
     "test_docstrings_and_comments_are_not_evidence",
     "test_each_listed_red_run_is_a_warning_that_says_what_it_is",
     "test_every_failing_id_has_its_own_error_line",

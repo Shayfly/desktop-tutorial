@@ -39,10 +39,12 @@ CITED, UNCITED = R.collect()
 ONLY_REQUIREMENT = {'37739774562'}                      # runtime_bindings _MODEL.observed: deploy-worker run
 ONLY_PROVIDER = {'39378559811'}                         # intelligence/inventory PAID_20261020
 ONLY_TEXT = {'43657047045'}                             # vision_models._PROBE, a plain string
-SUPPORTING = {'37955419872', '37962090098'}             # a later id in a record's text: green, commit not compared
-# Red on GitHub on 2026-11-25 (read with GET /actions/runs/{id}): conclusion failure, all four.
-KNOWN_RED = {'37814803770': 'model-probe', '37954236866': 'postdeploy-checks', '39377332673': 'postdeploy-checks',
-             '43657047045': 'vision-probe'}
+SUPPORTING = {'37962090098'}                            # a later id in a record's text: green, commit not compared
+# Red on GitHub on 2026-11-25 (read with GET /actions/runs/{id}): conclusion failure, all of them. 2026-11-26: the
+# crash-recovery run 37954236866 left the list with its capability (agent_os/evidence.py: no live evidence).
+KNOWN_RED = {'37814803770': 'model-probe', '39377332673': 'postdeploy-checks', '43657047045': 'vision-probe'}
+# The entry the list-rule tests below change: the paid run, red and listed (its index read from the list itself).
+LISTED = '39377332673'
 
 
 @pytest.fixture(autouse=True)
@@ -119,15 +121,15 @@ def tree(root, files):
 # ---- the collector -----------------------------------------------------------------------------------------------
 
 def test_the_collector_finds_the_ids_present_today():
-    assert len(CITED) == 22, sorted(CITED)
+    assert len(CITED) == 20, sorted(CITED)
     kinds = {run_id: {c.kind for c in cs} for run_id, cs in CITED.items()}
     assert {r for r, k in kinds.items() if k == {'Requirement'}} == ONLY_REQUIREMENT
     assert {r for r, k in kinds.items() if k == {'ProviderEvidence'}} == ONLY_PROVIDER
     assert {r for r, k in kinds.items() if k == {'Text'}} == ONLY_TEXT
-    assert sum(1 for k in kinds.values() if 'Evidence' in k) == 18
+    assert sum(1 for k in kinds.values() if 'Evidence' in k) == 16
     # agent_os/evidence.py: every Evidence there is collected, with its commit
     from omni_prod.agent_os import evidence as E
-    for name in ('FREE', 'PAID', 'CRASH', 'BACKUP', 'DEPLOY', 'GATE_REPLAY', 'VERIFY_REPLAY', 'ECONOMICS'):
+    for name in ('FREE', 'PAID', 'BACKUP', 'DEPLOY', 'GATE_REPLAY', 'VERIFY_REPLAY', 'ECONOMICS'):
         ev = getattr(E, name)
         first = R.RUN_ID.findall(ev.ref)[0]
         assert any(c.ref == ev.ref and c.commit == ev.commit and c.primary for c in CITED[first]), name
@@ -140,7 +142,7 @@ def test_a_run_named_in_a_plain_string_is_collected():
     assert (c.kind, c.ref, c.where, c.primary, c.commit) == ('Text', vision_models._PROBE, 'omni_prod/vision_models.py:16',
                                                             True, '')
     # a string that is also a record's text is cited once, by the record
-    assert [c.kind for c in CITED['37954236866']] == ['Evidence']
+    assert [c.kind for c in CITED['38083312245']] == ['Evidence']
 
 
 def test_docstrings_and_comments_are_not_evidence(tmp_path):
@@ -182,8 +184,9 @@ def test_the_collector_finds_the_same_ids_every_time():
 
 def test_a_later_id_in_a_record_is_a_supporting_run_without_a_commit():
     assert {r for r, cs in CITED.items() if all(not c.primary for c in cs)} == SUPPORTING
-    assert [(c.primary, c.commit) for c in CITED['37955419872']] == [(False, '')]
-    assert [(c.primary, c.commit) for c in CITED['37954236866']] == [(True, '2b4bafd')]
+    # REHEARSAL_ACCEPT: 'postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)' @039574f
+    assert [(c.primary, c.commit) for c in CITED['37962090098']] == [(False, '')]
+    assert {(c.primary, c.commit) for c in CITED['37961193099']} == {(True, '039574f')}
 
 
 def test_the_workflow_named_before_an_id_is_recorded():
@@ -305,10 +308,10 @@ def test_today_every_unlisted_run_is_green_and_the_listed_ones_are_shown_red(cap
     rc, out = run_main(capsys)
     assert rc == 0, out
     assert lines(out, '::error') == []
-    assert len(lines(out, '::notice title=evidence run ')) == 18
-    assert out.splitlines()[0] == ('::notice title=evidence runs::18 of 22 cited run ids resolved green; KNOWN RED '
-                                   '(capabilities marked verified on a failed run): 37814803770, 37954236866, '
-                                   '39377332673, 43657047045')
+    assert len(lines(out, '::notice title=evidence run ')) == 17
+    assert out.splitlines()[0] == ('::notice title=evidence runs::17 of 20 cited run ids resolved green; KNOWN RED '
+                                   '(capabilities marked verified on a failed run): 37814803770, 39377332673, '
+                                   '43657047045')
 
 
 @pytest.mark.parametrize('conclusion', ['failure', 'cancelled', 'skipped', None])
@@ -317,7 +320,7 @@ def test_a_run_that_is_not_green_fails(capsys, conclusion):
     assert rc == 1
     assert f'RED: conclusion {conclusion}' in error_for(out, '38083312245')
     assert len(lines(out, '::error')) == 1
-    assert '17 of 22 cited run ids resolved green; KNOWN RED' in out and '; not green: 38083312245' in out
+    assert '16 of 20 cited run ids resolved green; KNOWN RED' in out and '; not green: 38083312245' in out
 
 
 def test_a_run_in_progress_fails(capsys):
@@ -377,9 +380,9 @@ def test_the_run_must_be_of_the_workflow_the_text_names(capsys):
     assert rc == 1
     assert error_for(out, '38083162363').count('workflow ci-fast is not the deploy-worker the text names') == 2
     # a supporting run is held to the workflow too, and an answer without a path is not a pass
-    rc, out = run_main(capsys, answers={'37955419872': dict(green('37955419872'), path=None)})
+    rc, out = run_main(capsys, answers={'37962090098': dict(green('37962090098'), path=None)})
     assert rc == 1
-    assert 'workflow none is not the postdeploy-checks the text names' in error_for(out, '37955419872')
+    assert 'workflow none is not the postdeploy-checks the text names' in error_for(out, '37962090098')
 
 
 def test_a_text_that_names_no_workflow_is_not_held_to_one():
@@ -389,11 +392,11 @@ def test_a_text_that_names_no_workflow_is_not_held_to_one():
 
 
 def test_a_supporting_run_must_be_green_but_its_commit_is_not_compared(capsys):
-    rc, out = run_main(capsys, answers={'37955419872': green('37955419872', head_sha='54620a4' + '0' * 33)})
+    rc, out = run_main(capsys, answers={'37962090098': green('37962090098', head_sha='a1b2c3d' + '0' * 33)})
     assert rc == 0, out
-    rc, out = run_main(capsys, answers={'37955419872': dict(green('37955419872'), conclusion='failure')})
+    rc, out = run_main(capsys, answers={'37962090098': dict(green('37962090098'), conclusion='failure')})
     assert rc == 1
-    assert 'supporting run' in error_for(out, '37955419872')
+    assert 'supporting run' in error_for(out, '37962090098')
 
 
 @pytest.mark.parametrize('error', [
@@ -422,8 +425,8 @@ def test_the_summary_comes_first_and_names_every_failure(capsys):
                        errors={'38083647077': urllib.error.URLError('down'), '37862903906': gone})
     assert rc == 2
     assert out.splitlines()[0] == (
-        '::notice title=evidence runs::15 of 22 cited run ids resolved green; KNOWN RED (capabilities marked verified '
-        'on a failed run): 37814803770, 37954236866, 39377332673, 43657047045; not green: 37820429767; expired: '
+        '::notice title=evidence runs::14 of 20 cited run ids resolved green; KNOWN RED (capabilities marked verified '
+        'on a failed run): 37814803770, 39377332673, 43657047045; not green: 37820429767; expired: '
         '37862903906; unverified: 38083647077')
 
 
@@ -451,8 +454,8 @@ def test_each_listed_red_run_is_a_warning_that_says_what_it_is(capsys):
     rc, out = run_main(capsys)
     assert rc == 0
     [head] = lines(out, '::warning title=evidence runs: known red::')
-    assert head.startswith('::warning title=evidence runs: known red::4 capabilities are marked verified on a run that '
-                           'did not succeed: 37814803770, 37954236866, 39377332673, 43657047045. They are listed in '
+    assert head.startswith('::warning title=evidence runs: known red::3 capabilities are marked verified on a run that '
+                           'did not succeed: 37814803770, 39377332673, 43657047045. They are listed in '
                            'docs/evidence-runs-known-red.json, not fixed;')
     each = lines(out, '::warning title=known red evidence run ')
     assert [w.split('::')[1] for w in each] == [f'warning title=known red evidence run {r}' for r in sorted(KNOWN_RED)]
@@ -463,37 +466,42 @@ def test_each_listed_red_run_is_a_warning_that_says_what_it_is(capsys):
 
 
 def test_a_listed_run_that_turned_green_fails_so_the_list_only_shrinks(capsys):
-    ok = dict(today('37954236866'), conclusion='success')
-    rc, out = run_main(capsys, answers={'37954236866': ok})
+    ok = dict(today(LISTED), conclusion='success')
+    rc, out = run_main(capsys, answers={LISTED: ok})
     assert rc == 1
-    assert error_for(out, '37954236866').startswith(
-        '::error title=evidence run 37954236866::LISTED AS KNOWN RED BUT GREEN NOW: success on 2b4bafd00000 '
+    assert error_for(out, LISTED).startswith(
+        f'::error title=evidence run {LISTED}::LISTED AS KNOWN RED BUT GREEN NOW: success on f00000000000 '
         '(postdeploy-checks.yml on main, 2026-10-10); remove it from docs/evidence-runs-known-red.json')
-    assert '; listed as known red but green now: 37954236866' in out.splitlines()[0]
-    assert '37954236866' not in out.splitlines()[0].split('KNOWN RED')[1].split(';')[0]
+    assert f'; listed as known red but green now: {LISTED}' in out.splitlines()[0]
+    assert LISTED not in out.splitlines()[0].split('KNOWN RED')[1].split(';')[0]
 
 
 def test_a_listed_run_that_expired_is_still_shown_not_passed(capsys):
     gone = urllib.error.HTTPError('https://api.github.com/x', 404, 'Not Found', {}, None)
-    rc, out = run_main(capsys, errors={'43657047045': gone})
+    rc, out = run_main(capsys, errors={LISTED: gone})
     assert rc == 0
-    [w] = lines(out, '::warning title=known red evidence run 43657047045::')
-    assert '| EXPIRED: evidence expired: GitHub no longer has run 43657047045' in w
+    [w] = lines(out, f'::warning title=known red evidence run {LISTED}::')
+    assert f'| EXPIRED: evidence expired: GitHub no longer has run {LISTED}' in w
 
 
 def test_a_listed_run_github_could_not_be_asked_about_is_not_a_pass(capsys):
-    rc, out = run_main(capsys, errors={'43657047045': urllib.error.URLError('down')})
+    rc, out = run_main(capsys, errors={LISTED: urllib.error.URLError('down')})
     assert rc == 2
-    assert error_for(out, '43657047045').startswith('::error title=evidence run 43657047045::UNVERIFIED: API error')
-    assert lines(out, '::warning title=known red evidence run 43657047045') == []
+    assert error_for(out, LISTED).startswith(f'::error title=evidence run {LISTED}::UNVERIFIED: API error')
+    assert lines(out, f'::warning title=known red evidence run {LISTED}') == []
+
+
+def listed_at() -> int:
+    """The index of LISTED in the real list: the messages below name an entry by its index."""
+    return [e['run_id'] for e in known_list()['known_red']].index(LISTED)
 
 
 def test_the_listed_workflow_must_be_the_runs(capsys):
-    rc, out = run_main(capsys, answers={'43657047045': dict(today('43657047045'), path='.github/workflows/model-probe.yml')})
+    rc, out = run_main(capsys, answers={LISTED: dict(today(LISTED), path='.github/workflows/model-probe.yml')})
     assert rc == 1
     [e] = lines(out, '::error title=evidence runs: known-red list::')
-    assert ('docs/evidence-runs-known-red.json: entry 3 (43657047045): workflow says vision-probe.yml, GitHub says '
-            'model-probe.yml') in e
+    assert (f'docs/evidence-runs-known-red.json: entry {listed_at()} ({LISTED}): workflow says postdeploy-checks.yml, '
+            'GitHub says model-probe.yml') in e
 
 
 def _changed(tmp_path, change):
@@ -504,14 +512,14 @@ def _changed(tmp_path, change):
 
 @pytest.mark.parametrize('reviewer', ['claude', 'pending', '', 'CLAUDE'])
 def test_an_entry_without_a_reviewer_other_than_the_author_fails(capsys, tmp_path, reviewer):
-    path = _changed(tmp_path, lambda es: es[0].update(reviewer=reviewer))
+    path = _changed(tmp_path, lambda es: es[listed_at()].update(reviewer=reviewer))
     rc, out = run_main(capsys, known_red=path)
     assert rc == 1
     [e] = lines(out, '::error title=evidence runs: known-red list::')
-    assert 'entry 0 (37814803770): no reviewer other than the author' in e
-    path = _changed(tmp_path, lambda es: es[1].update(author='shai'))
+    assert f'entry {listed_at()} ({LISTED}): no reviewer other than the author' in e
+    path = _changed(tmp_path, lambda es: es[listed_at()].update(author='shai'))
     rc, out = run_main(capsys, known_red=path)
-    assert rc == 1 and 'entry 1 (37954236866): no reviewer other than the author (shai)' in out
+    assert rc == 1 and f'entry {listed_at()} ({LISTED}): no reviewer other than the author (shai)' in out
 
 
 def test_an_entry_no_longer_cited_fails(capsys, tmp_path):
@@ -519,28 +527,30 @@ def test_an_entry_no_longer_cited_fails(capsys, tmp_path):
     rc, out = run_main(capsys, known_red=path)
     assert rc == 1
     [e] = lines(out, '::error title=evidence runs: known-red list::')
-    assert 'entry 4 (1234567890): no longer cited by any evidence; remove it (the list only shrinks)' in e
+    assert (f'entry {len(known_list()["known_red"])} (1234567890): no longer cited by any evidence; remove it (the '
+            'list only shrinks)') in e
 
 
 def test_cited_in_must_be_where_the_code_cites_the_run(capsys, tmp_path):
-    path = _changed(tmp_path, lambda es: es[3].update(cited_in=['omni_prod/routed_gateway.py']))
+    path = _changed(tmp_path, lambda es: es[listed_at()].update(cited_in=['omni_prod/routed_gateway.py']))
     rc, out = run_main(capsys, known_red=path)
     assert rc == 1
-    assert ("entry 3 (43657047045): cited_in says ['omni_prod/routed_gateway.py'], the code cites it in "
-            "['omni_prod/vision_models.py']") in out
+    assert (f"entry {listed_at()} ({LISTED}): cited_in says ['omni_prod/routed_gateway.py'], the code cites it in "
+            "['omni_prod/intelligence/inventory.py']") in out
 
 
 @pytest.mark.parametrize('change, said', [
-    (lambda es: es[2].pop('why_red'), 'entry 2 (39377332673): missing why_red'),
-    (lambda es: es[2].update(allowed=True), 'entry 2 (39377332673): unknown allowed'),
-    (lambda es: es[2].update(backs=' '), 'entry 2 (39377332673): empty backs'),
-    (lambda es: es[2].update(run_id='latest'), 'entry 2 (latest): run_id is not a run id'),
-    (lambda es: es.append(dict(es[2])), 'entry 4 (39377332673): listed twice'),
+    (lambda es: es[listed_at()].pop('why_red'), lambda: f'entry {listed_at()} ({LISTED}): missing why_red'),
+    (lambda es: es[listed_at()].update(allowed=True), lambda: f'entry {listed_at()} ({LISTED}): unknown allowed'),
+    (lambda es: es[listed_at()].update(backs=' '), lambda: f'entry {listed_at()} ({LISTED}): empty backs'),
+    (lambda es: es[listed_at()].update(run_id='latest'), lambda: f'entry {listed_at()} (latest): run_id is not a run id'),
+    (lambda es: es.append(dict(es[listed_at()])),
+     lambda: f'entry {len(known_list()["known_red"])} ({LISTED}): listed twice'),
 ], ids=['missing', 'unknown', 'empty', 'not-an-id', 'twice'])
 def test_an_entry_that_is_not_complete_fails(capsys, tmp_path, change, said):
     rc, out = run_main(capsys, known_red=_changed(tmp_path, change))
     assert rc == 1
-    assert said in out
+    assert said() in out
 
 
 @pytest.mark.parametrize('content', [None, '{', '{"known_red": {}}', '{"known_red": ["37814803770"]}', '[]'],
@@ -579,7 +589,7 @@ def test_the_job_summary_shows_the_known_red_section_and_every_run(capsys, tmp_p
     assert [row.split(']')[0][3:] for row in known_rows] == sorted(KNOWN_RED)
     assert all('| RED: conclusion failure |' in row for row in known_rows)
     rows = [line for line in text[every:] if line.startswith('| [')]
-    assert len(rows) == 22
+    assert len(rows) == 20
     verdict = {row.split(']')[0][3:]: row.split(' | ')[1] for row in rows}
     assert verdict == {r: 'KNOWN RED' if r in KNOWN_RED else 'RED' if r == '37820429767' else 'GREEN' for r in CITED}
 
@@ -592,7 +602,7 @@ def test_without_a_token_nothing_is_verified_and_the_exit_is_2(tmp_path):
                        env=env, capture_output=True, text=True, timeout=60)
     assert p.returncode == 2, p.stdout + p.stderr
     assert p.stdout.strip() == ('::error title=evidence runs::GITHUB_TOKEN and --repo (or GITHUB_REPOSITORY) are needed; '
-                                '22 cited run ids were not verified')
+                                '20 cited run ids were not verified')
     assert not (tmp_path / 'summary.md').exists()
 
 

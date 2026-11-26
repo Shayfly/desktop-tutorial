@@ -349,8 +349,8 @@
    "source_status": "IMPLEMENTED",
    "state": "IMPLEMENTED",
    "gaps": [],
-   "verified_at": "2026-10-09T15:46Z",
-   "verified_commit": "2b4bafd"
+   "verified_at": "2026-10-09T16:43Z",
+   "verified_commit": "039574f"
   },
   {
    "key": "failure_injection_agent",
@@ -362,8 +362,8 @@
    "source_status": "UNIT_TESTED",
    "state": "IMPLEMENTED",
    "gaps": [],
-   "verified_at": "2026-10-09T15:46Z",
-   "verified_commit": "2b4bafd"
+   "verified_at": null,
+   "verified_commit": null
   },
   {
    "key": "frontend_agent",
@@ -428,8 +428,8 @@
    "source_status": "IMPLEMENTED",
    "state": "IMPLEMENTED",
    "gaps": [],
-   "verified_at": "2026-10-09T15:46Z",
-   "verified_commit": "2b4bafd"
+   "verified_at": "2026-10-09T16:43Z",
+   "verified_commit": "039574f"
   },
   {
    "key": "identity_auth_agent",
