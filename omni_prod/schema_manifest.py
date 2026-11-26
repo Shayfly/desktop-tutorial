@@ -13,8 +13,10 @@ REQUIRED_MIGRATION_NAME = '048_unknown_cost_nullable'
 
 # 047 (rate limits, 2026-11-26) is added on lines of its own, so it merges with 046 (social sign-in, another branch) in
 # either order without touching the lines above: whichever of the two lands first, the values stay true.
-EXPECTED_VERSIONS += (47,)
-REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME = 47, '047_rate_limits'
+EXPECTED_VERSIONS = tuple(sorted(EXPECTED_VERSIONS + (47,)))   # in file order, whichever of 046/047/048 merged first
+# The newest migration is the one required: when 048 (unknown cost, 2026-11-26) merged first, 047 must not lower it.
+if REQUIRED_MIGRATION < 47:
+    REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME = 47, '047_rate_limits'
 
 
 def db_fingerprint(host, dbname) -> str:
