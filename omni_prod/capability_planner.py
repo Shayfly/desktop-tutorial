@@ -5,11 +5,12 @@ import logging
 import re
 
 from collections import OrderedDict
+from collections.abc import Mapping
 
 from .capabilities import CapabilityPlan, CapabilityRequirement
 from .capability_registry import CapabilityRegistry
 from .intent_terms import ai_agent_intent, has_term
-from .media_pipeline import AssetKind
+from .media_pipeline import AssetKind, is_default_hero
 
 
 # Asset-generation capabilities: activated only when the creative plan requests
@@ -24,6 +25,44 @@ ASSET_CAPABILITY_KEYS = {
     AssetKind.MODEL3D: "media.3d.mesh.generate",
     AssetKind.TEXTURE: "media.3d.texture",
 }
+
+
+IMAGE_KEY = "media.image.generate"
+# Plan notes for an image nothing describes (CapabilityPlan.notes round-trip in the stored contract, so the reason a
+# picture is missing stays on the contract). Production 2026-11-23: three owner builds failed after paying for a picture
+# drawn from a generic sentence, because only one trigger of an image requirement recorded what it shows.
+IMAGE_SUBJECT_UNRESOLVED = "image-subject-unresolved"    # a required image: left out, and the contract asks the customer
+IMAGE_NOT_PLANNED = "image-not-planned-no-subject"        # an optional image: left out, never generated
+MAX_SUBJECT_CHARS = 300                                   # the alt's own bound (generated_images.alt_text)
+_APPROVED_BRIEF = re.compile(r"(?m)^--- Approved project brief \(binding; fingerprint [a-f0-9]{16}\) ---$")
+_BUSINESS_LINE = "Main action: "
+
+
+def _semantic_image_words(semantic_decisions) -> str | None:
+    """The customer's own words quoted by the approved semantic decision that requires an image: its evidence, checked
+    against the customer's message when it was recorded (semantic_capabilities.validate_decisions)."""
+    for decision in semantic_decisions or ():
+        if isinstance(decision, Mapping) and decision.get("key") == IMAGE_KEY and decision.get("decision") == "required":
+            words = " ".join(str(decision.get("evidence") or "").split())
+            if words:
+                return words[:MAX_SUBJECT_CHARS]
+    return None
+
+
+def _brief_business_line(full_prompt: str) -> str | None:
+    """The approved brief's business line: its "Main action:" line (discovery.requirements_text -- the customer's answer
+    to "what is the one thing it must do best", or the first business sentence of their request when they left it to
+    148AI). Read only from the LAST server-written brief block, the rule semantic_capabilities.read_approved follows, so
+    a customer's text that imitates a brief is never read."""
+    text = full_prompt or ""
+    markers = list(_APPROVED_BRIEF.finditer(text))
+    if not markers:
+        return None
+    for line in text[markers[-1].end():].splitlines():
+        if line.startswith(_BUSINESS_LINE):
+            words = " ".join(line[len(_BUSINESS_LINE):].split())
+            return words[:MAX_SUBJECT_CHARS] or None
+    return None
 
 
 def asset_capability_status(plan) -> dict[str, str]:
@@ -50,7 +89,10 @@ class CapabilityPlanner:
     def __init__(self, registry: CapabilityRegistry | None = None) -> None:
         self.registry = registry or CapabilityRegistry()
 
-    def plan(self, *, prompt: str, unified_plan, creative_plan, semantic_decisions=()) -> CapabilityPlan:
+    def plan(self, *, prompt: str, unified_plan, creative_plan, semantic_decisions=(),
+             full_prompt: str | None = None) -> CapabilityPlan:
+        # `full_prompt`: the prompt WITH its approved brief (the default hero's subject is the brief's business line);
+        # `prompt` stays the customer's own words, which every detector here reads.
         low = " ".join(prompt.lower().split())
         requested: OrderedDict[str, tuple[str, bool]] = OrderedDict()
 
@@ -116,6 +158,7 @@ class CapabilityPlanner:
             capability_key = asset_map.get(asset.kind)
             if capability_key:
                 add(capability_key, asset.purpose, asset.required)
+        default_hero = any(is_default_hero(asset) for asset in creative_plan.requests)
 
         if self._has_any(low, "speech to text", "stt", "transcrib", "microphone", "listens", "listen to", "תמלול", "מיקרופון", "מאזין"):
             add("media.audio.stt", "speech input/transcription")
@@ -166,6 +209,21 @@ class CapabilityPlanner:
                 if semantic.get(key) != "required":
                     requested.pop(key, None)
 
+        # Every image says what it shows (the owner, 2026-11-26), from the trigger that made it (_image_subject). An
+        # image nothing describes is never generated from a generic sentence: an optional one is not planned, a
+        # required one becomes the contract's question (product_architect), and validate_plan refuses any image
+        # requirement without a subject.
+        image_subject, image_notes = None, ()
+        if IMAGE_KEY in requested:
+            image_purpose, image_required = requested[IMAGE_KEY]
+            image_subject = self._image_subject(image_purpose, prompt, semantic_decisions, default_hero=default_hero,
+                                                full_prompt=full_prompt)
+            if image_subject is None:
+                requested.pop(IMAGE_KEY)
+                image_notes = (IMAGE_SUBJECT_UNRESOLVED if image_required else IMAGE_NOT_PLANNED,)
+                logging.getLogger(__name__).warning("%s purpose=%s: nothing the customer said describes the picture",
+                                                    image_notes[0], image_purpose)
+
         # Requiredness propagates backwards through definition dependencies so an
         # optional child never makes a dependency mandatory unless another required
         # request needs it.
@@ -196,7 +254,7 @@ class CapabilityPlanner:
                     purpose=purpose,
                     required=required_by_key.get(key, explicit_required),
                     quantity=self._picture_count(key, purpose, prompt)["count"],
-                    constraints=self._image_constraints(key, purpose, prompt),
+                    constraints=self._image_constraints(key, purpose, prompt, subject=image_subject),
                     dependency_ids=tuple(id_by_key[dep] for dep in definition.dependency_keys),
                 )
             )
@@ -205,7 +263,8 @@ class CapabilityPlanner:
         result = CapabilityPlan(
             requirements=tuple(requirements),
             target_keys=target_keys,
-            notes=("deterministic-minimum-requirements",) + (("approved-semantic-evidence",) if semantic else ()),
+            notes=("deterministic-minimum-requirements",) + (("approved-semantic-evidence",) if semantic else ())
+            + image_notes,
         )
         self.registry.validate_plan(result)
         return result
@@ -228,7 +287,25 @@ class CapabilityPlanner:
         return pictures(prompt)
 
     @staticmethod
-    def _image_constraints(key: str, purpose: str, prompt: str) -> dict:
+    def _image_subject(purpose: str, prompt: str, semantic_decisions, *, default_hero: bool,
+                       full_prompt: str | None) -> str | None:
+        """What the picture shows, from the trigger that made the requirement, the first found in this order (the
+        owner, 2026-11-26): the customer's own clause that names the picture (generated_images.describe); else the
+        customer's own words quoted by the approved semantic decision that requires it; else, for the default hero of a
+        content site (DECISIONS 5), the approved brief's business line. None when none of them exists."""
+        from .generated_images import describe
+        clause = describe(prompt, purpose)
+        if clause:
+            return clause
+        quoted = _semantic_image_words(semantic_decisions)
+        if quoted:
+            return quoted
+        if default_hero:
+            return _brief_business_line(full_prompt if full_prompt is not None else prompt)
+        return None
+
+    @staticmethod
+    def _image_constraints(key: str, purpose: str, prompt: str, subject: str | None = None) -> dict:
         """#324 (Michael 2026-11-13): a generated image is made FROM THE BRIEF -- the same clause of the approved
         request that becomes its alt (generated_images.describe), and an aspect ratio for its purpose. Before, only
         the purpose reached the provider and FLUX drew a generic "hero/brand visual" whatever the request said."""
@@ -236,7 +313,8 @@ class CapabilityPlanner:
             return {}
         from .generated_images import aspect_ratio, describe, stated_style
         constraints = {"aspect_ratio": aspect_ratio(purpose)}
-        subject = describe(prompt, purpose)
+        # `subject`: what plan() settled (_image_subject); a direct call without one reads the customer's clause
+        subject = subject or describe(prompt, purpose)
         if subject:
             constraints["subject"] = subject
         # the plan's style direction (the brief's "Design:" line): the image matches the page it is made for

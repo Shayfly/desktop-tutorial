@@ -228,6 +228,13 @@ class CapabilityRegistry:
                 raise ValueError(f"duplicate capability requirement id: {requirement.id}")
             if not self.contains(requirement.key):
                 raise ValueError(f"unknown capability: {requirement.key}")
+            # An image is generated FROM what it shows (the owner, 2026-11-26). Without a subject the provider draws a
+            # generic picture and the image check has nothing to judge it by: production 2026-11-23, three builds failed
+            # after paying for one. Refused here, when the contract is compiled, before anything is spent.
+            if requirement.key == "media.image.generate" and not str(
+                    (requirement.constraints or {}).get("subject") or "").strip():
+                raise ValueError(f"image requirement {requirement.id} has no subject: nothing says what the picture "
+                                 "shows")
             by_id[requirement.id] = requirement
 
         for requirement in plan.requirements:
