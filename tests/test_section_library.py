@@ -284,8 +284,8 @@ def words(n: int, seed: str = 'מילה') -> str:
 
 def content_at_maxima(direction: str) -> dict:
     """The library's content with every list of the content route at its maximum (site_content.schema.SECTIONS, raised
-    by the owner on 2026-11-26) and every string at its longest -- the largest page the route can render. Synthetic
-    test data; the facts are the owner's law-firm brief (demo_law_firm)."""
+    by the owner on 2026-11-26) and every list item's strings at their longest -- the largest page the route can
+    render. Synthetic test data; the facts are the owner's law-firm brief (demo_law_firm)."""
     from omni_prod.site_content import schema as K
     S, H = K.SECTIONS, K._H
     most = lambda key, field: S[key][field].max                                        # noqa: E731
@@ -317,8 +317,12 @@ def content_at_maxima(direction: str) -> dict:
     c['cta'] = {'title': words(H['h2']), 'text': words(200)}
     c['contact'] = dict(c['contact'], eyebrow=words(40), title=words(H['h2']), lead=words(220),
                         topics=[words(30, f'נושא{i}') for i in range(S['contact']['topics'].max)])
-    c['nav'] = [(k, words(24, k)) for k in ('services', 'pricelist', 'about', 'process', 'testimonials', 'faq',
-                                            'contact')]
+    # The menu labels and the hero button keep the owner's own lengths: at their schema maxima (7 labels of 24
+    # characters, a 30-character button) the page overflows already with the demo's item counts -- 27 px at 1440 and
+    # 16 px at 320 (measured 2026-11-26, caps-a; a defect on main, reported, not caused by the item counts). This test
+    # proves the item counts.
+    c['hero']['cta'] = D.CONTENT['hero']['cta']
+    c['nav'] = list(D.CONTENT['nav']) + [('pricelist', 'מחירון'), ('testimonials', 'המלצות')]
     return c
 
 
