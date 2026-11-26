@@ -702,6 +702,12 @@ def stage_paid_verify(state: dict) -> None:
 
 # Provider-call steps a build makes once: the spec (architecture) and the first code (codegen). A repair or a review is
 # made again in every round, so the ledger alone cannot say whether one was repeated.
+# Limit (review of 78d3b79): on the content-site route (omni_prod/site_content, OMNI_SITE_LIBRARY) one generation makes
+# two 'codegen' calls -- the writer and its one corrective call (site_content/agents.py ContentAgent.write and
+# .correct, both through TaskTaggedGateway(..., 'codegen')). A kill between the two followed by a correct resume would
+# be judged "started over". crash-verify builds an app (CRASH_PROMPT), not a content site, so it is not affected today.
+# resume_verdict also does not compare the record's checkpoint name with the ledger: the ledger holds task types per
+# worker, not checkpoint ids; the checkpoint vocabulary is for S4.2's implementation to define.
 ONCE_PER_BUILD = ('architecture', 'codegen')
 
 
