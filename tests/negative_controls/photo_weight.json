@@ -14,7 +14,7 @@
    "mutations": [
     {
      "file": "omni_prod/uploaded_assets.py",
-     "old": "        if r['changed']:\n            self.data, self.mime, self.width, self.height = r['data'], r['mime'], r['width'], r['height']\n",
+     "old": "        self.data, self.mime, self.width, self.height = r['data'], r['mime'], r['width'], r['height']\n",
      "new": ""
     }
    ],
@@ -69,7 +69,7 @@
    "mutations": [
     {
      "file": "omni_prod/generated_images.py",
-     "old": "        if light['changed']:\n            data, mime, width, height = light['data'], light['mime'], light['width'], light['height']\n",
+     "old": "        data, mime, width, height = light['data'], light['mime'], light['width'], light['height']\n",
      "new": ""
     }
    ],
