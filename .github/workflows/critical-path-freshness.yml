@@ -5,9 +5,16 @@ on:
     - cron: '11 6 * * *'
   workflow_dispatch:
 
+# Law 6 -- no hiding of failures (2026-11-25): every scheduled run on main keeps ONE issue per critical path (label
+# critical-path-broken) true to the check's own lines. A BROKEN path opens 'Critical path broken: <path>'; a path the
+# check could not verify opens 'Critical path not verified: <path>' (never called broken); an open issue of the path
+# gets a comment, and its title follows the status. A path whose ::notice says PASS closes its open issue with a comment
+# (recovered). The verdict is the script's (scripts/check_critical_path_freshness.py); its output is kept in a file for
+# the issue step.
 permissions:
   actions: read
   contents: read
+  issues: write
 
 jobs:
   freshness:
@@ -18,6 +25,72 @@ jobs:
         with:
           persist-credentials: false
       - name: Check successful production evidence
+        id: check
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/check_critical_path_freshness.py
+        run: |
+          set -o pipefail
+          python3 scripts/check_critical_path_freshness.py | tee "$RUNNER_TEMP/freshness.log"
+      - name: Each critical path keeps one issue true to the check
+        if: (success() || failure()) && github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CHECK_OUTCOME: ${{ steps.check.outcome }}
+        run: |
+          set -euo pipefail
+          label=critical-path-broken
+          today=$(date -u +%F)
+          errors=$(grep -E '^::error title=[^:]+::' "$RUNNER_TEMP/freshness.log" 2>/dev/null || true)
+          passed=$(grep -E '^::notice title=[^:]+::PASS — ' "$RUNNER_TEMP/freshness.log" 2>/dev/null || true)
+          if [ -z "$errors" ] && [ "$CHECK_OUTCOME" != success ]; then
+            # the check failed without naming a path (it crashed, GitHub refused it, or it never ran): said, never dropped
+            errors="::error title=Critical path freshness check::UNVERIFIED — the check did not pass (outcome $CHECK_OUTCOME) and named no path"
+          fi
+          if [ "$CHECK_OUTCOME" = success ]; then
+            passed+=$'\n'"::notice title=Critical path freshness check::PASS — the check ran and named every path"
+          fi
+          open=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=$label&per_page=100" \
+                   --jq '.[] | "\(.number)\t\(.title)"')
+          issue_of() {  # the open issue of a path, whatever its status was: one issue per path
+            printf '%s\n' "$open" | awk -F'\t' -v b="Critical path broken: $1" -v u="Critical path not verified: $1" \
+              '!found && ($2 == b || $2 == u) {print; found = 1}'
+          }
+          while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            name=${line#::error title=}; name=${name%%::*}
+            detail=${line#::error title=*::}
+            case "$detail" in
+              BROKEN*) title="Critical path broken: $name"; said="Still broken"; found="found this path broken" ;;
+              *) title="Critical path not verified: $name"; said="Not verified"; found="could not verify this path" ;;
+            esac
+            hit=$(issue_of "$name")
+            if [ -n "$hit" ]; then
+              number=${hit%%$'\t'*}
+              if [ "${hit#*$'\t'}" != "$title" ]; then
+                gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/$number" -f title="$title" > /dev/null
+                open=$(printf '%s\n' "$open" | awk -F'\t' -v n="$number" -v t="$title" 'BEGIN {OFS = "\t"} $1 == n {$2 = t} {print}')
+              fi
+              gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$number/comments" \
+                -f body="$said on $today: $detail"$'\n\n'"$RUN_URL" > /dev/null
+              echo "::notice title=$name::issue #$number updated"
+            else
+              number=$(gh api -X POST "repos/$GITHUB_REPOSITORY/issues" -f title="$title" -f "labels[]=$label" \
+                -f body="The daily critical-path freshness check $found on $today."$'\n\n'"$line"$'\n\n'"$RUN_URL" \
+                --jq .number)
+              open+=$'\n'"$number"$'\t'"$title"
+              echo "::notice title=$name::issue #$number opened"
+            fi
+          done <<< "$errors"
+          while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            name=${line#::notice title=}; name=${name%%::*}
+            detail=${line#::notice title=*::}
+            hit=$(issue_of "$name")
+            [ -n "$hit" ] || continue
+            number=${hit%%$'\t'*}
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$number/comments" \
+              -f body="Recovered on $today: $detail"$'\n\n'"$RUN_URL" > /dev/null
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/$number" -f state=closed -f state_reason=completed > /dev/null
+            echo "::notice title=$name::issue #$number closed (recovered)"
+          done <<< "$passed"
