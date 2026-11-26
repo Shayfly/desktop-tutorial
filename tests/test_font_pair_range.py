@@ -8,17 +8,26 @@ real path: the library as omni_prod/typography loads and checks it, and pair_for
 * every pair is reachable: pair_for chooses it for some business;
 * the distribution: in every category of the business catalogue (vertical_palettes.json) and every supported script,
   thirty fixed business names use every pair of the category's tone -- more than one pair per tone, always;
-* the library's own check (run when the module is imported) refuses each kind of invalid pair.
+* the library's own check (run when the module is imported) refuses each kind of invalid pair;
+* every Hebrew pair, locked into the design contract, renders the section library's page in every direction it serves
+  and every content shape of the library's conformance matrix, and passes the G-APPLE static check and every skill
+  unit, with one h1, inside the truth gate's 45,000 characters, loading exactly its own faces.
 That the licences and the weights are what Google Fonts states today, and that every Hebrew pair fits and loads on the
 section library's page in Chromium, is tests/test_font_pair_range_live.py (it needs the network and a browser)."""
 import copy
+import re
 import unittest
 from collections import Counter
 from unittest import mock
 
+from omni_prod import section_library as L
+from omni_prod import skill_units as U
 from omni_prod import typography as T
 from omni_prod import vertical_palettes as VP
+from omni_prod.g_apple import contract as C
+from omni_prod.g_apple import static
 from omni_prod.section_library import DIRECTIONS
+from tests.test_section_library_conformance import PALETTES, PREVIEW_CUT, UNITS, shapes
 
 SCRIPTS = ('hebrew', 'arabic', 'latin')
 # Thirty business names per script, fixed: the distribution is measured on these, never on random ones.
@@ -83,6 +92,42 @@ class TheRange(unittest.TestCase):
         top = {k: max(used.values()) for k, used in distribution().items()}
         self.assertEqual({k: n for k, n in top.items() if n > 15}, {}, 'one pair takes more than half of a category')
 
+
+
+SAMPLE_PALETTE = {'formal': 'counsel', 'warm': 'hearth', 'bold': 'trade', 'elegant': 'blush'}
+
+
+def contract_for(palette: str, p: dict) -> dict:
+    q = PALETTES[palette]
+    return C.build(f"\n--- Approved project brief\nDesign: style clean; primary colour {q['primary']}; palette {q['primary']}, "
+                   f"{q['accent']}, {q['background']}, {q['ink']} (primary, accent, background, text: test); font 'Heebo', "
+                   'system-ui, sans-serif (load it from Google Fonts)', T.contract_fonts(p))
+
+
+class EveryHebrewPairOnTheLibraryPage(unittest.TestCase):
+    def test_every_hebrew_pair_passes_the_librarys_gates_in_every_direction_and_shape(self):
+        problems, rendered = {}, 0
+        for p in T.pairs('hebrew'):
+            for direction in p['tones']:
+                contract = contract_for(SAMPLE_PALETTE[direction], p)
+                self.assertEqual(L.page_fonts(contract), ('hebrew', p), p['id'])
+                for name, content in shapes().items():
+                    content['direction'] = direction
+                    doc, _ = L.page(content, contract)
+                    rendered += 1
+                    found = [f"g_apple {f['code']}" for f in static.check(doc, contract)]
+                    found += [f'unit {u}: {r}' for u in UNITS for r in [U.run(u, doc)] if r.get('status') != 'pass']
+                    if len(re.findall(r'<h1\b', doc)) != 1:
+                        found.append('not exactly one h1')
+                    if len(doc) >= PREVIEW_CUT:
+                        found.append(f'{len(doc)} characters: past the truth gate cut')
+                    if re.findall(r'<link rel="stylesheet" href="([^"]+)"', doc) != [
+                            re.search(r'href="([^"]+)">$', T.font_link(p)).group(1)]:
+                        found.append('the page does not load exactly its pair')
+                    if found:
+                        problems[f"{p['id']}/{direction}/{name}"] = found
+        self.assertEqual(rendered, 4 * sum(len(p['tones']) for p in T.pairs('hebrew')))
+        self.assertEqual(problems, {})
 
 class TheAllowedList(unittest.TestCase):
     def test_every_face_is_listed_with_an_open_licence_its_script_and_its_weights(self):

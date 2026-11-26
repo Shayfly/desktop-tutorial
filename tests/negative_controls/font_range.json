@@ -297,6 +297,23 @@
    ]
   },
   {
+   "id": "FR11",
+   "what": "a pair's stylesheet loses display=swap: the text is hidden until the font loads (a skill unit fails)",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "            f'<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?{families_q}&display=swap\">')\n",
+     "new": "            f'<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?{families_q}\">')\n"
+    }
+   ],
+   "targets": [
+    "tests/test_font_pair_range.py"
+   ],
+   "expect_failed": [
+    "test_every_hebrew_pair_passes_the_librarys_gates_in_every_direction_and_shape"
+   ]
+  },
+  {
    "id": "FB1",
    "what": "browser: headings may not wrap -- a long heading runs out of its box",
    "mutations": [
