@@ -82,6 +82,7 @@
     "tests/test_crash_resume.py"
    ],
    "expect_failed": [
+    "test_each_checkpoint_continues_to_the_same_result",
     "test_each_checkpoint_continues_to_the_same_result_without_calling_a_covered_stage_again",
     "test_the_round_budget_is_the_builds_not_a_new_one"
    ]
