@@ -13,7 +13,8 @@ class AcceptanceFailure:
     evidence: str = ''
 
 # A one-line summary of the OTHER failing post-build checks of a round (VerificationGroup): it tells the repairer what
-# else fails without counting as a verification stage, so progress() skips it.
+# else fails without counting as a verification stage, so progress() skips it. The repair loop does not rank a round by
+# that line: it ranks it by every failure the line stands for (the group keeps them in group_failures; rank()).
 SUMMARY_FAILURE_ID = 'ALSO_FAILING'
 # Absolute cap on repair rounds whatever the plan (Studio = 8): bounds spend if a ceiling is ever misconfigured.
 REPAIR_ROUNDS_HARD_MAX = 8
@@ -54,6 +55,10 @@ class AutonomousResult:
     repair_rounds: int
     report: ExecutionReport
     stop_reason: str = ''
+    # Every failure of the version in `repository` (the kept one), in full: the post-build group's ALSO_FAILING line
+    # replaced by the failures it summarises. Empty when the version passed. bld_cb2d1b90a90f430c98603d14f8afa1a8: the
+    # customer's message cut the report at four items and dropped the summary line, so VISUAL never reached them.
+    full_failures: tuple[AcceptanceFailure, ...] = ()
 
 
 # S4.2 (plan v3; the owner chose to continue, 2026-11-26 10:13 UTC): a build whose worker dies continues from its last
@@ -63,7 +68,7 @@ class AutonomousResult:
 #   round     after round 0 and after every repair round: the verified repository and the repair loop's whole state
 #   finished  after the loop: its result, returned as it was
 RESUME_STAGES = ('spec', 'round', 'finished')
-LOOP_STATE_VERSION = 1
+LOOP_STATE_VERSION = 2          # 2: the best version, its full failures, discarded signatures (#541)
 
 
 @dataclass(frozen=True)
@@ -76,6 +81,7 @@ class ResumePoint:
     round: int = 0
     repository: dict | None = None
     loop: dict | None = None
+    best_repository: dict | None = None     # #541: the best version, when it is not the current one
 
     def __post_init__(self):
         if self.stage not in RESUME_STAGES:
@@ -84,6 +90,9 @@ class ResumePoint:
             raise ValueError(f'a {self.stage!r} resume needs the verified repository and the loop state')
         if self.stage != 'spec' and self.loop.get('version') != LOOP_STATE_VERSION:
             raise ValueError(f"loop state version {self.loop.get('version')!r} is not {LOOP_STATE_VERSION}")
+        if (self.stage != 'spec' and not (self.loop.get('best') or {}).get('same_as_current', True)
+                and not isinstance(self.best_repository, dict)):
+            raise ValueError('the loop state names a best version other than the current one, and it is missing')
 
 
 def failure_to_dict(failure) -> dict:
@@ -190,11 +199,18 @@ class AutonomousProductEngine:
     # itself rolls back to the best candidate when a repair goes backwards.
     round_hook = None
 
-    def _snapshot(self, index: int, repo: dict, report, decision: str) -> None:
+    def _snapshot(self, index: int, repo: dict, report, decision: str, failures=None) -> None:
+        """`failures`: the round's FULL failure list (_observed_failures). The hook's progress is the rank the loop
+        decided by; the list itself is in `round_failures[index]` for the hook to read."""
+        if failures is None:
+            failures = self._observed_failures(report)
+        if not isinstance(getattr(self, 'round_failures', None), dict):
+            self.round_failures = {}
+        self.round_failures[index] = list(failures)
         if self.round_hook is None:
             return
         try:
-            self.round_hook(index, repo, report, decision, self.progress(report))
+            self.round_hook(index, repo, report, decision, self.rank(failures))
         except Exception:  # a snapshot must never change the build
             import logging
             logging.getLogger(__name__).warning('round snapshot failed', exc_info=True)
@@ -283,42 +299,77 @@ class AutonomousProductEngine:
                                               (report.build_log or '')[:500])]
 
     @staticmethod
-    def progress(report) -> tuple[int, int]:
-        """How far a candidate got through the verification chain (build ->
-        unit tests -> acceptance tests -> preview -> behaviour -> browser ->
-        quality -> review), then fewer failures. Higher is better."""
-        if report.passed:
-            return (11, 0)
-        stage = 11
+    def stage_rank(failure) -> int:
+        """How far through the verification chain one failure sits (build -> unit tests -> acceptance tests ->
+        preview -> behaviour -> browser -> visual -> quality -> review). Higher is later."""
+        msg, aid = (getattr(failure, 'message', '') or '').lower(), getattr(failure, 'acceptance_id', '') or ''
+        # A crashed or silent post-build check ranks as its own layer (VerificationGroup red-team fix).
+        for suffix in ('_EXCEPTION', '_unspecified'):
+            if aid.endswith(suffix):
+                aid = aid[:-len(suffix)]
         # Chain order (investor_app): sandbox -> dependency gate -> preview ->
         # behaviour -> browser -> quality -> model review. A REVIEW failure
         # means everything before it passed (paid build bld_2be07937 ranked it
         # lowest and discarded the candidate whose behaviour had passed).
         later = {'REVIEW': 9, 'QUALITY': 8, 'VISUAL': 7, 'BROWSER': 6}
-        for f in report.failures:
-            msg, aid = (getattr(f, 'message', '') or '').lower(), getattr(f, 'acceptance_id', '')
-            if aid == SUMMARY_FAILURE_ID:
-                continue
-            # A crashed or silent post-build check ranks as its own layer (VerificationGroup red-team fix).
-            for suffix in ('_EXCEPTION', '_unspecified'):
-                if aid.endswith(suffix):
-                    aid = aid[:-len(suffix)]
-            if aid in later:
-                s = later[aid]
-            elif aid == 'BEHAVIOR':
-                s = 5
-            elif aid == 'PREVIEW':
-                s = 4
-            elif 'acceptance tests' in msg:
-                s = 3
-            elif 'unit tests' in msg:
-                s = 2
-            elif 'build failed' in msg or 'install' in msg:
-                s = 0
-            else:
-                s = 1
-            stage = min(stage, s)
-        return (stage, -len(report.failures))
+        if aid in later:
+            return later[aid]
+        if aid == 'BEHAVIOR':
+            return 5
+        if aid == 'PREVIEW':
+            return 4
+        if 'acceptance tests' in msg:
+            return 3
+        if 'unit tests' in msg:
+            return 2
+        if 'build failed' in msg or 'install' in msg:
+            return 0
+        return 1
+
+    @classmethod
+    def progress(cls, report) -> tuple[int, int]:
+        """How far a candidate got through the verification chain, then fewer failures, read from the report's own
+        failures (one stage's report; the ALSO_FAILING line is skipped). Higher is better. The repair loop ranks a
+        round by ALL its failures instead: rank()."""
+        if report.passed:
+            return (11, 0)
+        stages = [cls.stage_rank(f) for f in report.failures if getattr(f, 'acceptance_id', '') != SUMMARY_FAILURE_ID]
+        return (min(stages, default=11), -len(report.failures))
+
+    @classmethod
+    def _checks(cls, failures) -> set:
+        """The checks a list of failures fails: (stage, check id). One id can fail at different stages (a criterion's
+        build, unit test or acceptance test), and each stage is its own check."""
+        return {(cls.stage_rank(f), str(getattr(f, 'acceptance_id', '') or '')
+                 .removesuffix('_EXCEPTION').removesuffix('_unspecified'))
+                for f in failures if getattr(f, 'acceptance_id', '') != SUMMARY_FAILURE_ID}
+
+    @classmethod
+    def rank(cls, failures) -> tuple[int, int]:
+        """A round's place by EVERY failure it has (the post-build group's ALSO_FAILING line expanded into the failures
+        it stands for): the lowest stage any of them sits at, then fewer failures. Higher is better; no failure is
+        (11, 0), a passed round."""
+        own = [f for f in failures if getattr(f, 'acceptance_id', '') != SUMMARY_FAILURE_ID]
+        if not own:
+            return (11, 0)
+        return (min(cls.stage_rank(f) for f in own), -len(own))
+
+    @classmethod
+    def judge(cls, candidate, best) -> tuple[bool, bool]:
+        """(worse, best_now) for a FAILED candidate against the best version so far, both given as their FULL failure
+        lists (bld_cb2d1b90a90f430c98603d14f8afa1a8, 2026-11-24: the round ranked by its head stage only, so a version
+        that fixed all four review findings and still failed the layout check was called worse six times and thrown
+        away). worse -> the candidate is discarded and the loop goes back to the best version; best_now -> the
+        candidate becomes the best version.
+          * failures that are a strict subset of the best version's are always adopted, and are the new best;
+          * a candidate is worse only when it fails a check the best version did not fail AND ranks below it;
+          * otherwise it is adopted, and is the new best when it ranks at least as high."""
+        pairs = lambda fs: {(f.acceptance_id, f.message) for f in fs if f.acceptance_id != SUMMARY_FAILURE_ID}
+        if pairs(candidate) < pairs(best):
+            return False, True
+        new_check = bool(cls._checks(candidate) - cls._checks(best))
+        worse = new_check and cls.rank(candidate) < cls.rank(best)
+        return worse, not worse and cls.rank(candidate) >= cls.rank(best)
 
     def build(self, prompt: str, resume: ResumePoint | None = None) -> AutonomousResult:
         """C24 (2026-10-20): the failure taxonomy and first_pass are written whatever happens. They used to be computed
@@ -330,6 +381,7 @@ class AutonomousProductEngine:
         checkpoint's round with the budgets it had (rounds, second chances, the test-edit ledger) and stops as it would
         have; a finished loop returns its result."""
         self._taxonomy_rounds, self._preflight_events = [], []
+        self.round_failures = {}
         self._round0_passed = None
         self.failure_taxonomy, self.first_pass = [], None
         self.resumed_from = None
@@ -380,31 +432,45 @@ class AutonomousProductEngine:
                 repo = self.repository_transform(repo)
             repo = self._preflight(repo, spec, 0)
             report = self.executor.execute(repository=repo, spec=spec)
-            self._taxonomy_rounds = [(0, self._observed_failures(report))]
+            observed = self._observed_failures(report)        # the round's full list, read right after its own execute
+            self._taxonomy_rounds = [(0, observed)]
             self._round0_passed = bool(report.passed)
-            self._snapshot(0, repo, report, 'passed' if report.passed else 'initial')
+            self._snapshot(0, repo, report, 'passed' if report.passed else 'initial', observed)
             rounds = 0
             seen = {self._fingerprint(repo)}
             stop_reason = 'passed' if report.passed else 'max_repair_rounds'
             self.trace = []  # per round: what failed and what the repair changed (diagnostics only)
+            # Paid builds 2026-10-09: a weaker repair turned "1 behaviour check
+            # fails" into "build fails" and later rounds drifted further. A repair
+            # that goes backwards is discarded; the next one starts from the best.
+            # bld_cb2d1b90 (2026-11-24): "backwards" is judged on each version's FULL failure list (judge()), never on
+            # the head stage of its report.
+            best_repo, best_report, best_failures = repo, report, observed
+            # Two discarded candidates that fail in exactly the same way (against the same best version) stop the loop:
+            # the repairer is not reaching the cause, and a third identical regression would be paid for again.
+            discarded_signatures: dict = {}
         else:
-            # The checkpoint's round, exactly as the lost worker left it: the verified repository and its report, the
-            # states already verified (the stop-loss), the round count and the taxonomy so far.
+            # The checkpoint's round, exactly as the lost worker left it: the current version and its report, the best
+            # version so far with its full failure list (they differ after a candidate that was adopted without
+            # becoming the best: judge()), the discarded-candidate signatures, the states already verified (the
+            # stop-loss), the round count and the taxonomy so far.
             repo, report = dict(resume.repository), report_from_dict(loop['report'])
             self._taxonomy_rounds = [(int(i), [failure_from_dict(f) for f in fs]) for i, fs in loop['taxonomy']]
             self._preflight_events = [dict(e) for e in loop['preflight']]
+            self.round_failures = {int(i): [failure_from_dict(f) for f in fs] for i, fs in loop['round_failures']}
             self._round0_passed = loop['round0_passed']
             rounds = int(loop['rounds'])
             seen = set(loop['seen'])
             stop_reason = loop['stop_reason']
             self.trace = [dict(t) for t in loop['trace']]
+            best = loop['best']
+            best_repo = repo if best['same_as_current'] else dict(resume.best_repository)
+            best_report = report_from_dict(best['report'])
+            best_failures = [failure_from_dict(f) for f in best['failures']]
+            discarded_signatures = {frozenset((str(a), str(m)) for a, m in pairs): int(n)
+                                    for pairs, n in loop['discarded_signatures']}
             # the same budgets: never more rounds than the build had when it started
             self.max_repair_rounds = min(self.max_repair_rounds, int(loop['max_repair_rounds']))
-        # Paid builds 2026-10-09: a weaker repair turned "1 behaviour check
-        # fails" into "build fails" and later rounds drifted further. A repair
-        # that goes backwards is discarded; the next one starts from the best.
-        # (At every round boundary the best version IS the current one: a discarded round goes back to it.)
-        best_repo, best_report = repo, report
         notes = (loop or {}).get('notes') or {}
         discarded_note = notes.get('discarded')
         # The plan verified in round 0 is a floor for every repair round (plan_floor, founder 2026-11-02).
@@ -431,16 +497,32 @@ class AutonomousProductEngine:
                     'taxonomy': [[i, [failure_to_dict(f) for f in fs]] for i, fs in self._taxonomy_rounds],
                     'preflight': [dict(e) for e in self._preflight_events], 'round0_passed': self._round0_passed,
                     'needs_input': list(getattr(self, 'needs_input', None) or ()),
-                    'repair_model_error': getattr(self, 'repair_model_error', None)}
+                    'repair_model_error': getattr(self, 'repair_model_error', None),
+                    # #541 (repair converges): the best version is judged on its FULL failure list and may differ from
+                    # the current one; two identical discards stop the loop; the full list of every round is evidence
+                    'best': {'same_as_current': best_repo is repo or best_repo == repo,
+                             'report': report_to_dict(best_report),
+                             'failures': [failure_to_dict(f) for f in best_failures]},
+                    'discarded_signatures': [[sorted([a, m] for a, m in sig), n]
+                                             for sig, n in discarded_signatures.items()],
+                    'round_failures': [[i, [failure_to_dict(f) for f in fs]]
+                                       for i, fs in sorted((getattr(self, 'round_failures', None) or {}).items())]}
+
+        def payload() -> dict:
+            out = {'spec': spec, 'repository': repo, 'loop': loop_state()}
+            if not out['loop']['best']['same_as_current']:
+                out['best_repository'] = best_repo        # stored and checked like the current version
+            return out
 
         if resume is not None and resume.stage == 'finished':
             # the loop had ended: its result, with no model call and no check run again
             self.needs_input = list(loop.get('needs_input') or ())
             if loop.get('repair_model_error'):
                 self.repair_model_error = loop['repair_model_error']
-            return AutonomousResult('ready' if report.passed else 'failed', spec, repo, rounds, report, stop_reason)
+            return AutonomousResult('ready' if report.passed else 'failed', spec, repo, rounds, report, stop_reason,
+                                    () if report.passed else tuple(best_failures))
         if loop is None:
-            self._checkpoint('round', {'spec': spec, 'repository': repo, 'loop': loop_state()})
+            self._checkpoint('round', payload())
         checkpointed = rounds
 
         def second_chance(reason: str) -> bool:
@@ -465,12 +547,7 @@ class AutonomousProductEngine:
             if rounds > checkpointed:
                 # S4.2: repair round `rounds` is done; a worker that dies from here on continues from this state
                 checkpointed = rounds
-                if self._fingerprint(best_repo) == self._fingerprint(repo):
-                    self._checkpoint('round', {'spec': spec, 'repository': repo, 'loop': loop_state()})
-                else:  # never true at a round boundary (a discarded round goes back to the best); never resumed wrongly
-                    import logging
-                    logging.getLogger(__name__).error('CHECKPOINT_SKIPPED round %d: the best version is not the '
-                                                      'current one at a round boundary', rounds)
+                self._checkpoint('round', payload())
             if callable(out_of_time) and out_of_time():
                 # the owner 2026-11-16: a build ends itself, on its best version, before the queue kills the worker
                 stop_reason = 'time_budget'
@@ -573,26 +650,40 @@ class AutonomousProductEngine:
                 self.trace[-1]['plan_restored'] = plan_lost
                 plan_note = plan_floor.note(plan_lost)
             new_report = self.executor.execute(repository=candidate, spec=spec)
-            self._taxonomy_rounds.append((rounds, self._observed_failures(new_report)))
-            worse = not new_report.passed and self.progress(new_report) < self.progress(best_report)
+            observed = self._observed_failures(new_report)
+            self._taxonomy_rounds.append((rounds, observed))
+            worse, best_now = (False, True) if new_report.passed else self.judge(observed, best_failures)
             self._snapshot(rounds, candidate, new_report,
-                           'passed' if new_report.passed else ('discarded' if worse else 'adopted'))
+                           'passed' if new_report.passed else ('discarded' if worse else 'adopted'), observed)
             if new_report.passed:
                 repo, report, stop_reason = candidate, new_report, 'passed'
                 break
             if worse:
-                failing = [f'{f.acceptance_id}: {f.message}' for f in new_report.failures][:4]
+                # Only what this candidate broke: a failure the best version also has is not the repair's doing
+                # (bld_cb2d1b90: the repairer was told its change made the product worse, with VISUAL failures that
+                # existed before it touched anything).
+                had = {(f.acceptance_id, f.message) for f in best_failures}
+                introduced = [f for f in observed if (f.acceptance_id, f.message) not in had]
+                failing = [f'{f.acceptance_id}: {f.message}' for f in introduced][:4]
                 self.trace[-1]['discarded'] = failing
-                discarded_note = {'acceptance_id': 'REPAIR_REGRESSION',
-                                  'message': 'Your previous change made the product worse and was discarded; this is '
-                                             'the better version again. Do not repeat that change.',
-                                  'evidence': '; '.join(failing)[:600]}
+                if introduced:
+                    discarded_note = {'acceptance_id': 'REPAIR_REGRESSION',
+                                      'message': 'Your previous change made the product worse and was discarded; this '
+                                                 'is the better version again. Do not repeat that change.',
+                                      'evidence': '; '.join(failing)[:600]}
                 repo, report = best_repo, best_report
+                signature = frozenset((f.acceptance_id, f.message) for f in observed)
+                discarded_signatures[signature] = discarded_signatures.get(signature, 0) + 1
+                if discarded_signatures[signature] >= 2:
+                    self.trace[-1]['stopped'] = 'two discarded candidates failed in exactly the same way'
+                    stop_reason = 'no_progress_same_failure'
+                    break
                 continue
             same_failure = self.failure_signature(new_report) == self.failure_signature(report)
             repo, report = candidate, new_report
-            if self.progress(report) >= self.progress(best_report):
-                best_repo, best_report = repo, report
+            if best_now:
+                best_repo, best_report, best_failures = repo, report, observed
+                discarded_signatures = {}
             if same_failure:
                 # bld_96ab03c8 (founder 2026-11-01 23:33): the repository changed every round, but the failure did
                 # not -- four paid rounds on one identical message. The same set of (acceptance_id, message) as the
@@ -608,7 +699,7 @@ class AutonomousProductEngine:
         if not report.passed:
             repo, report = best_repo, best_report
         # S4.2: the loop's result -- a worker that dies after this (gates, version, settlement) repeats no model call
-        self._checkpoint('finished', {'spec': spec, 'repository': repo, 'loop': loop_state()})
+        self._checkpoint('finished', payload())
         return AutonomousResult(                     # build()'s finally refreshes the taxonomy with this result
             'ready' if report.passed else 'failed',
             spec,
@@ -616,4 +707,5 @@ class AutonomousProductEngine:
             rounds,
             report,
             stop_reason,
+            () if report.passed else tuple(best_failures),
         )

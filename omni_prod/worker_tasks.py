@@ -137,6 +137,61 @@ def behavior_evidence(engine) -> dict | None:
     return {'last': target.last_report, 'rounds': list(target.history)}
 
 
+class RoundEvidence:
+    """The stage evidence each verified round produced, paired with that round's snapshot sha256 (round_snapshots).
+
+    bld_cb2d1b90a90f430c98603d14f8afa1a8: the stored version was round 0, but every stage row was built from the
+    executors' LAST state -- round 6, a discarded candidate: the review row read PASS (round 6 had no blocking
+    finding) for a version that still had four. A stage that did not run in a round (the threshold failed before it)
+    has None for that round, never the evidence of an earlier one: a new object (or a new review entry) is this
+    round's, the same object as at the previous capture is not."""
+
+    SOURCES = ('consistency_gate', 'preview_smoke', 'behavior_acceptance', 'browser_check', 'visual_qa')
+
+    def __init__(self, engine):
+        self._engine = engine
+        self._seen: dict = {}
+        self._reviews_seen = 0
+        self.rounds: dict[str, dict] = {}        # sha256 -> {'round', 'evidence'}; a later round with the same sha wins
+
+    def _current(self) -> dict:
+        from .behavior_acceptance import BehaviorAcceptanceExecutor, find_in_chain
+        from .consistency_gate import ConsistencyGateExecutor
+        from .preview_smoke import PreviewReadyExecutor
+        from .visual_qa import VisualQAExecutor
+        chain = getattr(self._engine, 'executor', None)
+        find = lambda cls: find_in_chain(chain, cls)
+        return {'consistency_gate': getattr(find(ConsistencyGateExecutor), 'last_consistency', None),
+                'preview_smoke': getattr(find(PreviewReadyExecutor), 'last_smoke', None),
+                'behavior_acceptance': getattr(find(BehaviorAcceptanceExecutor), 'last_report', None),
+                'browser_check': getattr(chain, 'last_probe', None),
+                'visual_qa': getattr(find(VisualQAExecutor), 'last_visual', None)}
+
+    def capture(self, index: int, sha256: str) -> None:
+        ev = {}
+        for name, obj in self._current().items():
+            ev[name] = obj if obj is not None and obj is not self._seen.get(name) else None
+            self._seen[name] = obj
+        reviews = list(getattr(getattr(self._engine, 'executor', None), 'reviews', None) or [])
+        ev['product_review'] = reviews if len(reviews) > self._reviews_seen else []   # this round's review is the last
+        self._reviews_seen = len(reviews)
+        self.rounds[sha256] = {'round': index, 'evidence': ev}
+
+    def for_version(self, sha256: str) -> dict | None:
+        return self.rounds.get(sha256)
+
+
+def kept_round(engine, result) -> dict | None:
+    """{'round', 'sha256'} of the round whose version the build kept (the one its stage rows judge), or None."""
+    tracker = getattr(engine, 'round_evidence', None)
+    if not isinstance(tracker, RoundEvidence) or result is None:
+        return None
+    from .workspace import _checksum
+    sha = _checksum(result.repository)
+    kept = tracker.for_version(sha)
+    return {'round': kept['round'], 'sha256': sha} if kept is not None else {'round': None, 'sha256': sha}
+
+
 def install_round_snapshots(engine, workspace, build_id: str, sink: list, control=None) -> None:
     """Directive 2026-10-10 P0.3: store every verified candidate durably
     (object storage, checksum-verified on read) before the next repair, with
@@ -146,11 +201,17 @@ def install_round_snapshots(engine, workspace, build_id: str, sink: list, contro
     zip_repo = getattr(workspace, '_zip_repo', None)
     if not hasattr(engine, 'round_hook'):
         return
+    tracker = RoundEvidence(engine)
+    engine.round_evidence = tracker              # release_quality_report: the stage rows judge the KEPT round
 
     def hook(index, repo, report, decision, progress):
         from .workspace import _checksum
         entry = {'round': index, 'decision': decision, 'progress': list(progress), 'sha256': _checksum(repo),
                  'failing': sorted({getattr(f, 'acceptance_id', '?') for f in getattr(report, 'failures', ()) or ()})}
+        full = (getattr(engine, 'round_failures', None) or {}).get(index)
+        if full is not None:                     # every failing check of the round, the summary line expanded
+            entry['failing_all'] = sorted({getattr(f, 'acceptance_id', '?') for f in full})
+        tracker.capture(index, entry['sha256'])  # before any storage write: a failed upload never loses the pairing
         if store is not None and zip_repo is not None:
             key = f'build-rounds/{build_id}/{index:02d}-{entry["sha256"][:12]}.zip'
             store.put_bytes(key, zip_repo(repo))
@@ -370,6 +431,27 @@ def release_quality_report(build_id, engine, gateway, result, quality, security,
             'visual_qa': visual_evidence(engine),
             'approved_acceptance': approved_criteria_evidence(engine),
         }
+        tracker = getattr(engine, 'round_evidence', None)
+        if isinstance(tracker, RoundEvidence) and not tracker.rounds:
+            # an engine that never reported a round (no round hook call): its executors' state is the only evidence
+            logging.getLogger(__name__).warning('ROUND_EVIDENCE_NOT_RECORDED build=%s: the stage rows read the '
+                                                'executors\' last state', build_id)
+        elif isinstance(tracker, RoundEvidence):
+            # The rows are bound to this repository's digest, so they read THIS version's round only. A version no
+            # round recorded is said as not run -- never filled in from the last candidate.
+            kept = tracker.for_version(_checksum(result.repository))
+            if kept is None:
+                logging.getLogger(__name__).error('KEPT_ROUND_UNKNOWN build=%s: no round recorded this version; its '
+                                                  'stage rows say NOT_RUN', build_id)
+            ev = kept['evidence'] if kept is not None else {}
+            evidence.update({
+                'consistency_gate': {'last': ev['consistency_gate']} if ev.get('consistency_gate') else None,
+                'preview_smoke': ev.get('preview_smoke'),
+                'behavior_acceptance': {'last': ev['behavior_acceptance']} if ev.get('behavior_acceptance') else None,
+                'browser_check': ev.get('browser_check'),
+                'product_review': list(ev.get('product_review') or []),
+                'visual_qa': ev.get('visual_qa'),
+            })
         return build_report(build_id=build_id, artifact_sha256=_checksum(result.repository), result=result,
                             evidence=evidence, quality=quality, security=security, rights=rights,
                             author_models=author_models(gateway))
@@ -910,22 +992,24 @@ def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, 
                        if getattr(f, 'acceptance_id', None) == UNSUPPORTED_DEPENDENCY]
         if unsupported:
             return False, 'unsupported_dependency', unsupported[0].message[:2000]
-        # Name what still failed (the UI shows this under technical details).
-        last = '; '.join(f'{getattr(f, "acceptance_id", "?")}: {getattr(f, "message", "")}'[:240]
-                         for f in report_failures[:4])
         out_of_time = getattr(result, 'stop_reason', '') == 'time_budget'
         no_repair_model = getattr(result, 'stop_reason', '') == 'repair_model_unavailable'
         platform_defect = getattr(result, 'stop_reason', '') in ('platform_render_defect', 'unowned_finding')
         content_refused = getattr(result, 'stop_reason', '') == 'site_content_invalid'
-        return False, 'verification_failed', (
+        head = (
             f'build did not pass sandbox verification after {getattr(result, "repair_rounds", "?")} repair round(s)'
             + (' (stopped repairing: the build was out of time)' if out_of_time else '')
             + (' (stopped repairing: no model returned a valid repair)' if no_repair_model else '')
             + (' (stopped repairing: the failure is in the platform\'s own page renderer, not in the written content; '
                'no repair model was asked to fix it)' if platform_defect else '')
             + (' (stopped repairing: the repair model\'s rewrite of the copy was refused by the content checks)'
-               if content_refused else '')
-            + (f'; still failing: {last}' if last else ''))[:2000]
+               if content_refused else ''))
+        # Name what still failed (the UI shows this under technical details): the KEPT version's full list, lowest
+        # stage first, and what does not fit is counted, never dropped (bld_cb2d1b90a90f430c98603d14f8afa1a8: the first
+        # four items were kept, the fifth -- the ALSO_FAILING line that carried VISUAL, the real blocker -- was cut).
+        from .verification_group import failure_list, kept_failures
+        last = failure_list(kept_failures(result), 2000 - len(head) - len('; still failing: '))
+        return False, 'verification_failed', (head + (f'; still failing: {last}' if last else ''))[:2000]
     if not quality.passed:
         blockers = '; '.join(getattr(quality, 'blockers', ()) or ()) or 'no blocker detail'
         return False, 'quality_gate_failed', (
@@ -1101,6 +1185,10 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # 2026-11-19: SHARE failed on every production build with the rule in the spec -- the platform writes og tags
         from .share_preview import install as install_share_preview
         install_share_preview(engine)
+        # bld_cb2d1b90 (2026-11-24): left:-9999px made a right-to-left page 9999px wide in every round. The hiding idiom
+        # is rewritten to the platform's visually-hidden rule after generation and every repair (omni_prod/offscreen).
+        from .offscreen import install as install_offscreen
+        install_offscreen(engine)
         # Michael 2026-11-10 condition 2: the truth gate's canon comes from the APPROVED request, not the spec summary.
         from .product_review import install_review_request
         install_review_request(engine, prompt)
@@ -1366,11 +1454,16 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         artifact_key = getattr(version, 'artifact_key', None) if version is not None else None
 
         spent, calls = spend_snapshot(gateway)
+        from .verification_group import kept_failures
         evidence = {
             'gates': {
+                # failures: every failure of the kept version, lowest stage first -- what the customer's announcement
+                # reads (build_announcement); reported: the report as the repair loop saw it, its summary line kept.
                 'verification': {'passed': bool(result.report.passed and result.status == 'ready'),
                                  'failures': [{'acceptance_id': f.acceptance_id, 'message': f.message,
-                                               'evidence': f.evidence} for f in result.report.failures]},
+                                               'evidence': f.evidence} for f in kept_failures(result)],
+                                 'reported': [{'acceptance_id': f.acceptance_id, 'message': f.message}
+                                              for f in result.report.failures]},
                 'quality': quality.to_dict(),
                 'security': security.to_dict(),
                 'rights': rights.to_dict(),
@@ -1413,6 +1506,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'site_route': site_content.report(engine),     # the content route: decided, why, and what it did
             'quality_report': quality_report.to_dict() if quality_report is not None else None,
             'round_snapshots': round_snapshots,
+            'kept_round': kept_round(engine, result),     # the round whose evidence the stage rows read
+            # offscreen.rewrite: every hiding rule the platform rewrote in the generated code ('path:line prop value')
+            'offscreen_rewrites': list(getattr(getattr(engine, 'core', engine), 'offscreen_rewrites', None) or [])[:40],
         }
     except BuildCancelled as exc:
         spent, calls = spend_snapshot(gateway)
@@ -1547,6 +1643,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
     evidence['app_states'] = app_states_report(engine)        # warehouse 130: app or not (and why), the three states
     from .a4 import report as asset_plan_report
     evidence['asset_plan'] = asset_plan_report(engine)        # A4: which image is where, and the placement check
+    from .web_rendition import report as image_weight_report
+    evidence['image_weight'] = image_weight_report(engine)    # every image: both digests, bytes, format, size, similarity
     target = BuildStatus.READY if ready else BuildStatus.FAILED
     jobs.transition(
         build_id=build_id, expected=BuildStatus.RUNNING, target=target,
@@ -2111,33 +2209,72 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
 # The build contract that produced a version (directly, or through a chain of
 # promoted modifications) decides the demand-driven acceptance scope. Read from
 # the immutable contract, never from generated files.
-# A version's lineage follows both a promoted change (modification_requests) and the workspace's own versions
-# (project_versions.parent_id: "accepted in workspace", "undo visual edit", "rollback from workspace"). Before
-# 2026-11-25 only the first was followed, so a version made by an undo or a rollback had no contract: the strict
-# acceptance floor applied to a content site (verify-replay run 45607249874: v_88812e8a4066448e and
+#
+# Lineage (2026-11-26). A version has at most ONE origin, so the walk is a single chain and its answer does not depend
+# on row order. The first rule that applies names the origin:
+#   1. a promoted change (modification_requests.promoted_version_id): the version the change was proposed on
+#      (source_version_id). The change was built and judged on that version (execute_modification), also when it was
+#      accepted with force on top of another head.
+#   2. a restore, a rollback or an undo: the earliest EARLIER version of the SAME project with the SAME
+#      repository_sha256. workspace.restore() commits the target's files unchanged and the checksum is computed from
+#      the files alone (workspace._checksum), so equal content has an equal value. Which version was restored is not
+#      stored anywhere else.
+# A version neither rule covers has NO origin and, unless it is itself a build's result, no contract: the strict floor
+# applies. parent_id is never followed -- it is the project's head at commit time, not where the content came from.
+# The walk ends at the first version that is the result of a build (build_jobs.result_version_id) with a contract of
+# this project; that contract gives the scope. 64 steps at most; past that, and for a cycle, there is no contract.
+#
+# Cost. `contracted` (this project's builds that have a contract) is read once per lookup; it is the last WITH item so
+# that the three parameters stay in the caller's order (WITH RECURSIVE lets an earlier item refer to a later one).
+# Each step computes its origin once (OFFSET 0 keeps the planner from copying the lateral subquery into both the
+# filter and the output) and asks rule 2 only when rule 1 gave nothing. Rule 1 scans modification_requests and rule 2
+# scans project_versions: neither has an index for it yet (a migration needs the owner's word). ORDER BY l.depth is a
+# second guard: while the walk ends at the first build, only its last row can have a contract.
+#
+# History. Before #530 only rule 1 existed, so a version made by an undo or a rollback had no contract and a
+# content site was judged on the strict floor (verify-replay run 45607249874: v_88812e8a4066448e and
 # v_8fd6c2ad3b174200 required auth/role/data_* although their build, bld_c35b8332, was an approved content site).
+# Two fixes followed parent_id and were wrong, both found by review:
+#   - #530 (merged as 5bcfefe on 2026-11-26; no release had followed it when this replaced it) followed it for every
+#     version: a data app restored after a later content-site build of the same project took the content site's
+#     contract, with auth, role and data checks waived, and a change accepted with force had two edges at the same
+#     depth, so LIMIT 1 picked one arbitrarily;
+#   - the next version (never merged) kept it as a last rule: a build commits its version before it records
+#     result_version_id (_run_live_build_job: commit, then jobs.transition). A job killed in between (queue timeout,
+#     restart, the reaper) leaves a version with no build row, and parent_id lent it the PREVIOUS build's contract --
+#     weaker than before #530, when it had none.
 _CONTRACT_SCOPE_FOR_VERSION_SQL = """
-WITH RECURSIVE edges(child, parent) AS (
-    SELECT m.promoted_version_id, m.source_version_id FROM modification_requests m
-    WHERE m.promoted_version_id IS NOT NULL AND m.source_version_id IS NOT NULL
-    UNION
-    SELECT v.id, v.parent_id FROM project_versions v WHERE v.parent_id IS NOT NULL
-), lineage(version_id, depth) AS (
+WITH RECURSIVE lineage(version_id, depth) AS (
     SELECT %s::text, 0
-    UNION
-    SELECT e.parent, l.depth + 1
-    FROM edges e
-    JOIN lineage l ON e.child = l.version_id
-    WHERE l.depth < 64
+    UNION ALL
+    SELECT o.origin, l.depth + 1
+    FROM lineage l
+    LEFT JOIN project_versions v ON v.id = l.version_id
+    CROSS JOIN LATERAL (
+        SELECT COALESCE(
+            (SELECT min(m.source_version_id) FROM modification_requests m WHERE m.promoted_version_id = l.version_id),
+            (SELECT e.id FROM project_versions e
+              WHERE e.project_id = v.project_id AND e.repository_sha256 = v.repository_sha256
+                AND (e.created_at, e.id) < (v.created_at, v.id)
+              ORDER BY e.created_at, e.id LIMIT 1)
+        ) AS origin
+        WHERE NOT EXISTS (SELECT 1 FROM contracted b WHERE b.version_id = l.version_id)
+        OFFSET 0
+    ) o
+    WHERE l.depth < 64 AND o.origin IS NOT NULL
+), contracted(version_id, job_id, contract_id) AS MATERIALIZED (
+    SELECT j.result_version_id, j.id, c.id
+    FROM build_requests r
+    JOIN build_jobs j ON j.id = r.build_id
+    JOIN m5_build_contracts c ON c.id = r.build_contract_id
+    WHERE r.public_project_id = %s OR r.internal_project_id = %s
 )
 SELECT c.contract_json->'infrastructure', c.contract_json->'required_integrations',
        c.contract_json->'user_roles', c.contract_json->'defaults_applied', c.contract_json->>'prompt'
 FROM lineage l
-JOIN build_jobs j ON j.result_version_id = l.version_id
-JOIN build_requests r ON r.build_id = j.id
-JOIN m5_build_contracts c ON c.id = r.build_contract_id
-WHERE r.public_project_id = %s OR r.internal_project_id = %s
-ORDER BY l.depth
+JOIN contracted b ON b.version_id = l.version_id
+JOIN m5_build_contracts c ON c.id = b.contract_id
+ORDER BY l.depth, b.job_id
 LIMIT 1
 """
 

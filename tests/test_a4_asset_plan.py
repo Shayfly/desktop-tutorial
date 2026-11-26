@@ -14,6 +14,8 @@ from omni_prod.autonomous_core import AutonomousProductEngine
 from omni_prod.generated_images import GeneratedImage
 from omni_prod.skill_units import gate as G
 from omni_prod.uploaded_assets import _MainImage
+from omni_prod.web_rendition import PLACE_SIDE
+from tests import real_images
 from tests.test_skill_gates import BUTCHER, _Arch, _Files, _Sandbox, as_app_py
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,10 +27,12 @@ def gen(index, purpose='hero/brand visual', size=2000):
                           sha256=hashlib.sha256(data).hexdigest(), alt=f'תמונה {index}', data=data)
 
 
-def up(index, place, size=2000):
-    data = b'\xff\xd8\xff' + bytes([index + 100]) * size
-    return _MainImage(data, 'image/jpeg', hashlib.sha256(data).hexdigest(), f'צילום {index}', 800, 600, index=index,
-                      place=place)
+def up(index, place):
+    data = real_images.jpeg(index + 100)       # a real photo: every photo is converted (image weight, 2026-11-26)
+    img = _MainImage(data, 'image/jpeg', hashlib.sha256(data).hexdigest(), f'צילום {index}', 800, 600, index=index,
+                     place=place if place in PLACE_SIDE else 'hero')
+    img.place = place                          # A4 judges the place itself: an unknown one is A4's refusal to make
+    return img
 
 
 def page(*chunks):
@@ -73,12 +77,25 @@ class ThePlan(unittest.TestCase):
         self.assertIn('two uploaded images claim the hero', str(two.exception))
         with self.assertRaises(a4.AssetPlanError):
             a4.plan([up(1, 'footer')], [])
-        with self.assertRaises(a4.AssetPlanError) as many:
-            a4.plan([], [gen(i) for i in range(1, a4.MAX_ASSETS + 2)])
-        self.assertIn(f'at most {a4.MAX_ASSETS}', str(many.exception))
-        with self.assertRaises(a4.AssetPlanError) as heavy:
-            a4.plan([], [gen(1, size=a4.PAGE_IMAGE_BUDGET_BYTES // 2 + 1), gen(2, size=a4.PAGE_IMAGE_BUDGET_BYTES // 2 + 1)])
-        self.assertIn('weigh', str(heavy.exception))
+        # S2 (the owner, 2026-11-26: no image cap): weight is not a reason -- install fits the page and says what does
+        # not fit (tests/test_page_image_weight.py); declared in docs/identity/allowed-deletions.json "weakening"
+        heavy = a4.plan([], [gen(1, size=a4.PAGE_IMAGE_BUDGET_BYTES // 2 + 1), gen(2, size=a4.PAGE_IMAGE_BUDGET_BYTES // 2 + 1)])
+        self.assertEqual(len(heavy), 2)
+
+    def test_the_number_of_images_never_stops_the_plan(self):
+        """The owner, 2026-11-26: no image cap. Until then a page with more than 12 images was refused."""
+        slots = a4.plan([up(1, 'story')], [gen(i) for i in range(1, 30)])
+        self.assertEqual(len(slots), 30)
+        self.assertEqual([s['place'] for s in slots].count('gallery'), 28)
+        self.assertFalse(hasattr(a4, 'MAX_ASSETS'))
+
+    def test_a_picture_of_one_item_goes_next_to_that_item(self):
+        slots = a4.plan([], [gen(1), gen(2, a4.ITEM_PURPOSE), gen(3, a4.ITEM_PURPOSE)])
+        self.assertEqual([s['place'] for s in slots], ['hero', 'products', 'products'])
+        rules = a4.rules(slots)
+        self.assertIn('src="148ai-asset://image/2" (generated): inside the products section.\n'
+                      '  It shows "תמונה 2": put it next to that item.', rules)
+        self.assertNotIn('It shows "תמונה 1"', rules)                  # the main image is not an item's picture
 
     def test_the_rules_name_every_image_and_its_place(self):
         slots = a4.plan([up(1, 'products')], [gen(1)])

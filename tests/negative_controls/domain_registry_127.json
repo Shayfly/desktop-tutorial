@@ -163,9 +163,9 @@
    "what": "a named category is reported as found by similarity",
    "mutations": [
     {
-     "file": "omni_prod/site_content/__init__.py",
-     "old": "category_found='named' if named else 'nearest',",
-     "new": "category_found='nearest',"
+     "file": "omni_prod/vertical_palettes.py",
+     "old": "'palette_category': named, 'found': 'named',",
+     "new": "'palette_category': named, 'found': 'nearest',"
     }
    ],
    "targets": [

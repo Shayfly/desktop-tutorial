@@ -100,7 +100,10 @@ def usable(record) -> tuple[bool, str]:
         rounds = record.get('round')
         if isinstance(rounds, bool) or not isinstance(rounds, int) or rounds < 0:
             return False, f'the checkpoint names no round ({rounds!r})'
-        for part, fields in (('snapshot', ('sha256', 'zip_sha256')), ('state', ('sha256',))):
+        for part, fields in (('snapshot', ('sha256', 'zip_sha256')), ('state', ('sha256',)),
+                             ('best_snapshot', ('sha256', 'zip_sha256'))):
+            if part == 'best_snapshot' and record.get(part) is None:
+                continue                    # the best version is the current one (#541: it may differ)
             ref = record.get(part) if isinstance(record.get(part), dict) else {}
             if not ref.get('key') or not all(_HEX64.match(str(ref.get(f, ''))) for f in fields):
                 return False, f'the checkpoint names no stored {part} with its sha256'
@@ -436,6 +439,8 @@ class CheckpointWriter:
             self._put(key, data)
             record.update(snapshot=self._snapshot_ref(payload['repository']), state={'key': key, 'sha256': digest},
                           report_passed=bool(loop['report']['passed']), stop_reason=loop.get('stop_reason'))
+            if payload.get('best_repository') is not None:   # #541: the best version is not the current one
+                record['best_snapshot'] = self._snapshot_ref(payload['best_repository'])
         if self.flush is not None:
             self.flush()                     # the ledger first: the record counts what the ledger holds
         record['paid_calls'] = completed_paid_calls(self.pool, self.build_id)
@@ -516,7 +521,7 @@ def load(record: dict, *, store, unzip, contract_fingerprint, build_id: str, pro
     if prompt is not None:
         check_prompt(record, prompt)
     prefix = f'{KEY_PREFIX}/{build_id}/'
-    for part in ('spec', 'snapshot', 'state'):
+    for part in ('spec', 'snapshot', 'state', 'best_snapshot'):
         key = (record.get(part) or {}).get('key')
         parts = str(key).split('/') if key is not None else []
         if key is not None and (not str(key).startswith(prefix) or '\\' in str(key)
@@ -532,18 +537,23 @@ def load(record: dict, *, store, unzip, contract_fingerprint, build_id: str, pro
         raise CheckpointUnusable('the stored spec is not the spec the checkpoint fingerprinted')
     if record['stage'] == 'spec':
         return Loaded(ResumePoint('spec', spec), record, {}, [])
-    snap, state_ref = record['snapshot'], record['state']
-    archive = _read(store, snap['key'], snap['zip_sha256'], 'repository archive')
-    try:
-        repo = unzip(archive)
-    except Exception as exc:
-        raise CheckpointUnusable(f"the stored repository archive {snap['key']} does not unzip: {exc}") from exc
-    if _checksum(repo) != snap['sha256']:
-        raise CheckpointUnusable(f"the repository in {snap['key']} has checksum {_checksum(repo)}, the checkpoint "
-                                 f"recorded {snap['sha256']}")
+    state_ref = record['state']
+
+    def repository(snap: dict, what: str) -> dict:
+        archive = _read(store, snap['key'], snap['zip_sha256'], what)
+        try:
+            repo = unzip(archive)
+        except Exception as exc:
+            raise CheckpointUnusable(f"the stored {what} {snap['key']} does not unzip: {exc}") from exc
+        if _checksum(repo) != snap['sha256']:
+            raise CheckpointUnusable(f"the repository in {snap['key']} has checksum {_checksum(repo)}, the checkpoint "
+                                     f"recorded {snap['sha256']}")
+        return repo
+    repo = repository(record['snapshot'], 'repository archive')
+    best = repository(record['best_snapshot'], 'best version archive') if record.get('best_snapshot') else None
     try:
         state = json.loads(_read(store, state_ref['key'], state_ref['sha256'], 'loop state').decode('utf-8'))
-        resume = ResumePoint(record['stage'], spec, int(record['round']), repo, state['loop'])
+        resume = ResumePoint(record['stage'], spec, int(record['round']), repo, state['loop'], best)
     except CheckpointUnusable:
         raise
     except (ValueError, TypeError, KeyError) as exc:

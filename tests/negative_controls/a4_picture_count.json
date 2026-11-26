@@ -8,20 +8,20 @@
  "controls": [
   {
    "id": "NC1",
-   "what": "the cap is gone: eight pictures are generated",
+   "what": "the cap comes back: eight pictures asked are cut to three (the owner, 2026-11-26: there is no image cap)",
    "mutations": [
     {
      "file": "omni_prod/a4/__init__.py",
-     "old": "max(1, min(asked - uploaded, FIRST_CAP))",
-     "new": "max(1, asked - uploaded)"
+     "old": "max(1, asked - uploaded)",
+     "new": "max(1, min(asked - uploaded, 3))"
     }
    ],
    "targets": [
     "tests/test_a4_picture_count.py"
    ],
    "expect_failed": [
-    "test_a_cut_is_written_on_the_requirement",
-    "test_past_the_cap_is_cut_to_it"
+    "test_nothing_is_cut",
+    "test_there_is_no_cap"
    ]
   },
   {
@@ -48,33 +48,39 @@
    "mutations": [
     {
      "file": "omni_prod/capability_planner.py",
-     "old": "quantity=self._picture_count(key, purpose, prompt)[\"count\"],",
-     "new": "quantity=1,"
+     "old": "count = self._picture_count(IMAGE_KEY, purpose, prompt)[\"count\"] if subject else 0",
+     "new": "count = 1 if subject else 0"
     }
    ],
    "targets": [
     "tests/test_a4_picture_count.py"
    ],
    "expect_failed": [
-    "test_a_cut_is_written_on_the_requirement",
-    "test_quantity_is_what_a4_decided"
+    "test_nothing_is_cut",
+    "test_the_number_of_pictures_is_what_a4_decided"
    ]
   },
   {
    "id": "NC4",
-   "what": "a cut is made in silence",
+   "what": "the pictures go back into one requirement's quantity: one provider batch (num_outputs), which the image model bounds",
    "mutations": [
     {
      "file": "omni_prod/capability_planner.py",
-     "old": "            constraints[\"pictures_asked\"] = count[\"asked\"]\n",
-     "new": ""
+     "old": "        for n in range(1, count + 1):\n",
+     "new": "        for n in range(1, min(count, 1) + 1):\n"
+    },
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "purpose=purpose, required=required, quantity=1,",
+     "new": "purpose=purpose, required=required, quantity=count,"
     }
    ],
    "targets": [
     "tests/test_a4_picture_count.py"
    ],
    "expect_failed": [
-    "test_a_cut_is_written_on_the_requirement"
+    "test_nothing_is_cut",
+    "test_the_number_of_pictures_is_what_a4_decided"
    ]
   },
   {

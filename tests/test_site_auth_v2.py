@@ -31,7 +31,10 @@ BASELINE_SHA = '2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49'
 # 2026-11-21 (testimonials-one-rule, declared in docs/identity/allowed-identity-changes.json, signed by the owner's
 # instruction): skill.copy_quality's testimonial guidance and checklist say the same rule.
 # #525: intentional role-guidance change, exact identity declaration prepared; independent signature still pending.
-BASELINE_DIGEST = 'f2fd495d7d482cfec82093e5ccccf0d2965631b8ff3494c7871cced21bd40d76'
+# 2026-11-26 (repair-converge, declared in docs/identity/allowed-identity-changes.json, prepared; the owner's signature
+# is pending): the visual QA script reads the meta viewport and names the overflowing element; ACCESSIBILITY carries
+# the platform's visually-hidden rule (omni_prod/offscreen.py).
+BASELINE_DIGEST = 'fd3a45bf33f61c27ef08db0b41f1c147ae9c621dfd61d069744bb9c6e48be084'
 
 
 def _digest(flag: str) -> str:

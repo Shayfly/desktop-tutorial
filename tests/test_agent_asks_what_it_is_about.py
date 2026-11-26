@@ -37,6 +37,9 @@ class AsksWhatItIsAbout(unittest.TestCase):
         sup.turn(project_id='p', account_id='a', message='אתר', lang='he')
         sup.turn(project_id='p', account_id='a', message='למספרה שלי "תספורת טובה" בחולון', lang='he')
         self.assertIn('תספורת טובה', sup.briefs.latest('p').brief.prompt)
+        # the whole answer, not only the business name: since 2026-11-25 the quoted name is also recorded on its own as
+        # "שם העסק: תספורת טובה." (name-asked-twice), which alone would satisfy the line above
+        self.assertIn('למספרה שלי "תספורת טובה" בחולון', sup.briefs.latest('p').brief.prompt)
 
     def test_no_approval_without_a_subject(self):
         sup = R._Supervisor(Scripted())

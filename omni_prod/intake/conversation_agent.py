@@ -232,10 +232,11 @@ def names_a_subject(text: str) -> bool:
 # words, never the model's -- joins the request as a "שם העסק:" line.
 NAME_ID = 'business_name'
 NAME_QUESTION = {'he': 'איך קוראים לעסק? כתבו את השם בדיוק כמו שהוא צריך להופיע באתר.',
+                 'ar': 'ما اسم المصلحة؟ اكتبوا الاسم تمامًا كما يجب أن يظهر في الموقع.',
                  'en': 'What is the business called? Write the name exactly as it should appear on the site.'}
 _NAME_LEAD = re.compile(r'^\s*(?:(?:קוראים|קוראות)\s+(?:לו|לה|לנו|לי|לעסק)|השם(?:\s+(?:הוא|שלנו|שלי|של\s+העסק))?|שם\s+העסק(?:\s+הוא)?|'
                         r"(?:it'?s\s+)?called|the\s+name\s+is|name)\s*[:\-–]?\s*", re.I)
-_NAME_REFUSED = re.compile(r'[0-9@/\\<>{}\[\]|]|https?:|www\.')
+_NAME_REFUSED = re.compile(r'[0-9@/\\<>{}\[\]|:]|https?:|www\.')    # ':' -- a label separator, never in a name
 # an answer that hands the choice back, or says yes/no, is not a name (found by the conversation test: "תחליטו אתם על
 # השאר" became "שם העסק: תחליטו אתם על השאר")
 _NOT_A_NAME = re.compile(r'תחליט|תבחר|החליט|בחרו|לא\s+יודע|לא\s+משנה|מה\s+ש(?:בא|תרצו|מתאים)|על\s+השאר|בלי\s+שם|אין\s+(?:לי\s+|לנו\s+)?שם|'
@@ -245,11 +246,9 @@ ASK_NAME_AT_MOST = 2       # then the approval opens without it, and the route s
 
 
 def declares_a_name(customer_text: str) -> bool:
-    """Does the customer's own text already give the business name the content route accepts: a "שם העסק:" line or a
-    quoted span (fact_canon._NAME; site_content.facts.name_candidates)?"""
-    from ..fact_canon import _NAME
-    text = customer_text or ''
-    return bool(_NAME.search(text) or _QUOTED_NAME.search(text))
+    """Does the customer's own text state exactly one business name (stated_names)? Two different names are not a
+    declaration: the agent asks which one (name_question)."""
+    return len(stated_names(customer_text)) == 1
 
 
 def name_line(answer: str) -> str | None:
@@ -262,6 +261,234 @@ def name_line(answer: str) -> str | None:
     if not 2 <= len(text) <= 40 or len(text.split()) > 6 or _NAME_REFUSED.search(text) or '\n' in (answer or '').strip():
         return None
     return f'שם העסק: {text}.'
+
+
+# ---- the name the customer stated (rehearsals 45702506669 / 45702519795, 2026-11-25: with the name in the first
+# message, the agent asked for it -- twice in one conversation, with Haiku and with Flash-Lite -- and the summary had no
+# name). One reading for the whole conversation: the agent's question, the model's context and the summary read the
+# same names. A name is stated when it is
+#   1. a "שם העסק:" label (fact_canon._NAME, the canon's own reading),
+#   2. a quoted span right after the kind of business: 'לאטליז "בשר השכונה"', 'למספרה שלי, "תספורת טובה"',
+#      'אתר תדמית למורה פרטית "נועה ברק"' (a catalogue word, or "ל..." after the product word), or
+#   3. a quoted span in a naming phrase: 'קוראים לנו "זית ולימון"', 'בשם "X"'.
+# A label is the customer's declaration and is what the canon and the content route take, so when there is one a quoted
+# span does not compete with it. Any other quoted span -- a hero title, a button -- is not a name.
+_QUOTE = r'["״“„]([^"״“”„\n]{2,40}?)["״”]'
+_PRODUCT_FOR = (r'(?:אתר|דף|אפליקציה|אפליקציית)(?:\s+(?:תדמית|נחיתה|חדש|קטן|פשוט|אינטרנט))?'
+                r'\s+(?:עבור\s+|בשביל\s+|ל|של\s+)[א-ת]{2,}')
+_AFTER = r'(?:\s+[^\s"״“„,.;:!?]{2,15}){0,2}\s*[,:\-–]?\s*'
+_NAMING = re.compile(r'(?:(?:קוראים|קוראות)\s+(?:לו|לה|לנו|לי|לעסק|למקום)|נקרא(?:ת|ים)?|בשם|שמו|שמה|שמנו|'
+                     r'השם\s+(?:שלנו|שלי|שלו|שלה|של\s+העסק|של\s+המקום)(?:\s+(?:הוא|היא))?|השם\s+(?:הוא|היא)|'
+                     r'called|named|name\s+is)\s*[:\-–]?\s*' + _QUOTE, re.I)
+# S4 (release review of 550320c): 'דף נחיתה למסעדה עם כפתור "הזמינו עכשיו"' gave "שם העסק: הזמינו עכשיו" -- a quote
+# right after a word of the page (a button, a slogan, a headline, a gallery) is that part's text, never the name.
+_PAGE_PART = re.compile(r'(?<![\w֐-׿])[ובהלשכמ]{0,2}(?:כפתור|כפתורים|לחצן|לחצנים|סלוגן|מוטו|כותרת|כותרות|כותרת\s+משנה|'
+                        r'גלריה|גלריית|באנר|הירו|טקסט|משפט|ציטוט|קישור|לינק|תפריט|לשונית|פסקה|מבצע|הודעה|שורה|תגית|'
+                        r'קריאה\s+לפעולה)(?![\w֐-׿])|\b(?:buttons?|slogan|motto|headlines?|heading|title|subtitle|'
+                        r'tagline|banner|gallery|hero|text|caption|link|menu|cta|label|tab|quote|section|offer|line)\b',
+                        re.I)
+# S4: a statement of the name ('השם שלנו הוא', 'קוראים לעסק', 'the name is') overrides a name read earlier and replaces
+# its "שם העסק:" line (with_name_line); a quoted name after it, else the rest of its sentence when that is a name.
+_EXPLICIT = re.compile(r'(?:השם\s+(?:שלנו|שלי|של\s+העסק|של\s+המקום)(?:\s+(?:הוא|היא))?|השם\s+(?:הוא|היא)|'
+                       r'(?:קוראים|קוראות)\s+(?:לעסק|לנו|לי|לו|לה|למקום)|שם\s+העסק\s+(?:הוא|היא)|'
+                       r"the\s+name\s+is|(?:our|my|the)\s+(?:business\s+)?name\s+is|we\s+are\s+called|"
+                       r"it\s+is\s+called|it'?s\s+called)\s*[:\-–]?\s*", re.I)
+_RECORDED_LINE = re.compile(r'(?m)^שם העסק: [^\n:]*\.[ \t]*\n?')
+
+
+# Review SF2/SF3 (49d61d3): 'השם שלנו הוא שם דבר בעיר, כולם מכירים אותנו' replaced "השף הקטן" with "שם דבר בעיר"; 'the
+# name is not important' gave "not important"; 'השם שלנו הוא "אב" אבל באתר תכתבו "גד"' recorded "אב"; a one-letter quote
+# came out as 'א" אבל באתר תכתבו "ב'. A statement now gives a name only when it reads as one (name_statement).
+_ANY_QUOTE = re.compile(r'["״“„]([^"״“”„\n]{1,40}?)["״”]')
+_NOT_A_NAME_START = re.compile(r'^(?:הכי|מה|כמו|יותר|פחות|ממש|לא|אין|בלי|כל|כולם|סתם|שם\s+דבר|a|an|not|no|very|just|'
+                               r'like|what|something|nothing|whatever|لا|ليس)(?:\s|$)', re.I)
+_NOT_A_NAME_WORD = re.compile(r'(?<![\wא-ת])(?:אותנו|אותי|כולם|מכירים|חשוב|important|matter|unknown|everyone)'
+                              r'(?![\wא-ת])', re.I)
+_NEGATION_WORD = re.compile(r'(?<![\wא-ת])(?:לא|אין|בלי)(?![\wא-ת])|\b(?:not|no|none|never)\b|(?<![\wء-ي])لا(?![\wء-ي])',
+                            re.I)
+
+
+def name_statement(message: str) -> tuple[str, object] | None:
+    """What a statement of the name in this message ('השם שלנו הוא', 'קוראים לעסק', 'the name is') says, or None when the
+    message makes no such statement:
+      ('name', X)       -- X reads as a name: the one quoted span after the statement (a quote after a page word --
+                           'והסלוגן "טעים"' -- is that part's text), or, unquoted, the rest of the message when it is a
+                           short name (name_line's rules, no ':', at most four words, not a negation, not a sentence
+                           that goes on, not "הכי ..."/"מה ש..."/"a ...");
+      ('choice', [A, B]) -- two different quoted names: asked which one, never guessed;
+      ('unclear', None)  -- a statement whose words are not a name (a one-letter quote, a sentence): nothing is
+                           recorded; the name the conversation has is kept and said."""
+    text = ' '.join((message or '').split())
+    m = _EXPLICIT.search(text)
+    if not m:
+        return None
+    spans = []
+    for q in _ANY_QUOTE.finditer(text):
+        if not _PAGE_PART.search(' '.join(text[:q.start()].split()[-2:])):
+            span = ' '.join(q.group(1).split())
+            if span not in spans:
+                spans.append(span)
+    if len(spans) >= 2:
+        return 'choice', spans[:2]
+    rest = text[m.end():]
+    if rest[:1] in '"״“„':
+        quoted = _ANY_QUOTE.match(rest)
+        if not quoted or len(quoted.group(1).strip()) < 2 or _NAME_REFUSED.search(quoted.group(1)):
+            return 'unclear', None
+        return 'name', ' '.join(quoted.group(1).split())
+    if spans:
+        return ('name', spans[0]) if len(spans[0]) >= 2 and not _NAME_REFUSED.search(spans[0]) else ('unclear', None)
+    parts = re.split(r'[.!?,;\n]', rest, maxsplit=1)
+    candidate, after = parts[0].strip(), (parts[1] if len(parts) > 1 else '')
+    line = name_line(candidate)
+    if not line or not _plausible_name(candidate, after):
+        return 'unclear', None
+    return 'name', line[len('שם העסק: '):-1]
+
+
+def _plausible_name(candidate: str, after: str) -> bool:
+    """An unquoted name after a statement: at most four words, the message ends with it (no sentence goes on after a
+    comma), and it does not start like a phrase ("הכי", "מה ש", "a ..."), hold a word of one, or a negation."""
+    return not (re.search(r'[^\W\d_]', after or '') or len(candidate.split()) > 4
+                or _NOT_A_NAME_START.search(candidate) or _NOT_A_NAME_WORD.search(candidate)
+                or _NEGATION_WORD.search(candidate))
+
+
+def explicit_name(message: str) -> str | None:
+    """The name a statement in this message gives, when it reads as one (name_statement), else None."""
+    said = name_statement(message)
+    return said[1] if said and said[0] == 'name' else None
+
+
+def with_name_line(prompt: str, line: str) -> str:
+    """The request with `line` as its one "שם העסק:" line: an earlier recorded line (a whole line in that form) is
+    replaced, never kept beside it -- two labels would ask "which one?" again (S4). A recorded name never holds ':'
+    (name_line refuses it), so the form is exact; a line in any other form raises."""
+    if not re.fullmatch(r'שם העסק: [^\n:]+\.', line or ''):
+        raise ValueError(f'not a recorded name line: {line!r}')
+    return (_RECORDED_LINE.sub('', prompt or '').rstrip() + '\n' + line).strip()
+
+
+_POINTER = re.compile(r'^\s*(?:ה)?(?:ראשון|ראשונה|שני|שנייה|שניה|אחרון|אחרונה)\b|שניהם|first|second|both|either', re.I)
+
+
+def _after_the_kind() -> re.Pattern:
+    """A quoted span within two words after the kind of business: a catalogue category word (vertical_palettes, with
+    its Hebrew prefixes) or "ל..." right after the product word."""
+    global _AFTER_KIND
+    if _AFTER_KIND is None:
+        from ..vertical_palettes import _END, _PRE, load
+        words = sorted({w.lower() for e in load()['categories'].values() for w in e['words']}, key=len, reverse=True)
+        kind = _PRE + '(?:' + '|'.join(re.escape(w) for w in words) + ')' + _END
+        _AFTER_KIND = re.compile('(?:' + kind + '|' + _PRODUCT_FOR + ')' + _AFTER + _QUOTE, re.I)
+    return _AFTER_KIND
+
+
+_AFTER_KIND: re.Pattern | None = None
+
+
+def stated_names(customer_text: str) -> list[str]:
+    """The business names the customer's own text states, each once, in the order written: the "שם העסק:" labels when
+    there is one, else the quoted names (after the kind of business, or in a naming phrase)."""
+    from ..fact_canon import _NAME
+    text = customer_text or ''
+    labels = list(dict.fromkeys(' '.join(m.group(1).split()) for m in _NAME.finditer(text)))
+    if labels:
+        return labels
+    found = sorted((m.start(1), ' '.join(m.group(1).split())) for rx in (_after_the_kind(), _NAMING)
+                   for m in rx.finditer(text)
+                   if rx is _NAMING or not _PAGE_PART.search(text[m.start():m.start(1)]))   # S4: a page part's text
+    return list(dict.fromkeys(name for _, name in found if len(name) >= 2))
+
+
+def stated_name(customer_text: str) -> str | None:
+    """The one business name the customer stated, or None (none, or two different ones)."""
+    names = stated_names(customer_text)
+    return names[0] if len(names) == 1 else None
+
+
+NAME_WHICH_QUESTION = {'he': 'כתבתם שני שמות: "{a}" ו"{b}". איזה מהם יופיע באתר? כתבו אותו בדיוק כמו שהוא צריך להופיע.',
+                       'ar': 'كتبتم اسمين: "{a}" و"{b}". أيهما سيظهر في الموقع؟ اكتبوه تمامًا كما يجب أن يظهر.',
+                       'en': 'You wrote two names, "{a}" and "{b}". Which one should appear on the site? Write it exactly '
+                             'as it should appear.'}
+
+
+def name_question(customer_text: str, lang: str) -> str:
+    """The name question: which of the two names the customer wrote, quoting both; else what the business is called."""
+    names = stated_names(customer_text)
+    key = lang if lang in NAME_QUESTION else 'en'          # F3: he, ar, en
+    if len(names) >= 2:
+        return NAME_WHICH_QUESTION[key].format(a=names[0], b=names[1])
+    return NAME_QUESTION[key]
+
+
+def name_to_record(known: str, message: str, *, answering: bool) -> str | None:
+    """The "שם העסק:" line this turn adds to the request, or None. `known` is the customer's text so far (the request,
+    discovery.customer_text), `message` this turn's message, `answering` whether the last turn asked the name.
+      * an answer to the name question: the one stated name the answer names (two names: the customer chose), else the
+        answer itself when it is a name (name_line) -- never a pointer ("הראשון") or a handed-back answer;
+      * otherwise, the one name the customer quoted, written once as their declared name: from then on the canon, the
+        content route and the summary read it, and nothing asks it again."""
+    from ..fact_canon import _NAME
+    said = name_statement(message)
+    if said is not None and said[0] == 'name' and all(n == said[1] for n in stated_names(message)):
+        # S4: said outright, and the only name of this message: it replaces a name read earlier (with_name_line)
+        return None if stated_names(known) == [said[1]] else f'שם העסק: {said[1]}.'
+    if said is not None and not answering:
+        return None          # review SF2/SF3: two names are asked which one, words that are not a name record nothing
+    whole = (known or '') + '\n' + (message or '')
+    names = stated_names(whole)
+    if answering:
+        chosen = [n for n in names if n in (message or '')]
+        if len(names) >= 2 and len(chosen) == 1:
+            return f'שם העסק: {chosen[0]}.'
+        if len(names) >= 2 and _POINTER.search(message or ''):
+            return None
+        return name_line(message)
+    if len(names) == 1 and not _NAME.search(whole):
+        return f'שם העסק: {names[0]}.'
+    return None
+
+
+# The model asks a name the customer already gave in its own words ("מה שם האטליז כפי שתרצו שיופיע באתר?"). A sentence
+# asks for the business name when it asks (a question mark, a question word, "write / tell me") about a name word and
+# the business (a business word, a catalogue category, or "as it should appear on the site").
+_ASKS = re.compile(r'[?؟]|(?:^|[\s,:;(])(?:האם|ספרו|כתבו|תכתבו|תגידו|שתפו|נשאר\s+רק\s+לדעת|tell\s+me|write)(?=[\s,:]|$)|'
+                   r'(?:^|[,:;(—–-]\s*)(?:מה|מהו|מהי|איך|איזה|אילו|what|how|which)(?=[\s,:]|$)', re.I)
+# a request for the name ("מה שם", "איך קוראים", "לקרוא ל"), not any mention of it: "האם להציג את שם העסק בגדול?"
+# asks about the page and is kept
+_NAME_WORD = re.compile(r'(?:מה|מהו)\s+(?:ה)?שם|(?:מה|מהו)\s+שמ(?:ו|ה|כם|ך)|איך\s+(?:קוראים|נקרא|נקראת|נקראים)|'
+                        r'לקרוא\s+ל|(?:כתבו|תכתבו)\s+את\s+השם|what\s+is\s+(?:the|your)\s+(?:business\s+)?name|'
+                        r'what\s+is\s+.{0,30}called|name\s+should\s+appear', re.I)
+_BUSINESS_WORD = re.compile(r'עסק|מקום|חנות|משרד|סטודיו|קליניקה|מרפאה|מותג|באתר|יופיע|בראש\s+העמוד|כפי\s+ש|בדיוק|'
+                            r'\b(?:business|shop|store|studio|brand|site|appear)', re.I)
+_SAY_SENTENCE = re.compile(r'[^.!?؟\n]*(?:[.!?؟]+|$)')
+NAME_SAID = {'he': 'השם שיופיע באתר: "{name}".', 'ar': 'الاسم الذي سيظهر في الموقع: "{name}".',
+             'en': 'The name on the site: "{name}".'}
+
+
+def asks_for_name(sentence: str) -> bool:
+    """Does this sentence ask the customer for the business name?"""
+    from ..vertical_palettes import category_of
+    s = sentence or ''
+    return bool(_ASKS.search(s) and _NAME_WORD.search(s) and (_BUSINESS_WORD.search(s) or category_of(s)))
+
+
+def without_name_question(reply: str, name: str, lang: str) -> str:
+    """The model's reply with every sentence that asks for the business name replaced by one that says it (once), so
+    the customer is never asked a name they gave and can still correct it. Unchanged when no sentence asks it."""
+    kept, asked = [], False
+    for m in _SAY_SENTENCE.finditer(reply or ''):
+        s = m.group(0).strip()
+        if not s:
+            continue
+        if asks_for_name(s):
+            asked = True
+        else:
+            kept.append(s)
+    if not asked:
+        return reply
+    return ' '.join(kept + [NAME_SAID[lang if lang in NAME_SAID else 'en'].format(name=name)]).strip()
 
 
 

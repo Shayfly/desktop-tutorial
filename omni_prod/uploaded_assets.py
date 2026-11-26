@@ -115,16 +115,25 @@ class _MainImage:
         self.purpose = f"the customer's own photo, as is ({place})"
         # warehouse 114: the page carries a web-sized rendition (same picture and proportions, upright, light); the
         # customer's file stays as it is in the attachment store, and `sha256` stays the digest the brief bound.
-        from .web_rendition import rendition
-        r = rendition(data, mime)
-        self.rendition = {k: r[k] for k in ('changed', 'sha256', 'step', 'original_sha256', 'original_bytes')}
-        self.rendition.update(bytes=len(r['data']), mime=r['mime'])
-        if r['changed']:
-            self.data, self.mime, self.width, self.height = r['data'], r['mime'], r['width'], r['height']
+        # Image weight (the owner, 2026-11-26): ALWAYS a conversion -- no EXIF or GPS, sized for its place, the lowest
+        # bytes that keep the similarity threshold (web_rendition). `source` is kept for the page fit (fit_page).
+        from .web_rendition import record, rendition
+        self.source = (data, mime)
+        r = rendition(data, mime, place=place, label=f'upload {index}')
+        self.rendition = record(r)
+        self.data, self.mime, self.width, self.height = r['data'], r['mime'], r['width'], r['height']
         # warehouse 118: the page references the photo as a file (assets/148ai-upload-<n>.<ext>), never its bytes
         from .repository_assets import CarriedImage, asset_path
         self.carried = CarriedImage(self.marker, asset_path('upload', index, self.mime), self.data, self.mime)
         self.uri = self.carried.path
+
+    def refit(self, r: dict) -> None:
+        """New bytes from the page fit (web_rendition.fit_page), in the same file: the type, and so the path, stay."""
+        if r['mime'] != self.mime:
+            raise ValueError(f'uploaded image {self.index}: the page fit made {r["mime"]} of a {self.mime} file')
+        from .web_rendition import record
+        self.data, self.width, self.height, self.rendition = r['data'], r['width'], r['height'], record(r)
+        self.carried.rebind(r['data'])
 
 
 # The owner, 2026-11-16 00:18 / 00:49: a photo placed in "the story" must sit INSIDE a story section, not anywhere on

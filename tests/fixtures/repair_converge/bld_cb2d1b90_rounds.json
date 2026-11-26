@@ -1,0 +1,437 @@
+{
+ "build_id": "bld_cb2d1b90a90f430c98603d14f8afa1a8",
+ "what": "The owner's failed build of 2026-11-24 (legacy route, 6 repair rounds, failed, repair_stop_reason max_repair_rounds), as production recorded it. Read 2026-11-26 from Neon 148ai-db-v2 (project aged-tree-68103298) in transactions that began SET TRANSACTION READ ONLY, SELECT only.",
+ "sources": {
+  "round_snapshots": "build_jobs.evidence_json->'round_snapshots'",
+  "gates_verification_failures": "build_jobs.evidence_json->'gates'->'verification'->'failures' (round 0, the kept version)",
+  "reviews": "build_jobs.evidence_json->'product_review' (7 review rounds; build round = review round - 1)",
+  "visual_findings": "build_jobs.evidence_json->'visual_qa'->'viewports' (the LAST verified candidate, round 6)",
+  "failure_taxonomy": "build_jobs.evidence_json->'failure_taxonomy': round 0 = 4 review + 3 visual rows; rounds 1-6 = the same 3 visual types",
+  "build_events": "build_events seq 1289-1331",
+  "error_message": "build_jobs.error_message",
+  "stage_rows": "build_stage_results (13 rows, all artifact_sha256 30944dacbca9 = round 0)"
+ },
+ "redacted": [
+  "the phone number inside the fix text of review finding 4 is replaced by +972500000000 (fix texts are evidence only; no message, rank or decision reads them)"
+ ],
+ "not_stored": "Rounds 1-5 store failure TYPES only (failure_taxonomy) and the desktop head message (build_events, the same 11439px in rounds 1-6). The two mobile messages are stored for round 6 only; rounds 0-5 are taken as the same text, which the identical types and the identical desktop width support but do not prove.",
+ "md5_from_the_database": {
+  "gates_verification_failures.message": [
+   "bc3ef6686016db1da89f8a85cdeebca8",
+   "4e97cf2f77b2d05af2e1fe4ce4be2655",
+   "db94eaf3cfd84f70b3e8dd9b189d14e9",
+   "5c21b38b9e2013a9e4c8b15a0e3a125e",
+   "cfafb8eca25bab50e8fa215380a042e4"
+  ],
+  "error_message": "908906f80482ecf2212079aa04c85c24",
+  "visual_detail": {
+   "desktop h_overflow": "fa64f55d181aaf2efd3ae2ce16193ef6",
+   "mobile no_mobile_viewport": "0e4af8e25ba8854a7d3b52afb7fb9cbd",
+   "mobile h_overflow": "1c44230a4f109671cd8bf626f41caf78"
+  },
+  "review_round_1_problem": [
+   "32b6b68a4158fbb20466de165473f308",
+   "fd25efae718e841d8ae2401d0a42f845",
+   "910b57f385756e81d02ca87c2f93ac79",
+   "d5089dcb7451bdb9d43c9ccb9457fc4f"
+  ],
+  "review_advisory_problem": {
+   "3": "d5075afca4d66fd18fb1310cfa06012d",
+   "4": "20f5dc03c0ed7ca6ab3341f14010b101",
+   "5": "384fe0fd605a3166b8f91f89eb9cca53",
+   "6": "21da056d0f472aa8913a046f1cf7aaff",
+   "7": "48fdcc3a5adbe72f043c9b758f1103f6"
+  },
+  "build_events": {
+   "1289": "44cb2e0933ca1f223012be0758377843",
+   "1296": "de71338ccb32a1562790ef49962024e7",
+   "1297": "ded3ec752c5b18b63248fa540e44116d",
+   "1330": "27c1fc91ddd6ae0f669d1fa8511b4baf",
+   "1331": "844a00bfa0f53215b8dc7343c4e00a18"
+  }
+ },
+ "reviewer_model": "gpt-6.1-sol",
+ "reviews": [
+  {
+   "review_round": 1,
+   "build_round": 0,
+   "findings": [
+    {
+     "skill": "spec",
+     "severity": "blocking",
+     "source": "reviewer",
+     "file": "app.py",
+     "problem": "GET /health displays only plain text \"ok\", whereas R1 requires this path to return the full Hebrew RTL HTML page.",
+     "fix": "Serve render_page() with Content-Type text/html; charset=utf-8 for /health, just as for /."
+    },
+    {
+     "skill": "skill.visual_design",
+     "severity": "blocking",
+     "source": "reviewer",
+     "file": "page.py",
+     "problem": "White text on --green (#1f9d55) has approximately 3.5:1 contrast. This affects the primary call buttons, green hero stripe and final call-to-action heading, failing the required 4.5:1 contrast.",
+     "fix": "Darken the green backgrounds sufficiently to achieve at least 4.5:1 with white text, or use a suitably dark text color on these backgrounds."
+    },
+    {
+     "skill": "spec",
+     "severity": "blocking",
+     "source": "reviewer",
+     "file": "page.py",
+     "problem": "Switching to English leaves the footer business description in Hebrew because its text has no translation attributes. The hero visual's accessible label also remains Hebrew, so the language switch does not translate all page text.",
+     "fix": "Add Hebrew and English translations for the footer business description and update the hero visual's aria-label when switching languages. Preserve the supplied phone and exact address."
+    },
+    {
+     "skill": "spec",
+     "severity": "blocking",
+     "source": "reviewer",
+     "file": "page.py",
+     "problem": "The phone number displayed in the footer is plain text rather than a dialable link. Visitors cannot activate that displayed number, contrary to the requirement that every displayed phone have a tel: link.",
+     "fix": "Wrap the footer phone number in an anchor with href=\"tel:+972500000000\", retaining its left-to-right display."
+    }
+   ]
+  },
+  {
+   "review_round": 2,
+   "build_round": 1,
+   "findings": []
+  },
+  {
+   "review_round": 3,
+   "build_round": 2,
+   "findings": [
+    {
+     "skill": "skill.visual_design",
+     "severity": "advisory",
+     "source": "reviewer",
+     "file": "page.py",
+     "problem": "The red hero stripe uses white text on #e63946 (.stripes .r), giving approximately 4.17:1 contrast, below the explicitly required 4.5:1.",
+     "fix": "Darken the stripe's red background until white text reaches at least 4.5:1 contrast, or use a sufficiently contrasting dark text color."
+    }
+   ]
+  },
+  {
+   "review_round": 4,
+   "build_round": 3,
+   "findings": [
+    {
+     "skill": "skill.visual_design",
+     "severity": "advisory",
+     "source": "reviewer",
+     "file": "page.py",
+     "problem": "The red hero stripe (.stripes .r) uses white text on #e63946, giving approximately 4.2:1 contrast, below the platform checklist's required 4.5:1.",
+     "fix": "Darken the red stripe background until its contrast with white reaches at least 4.5:1, for example #d62839."
+    }
+   ]
+  },
+  {
+   "review_round": 5,
+   "build_round": 4,
+   "findings": [
+    {
+     "skill": "skill.visual_design",
+     "severity": "advisory",
+     "source": "reviewer",
+     "file": "page.py",
+     "problem": "The red hero stripe (.stripes .r) uses white text on #e63946, with approximately 4.17:1 contrast, below the platform's required 4.5:1.",
+     "fix": "Darken the red stripe background until white text reaches at least 4.5:1 contrast, for example using #d62839."
+    }
+   ]
+  },
+  {
+   "review_round": 6,
+   "build_round": 5,
+   "findings": [
+    {
+     "skill": "skill.visual_design",
+     "severity": "advisory",
+     "source": "reviewer",
+     "file": "page.py",
+     "problem": "The red hero stripe (.stripes .r) displays white text on #e63946, with approximately 4.17:1 contrast, below the platform's required 4.5:1.",
+     "fix": "Darken the red stripe background until its contrast with white reaches at least 4.5:1, or use a sufficiently contrasting dark text color."
+    }
+   ]
+  },
+  {
+   "review_round": 7,
+   "build_round": 6,
+   "findings": [
+    {
+     "skill": "skill.visual_design",
+     "severity": "advisory",
+     "source": "reviewer",
+     "file": "page.py",
+     "problem": "The red hero stripe (.stripes .r) uses white text on #e63946, giving approximately 4.2:1 contrast, below the platform's required 4.5:1.",
+     "fix": "Darken the red stripe background to a color with at least 4.5:1 contrast against white, such as #d62839."
+    }
+   ]
+  }
+ ],
+ "visual_findings": {
+  "desktop": [
+   {
+    "kind": "h_overflow",
+    "at": "",
+    "detail": "page width 11439px > viewport 1440px"
+   },
+   {
+    "kind": "low_contrast",
+    "at": "span",
+    "detail": "2.74:1 (needs 3)"
+   },
+   {
+    "kind": "low_contrast",
+    "at": "bdi",
+    "detail": "2.00:1 (needs 4.5)"
+   }
+  ],
+  "mobile": [
+   {
+    "kind": "no_mobile_viewport",
+    "at": "",
+    "detail": "layout width 1560px on a 390px phone (no meta viewport): the page is shown zoomed out"
+   },
+   {
+    "kind": "h_overflow",
+    "at": "",
+    "detail": "page width 10389px > viewport 1560px"
+   },
+   {
+    "kind": "low_contrast",
+    "at": "span",
+    "detail": "2.74:1 (needs 3)"
+   },
+   {
+    "kind": "low_contrast",
+    "at": "bdi",
+    "detail": "2.00:1 (needs 4.5)"
+   }
+  ]
+ },
+ "gates_verification_failures": [
+  {
+   "acceptance_id": "REVIEW",
+   "message": "QA review (spec): GET /health displays only plain text \"ok\", whereas R1 requires this path to return the full Hebrew RTL HTML page.",
+   "evidence": "file: app.py\nfix: Serve render_page() with Content-Type text/html; charset=utf-8 for /health, just as for /."
+  },
+  {
+   "acceptance_id": "REVIEW",
+   "message": "QA review (skill.visual_design): White text on --green (#1f9d55) has approximately 3.5:1 contrast. This affects the primary call buttons, green hero stripe and final call-to-action heading, failing the required 4.5:1 contrast.",
+   "evidence": "file: page.py\nfix: Darken the green backgrounds sufficiently to achieve at least 4.5:1 with white text, or use a suitably dark text color on these backgrounds."
+  },
+  {
+   "acceptance_id": "REVIEW",
+   "message": "QA review (spec): Switching to English leaves the footer business description in Hebrew because its text has no translation attributes. The hero visual's accessible label also remains Hebrew, so the language switch does not translate all page text.",
+   "evidence": "file: page.py\nfix: Add Hebrew and English translations for the footer business description and update the hero visual's aria-label when switching languages. Preserve the supplied phone and exact address."
+  },
+  {
+   "acceptance_id": "REVIEW",
+   "message": "QA review (spec): The phone number displayed in the footer is plain text rather than a dialable link. Visitors cannot activate that displayed number, contrary to the requirement that every displayed phone have a tel: link.",
+   "evidence": "file: page.py\nfix: Wrap the footer phone number in an anchor with href=\"tel:+972500000000\", retaining its left-to-right display."
+  },
+  {
+   "acceptance_id": "ALSO_FAILING",
+   "message": "also failing in this round: VISUAL: visual (desktop) h_overflow: page width 11439px > viewport 1440px (+2 more)",
+   "evidence": "Fix the failure above first; these other checks also failed on the same version."
+  }
+ ],
+ "round_snapshots": [
+  {
+   "round": 0,
+   "sha256": "30944dacbca96ff532069525db82456c5c326a59f411bf1e62d1032b59e9aba4",
+   "failing": [
+    "ALSO_FAILING",
+    "REVIEW"
+   ],
+   "decision": "initial",
+   "progress": [
+    9,
+    -5
+   ]
+  },
+  {
+   "round": 1,
+   "sha256": "52feb84df1c76fba0a8bf4a01269939727b163526e22798ef264d7bd0448427d",
+   "failing": [
+    "VISUAL"
+   ],
+   "decision": "discarded",
+   "progress": [
+    7,
+    -3
+   ]
+  },
+  {
+   "round": 2,
+   "sha256": "6265702e64da270b68cf2c71d9761d522acadc9b681e9f07f44dba39258b8381",
+   "failing": [
+    "VISUAL"
+   ],
+   "decision": "discarded",
+   "progress": [
+    7,
+    -3
+   ]
+  },
+  {
+   "round": 3,
+   "sha256": "0cd630165d6434eb9d12721928229b896db804e25c17e710924b41ea8b29d9fb",
+   "failing": [
+    "VISUAL"
+   ],
+   "decision": "discarded",
+   "progress": [
+    7,
+    -3
+   ]
+  },
+  {
+   "round": 4,
+   "sha256": "3593f68f9404b5dd3a5a9f8ef0902fff524e69c03c188dd70de1c7783fe51214",
+   "failing": [
+    "VISUAL"
+   ],
+   "decision": "discarded",
+   "progress": [
+    7,
+    -3
+   ]
+  },
+  {
+   "round": 5,
+   "sha256": "4fb9038df73862df6759d73bca2fd5109c7ac72a9f72a01f754ef2b26c9a0db6",
+   "failing": [
+    "VISUAL"
+   ],
+   "decision": "discarded",
+   "progress": [
+    7,
+    -3
+   ]
+  },
+  {
+   "round": 6,
+   "sha256": "0c9d32c09dee8c870087dfb98126b3cdba17e36c611d3339fd2143e8b532ef0c",
+   "failing": [
+    "VISUAL"
+   ],
+   "decision": "discarded",
+   "progress": [
+    7,
+    -3
+   ]
+  }
+ ],
+ "build_events": [
+  {
+   "seq": 1289,
+   "kind": "check",
+   "message": "סבב בדיקות 1: 5 נכשלו — QA review (spec): GET /health displays only plain text \"ok\", whereas R1 requires this path to return the full Hebrew RTL HTML page.. מתקן."
+  },
+  {
+   "seq": 1296,
+   "kind": "check",
+   "message": "סבב בדיקות 2: 3 נכשלו — visual (desktop) h_overflow:  page width 11439px > viewport 1440px. מתקן."
+  },
+  {
+   "seq": 1297,
+   "kind": "info",
+   "message": "סבב תיקון 1 החמיר את המוצר ונזרק; ממשיכים מהגרסה הטובה ביותר."
+  },
+  {
+   "seq": 1330,
+   "kind": "check",
+   "message": "סבב בדיקות 7: 3 נכשלו — visual (desktop) h_overflow:  page width 11439px > viewport 1440px. מתקן."
+  },
+  {
+   "seq": 1331,
+   "kind": "info",
+   "message": "סבב תיקון 6 החמיר את המוצר ונזרק; ממשיכים מהגרסה הטובה ביותר."
+  }
+ ],
+ "error_message": "build did not pass sandbox verification after 6 repair round(s); still failing: REVIEW: QA review (spec): GET /health displays only plain text \"ok\", whereas R1 requires this path to return the full Hebrew RTL HTML page.; REVIEW: QA review (skill.visual_design): White text on --green (#1f9d55) has approximately 3.5:1 contrast. This affects the primary call buttons, green hero stripe and final call-to-action heading, failing the required 4.5:1 contrast.; REVIEW: QA review (spec): Switching to English leaves the footer business description in Hebrew because its text has no translation attributes. The hero visual's accessible label also remains Hebrew, so the language switch does not translat; REVIEW: QA review (spec): The phone number displayed in the footer is plain text rather than a dialable link. Visitors cannot activate that displayed number, contrary to the requirement that every displayed phone have a tel: link.",
+ "stage_rows": [
+  {
+   "stage": "acceptance",
+   "check": "behavioural_acceptance",
+   "status": "PASS",
+   "required": true
+  },
+  {
+   "stage": "dependencies",
+   "check": "dependency_allowlist",
+   "status": "PASS",
+   "required": true
+  },
+  {
+   "stage": "files",
+   "check": "cross_file_consistency",
+   "status": "PASS",
+   "required": true
+  },
+  {
+   "stage": "preview",
+   "check": "preview_starts",
+   "status": "PASS",
+   "required": true
+  },
+  {
+   "stage": "quality",
+   "check": "quality_score",
+   "status": "PASS",
+   "required": true
+  },
+  {
+   "stage": "requirements",
+   "check": "acceptance_criteria_defined",
+   "status": "PASS",
+   "required": true
+  },
+  {
+   "stage": "review",
+   "check": "qa_review_blocking_findings",
+   "status": "PASS",
+   "required": true
+  },
+  {
+   "stage": "review",
+   "check": "reviewer_independent_of_author",
+   "status": "PASS",
+   "required": false
+  },
+  {
+   "stage": "rights",
+   "check": "rights_clear",
+   "status": "PASS",
+   "required": true
+  },
+  {
+   "stage": "security",
+   "check": "static_security_scan",
+   "status": "PASS",
+   "required": true
+  },
+  {
+   "stage": "tests",
+   "check": "sandbox_build_and_tests",
+   "status": "FAIL",
+   "required": true
+  },
+  {
+   "stage": "visual",
+   "check": "browser_flow",
+   "status": "PASS",
+   "required": true
+  },
+  {
+   "stage": "visual",
+   "check": "visual_layout_desktop_mobile",
+   "status": "FAIL",
+   "required": false
+  }
+ ],
+ "stage_row_details": {
+  "review/qa_review_blocking_findings": "0 unresolved blocking finding(s) after 7 review round(s)",
+  "visual/visual_layout_desktop_mobile": "h_overflow 2, low_contrast 4, no_mobile_viewport 1",
+  "tests/sandbox_build_and_tests": "tests and verify commands were written by the generating model"
+ }
+}

@@ -407,6 +407,43 @@
    "expect_failed": [
     "test_other_bytes_under_the_same_subject_are_asked_of_the_model"
    ]
+  },
+  {
+   "id": "NC21",
+   "what": "a resumed build takes the current version for the best one (#541: they can differ at a round boundary)",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "            best_repo = repo if best['same_as_current'] else dict(resume.best_repository)",
+     "new": "            best_repo = repo  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_each_checkpoint_continues_to_the_same_result"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "the checkpoint leaves out the best version when it is not the current one",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "            if not out['loop']['best']['same_as_current']:\n                out['best_repository'] = best_repo",
+     "new": "            if False:  # NEGATIVE CONTROL\n                out['best_repository'] = best_repo"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_a_checkpoint_holds_a_best_version_other_than_the_current_one",
+    "test_each_checkpoint_continues_to_the_same_result",
+    "test_each_checkpoint_continues_to_the_same_result_without_calling_a_covered_stage_again",
+    "test_without_the_best_version_the_resume_point_refuses"
+   ]
   }
  ]
 }

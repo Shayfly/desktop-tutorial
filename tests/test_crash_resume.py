@@ -23,7 +23,7 @@ from omni_prod.attempt_ledger import TaskTaggedGateway
 from omni_prod.autonomous_agents import (_ARCHITECT_SYSTEM, _GENERATOR_SYSTEM, _REPAIR_SYSTEM, ArchitectAgent,
                                          GeneratorAgent, RepairAgent)
 from omni_prod.autonomous_core import (AcceptanceFailure, AutonomousProductEngine, ExecutionReport, ResumePoint,
-                                       report_to_dict)
+                                       failure_to_dict, report_to_dict)
 from omni_prod.model_catalog import CatalogModel
 from omni_prod.model_gateway import ModelEndpoint, OpenAICompatibleGateway
 from omni_prod.model_policy import ModelUsePolicy
@@ -94,7 +94,21 @@ class Checks:
                                f'v{n}', 1)
 
 
-def engine(model: Model, hook=None):
+class WobblingChecks(Checks):
+    """Checks, but an odd VERSION below 4 also fails a second time on the same check: such a version is adopted (no new
+    check) without becoming the best one (it ranks lower: more failures), so a round ends with the best version not the
+    current one (#541, judge())."""
+
+    def execute(self, *, repository, spec):
+        report = super().execute(repository=repository, spec=spec)
+        m = re.search(r'VERSION = (\d+)', repository.get('app.py', ''))
+        if m and int(m.group(1)) % 2 and int(m.group(1)) < 4:
+            return ExecutionReport(False, report.failures + (AcceptanceFailure('A1', 'an odd VERSION wobbles', 'odd'),),
+                                   report.build_log, 1)
+        return report
+
+
+def engine(model: Model, hook=None, checks=None):
     catalog = CatalogModel(endpoint=ModelEndpoint(name='scripted', base_url='http://127.0.0.1:9/v1', model='scripted',
                                                   api_key='test-fixture-only', external=True),
                            option=ModelOption('p', 'scripted', 90, 100, Decimal('1'), Decimal('2')),
@@ -106,7 +120,7 @@ def engine(model: Model, hook=None):
                                  transient_retries=0, sleep=lambda s: None)
     e = AutonomousProductEngine(architect=ArchitectAgent(TaskTaggedGateway(gateway, 'architecture')),
                                 generator=GeneratorAgent(TaskTaggedGateway(gateway, 'codegen')),
-                                repairer=RepairAgent(TaskTaggedGateway(gateway, 'repair')), executor=Checks(),
+                                repairer=RepairAgent(TaskTaggedGateway(gateway, 'repair')), executor=checks or Checks(),
                                 max_repair_rounds=6, repair_ceiling=6)
     e.no_progress_retries = 1                             # as production (_live_components)
     e.checkpoint_hook = hook
@@ -117,7 +131,10 @@ def outcome(result, e) -> dict:
     return {'status': result.status, 'repository': result.repository, 'rounds': result.repair_rounds,
             'stop_reason': result.stop_reason, 'report': report_to_dict(result.report),
             'taxonomy': e.failure_taxonomy, 'first_pass': e.first_pass, 'trace': e.trace,
-            'test_edits': e.test_edits.evidence()}
+            'test_edits': e.test_edits.evidence(),
+            # #541: every failure of the kept version, and each round's full list
+            'full_failures': [failure_to_dict(f) for f in result.full_failures],
+            'round_failures': {i: [failure_to_dict(f) for f in fs] for i, fs in sorted(e.round_failures.items())}}
 
 
 def stored(stage: str, payload: dict) -> ResumePoint:
@@ -127,7 +144,9 @@ def stored(stage: str, payload: dict) -> ResumePoint:
     if stage == 'spec':
         return ResumePoint('spec', spec)
     loop = json.loads(C.canonical(payload['loop']))
-    return ResumePoint(stage, spec, int(loop['rounds']), json.loads(C.canonical(payload['repository'])), loop)
+    best = payload.get('best_repository')
+    return ResumePoint(stage, spec, int(loop['rounds']), json.loads(C.canonical(payload['repository'])), loop,
+                       None if best is None else json.loads(C.canonical(best)))
 
 
 class EngineContinuesFromEveryCheckpoint(unittest.TestCase):
@@ -169,7 +188,8 @@ class EngineContinuesFromEveryCheckpoint(unittest.TestCase):
         loop = dict(json.loads(C.canonical(payload['loop'])), max_repair_rounds=3)
         e, _ = engine(Model())
         result = e.build('a reading list', resume=ResumePoint('round', stored(stage, payload).spec, 2,
-                                                              payload['repository'], loop))
+                                                              payload['repository'], loop,
+                                                              payload.get('best_repository')))
         self.assertEqual((result.status, result.repair_rounds, result.stop_reason), ('failed', 3, 'max_repair_rounds'))
 
     def test_an_unknown_stage_or_a_partial_resume_point_raises(self):
@@ -180,6 +200,39 @@ class EngineContinuesFromEveryCheckpoint(unittest.TestCase):
             ResumePoint('round', spec, 1)
         with self.assertRaises(ValueError):
             ResumePoint('round', spec, 1, {'app.py': ''}, {'version': 99})
+
+
+class TheBestVersionIsCarriedWhenItIsNotTheCurrentOne(unittest.TestCase):
+    """#541: a round can end with the best version other than the current one. Its checkpoint stores both, and the build
+    continued from it ends where the uninterrupted one did: the same version kept, the same full failure list."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.checkpoints = []
+        e, _ = engine(Model(), hook=lambda stage, payload: cls.checkpoints.append((stage, payload)),
+                      checks=WobblingChecks())
+        cls.uninterrupted = outcome(e.build('a reading list'), e)
+
+    def test_a_checkpoint_holds_a_best_version_other_than_the_current_one(self):
+        apart = [(s, p['loop']['rounds']) for s, p in self.checkpoints if p.get('best_repository') is not None]
+        self.assertTrue(apart, [(s, (p.get('loop') or {}).get('best')) for s, p in self.checkpoints])
+        for stage, payload in self.checkpoints:
+            if payload.get('best_repository') is not None:
+                self.assertNotEqual(payload['best_repository'], payload['repository'])
+                self.assertFalse(payload['loop']['best']['same_as_current'])
+
+    def test_each_checkpoint_continues_to_the_same_result(self):
+        for index, (stage, payload) in enumerate(self.checkpoints):
+            with self.subTest(checkpoint=index, stage=stage, round=(payload.get('loop') or {}).get('rounds')):
+                e, _ = engine(Model(), checks=WobblingChecks())
+                self.assertEqual(outcome(e.build('a reading list', resume=stored(stage, payload)), e),
+                                 self.uninterrupted)
+
+    def test_without_the_best_version_the_resume_point_refuses(self):
+        stage, payload = next((s, p) for s, p in self.checkpoints if p.get('best_repository') is not None)
+        with self.assertRaises(ValueError):
+            ResumePoint(stage, stored(stage, payload).spec, int(payload['loop']['rounds']), payload['repository'],
+                        json.loads(C.canonical(payload['loop'])))
 
 
 class MemoryStore:
