@@ -5,10 +5,11 @@ Python imports and do not necessarily ship infra/postgres/*.sql.
 tests/test_deployment_verification.py fails if this drifts from the newest
 migration file, so adding a migration forces updating it in the same change.
 """
-REQUIRED_MIGRATION = 45
-# Every migration version shipped in infra/postgres (022-025 were never used).
-EXPECTED_VERSIONS = tuple(range(1, 22)) + tuple(range(26, 46))
-REQUIRED_MIGRATION_NAME = '045_corpus_pages'
+REQUIRED_MIGRATION = 48
+# Every migration version shipped in infra/postgres (022-025 were never used; 046 and 047 are taken on other branches,
+# social login and rate limits, and join this tuple when they merge).
+EXPECTED_VERSIONS = tuple(range(1, 22)) + tuple(range(26, 46)) + (48,)
+REQUIRED_MIGRATION_NAME = '048_unknown_cost_nullable'
 
 # 047 (rate limits, 2026-11-26) is added on lines of its own, so it merges with 046 (social sign-in, another branch) in
 # either order without touching the lines above: whichever of the two lands first, the values stay true.

@@ -47,3 +47,20 @@ A paid external provider is not called before a durable authorization ceiling ex
 ## Cost dimensions still required before public production
 
 Provider/model tokens or credits, image/3D/video/audio units, retries and paid failures, sandbox CPU/GPU, build time, object storage, egress, database/queue/monitoring, payment fees, non-recoverable tax, refunds/chargebacks where applicable, and support allocation. M4.95 establishes the accounting contracts; production telemetry and commercial provider price catalogs remain `NOT_CONFIGURED` until live credentials/contracts and measured usage exist.
+
+## The owner's word of 2026-11-26 (newer than the rules above, which it overrides where they differ)
+
+- A missing price no longer stops an execution or a build, for any account. A model or capability without a price runs;
+  its usage (tokens, units) is recorded and its cost is UNKNOWN -- never zero, never the reservation -- and every build's
+  evidence names it in `cost_data_missing`. An unpriced capability event keeps the storage's 0 placeholders with
+  `pricing_version` starting `unpriced:`; every reader skips them as a cost.
+- Settlement: a component whose price is missing is left out of COMPUTED_FROM_USAGE and named; CONSERVATIVE_RESERVATION
+  remains only for liability that cannot be bounded (an earlier worker's call without exposure).
+- The founder account builds without money limits (safety bounds $25 and 400 calls per build); see pricing.py.
+- Money review of 2026-11-26 (B1): a model call whose price is missing is charged its authorized stand-in worst case
+  (the highest price of the schedule x its token bound), capped at the reservation, in settlement, the plan meter and
+  the reconciler; the cost itself stays UNKNOWN (`cost_record.llm_known_usd`, `stand_in_usd`), and the report labels
+  the stand-in as such. A configured fallback route keeps its flat per-call authorization as before.
+- Migration 048 (the owner, 2026-11-26): an unknown cost is stored as NULL -- `build_jobs.ai_cost` of a build with an
+  unpriced call, `build_jobs.build_seconds` of a build that never started, `provider_usage_events.estimated_cost_usd` of
+  an unpriced image. Readers never add NULL as 0.

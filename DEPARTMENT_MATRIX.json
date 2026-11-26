@@ -46,9 +46,8 @@
     "product_evolution_agent": "IMPLEMENTED"
    },
    "skills": {
-    "IMPLEMENTED": 1,
+    "IMPLEMENTED": 2,
     "NOT_IMPLEMENTED": 5,
-    "REAL_SERVER_VERIFIED": 1,
     "UNIT_TESTED": 4
    },
    "missing_roles": [
@@ -506,9 +505,8 @@
     "support_agent": "NOT_IMPLEMENTED"
    },
    "skills": {
-    "IMPLEMENTED": 5,
+    "IMPLEMENTED": 6,
     "NOT_IMPLEMENTED": 3,
-    "REAL_SERVER_VERIFIED": 1,
     "UNIT_TESTED": 5
    },
    "missing_roles": [],

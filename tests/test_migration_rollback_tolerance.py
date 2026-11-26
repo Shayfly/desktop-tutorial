@@ -136,6 +136,28 @@ class LiveRollbackTests(unittest.TestCase):
         row = self.conn.execute('SELECT id, storage_key, deleted_at FROM conversation_attachments').fetchall()
         self.assertEqual(row, [(att, 'attachments/a1/p1/x', None)])             # row and its object key untouched
 
+    def test_048_makes_unknown_costs_nullable_twice_and_its_rollback_restores_zero(self):
+        # the owner 2026-11-26 ~16:50 UTC ("לא ידועה במיגרציה"): an unknown cost is NULL, never 0
+        up = PG / '048_unknown_cost_nullable.sql'
+        down = PG / 'rollback' / '048_unknown_cost_nullable.down.sql'
+        apply_migrations(self.conn, self.all)
+        self.conn.execute(up.read_text(encoding='utf-8'))                       # idempotent: a second run is safe
+        self.conn.commit()
+        nullable = lambda: dict(self.conn.execute(
+            "SELECT table_name || '.' || column_name, is_nullable FROM information_schema.columns WHERE "
+            "(table_name, column_name) IN (('build_jobs','ai_cost'),('build_jobs','build_seconds'),"
+            "('provider_usage_events','estimated_cost_usd'))").fetchall())
+        self.assertEqual(set(nullable().values()), {'YES'})
+        self.conn.execute("INSERT INTO build_jobs (id, project_id, status, ai_cost, build_seconds) "
+                          "VALUES ('bld_unknown', 'tenant_x', 'failed', NULL, NULL)")
+        self.conn.commit()
+        self.conn.execute(down.read_text(encoding='utf-8'))
+        self.conn.commit()
+        self.assertEqual(set(nullable().values()), {'NO'})
+        self.assertEqual(self.conn.execute("SELECT ai_cost, build_seconds FROM build_jobs WHERE id='bld_unknown'").fetchone(),
+                         (0, 0))
+        self.assertNotIn(48, _load_applied(self.conn.cursor()))
+
 
 if __name__ == '__main__':
     unittest.main()

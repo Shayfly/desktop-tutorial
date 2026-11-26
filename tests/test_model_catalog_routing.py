@@ -73,12 +73,28 @@ class CatalogParsingTests(unittest.TestCase):
     def test_rejects_inline_key_missing_price_and_http(self):
         base = dict(CATALOG[1])
         for bad in ({**base, "api_key": "x"},
-                    {k: v for k, v in base.items() if k != "output_per_million"},
                     {**base, "base_url": "http://api.groq.com/openai/v1"},
                     {**base, "quality": 101},
                     {**base, "input_per_million": "-1"}):
             with self.assertRaises(ModelCatalogError):
                 parse_model_catalog(json.dumps([bad]), KEYS)
+
+    def test_a_missing_price_keeps_the_model_with_an_unknown_cost(self):
+        # The owner 2026-11-26: a catalog entry without a price was a ModelCatalogError that stopped EVERY build. It is
+        # kept: it routes, authorized at the stand-in (never below any priced model), and its calls meter as unknown.
+        from omni_prod.attempt_ledger import metered_cost
+        from omni_prod.model_catalog import UNPRICED_STAND_IN
+        base = dict(CATALOG[1])
+        m, = parse_model_catalog(json.dumps([{k: v for k, v in base.items() if k != "output_per_million"}]), KEYS)
+        self.assertIsNotNone(m.endpoint)
+        self.assertTrue(m.option.enabled)
+        self.assertFalse(m.option.price_known)
+        self.assertEqual((m.option.input_per_million, m.option.output_per_million), UNPRICED_STAND_IN)
+        self.assertIsNone(metered_cost(m.option, 1000, 1000))
+        self.assertEqual(m.to_public_dict()["price_known"], False)
+        priced, = parse_model_catalog(json.dumps([base]), KEYS)
+        self.assertNotIn("price_known", priced.to_public_dict())     # a priced catalog keeps its version
+        self.assertIsNotNone(metered_cost(priced.option, 1000, 1000))
 
     def test_duplicate_names_rejected(self):
         with self.assertRaises(ModelCatalogError):

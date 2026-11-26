@@ -12,6 +12,9 @@ class ModelOption:
     input_per_million: Decimal
     output_per_million: Decimal
     enabled: bool = True
+    # The owner 2026-11-26: False for a model with no known price. It still routes; the two prices above are then an
+    # AUTHORIZATION stand-in (model_catalog.UNPRICED_STAND_IN), never a cost: its calls are metered as unknown.
+    price_known: bool = True
 
 @dataclass(frozen=True)
 class RoutingPolicy:

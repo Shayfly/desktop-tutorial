@@ -472,6 +472,7 @@ class ManagedWebSaaSProvisioner:
                    if maximum is not None else
                    "provisioning cost not configured (OMNI_GENAPP_PROVISIONING_MAXIMUM_USD); unknown, not zero"),
             provisioning_estimated_usd=estimate, provisioning_maximum_usd=maximum,
+            price_known=maximum is not None,
         )
 
     def provision(self, requirement, *, tenant_id, project_id, environment, idempotency_key) -> InfrastructureBinding:

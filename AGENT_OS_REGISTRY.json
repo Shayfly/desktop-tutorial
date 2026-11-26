@@ -148,7 +148,7 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/creator_plan.py",
+   "why": "real-server evidence is stale; code changed since: omni_prod/build_cost_plan.py, omni_prod/creator_plan.py",
    "evidence": [],
    "stale_evidence": [
     "postdeploy-checks run 37961193099"
@@ -1625,9 +1625,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/build_cost_plan.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -4854,9 +4855,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/build_cost_plan.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -7668,10 +7670,10 @@
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 95,
+   "IMPLEMENTED": 97,
    "UNIT_TESTED": 30,
    "INTEGRATION_TESTED": 6,
-   "REAL_SERVER_VERIFIED": 23,
+   "REAL_SERVER_VERIFIED": 21,
    "LIVE": 0,
    "BLOCKED": 9
   }
