@@ -15,8 +15,15 @@ Arabic and Latin pairs are not rendered on the library's page (it writes its own
 that every one of their faces loads for its script is tests/test_font_pairs_load.py.
 
 These tests need fonts.googleapis.com, fonts.gstatic.com and raw.githubusercontent.com. When one cannot be reached they
-FAIL and say so; they never pass on a fallback. CI runs them in browser-python's font-range job."""
+FAIL and say so; they never pass on a fallback. CI runs them in browser-python's font-range job.
+
+F2 (release review of 550320c): the allowed list is compared with google/fonts main on every pull request, so an
+upstream change that does not touch us (a new classification, a subset, an extra weight) turned every PR red. Now the
+test FAILS only on what breaks a page of ours (upstream_findings): a family a pair uses is missing or renamed upstream,
+no longer serves a weight a pair loads, or states another licence than the one our rights record cites. Every other
+upstream difference is written to NOTICES_FILE as a ::notice line, which the job prints."""
 import copy
+import os
 import re
 import unittest
 import urllib.error
@@ -44,19 +51,59 @@ H3 = ('תכנון אדריכלי ופיקוח הנדסי צמוד באתר', 'ש
 H4 = 'פגישת תכנון ראשונית בדירה עם האדריכלית'
 
 
-def fetch(url: str) -> str:
+NOTICES_FILE = os.environ.get('FONT_RANGE_NOTICES', 'font-range-notices.txt')
+DRIFT_KEYS = ('categories', 'classifications', 'scripts', 'weights')   # upstream facts that never break our pages
+
+
+def upstream_findings(family: str, recorded: dict, live: dict | None, letters: list[int], weights: set) -> tuple:
+    """(breaks, drift) for one family of the allowed list. `live` None: google/fonts has no METADATA.pb at the
+    recorded source (the family is gone or moved). A break fails the test; drift is a notice."""
+    if live is None:
+        return [f'missing upstream: no METADATA.pb at {recorded.get("source", "its recorded source")}'], []
+    breaks, drift = [], []
+    if live['name'] != family:
+        breaks.append(f'renamed upstream: google/fonts names it {live["name"]!r}')
+    if not live['weights']:
+        breaks.append('missing upstream: fonts.googleapis.com serves no weight of it in its script subset')
+    if not set(weights) <= set(letters):
+        breaks.append(f'a weight a pair loads is not served for the script\'s letters: loads {sorted(weights)}, '
+                      f'served {sorted(letters)}')
+    if live['licence'] != recorded['licence']:
+        breaks.append(f'licence: our rights record cites {recorded["licence"]}, google/fonts states {live["licence"]}')
+    for key in DRIFT_KEYS:
+        if live[key] != recorded[key]:
+            drift.append(f'{key}: recorded {recorded[key]}, upstream {live[key]}')
+    return breaks, drift
+
+
+def write_notices(notes: list[str], path: str = NOTICES_FILE) -> None:
+    """Every upstream difference that is not a break, one ::notice line each, for the job to print."""
+    with open(path, 'w', encoding='utf-8') as out:
+        for note in notes:
+            out.write(f'::notice title=font-range upstream::{note}\n')
+
+
+def fetch(url: str, absent_ok: bool = False) -> str | None:
+    """The body, or None when `absent_ok` and the server answers that it has no such resource (HTTP 400/404: a
+    family that is gone). Any other failure -- the host cannot be reached -- fails, never a fallback."""
     req = urllib.request.Request(url, headers={'User-Agent': UA})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             return r.read().decode('utf-8', 'replace')
+    except urllib.error.HTTPError as exc:
+        if absent_ok and exc.code in (400, 404):
+            return None
+        raise AssertionError(f'{url} could not be read ({exc}): it is NOT shown that the allowed list holds') from exc
     except (urllib.error.URLError, OSError) as exc:
         raise AssertionError(f'{url} could not be read ({exc}): it is NOT shown that the allowed list holds') from exc
 
 
 def served(family: str, script: str, text: str | None = None) -> list[int]:
-    """The weights (of 400 and 700) fonts.googleapis.com serves: in the script's subset, or for these letters."""
+    """The weights (of 400 and 700) fonts.googleapis.com serves: in the script's subset, or for these letters. []
+    when it serves the family not at all (it answers 400 for a family it does not have)."""
     q = f"family={urllib.parse.quote(family).replace('%20', '+')}:wght@400;700&display=swap"
-    body = fetch('https://fonts.googleapis.com/css2?' + q + (f'&text={urllib.parse.quote(text)}' if text else ''))
+    body = fetch('https://fonts.googleapis.com/css2?' + q + (f'&text={urllib.parse.quote(text)}' if text else ''),
+                 absent_ok=True) or ''
     if text:
         return sorted({int(w) for w in re.findall(r'font-weight: (\d+);', body)})
     return sorted({int(w) for s, w in re.findall(r'/\* ([\w-]+) \*/\s*@font-face \{[^}]*?font-weight: (\d+);', body)
@@ -127,23 +174,29 @@ class TheAllowedListLive(unittest.TestCase):
                     used.setdefault(p[role]['family'], (script, set()))[1].update(p[role]['weights'])
         def observe(family):
             entry, (script, weights) = families[family], used[family]
-            meta = fetch(METADATA.format(entry['source'].split(' ', 1)[1].rsplit('/', 1)[0]))
+            recorded = {'name': family, **{k: entry[k] for k in ('licence', 'categories', 'classifications', 'scripts',
+                                                                 'weights')}, 'source': entry['source']}
+            meta = fetch(METADATA.format(entry['source'].split(' ', 1)[1].rsplit('/', 1)[0]), absent_ok=True)
+            if meta is None:
+                return family, None, recorded, [], weights
             live = {'name': re.search(r'^name: "([^"]+)"', meta, re.M).group(1),
                     'licence': re.search(r'^license: "([^"]+)"', meta, re.M).group(1),
                     'categories': re.findall(r'^category: "([^"]+)"', meta, re.M),
                     'classifications': re.findall(r'^classifications: "([^"]+)"', meta, re.M),
                     'scripts': [s for s in LIBRARY_SCRIPTS if s in re.findall(r'^subsets: "([^"]+)"', meta, re.M)],
                     'weights': served(family, script)}
-            recorded = {'name': family, **{k: entry[k] for k in ('licence', 'categories', 'classifications', 'scripts',
-                                                                 'weights')}}
             letters = served(family, script, T.script(script)['sample'])
             return family, live, recorded, letters, weights
 
         # three requests a family, 62 families: eight at a time (measured locally: 21 s to 106 s one after another)
+        notes = []
         with ThreadPoolExecutor(max_workers=8) as pool:
             for family, live, recorded, letters, weights in pool.map(observe, sorted(families)):
-                if live != recorded or not weights <= set(letters):
-                    wrong[family] = {'recorded': recorded, 'live': live, 'served_for_the_sample': letters}
+                breaks, drift = upstream_findings(family, recorded, live, letters, weights)
+                if breaks:
+                    wrong[family] = breaks
+                notes += [f'{family}: {d}' for d in drift]
+        write_notices(notes)                             # F2: upstream drift is said, never a red PR
         self.assertEqual(wrong, {})
         self.assertEqual(sorted({e['licence'] for e in families.values()} - set(T.LICENCES)), [])
 

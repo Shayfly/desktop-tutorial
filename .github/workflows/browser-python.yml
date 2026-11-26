@@ -174,6 +174,16 @@ jobs:
       - name: Font range tests
         timeout-minutes: 4
         run: python -m pytest -q -rs --junitxml=fonts.xml tests/test_font_pair_range_live.py
+      # F2: upstream differences that break no page of ours are notices, written by the live test (NOTICES_FILE)
+      - name: Upstream differences (notices)
+        if: always()
+        run: |
+          if [ -f font-range-notices.txt ]; then
+            echo "::notice title=font-range upstream::$(wc -l < font-range-notices.txt) difference(s) that break no page"
+            cat font-range-notices.txt
+          else
+            echo "::notice title=font-range upstream::no notices file: the live comparison did not reach its end"
+          fi
       - name: No test may be skipped
         if: always()
         run: |
