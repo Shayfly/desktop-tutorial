@@ -197,10 +197,12 @@
   },
   {
    "capability": "job_resume",
-   "expected_behavior": "restart from the beginning, once; since e5e11e5 a lost build with a paid call is failed, not requeued",
+   "expected_behavior": "S4.2: a lost build with a usable checkpoint is requeued once and continues from it; without one, a paid call ends it FAILED provider_liability_unknown as before; no real-server crash-verify run yet",
    "test_layer": "real-server",
-   "test_location": [],
-   "last_result": "IMPLEMENTED",
+   "test_location": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "last_result": "UNIT_TESTED",
    "last_verified_commit": null,
    "last_verified_at": null,
    "environment": "pre-staging worker host"

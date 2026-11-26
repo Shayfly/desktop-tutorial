@@ -777,12 +777,15 @@
    ],
    "platform": [],
    "implementation": [
+    "omni_prod.build_checkpoint:CheckpointWriter",
     "omni_prod.maintenance:recover_lost_running",
     "omni_prod.maintenance:redispatch_lost"
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [],
+   "evidence": [
+    "tests/test_crash_resume_pg.py"
+   ],
    "cost": "$0",
    "status": "IMPLEMENTED",
    "shown_to_customer": false,
@@ -790,8 +793,8 @@
    "parts": [
     {
      "part": "skill:job_resume",
-     "status": "IMPLEMENTED",
-     "why": "code exists; no evidence"
+     "status": "UNIT_TESTED",
+     "why": "unit tests only"
     },
     {
      "part": "skill:stale_job_recovery",

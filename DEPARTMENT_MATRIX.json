@@ -263,10 +263,10 @@
     "backup_recovery_agent": "REAL_SERVER_VERIFIED"
    },
    "skills": {
-    "IMPLEMENTED": 14,
+    "IMPLEMENTED": 13,
     "NOT_IMPLEMENTED": 6,
     "REAL_SERVER_VERIFIED": 12,
-    "UNIT_TESTED": 1
+    "UNIT_TESTED": 2
    },
    "missing_roles": [],
    "missing_adapters": [],
@@ -325,11 +325,11 @@
     "system_test_orchestrator": "UNIT_TESTED"
    },
    "skills": {
-    "IMPLEMENTED": 16,
+    "IMPLEMENTED": 15,
     "INTEGRATION_TESTED": 3,
     "NOT_IMPLEMENTED": 25,
     "REAL_SERVER_VERIFIED": 2,
-    "UNIT_TESTED": 8
+    "UNIT_TESTED": 9
    },
    "missing_roles": [],
    "missing_adapters": [

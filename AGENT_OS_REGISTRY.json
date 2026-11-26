@@ -3805,13 +3805,16 @@
    "primary_agent": "qa_agent",
    "verifier_agent": "quality_gate_agent",
    "implementation_location": [
-    "omni_prod.maintenance:recover_lost_running"
+    "omni_prod.maintenance:recover_lost_running",
+    "omni_prod.build_checkpoint:load"
    ],
-   "gap": "build restarts from the beginning",
+   "gap": "S4.2: a worker killed at four points on real PostgreSQL; no real-server crash-verify run yet",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "code exists; no evidence",
-   "evidence": [],
+   "status": "UNIT_TESTED",
+   "why": "unit tests only",
+   "evidence": [
+    "tests/test_crash_resume_pg.py"
+   ],
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -5230,13 +5233,16 @@
    "primary_agent": "infrastructure_agent",
    "verifier_agent": "sre_reliability_agent",
    "implementation_location": [
-    "omni_prod.maintenance:recover_lost_running"
+    "omni_prod.maintenance:recover_lost_running",
+    "omni_prod.build_checkpoint:CheckpointWriter"
    ],
-   "gap": "restart from the beginning, once; since e5e11e5 a lost build with a paid call is failed, not requeued",
+   "gap": "S4.2: a lost build with a usable checkpoint is requeued once and continues from it; without one, a paid call ends it FAILED provider_liability_unknown as before; no real-server crash-verify run yet",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "code exists; no evidence",
-   "evidence": [],
+   "status": "UNIT_TESTED",
+   "why": "unit tests only",
+   "evidence": [
+    "tests/test_crash_resume_pg.py"
+   ],
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -7663,8 +7669,8 @@
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 91,
-   "UNIT_TESTED": 30,
+   "IMPLEMENTED": 89,
+   "UNIT_TESTED": 32,
    "INTEGRATION_TESTED": 6,
    "REAL_SERVER_VERIFIED": 27,
    "LIVE": 0,

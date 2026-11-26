@@ -5,7 +5,7 @@
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
 Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 28, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 3, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 91, UNIT_TESTED 30, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 27, LIVE 0, BLOCKED 9
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 89, UNIT_TESTED 32, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 27, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -243,7 +243,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 91, UNIT_TESTED 30, INTEGRATION
 | `cost_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only |  |
 | `provider_failure_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only | simulated providers |
 | `restart_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
-| `resume_test` | QA | **IMPLEMENTED** | qa_agent | code exists; no evidence | build restarts from the beginning |
+| `resume_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only | S4.2: a worker killed at four points on real PostgreSQL; no real-server crash-verify run yet |
 | `cancellation_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
 | `behavioral_acceptance_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py |  |
 | `requirement_traceability_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py | acceptance IDs -> steps |
@@ -327,7 +327,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 91, UNIT_TESTED 30, INTEGRATION
 | `runtime_validation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `resource_allocation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `queue_job_submit` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/queueing.py |  |
-| `job_resume` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | code exists; no evidence | restart from the beginning, once; since e5e11e5 a lost build with a paid call is failed, not requeued |
+| `job_resume` | Infrastructure | **UNIT_TESTED** | infrastructure_agent | unit tests only | S4.2: a lost build with a usable checkpoint is requeued once and continues from it; without one, a paid call ends it FAILED provider_liability_unknown as before; no real-server crash-verify run yet |
 | `job_cancel` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/build_control.py, omni_prod/job_repository.py |  |
 | `job_timeout` | Infrastructure | **UNIT_TESTED** | infrastructure_agent | unit tests only |  |
 | `stale_job_recovery` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | code exists; no evidence |  |
