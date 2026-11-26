@@ -102,11 +102,17 @@ RULES_ADDED_AFTER_APPROVAL = 2
 WORDS_ADDED_AFTER_APPROVAL = ('INSUFFICIENT_CREDIT', 'CREDIT_EXHAUSTED')
 LIVE_RULE = ('LIVE is never derived here: it needs evidence younger than 7 days on the SHA that is deployed, and that '
              'evidence is in GitHub Actions runs and Vercel deployments, not in the repository.')
-ENV_METHOD = ('names read with os.environ.get / os.getenv / os.environ[...] / `in os.environ`, or through an env '
-              'mapping (env, environ, self.env, self._env), with a string literal, a module or class constant, a constant '
-              'imported from another omni_prod module, or a loop over such names; and the names passed to a package '
-              'helper whose parameter reaches such a read (found from the code, listed in `helpers`). A name built at '
-              'run time (an f-string, a concatenation) is not found: those reads are counted in `unresolved`.')
+# How the reader below finds a variable's name. ENV_METHOD is built from these, so docs/SYSTEM_MAP.md names every
+# getter and mapping the reader uses (the review of 2026-11-26: `environment` and `self.environ` were read, not named).
+ENV_GETTERS = ('os.getenv', 'getenv')                                         # getenv(NAME)
+ENV_MAPPINGS = ('os.environ', 'environ', 'env', 'environment', 'self.env', 'self._env', 'self.environ')
+MAPPING_READS = ('get', 'setdefault')                                         # <mapping>.get(NAME)
+ENV_METHOD = ('names read with ' + ' / '.join(f'{g}(...)' for g in ENV_GETTERS) + ', or from an env mapping ('
+              + ', '.join(ENV_MAPPINGS) + ') by ' + ' / '.join(f'.{r}(...)' for r in MAPPING_READS) + ' / [...] / '
+              '`in`, with a string literal, a module or class constant, a constant imported from another omni_prod '
+              'module, or a loop over such names; and the names passed to a package helper whose parameter reaches '
+              'such a read (found from the code, listed in `helpers`). A name built at run time (an f-string, a '
+              'concatenation) is not found: those reads are counted in `unresolved`.')
 
 
 def plan_state(word: str, *, gaps: bool = False, has_code: bool = True) -> str:
@@ -397,9 +403,9 @@ def workflows() -> list[dict]:
 
 # ---- environment variable names ----------------------------------------------------------------------------------
 _ENV_NAME = re.compile(r'[A-Z][A-Z0-9_]{2,}')
-_ENV_GETTERS = {'os.getenv', 'getenv'}                    # getenv(NAME)
-_ENV_MAPPINGS = {'os.environ', 'environ', 'env', 'environment', 'self.env', 'self._env', 'self.environ'}
-_MAPPING_READS = {'get', 'setdefault'}                    # <mapping>.get(NAME)
+_ENV_GETTERS = frozenset(ENV_GETTERS)                     # named in ENV_METHOD, from the tuples at the top
+_ENV_MAPPINGS = frozenset(ENV_MAPPINGS)
+_MAPPING_READS = frozenset(MAPPING_READS)
 _NOT_A_HELPER = {'get', 'setdefault', 'pop', 'getenv'}    # a mapping's own methods: every dict.get('X') would count
 
 
@@ -799,11 +805,19 @@ def render_mapping() -> str:
     return '\n'.join(out) + '\n'
 
 
-def summary(m: dict, sha: str | None = None) -> str:
-    """A short table for the run's summary; the full rows are in the artifact."""
+def summary(m: dict, sha: str | None = None, event: str | None = None) -> str:
+    """A short table for the run's summary; the full rows are in the artifact. `sha` is $GITHUB_SHA, the commit the
+    job checked out: on a pull_request run that is GitHub's merge commit of the pull request into its base, not the
+    pull request's head (the review of 2026-11-26), and the title says so."""
     s = m['summary']
     em = m['environment_method']
-    out = [f'## System map{" of " + sha if sha else ""}', '',
+    title = '## System map'
+    if sha:
+        title += f' of {sha}'
+        if event == 'pull_request':
+            title += (", GitHub's merge commit of this pull request into its base ($GITHUB_SHA on a pull request), "
+                      "not the pull request's head")
+    out = [title, '',
            '| | ' + ' | '.join(PLAN_STATES) + ' | total |', '|---|' + '---|' * (len(PLAN_STATES) + 1),
            _md_counts('agents (AGENT_OS_REGISTRY)', s['agents']), _md_counts('roles (registry_audit)', s['roles']),
            _md_counts('skills (skill catalog + runtime)', s['skills']),
@@ -850,7 +864,7 @@ def main(argv: list[str] | None = None) -> int:
               f'{full["summary"]["environment_names"]} environment names, {full["summary"]["workflows"]} workflows)')
     if args.summary:
         with open(args.summary, 'a', encoding='utf-8') as fh:
-            fh.write(summary(full, os.environ.get('GITHUB_SHA')))
+            fh.write(summary(full, os.environ.get('GITHUB_SHA'), os.environ.get('GITHUB_EVENT_NAME')))
     if not (args.write or args.json or args.summary or args.check):
         sys.stdout.write(summary(full))
     return 0

@@ -254,19 +254,21 @@
   },
   {
    "id": "NC15",
-   "what": "an injected env mapping (env.get) is not read (finding 2, 10)",
+   "what": "an injected env mapping (env.get) is not read (finding 2, 10); the published method no longer matches the reader",
    "mutations": [
     {
      "file": "omni_prod/system_map.py",
-     "old": "_ENV_MAPPINGS = {'os.environ', 'environ', 'env', 'environment', 'self.env', 'self._env', 'self.environ'}\n",
-     "new": "_ENV_MAPPINGS = {'os.environ', 'environ'}  # NEGATIVE CONTROL\n"
+     "old": "_ENV_MAPPINGS = frozenset(ENV_MAPPINGS)\n",
+     "new": "_ENV_MAPPINGS = frozenset({'os.environ', 'environ'})  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
     "tests/test_system_map.py"
    ],
    "expect_failed": [
-    "test_environment_names_through_constants_helpers_and_mappings"
+    "test_environment_names_through_constants_helpers_and_mappings",
+    "test_the_env_reader_reads_through_every_mapping",
+    "test_the_method_names_every_getter_and_mapping_the_reader_uses"
    ]
   },
   {
@@ -335,6 +337,62 @@
    ],
    "expect_failed": [
     "test_ci_publishes_it_on_every_push_and_pull_request"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "review 2026-11-26, finding 12: the published method names a fixed list of mappings again (environment and self.environ are read but not named)",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "              + ', '.join(ENV_MAPPINGS) + ') by '",
+     "new": "              + 'os.environ, environ, env, self.env, self._env' + ') by '  # NEGATIVE CONTROL\n             "
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_the_committed_docs_are_the_render_of_the_mapping",
+    "test_the_docs_never_read_the_inventory",
+    "test_the_method_names_every_getter_and_mapping_the_reader_uses"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "review 2026-11-26, finding 12: the reader no longer reads through environment and self.environ",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "ENV_MAPPINGS = ('os.environ', 'environ', 'env', 'environment', 'self.env', 'self._env', 'self.environ')",
+     "new": "ENV_MAPPINGS = ('os.environ', 'environ', 'env', 'self.env', 'self._env')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_the_committed_docs_are_the_render_of_the_mapping",
+    "test_the_docs_never_read_the_inventory",
+    "test_the_env_reader_reads_through_every_mapping"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "review 2026-11-26, finding 12: the summary of a pull request run names GitHub's merge commit as if it were the head",
+   "mutations": [
+    {
+     "file": "omni_prod/system_map.py",
+     "old": "        if event == 'pull_request':\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_system_map.py"
+   ],
+   "expect_failed": [
+    "test_the_command_line_writes_the_map_and_the_summary",
+    "test_the_summary_says_which_commit_it_maps"
    ]
   }
  ]

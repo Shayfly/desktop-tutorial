@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import json
 import os
+import re
 import tempfile
 import unittest
 from unittest import mock
@@ -62,9 +63,23 @@ class TheFullMap(unittest.TestCase):
                 self.assertEqual(json.load(fh), json.loads(S.to_json(MAP)))
             with open(summary, encoding='utf-8') as fh:
                 text = fh.read()
+            with mock.patch.object(S, 'build', return_value=MAP), \
+                    mock.patch.dict(os.environ, {'GITHUB_SHA': 'f00d', 'GITHUB_EVENT_NAME': 'pull_request'}):
+                self.assertEqual(S.main(['--summary', summary]), 0)
+            with open(summary, encoding='utf-8') as fh:
+                second = fh.read()[len(text):]
+        self.assertTrue(second.startswith("## System map of f00d, GitHub's merge commit of this pull request"), second)
         self.assertIn('| models (PROVIDER_MATRIX) |', text)
         self.assertIn(f'| endpoints | {MAP["summary"]["endpoints"]} |', text)
         self.assertIn('artifact `system-map`', text)
+
+    def test_the_summary_says_which_commit_it_maps(self):
+        # the review of 2026-11-26: on a pull_request run $GITHUB_SHA is GitHub's merge commit, not the head
+        pr = S.summary(MAP, 'abc123', 'pull_request').splitlines()[0]
+        self.assertEqual(pr, "## System map of abc123, GitHub's merge commit of this pull request into its base "
+                             "($GITHUB_SHA on a pull request), not the pull request's head")
+        self.assertEqual(S.summary(MAP, 'abc123', 'push').splitlines()[0], '## System map of abc123')
+        self.assertEqual(S.summary(MAP).splitlines()[0], '## System map')
 
     def test_ci_publishes_it_on_every_push_and_pull_request(self):
         wf = yaml.safe_load((S.ROOT / '.github' / 'workflows' / 'v24-ci.yml').read_text(encoding='utf-8'))
@@ -260,6 +275,26 @@ class TheInventoryIsReadFromTheCode(unittest.TestCase):
         self.assertEqual(found['unresolved'], ['omni_prod/a.py:9'])            # the f-string, counted, not guessed
         self.assertIn('omni_prod.b._twice(key)', found['helpers'])
         self.assertNotIn('omni_prod.c._int(problems)', found['helpers'])     # same name, another module
+
+    def test_the_method_names_every_getter_and_mapping_the_reader_uses(self):
+        # the review of 2026-11-26: the reader used `environment` and `self.environ`; the published method omitted them
+        mappings = re.search(r'from an env mapping \(([^)]*)\)', S.ENV_METHOD).group(1).split(', ')
+        self.assertEqual(set(mappings), set(S._ENV_MAPPINGS))
+        self.assertEqual(len(mappings), len(set(mappings)))
+        for getter in S._ENV_GETTERS:
+            self.assertIn(f'{getter}(...)', S.ENV_METHOD)
+        for read in S._MAPPING_READS:
+            self.assertIn(f'.{read}(...)', S.ENV_METHOD)
+        self.assertIn(S.ENV_METHOD, S.render_mapping())
+
+    def test_the_env_reader_reads_through_every_mapping(self):
+        src = tree(**{'omni_prod.m': "import os\n"
+                                     "def a(environment):\n    return environment.get('OMNI_M1')\n"
+                                     "class K:\n    def b(self):\n        return self.environ['OMNI_M2']\n"
+                                     "    def c(self):\n        return 'OMNI_M3' in self._env\n"
+                                     "def d(environ):\n    return environ.setdefault('OMNI_M4', '1')\n"
+                                     "def e(env):\n    return env['OMNI_M5'] + os.environ['OMNI_M6']\n"})
+        self.assertEqual(set(S.env_reads(src)['names']), {f'OMNI_M{i}' for i in range(1, 7)})
 
     def test_relative_imports_resolve_as_python_does(self):
         cases = [('omni_prod.g_apple.reviewers', 'from ..feature_flags import x', ['omni_prod.feature_flags']),
