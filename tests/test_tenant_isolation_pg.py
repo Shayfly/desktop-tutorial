@@ -532,7 +532,7 @@ def _validation_error(response) -> bool:
 
 
 CONFIGS = ('deployed', 'strict')
-PASSED = {'matrix probes': 0, 'anonymous probes': 0, 'account/public sweeps': 0}   # summary
+PASSED = {'matrix probes': 0, 'anonymous probes': 0, 'forged-token probes': 0, 'account/public sweeps': 0}   # summary
 
 
 @contextmanager
@@ -880,6 +880,56 @@ def test_an_anonymous_caller_gets_only_the_unauthenticated_answer(world, key):
     touched = sorted(set(STORE.reads[reads:]) & a.objects())
     assert not touched, f'{key}: an anonymous call read A\'s objects {touched}'
     PASSED['anonymous probes'] += 1
+
+
+FORGED_ROUTES = sorted(k for k, e in REGISTRY['routes'].items() if e['kind'] in ('tenant', 'account'))
+
+
+def _forged(token: str, how: str) -> str:
+    """garbage: a token nobody issued. resigned: A's real token with its signature replaced (same length and alphabet),
+    so a route that decodes the claims without checking the signature would take it for A."""
+    if how == 'garbage':
+        return 'forged.' + uuid.uuid4().hex + '.' + uuid.uuid4().hex
+    head, _, sig = token.rpartition('.')
+    if not head:                                    # an opaque token: replace its tail instead
+        head, sig = token[:-16], token[-16:]
+        return head + ('A' if sig[0] != 'A' else 'B') * len(sig)
+    return head + '.' + ('A' if sig[:1] != 'A' else 'B') * len(sig)
+
+
+@pytest.mark.parametrize('how', ('garbage', 'resigned'))
+@pytest.mark.parametrize('key', FORGED_ROUTES)
+def test_a_forged_token_is_refused_by_every_route_that_is_not_public(world, key, how):
+    """Deployed configuration (the Bearer middleware is off): every tenant and account route checks the token itself.
+    A garbage token and A's token with a replaced signature, sent as a Bearer header and -- for v28, as the web app
+    does -- as the session cookie, get 401 or 403 (logout: its declared answer for anyone), with A's identifiers in
+    every field. Nothing of A's comes back and A's rows do not change."""
+    spec = REGISTRY['routes'][key]
+    a, b = world['A'], world['B']
+    method, template = key.split(' ', 1)
+    gen = spec.get('world') or _gen_of(template)
+    allowed = {401, 403} | ({spec['anonymous']} if 'anonymous' in spec else set())
+    forged = _forged(a.tokens[gen], how)
+    transports = [(world['client'], {'Authorization': 'Bearer ' + forged})]
+    if gen == 'v28':
+        browser = _browser()
+        browser.cookies.set('148ai_session', forged)
+        transports.append((browser, {}))
+    before, reads = _state(a), len(STORE.reads)
+    for client, auth in transports:
+        if 'ids' in spec:
+            got = _request(client, key, spec, {n: a.ids_for(gen)[n] for n in spec['ids']}, auth)
+        else:
+            got = _probe_call(client, key, a, auth)
+        transport = 'cookie' if not auth else 'bearer'
+        assert got.status_code in allowed, \
+            f'{key} answered {got.status_code} to a {how} token ({transport}), not 401/403: {got.text[:200]}'
+        for owner in (a, b):
+            _assert_no_trace(owner, got, f'{key} ({how} token, {transport})')
+    assert _state(a) == before, f'{key}: a forged token changed A\'s rows'
+    touched = sorted(set(STORE.reads[reads:]) & a.objects())
+    assert not touched, f'{key}: a forged token read A\'s objects {touched}'
+    PASSED['forged-token probes'] += 1
 
 
 def test_legacy_websockets_authorize_nothing(world):

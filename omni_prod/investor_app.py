@@ -1865,6 +1865,7 @@ def v28_original_alternative(project_id: str, req: V27OriginalizeRequest, reques
 
 @app.post('/api/v28/projects/{project_id}/branding')
 def v28_branding(project_id: str, req: V28BrandingRequest, request: Request) -> dict:
+    _signed_in(request)        # S4.5: a bad token is 401, not the plan refusal's 402
     try:
         return _v28.set_project_branding(token=_v28_bearer(request), project_id=project_id, visible=req.visible, white_label_name=req.white_label_name)
     except PermissionError as exc:
@@ -1872,6 +1873,7 @@ def v28_branding(project_id: str, req: V28BrandingRequest, request: Request) -> 
 
 @app.post('/api/v28/projects/{project_id}/usage/quote')
 def v28_usage_quote(project_id: str, req: V28UsageQuoteRequest, request: Request) -> dict:
+    _signed_in(request)        # S4.5: a bad token is 401, not the quote refusal's 400
     try:
         d = _v28.authorize_live_usage(token=_v28_bearer(request), project_id=project_id, cost_class=req.cost_class, credits=req.credits,
             category=req.category, estimated_cost_usd=req.estimated_provider_cost_usd)

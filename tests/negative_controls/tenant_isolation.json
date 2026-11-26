@@ -818,6 +818,59 @@
     "test_the_legacy_refusal_reads_the_vercel_environment_and_fails_closed[production-True]",
     "test_the_legacy_refusal_reads_the_vercel_environment_and_fails_closed[staging-x-True]"
    ]
+  },
+  {
+   "id": "NC28",
+   "what": "a route extracts the token and never validates it: m5/status calls _v28_bearer instead of _signed_in (an anonymous caller still gets 401; a forged token passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "def v28_m5_status(request: Request) -> dict:\n    _signed_in(request)\n",
+     "new": "def v28_m5_status(request: Request) -> dict:\n    _v28_bearer(request)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_a_forged_token_is_refused_by_every_route_that_is_not_public[GET /api/v28/m5/status-garbage]",
+    "tests/test_tenant_isolation_pg.py::test_a_forged_token_is_refused_by_every_route_that_is_not_public[GET /api/v28/m5/status-resigned]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_a_forged_token_is_refused_by_every_route_that_is_not_public[GET /api/v28/m5/status-garbage]",
+    "test_a_forged_token_is_refused_by_every_route_that_is_not_public[GET /api/v28/m5/status-resigned]"
+   ]
+  },
+  {
+   "id": "NC29",
+   "what": "branding and usage/quote answer a bad token with their own refusal (402, 400) instead of 401",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    _signed_in(request)        # S4.5: a bad token is 401, not the plan refusal's 402\n",
+     "new": ""
+    },
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    _signed_in(request)        # S4.5: a bad token is 401, not the quote refusal's 400\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/branding-garbage]",
+    "tests/test_tenant_isolation_pg.py::test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/branding-resigned]",
+    "tests/test_tenant_isolation_pg.py::test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/usage/quote-garbage]",
+    "tests/test_tenant_isolation_pg.py::test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/usage/quote-resigned]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/branding-garbage]",
+    "test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/branding-resigned]",
+    "test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/usage/quote-garbage]",
+    "test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/usage/quote-resigned]"
+   ]
   }
  ]
 }
