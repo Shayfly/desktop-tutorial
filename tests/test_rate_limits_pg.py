@@ -228,22 +228,25 @@ class TwoInstancesOneDatabase(_Database):
         r = self.client(self.b, ip).post('/api/v28/auth/verify-email', json={'token': uuid.uuid4().hex})
         self.assert_refused(r, 'one_time_token_ip')
 
-    def test_routes_that_call_a_model_are_limited_per_account(self):
-        _, token = self.register()
+    def test_routes_that_protect_no_account_carry_no_limit(self):
+        _, token = self.register()             # the owner, 2026-11-26 10:01: no customer limit that is not money
         auth = {'Authorization': f'Bearer {token}'}
-        cases = (('/api/v28/projects/prj_absent/conversation', {'message': 'hello'}, 120, 'conversation_account'),
-                 ('/api/v28/projects/prj_absent/builds', {'prompt': 'a site'}, 30, 'build_account'),
-                 ('/api/v28/projects/prj_absent/versions/v1/modifications', {'followup': 'bigger title'}, 60,
-                  'change_account'))
-        for path, body, count, limit in cases:
-            with self.subTest(limit=limit):
-                for i in range(count):            # the project does not exist: the route refuses, the account counts
-                    r = self.client((self.a, self.b)[i % 2]).post(path, json=body, headers=auth)
-                    self.assertNotEqual(r.status_code, 429, (i, r.text))
-                self.assert_refused(self.client(self.a).post(path, json=body, headers=auth), limit)
-        _, other = self.register()                # another account on the same instances is not touched
-        r = self.client(self.a).post(cases[0][0], json=cases[0][1], headers={'Authorization': f'Bearer {other}'})
-        self.assertNotEqual(r.status_code, 429, r.text)
+        before = self.sql('SELECT count(*) FROM rate_limit_counters')[0][0]
+        for path, body in (('/api/v28/projects/prj_absent/conversation', {'message': 'hello'}),
+                           ('/api/v28/projects/prj_absent/builds', {'prompt': 'a site'}),
+                           ('/api/v28/projects/prj_absent/versions/v1/modifications', {'followup': 'bigger title'})):
+            for _ in range(3):
+                self.assertNotEqual(self.client(self.a).post(path, json=body, headers=auth).status_code, 429)
+        self.assertEqual(self.sql('SELECT count(*) FROM rate_limit_counters')[0][0], before)
+
+    def test_the_deployment_status_names_the_store_and_a_missing_047(self):
+        self.assertEqual(self.client(self.a).get('/api/v28/deployment').json()['rate_limits'],
+                         {'store': 'postgres', 'status': 'OK', 'migration': '047_rate_limits'})
+        self.hide_the_table()
+        with self.assertLogs('omni_prod.rate_limits', 'ERROR'):
+            got = self.client(self.b).get('/api/v28/deployment').json()['rate_limits']
+        self.assertEqual((got['status'], got['migration']), ('MIGRATION_MISSING', '047_rate_limits'))
+        self.assertIn('infra/postgres/047_rate_limits.sql', got['detail'])
 
     def test_a_route_with_no_limit_writes_no_counter(self):
         before = self.sql('SELECT count(*) FROM rate_limit_counters')[0][0]
@@ -356,19 +359,11 @@ class TwoInstancesOneDatabase(_Database):
         self.assertEqual(r.headers['Retry-After'], '60')
         self.assertNotIn('148ai_session', r.headers.get('set-cookie', ''))          # the handler did not run
         self.assertIn('refused with 503', '\n'.join(logs.output))
+        self.assertIn('migration 047_rate_limits', '\n'.join(logs.output))          # the missing table is named
         self.assertEqual(c.post('/api/v28/auth/login', json={'email': email, 'password': PASSWORD}).status_code, 503)
         self.sql('ALTER TABLE rate_limit_counters_hidden RENAME TO rate_limit_counters')
         self.clock.t += 6                     # the store is asked again STORE_RETRY_SECONDS after the failure
         self.assertEqual(c.post('/api/v28/auth/login', json={'email': email, 'password': PASSWORD}).status_code, 200)
-
-    def test_without_the_store_a_model_route_fails_open_and_says_so_in_the_log(self):
-        _, token = self.register()
-        self.hide_the_table()
-        with self.assertLogs('omni_prod.rate_limits', 'ERROR') as logs:
-            r = self.client(self.b).post('/api/v28/projects/prj_absent/conversation', json={'message': 'hello'},
-                                         headers={'Authorization': f'Bearer {token}'})
-        self.assertEqual(r.status_code, 403, r.text)                                 # the handler ran
-        self.assertIn('passes WITHOUT its limit', '\n'.join(logs.output))
 
     # ---- the store itself ---------------------------------------------------------------------------------------------
     def test_one_counter_is_counted_atomically_by_two_pools_at_once(self):
@@ -402,8 +397,8 @@ class TwoInstancesOneDatabase(_Database):
         self.sql("INSERT INTO rate_limit_counters (bucket, key_hash, window_start, hits, expires_at) "
                  "VALUES (%s, %s, to_timestamp(5000), 1, to_timestamp(4000000000))", old[1])
         store = R.PostgresRateLimitStore(self.pool)
-        self.assertEqual(store.sweep(3_000_000_000, batch=500, max_batches=2), 1000)      # the bound holds
-        self.assertEqual(store.sweep(3_000_000_000, batch=500, max_batches=2), 200)
+        self.assertEqual(store.sweep(3_500, batch=500, max_batches=2), 1000)        # the bound holds
+        self.assertEqual(store.sweep(3_500, batch=500, max_batches=2), 200)
         self.assertEqual(self.sql('SELECT count(*) FROM rate_limit_counters WHERE bucket = %s', (old[0][0],))[0][0], 0)
         self.assertEqual(self.sql('SELECT count(*) FROM rate_limit_counters WHERE bucket = %s', (old[1][0],))[0][0], 1)
         # ... and a limited request sweeps by itself, at most once a minute per instance

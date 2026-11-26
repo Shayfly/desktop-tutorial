@@ -3780,6 +3780,7 @@ def v28_deployment() -> dict:
             'environment': os.getenv('VERCEL_ENV') or os.getenv('OMNI_ENV', 'development'),
             'branch': os.getenv('VERCEL_GIT_COMMIT_REF') or None,
             'schema': _schema_compatibility(),
+            'rate_limits': _rate_limiter.health(),       # 2026-11-26: MIGRATION_MISSING names 047 (sign-in answers 503)
             # 72 step 0 (isolation): which database each candidate variable points to -- host:port/db only (hosts are
             # not secret, owner decision 2026-10-19), so a Preview can be checked against Production before switching.
             'database_candidates': _database_candidates()}

@@ -1,12 +1,15 @@
 """Rate limits on the platform API, shared by every serverless instance (the owner's approval, 2026-11-26 08:56 UTC).
 
-Until this module no route had a limit: the password login, registration, password reset, e-mail verification and every
-route that calls a paid model could be called without bound -- password guessing, account enumeration by volume, cost
-abuse. omni_prod/rate_limit.py and omni_prod/limits.py existed and were imported by nothing but two tests
+Until this module no route had a limit: the password login, registration, password reset and e-mail verification could
+be called without bound -- password guessing, account enumeration by volume. omni_prod/rate_limit.py and omni_prod/limits.py existed and were imported by nothing but two tests
 (tests/test_v24_native_remote.py, tests/test_v13_core.py); they are not used here and stay as they were.
 
 What is limited, by how much and why: the named Limit constants below, each with its reason, and ROUTES, the only place
 that binds a route to its limits. Social sign-in (another branch) uses the same store through enforce().
+
+Only routes that protect an account are limited. The owner, 2026-11-26 10:01 ("(א)"): every customer limit that is not
+money is cancelled, and his own builds have no limit -- so the conversation, builds and change requests carry none here
+(a first draft of this module limited them per account; that was removed before it merged).
 
 The store. One PostgreSQL table, infra/postgres/047_rate_limits.sql: a row per (limit, subject, window) and one atomic
 INSERT ... ON CONFLICT DO UPDATE that adds the hit and returns the count, so every Vercel instance reads the same count in
@@ -20,13 +23,10 @@ The window. A sliding-window counter: estimate = previous window's count x the s
 this window's count. It smooths the double burst a fixed window allows across its edge. Every attempt counts, refused
 ones too: a client that keeps knocking stays out longer; a person who waits the Retry-After gets in.
 
-When the store cannot answer (database down, table missing, a statement over STATEMENT_TIMEOUT_MS):
-  sign-in and account routes  fail CLOSED: 503, a sentence in Hebrew, Arabic and English, and Retry-After. An unlimited
-                              sign-in is the hole this closes, and sign-in needs the same database for the account anyway.
-  routes that call a model    fail OPEN, logged at ERROR on every request. They keep their own cost controls (the credit
-                              reservation and approval of a build, the intake budget, the per-build cap); refusing every
-                              paying customer because the counter table hiccuped would be an outage of our own making.
-After a failure the store is not asked again for STORE_RETRY_SECONDS, so an outage is answered at once, not after a
+When the store cannot answer (database down, table missing, a statement over STATEMENT_TIMEOUT_MS) every limited
+route fails CLOSED: 503, a sentence in Hebrew, Arabic and English, Retry-After, and an ERROR log line. An unlimited
+sign-in is the hole this closes, and sign-in needs the same database for the account anyway. A missing table means
+migration 047 was not applied: the log line and GET /api/v28/deployment ("rate_limits") name it. After a failure the store is not asked again for STORE_RETRY_SECONDS, so an outage is answered at once, not after a
 timeout per request. Memory mode (no database; development only -- production refuses it at start in
 investor_app._build_v28_platform) has no store every instance sees: off Vercel the limits are not enforced and that is
 logged once; on Vercel it counts as an unavailable store.
@@ -65,7 +65,6 @@ from .browser_session import COOKIE_NAME
 
 _log = logging.getLogger('omni_prod.rate_limits')
 
-CLOSED, OPEN = 'closed', 'open'
 SUBJECTS = ('ip', 'identifier', 'account')
 MINUTE, HOUR = 60, 3600
 
@@ -74,13 +73,11 @@ MINUTE, HOUR = 60, 3600
 class Limit:
     """At most `limit` requests per `window_seconds` per subject (sliding window). `subject` is what is counted: the
     client address, the e-mail typed (`identifier`) or the signed-in account (an unsigned request is counted by its
-    address). `on_store_failure` is what a request gets when the store cannot answer: CLOSED refuses it with 503, OPEN
-    lets it through and logs at ERROR."""
+    address)."""
     name: str
     limit: int
     window_seconds: int
     subject: str
-    on_store_failure: str
     reason: str
 
     def __post_init__(self) -> None:
@@ -88,76 +85,66 @@ class Limit:
             raise ValueError(f'limit name {self.name!r}: lower-case letters, digits and _ only (a database value)')
         if self.subject not in SUBJECTS:
             raise ValueError(f'limit {self.name}: subject {self.subject!r} is not one of {SUBJECTS}')
-        if self.on_store_failure not in (CLOSED, OPEN):
-            raise ValueError(f'limit {self.name}: on_store_failure {self.on_store_failure!r} is neither closed nor open')
         if self.limit < 1 or self.window_seconds < 1:
             raise ValueError(f'limit {self.name}: the limit and the window must be at least 1')
         if not self.reason.strip():
             raise ValueError(f'limit {self.name} has no reason')
 
 
-# ---- sign-in and account routes: fail CLOSED ------------------------------------------------------------------------
+# ---- the account routes (every one fails closed when the store cannot answer) ---------------------------------------
 LOGIN_PER_IDENTIFIER = Limit(
-    'login_identifier', 10, 15 * MINUTE, 'identifier', CLOSED,
+    'login_identifier', 10, 15 * MINUTE, 'identifier',
     'A person who mistypes or forgot a password tries a few times; 10 tries in 15 minutes covers that and caps online '
     'guessing at 40 an hour against one account (passwords have at least 10 characters). Counted for any e-mail typed, '
     'known or not, so the count says nothing about whether the account exists. Registration counts here too: given an '
     'e-mail that has an account, it signs in with the password typed.')
 LOGIN_PER_IP = Limit(
-    'login_ip', 50, 15 * MINUTE, 'ip', CLOSED,
+    'login_ip', 50, 15 * MINUTE, 'ip',
     'One address trying many accounts (password spraying, leaked password lists) stops after 50 tries in 15 minutes; '
     '50 leaves room for an office or a school behind one address where several people sign in at once.')
 REGISTER_PER_IP = Limit(
-    'register_ip', 10, HOUR, 'ip', CLOSED,
+    'register_ip', 10, HOUR, 'ip',
     'A household or an office opens a few accounts; 10 an hour from one address stops a script opening free accounts in '
     'bulk to use the free conversation, and bounds the password hashing a flood of sign-ups costs.')
 PASSWORD_RESET_PER_IDENTIFIER = Limit(
-    'password_reset_identifier', 5, HOUR, 'identifier', CLOSED,
+    'password_reset_identifier', 5, HOUR, 'identifier',
     'A reset link is valid for an hour (IdentityService.PASSWORD_RESET_TTL); 5 requests an hour is more than a person '
     'needs and stops the route flooding one inbox once reset e-mails are sent. Counted for any e-mail typed.')
 PASSWORD_RESET_PER_IP = Limit(
-    'password_reset_ip', 20, HOUR, 'ip', CLOSED,
+    'password_reset_ip', 20, HOUR, 'ip',
     'One address asking resets for many e-mails is probing for accounts or flooding inboxes; 20 an hour leaves room for '
     'a shared address.')
 VERIFICATION_SEND_PER_ACCOUNT = Limit(
-    'verification_send_account', 5, HOUR, 'account', CLOSED,
+    'verification_send_account', 5, HOUR, 'account',
     'A verification link is valid for 24 hours (IdentityService.EMAIL_VERIFICATION_TTL); 5 sends an hour covers a lost '
     'e-mail and stops one account flooding its inbox or the token table.')
 VERIFICATION_SEND_PER_IP = Limit(
-    'verification_send_ip', 20, HOUR, 'ip', CLOSED,
+    'verification_send_ip', 20, HOUR, 'ip',
     'Many verification e-mails asked from one address is a script; 20 an hour leaves room for a shared address.')
 ONE_TIME_TOKEN_PER_IP = Limit(
-    'one_time_token_ip', 30, 15 * MINUTE, 'ip', CLOSED,
+    'one_time_token_ip', 30, 15 * MINUTE, 'ip',
     'A person opens a verification or a reset link once or twice. The tokens are 256 random bits, so guessing one is '
     'hopeless anyway; 30 in 15 minutes bounds the database lookups one address can cause.')
+PASSWORD_CHANGE_PER_ACCOUNT = Limit(
+    'password_change_account', 10, 15 * MINUTE, 'account',
+    'Changing the password asks for the current one; with a stolen session that is a way to guess it (two reviewers, '
+    '2026-11-26: 25 wrong guesses in 1.3 s, all answered). 10 tries in 15 minutes per account, as for a login.')
+PASSWORD_CHANGE_PER_IP = Limit(
+    'password_change_ip', 50, 15 * MINUTE, 'ip',
+    'One address trying the current password of many sessions stops after 50 in 15 minutes, as for a login.')
 OAUTH_START_PER_IP = Limit(
-    'oauth_start_ip', 20, 10 * MINUTE, 'ip', CLOSED,
+    'oauth_start_ip', 20, 10 * MINUTE, 'ip',
     'Social sign-in (branch claude/practical-hopper-oi3qj2-social-login; its START_LIMIT and START_WINDOW): a person '
     'starts it once or twice; 20 in 10 minutes from one address stops a script filling the state table. Its route calls '
     'enforce() and presents the refusal as its sign-in card does.')
 OAUTH_CALLBACK_PER_IP = Limit(
-    'oauth_callback_ip', 30, MINUTE, 'ip', CLOSED,
+    'oauth_callback_ip', 30, MINUTE, 'ip',
     'A provider calls back once per sign-in; 30 a minute from one address, counted by every instance together (that '
     'branch counts callbacks per instance). Its route calls enforce().')
 
-# ---- routes that call a paid model: fail OPEN -----------------------------------------------------------------------
-CONVERSATION_PER_ACCOUNT = Limit(
-    'conversation_account', 120, 10 * MINUTE, 'account', OPEN,
-    'Every turn calls the conversation model. A person reads each reply before writing, so even a fast typer stays well '
-    'under a turn every 5 seconds for 10 minutes; a script stops at 120. The intake budget has one daily cap for all '
-    'customers together (intake.budget.DAILY_SCOPE): without a per-account limit one account could spend it for everyone.')
-BUILD_PER_ACCOUNT = Limit(
-    'build_account', 30, HOUR, 'account', OPEN,
-    'A build takes minutes and needs its own approval; a person starts a few an hour. 30 an hour stops a loop of build '
-    'requests, each of which reserves money, and never stops a person.')
-CHANGE_PER_ACCOUNT = Limit(
-    'change_account', 60, HOUR, 'account', OPEN,
-    'A change request runs the model and the customer reviews its result before asking the next one; 60 an hour is one '
-    'a minute for an hour, which no person reaches.')
-
 LIMITS = (LOGIN_PER_IDENTIFIER, LOGIN_PER_IP, REGISTER_PER_IP, PASSWORD_RESET_PER_IDENTIFIER, PASSWORD_RESET_PER_IP,
-          VERIFICATION_SEND_PER_ACCOUNT, VERIFICATION_SEND_PER_IP, ONE_TIME_TOKEN_PER_IP, OAUTH_START_PER_IP,
-          OAUTH_CALLBACK_PER_IP, CONVERSATION_PER_ACCOUNT, BUILD_PER_ACCOUNT, CHANGE_PER_ACCOUNT)
+          VERIFICATION_SEND_PER_ACCOUNT, VERIFICATION_SEND_PER_IP, ONE_TIME_TOKEN_PER_IP, PASSWORD_CHANGE_PER_ACCOUNT,
+          PASSWORD_CHANGE_PER_IP, OAUTH_START_PER_IP, OAUTH_CALLBACK_PER_IP)
 
 # A password-reset request answers in at least this long, so its time does not say which e-mails have an account: above
 # its two database statements (a lookup, and a token row only for a known e-mail), below what a person notices.
@@ -182,7 +169,6 @@ def _route(method: str, path: str, *limits: Limit) -> Route:
     return Route(method, re.compile(path), limits)
 
 
-_PROJECT = r'/api/v28/projects/[^/]+'
 # The only binding of routes to limits. A path is matched whole against the ASGI path, as the router matches it.
 # /api/v28/auth/oauth/ is deliberately absent: those routes answer a browser navigation with a redirect to the sign-in
 # card, so they call enforce() with OAUTH_START_PER_IP / OAUTH_CALLBACK_PER_IP and present the refusal themselves.
@@ -193,13 +179,13 @@ ROUTES = (
     _route('POST', r'/api/v28/auth/password-reset/request', PASSWORD_RESET_PER_IP, PASSWORD_RESET_PER_IDENTIFIER),
     _route('POST', r'/api/v28/auth/email-verification/request', VERIFICATION_SEND_PER_IP, VERIFICATION_SEND_PER_ACCOUNT),
     _route('POST', r'/api/v28/auth/(?:verify-email|password-reset/confirm)', ONE_TIME_TOKEN_PER_IP),
-    _route('POST', _PROJECT + r'/(?:conversation|spec-approval)', CONVERSATION_PER_ACCOUNT),
-    _route('POST', _PROJECT + r'/readings/[^/]+/(?:approve|discard)', CONVERSATION_PER_ACCOUNT),
-    _route('POST', _PROJECT + r'/attachments/[^/]+/reading', CONVERSATION_PER_ACCOUNT),
-    _route('POST', _PROJECT + r'/(?:builds|build|live-build)', BUILD_PER_ACCOUNT),
-    _route('POST', r'/api/v28/providers/replicate/image-test', BUILD_PER_ACCOUNT),
-    _route('POST', _PROJECT + r'/versions/[^/]+/modifications', CHANGE_PER_ACCOUNT),
+    _route('POST', r'/api/v28/me/password', PASSWORD_CHANGE_PER_IP, PASSWORD_CHANGE_PER_ACCOUNT),
 )
+# Routes bound above that are not on main yet: they are limited from the moment they merge, with no change here.
+PENDING_ROUTES = {
+    '/api/v28/me/password': 'the password change of the platform shell branch (claude/practical-hopper-oi3qj2-sidebar), '
+                            'not on main f1961d0 (2026-11-26)',
+}
 
 
 def limits_for(method: str, path: str) -> tuple:
@@ -363,6 +349,20 @@ class PostgresRateLimitStore:
         return removed
 
 
+    def table_present(self) -> bool:
+        with self._pool.connection() as conn:
+            return bool(conn.execute("SELECT to_regclass('rate_limit_counters') IS NOT NULL").fetchone()[0])
+
+
+MIGRATION = '047_rate_limits'
+MISSING_TABLE = (f'MISSING: migration {MIGRATION} (infra/postgres/{MIGRATION}.sql) is not applied to this database; '
+                 'every sign-in route answers 503 until it is')
+
+
+def _missing_table_hint(exc) -> str:
+    return f' -- {MISSING_TABLE}' if 'rate_limit_counters' in str(exc) and 'not exist' in str(exc) else ''
+
+
 class MemoryRateLimitStore:
     """One process's counters, for unit tests. store_for() never returns it: several instances would each count alone
     (negative control rate_limits NC2 swaps it in to prove the two-instance test sees exactly that)."""
@@ -398,7 +398,7 @@ def store_for(pool):
 
 # ---- the limiter ------------------------------------------------------------------------------------------------------
 class StoreUnavailable(RuntimeError):
-    """The counter store could not answer. The caller applies each limit's on_store_failure."""
+    """The counter store could not answer: a limited route is refused with 503 (fail closed)."""
 
 
 @dataclass(frozen=True)
@@ -452,6 +452,27 @@ class RateLimiter:
     def store_kind(self) -> str:
         store = self._ready()
         return getattr(store, 'kind', 'none')
+
+    def health(self) -> dict:
+        """For GET /api/v28/deployment: the store, and whether its table exists -- a missing one names migration 047.
+        Read-only (one to_regclass); a database that cannot answer is reported as such, never as healthy."""
+        try:
+            store = self._ready()
+        except Exception as exc:
+            return {'store': 'unknown', 'status': 'UNAVAILABLE', 'error': type(exc).__name__}
+        if store is None:
+            return {'store': 'none', 'status': 'NOT_ENFORCED' if os.environ.get('VERCEL') != '1' else 'UNAVAILABLE',
+                    'reason': 'memory mode: no counter store every instance shares'}
+        if not hasattr(store, 'table_present'):
+            return {'store': store.kind, 'status': 'OK'}
+        try:
+            present = store.table_present()
+        except Exception as exc:
+            return {'store': store.kind, 'status': 'UNAVAILABLE', 'error': type(exc).__name__}
+        if not present:
+            _log.error('rate limits: %s', MISSING_TABLE)
+            return {'store': store.kind, 'status': 'MIGRATION_MISSING', 'migration': MIGRATION, 'detail': MISSING_TABLE}
+        return {'store': store.kind, 'status': 'OK', 'migration': MIGRATION}
 
     def _digest(self, limit: Limit, subject: str) -> str:
         return hmac.new(self._key, f'{limit.name}\0{subject}'.encode('utf-8'), hashlib.sha256).hexdigest()
@@ -537,7 +558,7 @@ class RateLimiter:
     def enforce(self, request, *limits: Limit, identifier: str | None = None) -> None:
         """For a route that presents a refusal its own way (social sign-in redirects to its card). Counts `request`
         against `limits` exactly as the middleware would; raises RateLimited when one is exceeded and StoreUnavailable
-        when the store cannot answer -- a sign-in route then refuses, as the middleware does for CLOSED limits."""
+        when the store cannot answer -- a sign-in route then refuses, as the middleware does."""
         client = getattr(request, 'client', None)
         hits = self.subjects(limits, headers=request.headers, cookies=request.cookies,
                              peer=client.host if client else None, identifier=identifier)
@@ -633,8 +654,7 @@ async def _buffered(receive):
 
 class RateLimitMiddleware:
     """A pure ASGI middleware: a request that matches no route in ROUTES passes untouched; one that does is counted
-    before its handler runs, refused with 429 over a limit, and with 503 when the store cannot answer and one of its
-    limits fails closed."""
+    before its handler runs, refused with 429 over a limit, and with 503 when the store cannot answer."""
 
     def __init__(self, app, limiter: RateLimiter) -> None:
         self.app, self.limiter = app, limiter
@@ -659,17 +679,11 @@ class RateLimitMiddleware:
         try:
             verdict = await run_in_threadpool(self._decide, limits, request, peer, body)
         except StoreUnavailable as exc:
-            closed = [limit.name for limit in limits if limit.on_store_failure == CLOSED]
-            if closed:
-                _log.error('rate limits: the counter store is unavailable (%s); %s %s refused with 503 (%s fail closed)',
-                           exc, method, path, ', '.join(closed))
-                response = JSONResponse(unavailable_body(lang), status_code=503,
-                                        headers={'Retry-After': str(UNAVAILABLE_RETRY_SECONDS),
-                                                 'Cache-Control': 'no-store'})
-                return await response(scope, receive, send)
-            _log.error('rate limits: the counter store is unavailable (%s); %s %s passes WITHOUT its limit (%s fail open)',
-                       exc, method, path, ', '.join(limit.name for limit in limits))
-            return await self.app(scope, receive, send)
+            _log.error('rate limits: the counter store is unavailable (%s); %s %s refused with 503 (fail closed: %s)%s',
+                       exc, method, path, ', '.join(limit.name for limit in limits), _missing_table_hint(exc))
+            response = JSONResponse(unavailable_body(lang), status_code=503,
+                                    headers={'Retry-After': str(UNAVAILABLE_RETRY_SECONDS), 'Cache-Control': 'no-store'})
+            return await response(scope, receive, send)
         if not verdict.allowed:
             _log.warning('rate limits: %s %s refused, %s exceeded (subject %s), retry after %d s',
                          method, path, verdict.limit.name, verdict.subject_digest, verdict.retry_after)
