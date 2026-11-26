@@ -2,10 +2,12 @@
  "pr": "route-honesty",
  "sha256": [
   "tests/test_route_honesty.py",
+  "tests/test_route_one_page.py",
   "tests/fixtures/site_content_bld_3938e570.json",
   "omni_prod/vertical_palettes.py",
   "omni_prod/site_content/__init__.py",
   "omni_prod/site_content/schema.py",
+  "omni_prod/site_content/one_page.py",
   "omni_prod/site_content/agents.py"
  ],
  "controls": [
@@ -98,6 +100,132 @@
    ],
    "expect_failed": [
     "test_the_model_is_never_told_a_trade_the_brief_did_not_name"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the route never reads what one page cannot hold: the owner's request is accepted again",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    if asked:\n        return Route(LEGACY, ('beyond_one_page: '",
+     "new": "    if False:  # NEGATIVE CONTROL\n        return Route(LEGACY, ('beyond_one_page: '"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_on_the_route_names_itself",
+    "test_the_owners_request_goes_to_the_legacy_path_by_name"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a picture for each item is not recognised (only a number next to the picture word counts)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/one_page.py",
+     "old": "KINDS = (('picture_per_item', _picture_per_item), ('separate_pages', _separate_pages),",
+     "new": "KINDS = (('separate_pages', _separate_pages),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_on_the_route_names_itself",
+    "test_every_kind_in_hebrew_and_english",
+    "test_the_owners_request_goes_to_the_legacy_path_by_name"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "separate pages are not recognised",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/one_page.py",
+     "old": "    for pattern in (_PAGE_FOR_EACH_HE, _EACH_HAS_PAGE_HE, _EACH_GETS_PAGE_HE, _SEPARATE_HE, _SEPARATE_EN):",
+     "new": "    for pattern in ():  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_on_the_route_names_itself",
+    "test_every_kind_in_hebrew_and_english",
+    "test_the_owners_request_goes_to_the_legacy_path_by_name"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the owner adding products later is not recognised",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/one_page.py",
+     "old": "         ('owner_edits_later', _owner_edits_later))",
+     "new": "         )  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_on_the_route_names_itself",
+    "test_every_kind_in_hebrew_and_english",
+    "test_the_owners_request_goes_to_the_legacy_path_by_name"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a negation is not read: 'בלי תמונות', 'בלי עמוד נפרד' leave the content route",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/one_page.py",
+     "old": "    return bool(_NEGATION.search(' '.join(clause[:start].split()[-3:])))",
+     "new": "    return False  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_near_misses_stay_on_the_content_route"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "'כל' before anything is 'each item': a hero that fits 'כל מסך' leaves the content route",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/one_page.py",
+     "old": "(?:ליד\\s+|עבור\\s+|בשביל\\s+)?כל\\s+' + _ONE_HE + _E)",
+     "new": "(?:ליד\\s+|עבור\\s+|בשביל\\s+)?כל\\s+\\S+')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_near_misses_stay_on_the_content_route"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the customer sending pictures to the builder now counts as editing the site later",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/one_page.py",
+     "old": "            if _negated(clause, m.start()) or to_you.match(clause[m.end():]):",
+     "new": "            if _negated(clause, m.start()):  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_one_page.py"
+   ],
+   "expect_failed": [
+    "test_near_misses_stay_on_the_content_route"
    ]
   }
  ]

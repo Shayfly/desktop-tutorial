@@ -197,6 +197,13 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
     from ..a4 import pictures
     if pictures(prompt)['asked'] > 1:
         return Route(LEGACY, 'several_pictures')
+    # route-honesty (bld_3938e570): a picture per item, a page per item or separate pages, or the owner adding content
+    # later is more than this route's one page holds -- the legacy path writes the site's code (its own routes and
+    # pages), so the build goes there, by name, with the customer's words that asked for it (one_page.beyond)
+    from .one_page import beyond
+    asked = beyond(Fx.customer_text(prompt))
+    if asked:
+        return Route(LEGACY, ('beyond_one_page: ' + '; '.join(f'{kind} "{words}"' for kind, words in asked))[:200])
     from .. import vertical_palettes as VP
     from ..section_library import DIRECTIONS
     # The business is only a category the brief NAMES; the palette may come from a near one or the neutral one

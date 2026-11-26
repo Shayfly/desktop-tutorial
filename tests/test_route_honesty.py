@@ -10,6 +10,7 @@ write them, and the build died on one sentence: sections.process.lead PRICE_NOT_
   1. (here) the business is only a category the brief NAMES (vertical_palettes.identify): no signal is no category --
      no domain, no domain facts, no trade words, no palette name for the model, and the neutral palette's own process
      and FAQ are offered, not required; a near word or a trigram match lends the palette only
+  2. (test_route_one_page.py) a request one page cannot hold goes to the legacy path by name
 
 The real decide(), validator, section library and payload; nothing is scripted here (AGENTS.md rule 2)."""
 import hashlib
@@ -25,6 +26,7 @@ from omni_prod import site_content as SC
 from omni_prod import vertical_palettes as VP
 from omni_prod.site_content import agents as A
 from omni_prod.site_content import facts as Fx
+from omni_prod.site_content import one_page
 from omni_prod.site_content import schema as K
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,6 +38,12 @@ OWNER = {'user_id': 'usr_owner_test'}
 
 def on():
     return mock.patch.dict(os.environ, {'OMNI_SITE_LIBRARY': 'on'})
+
+
+def one_page_only():
+    """The decision past the one-page check: what the route WOULD do with this brief (the category, the domain, the
+    sections) -- the production build reached exactly this point."""
+    return mock.patch.object(one_page, 'beyond', return_value=[])
 
 
 def decide(prompt, **kw):
@@ -70,7 +78,8 @@ class TheFixture(unittest.TestCase):
 
 class TheBusinessIsOnlyWhatTheBriefNames(unittest.TestCase):
     def test_no_signal_is_no_category(self):
-        route = decide(GOA)
+        with one_page_only():
+            route = decide(GOA)
         said = route.to_dict()
         self.assertEqual((route.route, route.reason), ('section_library', 'all preconditions hold'))
         self.assertEqual((said['category'], said['category_found'], said['domain'], said['domain_facts']),
@@ -82,7 +91,8 @@ class TheBusinessIsOnlyWhatTheBriefNames(unittest.TestCase):
                          (PROD['palette'], PROD['direction'], PROD['font_pair'], PROD['contract']))
 
     def test_the_neutral_palettes_process_and_faq_are_offered_not_required(self):
-        route = decide(GOA)
+        with one_page_only():
+            route = decide(GOA)
         offered, _ = K.offered_sections(Fx.fact_sheet(GOA), route.palette_entry, route.order, route.outline_titles)
         self.assertEqual({k for k, need in offered.items() if need == 'required'}, set(SC.UNNAMED_REQUIRED))
         self.assertEqual((offered['process'], offered['faq']), ('optional', 'optional'))
@@ -93,7 +103,8 @@ class TheBusinessIsOnlyWhatTheBriefNames(unittest.TestCase):
                          ('lawyers', 'named', 'required', 'required'))
 
     def test_the_model_is_never_told_a_trade_the_brief_did_not_name(self):
-        route = decide(GOA)
+        with one_page_only():
+            route = decide(GOA)
         said = payload(route, GOA)
         self.assertEqual((said['palette'], said['trade_words']), (None, []))
         self.assertIn('process (optional section: include it only with real content)', said['schema']['sections'])
@@ -114,7 +125,8 @@ class TheBusinessIsOnlyWhatTheBriefNames(unittest.TestCase):
                 self.assertEqual((who['palette_category'], who['found']), (palette_category, found))
                 self.assertEqual(who['category'], palette_category if found == 'named' else None)
         tattoo = GOA.replace('לעסק למוצרי עישון', 'לסטודיו קעקועים', 1)
-        route = decide(tattoo)
+        with one_page_only():
+            route = decide(tattoo)
         self.assertEqual((route.category, route.category_found, route.palette_category, route.domain),
                          (None, 'nearest', 'photographers', None))
 
