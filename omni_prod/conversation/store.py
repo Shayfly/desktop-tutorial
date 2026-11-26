@@ -69,6 +69,11 @@ class MemoryConversationStore:
     def messages_for(self, project_id, limit=200) -> list[dict]:
         return [m for m in self.messages if m['project_id'] == project_id][-limit:]
 
+    def messages_before(self, project_id, before, limit) -> list[dict]:
+        """Up to `limit` messages older than the id `before` (None: the latest), oldest first."""
+        return [m for m in self.messages if m['project_id'] == project_id
+                and (before is None or m['id'] < before)][-limit:]
+
     def find_reply(self, project_id, request_key):
         return next((m for m in self.messages if m['project_id'] == project_id and m['request_key'] == request_key
                      and m['role'] == 'assistant'), None)
@@ -144,6 +149,15 @@ class PostgresConversationStore:
                                 (project_id, limit)).fetchall()
         return [self._row(r) for r in reversed(rows)]
 
+    def messages_before(self, project_id, before, limit) -> list[dict]:
+        """Up to `limit` messages older than the id `before` (None: the latest), oldest first."""
+        if before is None:
+            return self.messages_for(project_id, limit=limit)
+        with self.pool.connection() as conn:
+            rows = conn.execute(f'SELECT {self._MSG} FROM intake_messages WHERE project_id = %s AND id < %s '
+                                'ORDER BY id DESC LIMIT %s', (project_id, before, limit)).fetchall()
+        return [self._row(r) for r in reversed(rows)]
+
     def find_reply(self, project_id, request_key):
         if not request_key:
             return None
@@ -185,3 +199,26 @@ class PostgresConversationStore:
                              'ORDER BY created_at DESC LIMIT 1', (project_id, brief_fingerprint)).fetchone()
         return None if r is None else {'id': r[0], 'project_id': project_id, 'brief_revision': r[1],
                                        'brief_fingerprint': brief_fingerprint, 'plan': r[2]}
+
+
+# The owner, 2026-11-26 (WAREHOUSE 136, option a): the conversation showed only its last 100 messages, and nothing
+# could reach the ones before -- a limit that is not money. The history is paged by a cursor: each page carries
+# `before` (the oldest message id it read) and `has_older`; GET .../conversation/messages?before=<id> gives the
+# page before it. HISTORY_PAGE is the size of one page, not a limit on what can be read.
+HISTORY_PAGE = 100
+
+
+def history_page(store, project_id, *, before=None, limit=HISTORY_PAGE, shape=lambda m: m) -> dict:
+    """{'messages': [shape(m) ...] oldest first, 'has_older': bool, 'before': the cursor for the page before, or
+    None}. The flow mark (interpretation.system) is not a message: it is read past and not shown, so a page may show
+    fewer than `limit` messages but never hides one."""
+    if not isinstance(limit, int) or not 1 <= limit <= HISTORY_PAGE:
+        raise ValueError(f'limit must be 1..{HISTORY_PAGE}, not {limit!r}')
+    if before is not None and (not isinstance(before, int) or before < 1):
+        raise ValueError(f'before must be a message id, not {before!r}')
+    rows = store.messages_before(project_id, before, limit + 1)       # one more: are there older ones?
+    has_older = len(rows) > limit
+    rows = rows[-limit:]
+    return {'messages': [shape(m) for m in rows if not (m.get('interpretation') or {}).get('system')],
+            'has_older': has_older, 'before': rows[0]['id'] if rows and has_older else None}
+

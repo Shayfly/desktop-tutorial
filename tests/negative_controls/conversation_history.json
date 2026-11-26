@@ -1,0 +1,28 @@
+{
+ "pr": "caps-a-conversation-history",
+ "sha256": ["tests/test_conversation_history.py", "omni_prod/conversation/store.py", "omni_prod/investor_app.py"],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the old limit is back: the last 100 messages and no way to the ones before",
+   "mutations": [{"file": "omni_prod/conversation/store.py", "old": "            'has_older': has_older, 'before':", "new": "            'has_older': False, 'before':"}],
+   "targets": ["tests/test_conversation_history.py"],
+   "expect_failed": ["test_every_message_is_reached_by_following_the_cursor", "test_the_first_page_is_the_latest_hundred"]
+  },
+  {
+   "id": "NC2",
+   "what": "the cursor is ignored: every page is the latest one",
+   "mutations": [{"file": "omni_prod/conversation/store.py", "old": "                and (before is None or m['id'] < before)][-limit:]", "new": "][-limit:]"}],
+   "targets": ["tests/test_conversation_history.py"],
+   "expect_failed": ["test_every_message_is_reached_by_following_the_cursor"]
+  },
+  {
+   "id": "NC3",
+   "what": "the view keeps its own last-100 list and gives no cursor",
+   "mutations": [{"file": "omni_prod/investor_app.py", "old": "    page = history_page(store, project_id, shape=_conversation_message)\n",
+                  "new": "    page = {'messages': [_conversation_message(m) for m in store.messages_for(project_id, limit=100)], 'has_older': False, 'before': None}\n"}],
+   "targets": ["tests/test_conversation_history.py"],
+   "expect_failed": ["test_the_view_and_the_route_use_it"]
+  }
+ ]
+}

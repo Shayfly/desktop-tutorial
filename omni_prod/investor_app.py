@@ -2126,22 +2126,30 @@ def _supervisor(key: str, account_id: str | None = None):
                                   reservations=reservations, enqueue=enqueue, admission=admission)
 
 
+def _conversation_message(m: dict) -> dict:
+    """One stored message as the customer's screen gets it."""
+    return {'id': m.get('id'), 'role': m['role'], 'content': m['content'], 'brief_revision': m['brief_revision'],
+            'intent': (m.get('interpretation') or {}).get('intent'),
+            'actions': (m.get('interpretation') or {}).get('actions') or [],
+            'attachments': (m.get('interpretation') or {}).get('attachments') or [],
+            # the owner, 2026-11-26: a bound that applied to this turn, in the customer's words (never silent)
+            'notices': (m.get('interpretation') or {}).get('notices') or [],
+            'ai_status': _conversation_message_status(m)}
+
+
 def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
+    from .conversation.store import history_page
     store, repo = _conversation_store(), _brief_repo()
     row = repo.latest(project_id)
     plan = store.plan_for(project_id, row.fingerprint) if row else None
     from .conversation.supervisor import _plan_view
+    # the owner, 2026-11-26: the latest page of the history, with the cursor to the page before it (has_older,
+    # before -> GET .../conversation/messages?before=<id>); the flow mark is not a message
+    page = history_page(store, project_id, shape=_conversation_message)
     return {
         'turn': turn.to_dict(lang) if turn is not None else None,
-        'messages': [{'role': m['role'], 'content': m['content'], 'brief_revision': m['brief_revision'],
-                      'intent': (m.get('interpretation') or {}).get('intent'),
-                      'actions': (m.get('interpretation') or {}).get('actions') or [],
-                      'attachments': (m.get('interpretation') or {}).get('attachments') or [],
-                      # the owner, 2026-11-26: a bound that applied to this turn, in the customer's words (never silent)
-                      'notices': (m.get('interpretation') or {}).get('notices') or [],
-                      'ai_status': _conversation_message_status(m)}
-                     for m in store.messages_for(project_id, limit=100)
-                     if not (m.get('interpretation') or {}).get('system')],   # the flow mark is not a message
+        'messages': page['messages'],
+        'history': {'has_older': page['has_older'], 'before': page['before']},
         'discovery': _discovery_view(row, lang) if row else None,
         'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
         # what will actually answer the next message (never 'model' just because a switch is on)
@@ -2304,6 +2312,18 @@ def v28_proposal_undo(project_id: str, req: V28ProposalUndo, request: Request) -
 def v28_conversation_get(project_id: str, request: Request) -> dict:
     _discovery_account(request, project_id)
     return _conversation_view(project_id, _lang(request))
+
+
+@app.get('/api/v28/projects/{project_id}/conversation/messages')
+def v28_conversation_history(project_id: str, request: Request, before: int | None = None, limit: int = 100) -> dict:
+    """The owner, 2026-11-26: older messages, a page at a time. `before` is the cursor the last page gave (the oldest id
+    it read); the answer carries the next one ('before', 'has_older'). Same owner check as the conversation itself."""
+    from .conversation.store import history_page
+    _discovery_account(request, project_id)
+    try:
+        return history_page(_conversation_store(), project_id, before=before, limit=limit, shape=_conversation_message)
+    except ValueError as exc:
+        raise HTTPException(422, detail={'error': 'invalid_history_page', 'message': str(exc)}) from exc
 
 
 @app.get('/api/v28/projects/{project_id}/memory')
