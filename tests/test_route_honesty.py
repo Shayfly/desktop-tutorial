@@ -87,9 +87,21 @@ class TheBusinessIsOnlyWhatTheBriefNames(unittest.TestCase):
                          (None, 'none', None, []))
         self.assertEqual(route.domain_words, [])
         self.assertEqual(said['palette_category'], VP.NO_SIGNAL)
-        # the colours, the art direction, the fonts and the design contract are production's: only the identity went
-        self.assertEqual((said['palette'], said['direction'], said['font_pair'], said['contract']),
-                         (PROD['palette'], PROD['direction'], PROD['font_pair'], PROD['contract']))
+        # the colours and the art direction are production's: only the identity went
+        self.assertEqual((said['palette'], said['direction']), (PROD['palette'], PROD['direction']))
+        # the fonts and the design contract are still keyed on the palette's category, as production's were. The pick
+        # itself is the library's: production picked he-david-assistant (contract d5bf92111ab8c48e) from the two formal
+        # pairs of 2026-11-25; the font range (the owner's option (א), 2026-11-25) gives the formal tone five Hebrew
+        # pairs, so the same key now picks from five. The bundle merged both; this pins the key, not the old pick.
+        from omni_prod import typography as T
+        from omni_prod.site_content.render import render_contract
+        sheet = Fx.fact_sheet(GOA)
+        business = sheet.name or next(iter(sheet.name_candidates), None)
+        pair = T.pair_for(route.script, category=VP.NO_SIGNAL, tone=PROD['direction'], business=business)
+        self.assertEqual(said['font_pair'], pair['id'])
+        _, colours = VP.palette_for(VP.NO_SIGNAL)
+        contract, _ = render_contract(GOA, colours, fonts=T.contract_fonts(pair))
+        self.assertEqual(said['contract'], contract['fingerprint'])
 
     def test_the_neutral_palettes_process_and_faq_are_offered_not_required(self):
         with one_page_only():
