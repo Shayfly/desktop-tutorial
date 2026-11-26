@@ -5,9 +5,13 @@
     active and `CANDIDATES` listed both A1 models. deploy-worker 45699791750 success; Vercel
     `dpl_HjuBGyt1MVgGWwApWesH4TJoayyc` READY.
   - **A1 measurement** on the deployed worker `ac10e94` (conversation-rehearsal, path=agent, three scripted
-    conversations each): Gemini Flash-Lite 3/3 passed, $0.0288 in all, 2 of 16 calls answered invalid JSON (run
-    45702506669); Claude Haiku 3/3 passed, $0.0059, no failed call (run 45702519795). The owner chose Flash-Lite first
-    after the numbers ("א נבדוק אותו", 21:30 UTC).
+    conversations each): Gemini Flash-Lite 3/3 passed in 16 turns, $0.0288 in all (run 45702506669). Its job log shows
+    one failed call (call 7 of the first conversation, `VeniceOutputInvalid`: "Venice answer is not JSON: Expecting ','
+    delimiter"), and in 2 of the 16 turns (turns 1 and 4 of that conversation) the customer saw the reply "הסוכן לא
+    הספיק לענות הפעם"; the log does not tie the failed call to a turn (a turn can make two calls: the interpreter's
+    and the questioner's). Claude Haiku 3/3 passed in 15 turns, $0.0059, no failed call and no such reply (run
+    45702519795). The owner chose Flash-Lite first after the numbers ("א נבדוק אותו", 21:31 UTC), against Claude
+    Code's recommendation of Haiku first.
   - #533 `91290f8` -> `8911e32` [release]: Flash-Lite first, Haiku when the primary is ineligible. deploy-worker
     45709671445 success; Vercel `dpl_2kmLPjTcYV1yQRVDnKQrHigMnX2A` READY. **Production (worker and Vercel) is
     `8911e32`.**
@@ -25,7 +29,7 @@
     Merged before its review's 23 fixes; they are on `claude/practical-hopper-oi3qj2-s1-governance-fixes`. On main
     after the merge, v24-ci `negative-controls` ran out its 18-minute limit (run 45713038574); the required `test` job
     passed.
-  - #535 `5bf1522` -> `fa41a5d` (08:35): laws 2 and 6 in CI. Every run id cited as evidence is looked up
+  - #535 `5bf1522` -> `fa41a5d` (08:34): laws 2 and 6 in CI. Every run id cited as evidence is looked up
     (`scripts/resolve_evidence_runs.py`, workflow `evidence-runs.yml`, on pull requests and daily); the four red ones
     are listed in `docs/evidence-runs-known-red.json` and each prints a warning. After each scheduled freshness run on
     main, a broken critical path opens or updates one GitHub issue, and a recovered path closes it. CI on `5bf1522`:
@@ -46,7 +50,7 @@
   them; a repair branch is in progress (red-evidence).
 - **Started (plan v3 S4.5):** a tenant isolation audit of memory, files and previews, with two real accounts on real
   PostgreSQL (branch tenant-isolation).
-- **The owner's decision, 2026-11-26 (about 08:35 UTC):** music and video wait ("מוזיקה ווידיאו לחכות בינתיים נטפל
+- **The owner's decision, 2026-11-26 (08:34 UTC):** music and video wait ("מוזיקה ווידיאו לחכות בינתיים נטפל
   בזב אחר כך"); WAREHOUSE.md item 137. The open question of (a) Google with a Hebrew test or (b) waiting is answered (b).
 - **Not verified:** no paid build has run since the two releases; the A1 order is measured on three scripted
   conversations each, not on customer traffic.
@@ -4727,15 +4731,16 @@ Follow-up after the manual check: migration 045 was merged in #474. The [worker 
 
 ## 2026-11-26 — S1.5–S1.8 follow-up: the review of #532, and the negative controls in three shards (Claude Code, HOLD)
 
-#532 merged on 2026-11-25 at `d7b861d` (merge `18dba53`) before the fixes for the 23 findings of its review. Branch `claude/practical-hopper-oi3qj2-s1-governance-fixes`, cut from `18dba53`, carries them. **HOLD** until CI is green on its head and the main session's full suite has run.
+#532 merged on 2026-11-25 at `d7b861d` (merge `18dba53`) before the fixes for the 23 findings of its review. Branch `claude/practical-hopper-oi3qj2-s1-governance-fixes`, cut from `18dba53` and merged with main `fa41a5d`, carries them, and the fixes for the confirmed findings of the review of the follow-up itself (2026-11-26, its findings 1-3 and 5-13). **HOLD** until CI is green on its head and the main session's full suite has run.
 
-**Implemented and verified locally (commands and counts in the PR body, `scratchpad/pr_532_v2.md`):**
+**Implemented and verified locally (commands and counts in the PR body):**
 - **S1.5, the system map.** Only the mapping is committed (`docs/SYSTEM_MAP.md`, a render of `omni_prod/system_map.py` alone). The full map is no longer committed: `v24-ci`, job `light`, builds it on every push and pull request (artifact `system-map`, run summary). Before, a committed copy and its currency test in the required `test` job would have turned main red after any merge of a branch cut before it.
   - Environment names: 234 names (method: literals, constants, env mappings and 12 package helpers; 16 reads built at run time are counted, not guessed). The old count was 121.
   - Two credit-exhausted models now map to PARTIAL, not CONNECTED; `registry_auditor` (unit tests only) maps to IMPLEMENTED.
   - `/_omni/health/live` and `/_omni/health/ready` are listed with their router prefix; `omni-preview-host-` is a queue prefix.
-- **S1.7, the PR report.** Comments are removed before the split; empty and duplicate sections fail; Status must begin with PASS, FAIL or HOLD as a whole word; CRLF bodies and null bodies are handled; `none: <reason>`, GitHub reverts and dependabot pass. The workflow reads `$GITHUB_EVENT_PATH` and holds no expression.
-- **S1.8.** `inbox/002-2026-11-25-owner-plan-v3.md` holds plan v3 and the owner's messages of that evening verbatim. OWNERS.md gains rule 9 (production SQL, migrations and deletions, through CLAUDE.md section 5), and AGENTS.md lines 18 and 34 get dated notes.
-- **CI: negative controls in three shards.** Run 45713038574 (main `18dba53`) timed out at the step's 18-minute limit after 1,186 of 1,296 controls. The same specs took 71.5 worker-minutes on that runner and 37.9 on run 45711355778 (1.9 times). No single set caused it: the largest are site-content, images-as-files and laws-5-6. `NC_SHARD` gives each of three parallel jobs about 444 controls; every spec runs in exactly one shard.
+  - The published method names every getter and env mapping the reader uses (`environment` and `self.environ` were missing); the run summary says that on a pull request its commit (`$GITHUB_SHA`) is GitHub's merge commit, not the head.
+- **S1.7, the PR report.** Code is read before comments: a `<!--` inside a code span or a fenced block is text, and outside code comments are removed before the split. Empty and duplicate sections fail; what draws nothing is not content (a link reference definition, U+3164, U+2800, `&#8203;`, `&ensp;`, `<span></span>`). Status must begin with PASS, FAIL or HOLD as a whole word (`**PASS:** reason` counts); CRLF bodies and null bodies are handled; `none: <reason>` and dependabot pass. A revert needs no report only with GitHub's branch `revert-<n>-...`, a title `Revert "...` and a body naming this repository and the same <n>: the review's spoof (`Reverts someone/elsewhere#1`) now needs the report. The workflow reads `$GITHUB_EVENT_PATH` and holds no expression.
+- **S1.8.** `inbox/002-2026-11-25-owner-plan-v3.md` holds plan v3 and the owner's messages verbatim: every message from 2026-11-25 17:46 to 2026-11-26 09:06 UTC that decides, orders or answers an open question, each with the time he sent it (the transcript's queue entry), and Claude Code's reply of 21:54:24, marked as its own. OWNERS.md gains rules 9 to 11 (production SQL, migrations and deletions through CLAUDE.md section 5; the order of work; no image cap, its removal in progress), and AGENTS.md lines 18 and 34 get dated notes; law 5 names the three shard checks.
+- **CI: negative controls in three shards.** Counted as the controls that run in v24-ci (not the pg job's own): run 45713038574 (main `18dba53`) timed out at the step's 18-minute limit with 1,186 of the 1,217 run and 31 left; all 1,200 of main `4690d01` had run in 9.6 minutes (run 45711355778). The same specs took 71.5 worker-minutes on the slow runner and 37.9 on the fast one (1.9 times). No single set caused it: the largest are site-content, images-as-files and laws-5-6. `NC_SHARD` gives each of three parallel jobs 452 or 453 of the 1,357 controls that run in v24-ci at this head; every spec runs in exactly one shard.
 
 **Not verified:** CI on the new head, and the full suite (run by the main session). The duration of a sharded run on GitHub is an estimate (about 3.5 to 7 minutes per shard, from the two runs above) until the first run.
