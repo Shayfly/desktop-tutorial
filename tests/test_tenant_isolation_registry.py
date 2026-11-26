@@ -7,7 +7,8 @@ This file needs no database and runs in the general suite; it fails when
   - a route takes a parameter the registry does not classify. Every parameter is read -- path, query, header, cookie
     and body, an embedded scalar, the fields of nested models -- and must be one of: an identifier the entry declares
     in "ids"; a path parameter or an id-like name (..._id, ..._ids, ...key, ...token, ...fingerprint) the entry declares
-    in "fields" with its reason; a free-form object (a dict, Any) the entry declares in "opaque" with its reason; or a
+    in "fields" with its reason (any other parameter may be declared there too, such as a paging cursor that is a
+    position in the caller's own rows); a free-form object (a dict, Any) the entry declares in "opaque" with its reason; or a
     name in the global "plain_fields" (free text, numbers, choices). A public or account route can take no identifier;
     a "param_map" may rename a parameter only into an identifier;
   - a kind is claimed by a route it does not fit: capability_url only for live_core's preview handles, legacy_ws only
@@ -170,9 +171,9 @@ def test_every_identifier_a_route_takes_is_declared(key):
         elif where == 'path' or ID_LIKE.search(leaf):
             assert name in fields, (f'{key}: {name!r} ({where}) is a path parameter or named like an identifier; declare '
                                     f'it in "ids" or, with its reason, in the entry\'s "fields"')
-        else:
-            assert leaf in plain, (f'{key}: parameter {name!r} ({where}) is not classified: add it to "plain_fields" (text, '
-                                   f'a number, a choice) or declare it on the entry')
+        else:   # a global plain field, or a per-route declaration with its reason (a cursor that is a position)
+            assert leaf in plain or name in fields, (f'{key}: parameter {name!r} ({where}) is not classified: add it to '
+                                                     f'"plain_fields" (text, a number, a choice) or declare it on the entry')
     assert declared <= taken, f'{key}: "ids" names {sorted(declared - taken)}, which the route does not take'
     stale = (set(fields) | set(opaque)) - set(parameters(route))
     assert not stale, f'{key}: declarations for parameters the route does not take: {sorted(stale)}'

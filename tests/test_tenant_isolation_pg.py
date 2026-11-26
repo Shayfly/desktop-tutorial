@@ -826,6 +826,32 @@ def _get(customer: Customer, gen: str, shared, path: str, **kw):
     return client.get(path, headers=auth, **kw)
 
 
+def test_the_history_cursor_pages_only_the_callers_own_messages(world):
+    """GET .../conversation/messages?before=<id> (#542): the cursor is a position, read only with the caller's own
+    project. Bob's own project paged from just above Alice's newest message id, and from an id far above every
+    message, shows Bob's messages only (none of Alice's text) -- the same page; Alice's own page shows her message."""
+    a, b = world['A'], world['B']
+    with IA._v28_pool.connection() as conn:
+        a_ids = [r[0] for r in conn.execute('SELECT id FROM intake_messages WHERE project_id = %s ORDER BY id',
+                                            (a.ids['project_id'],)).fetchall()]
+        b_ids = [r[0] for r in conn.execute('SELECT id FROM intake_messages WHERE project_id = %s ORDER BY id',
+                                            (b.ids['project_id'],)).fetchall()]
+    assert a_ids and b_ids, 'the world seeds a conversation for both accounts'
+    url = '/api/v28/projects/{}/conversation/messages'
+    page = lambda who, pid, before: _ok(who.browser.get(url.format(pid), params={'before': str(before), 'limit': '100'}))
+    above_alice, above_all = max(a_ids) + 1, max(a_ids + b_ids) + 10 ** 9
+    for before in (above_alice, above_all):
+        got = page(b, b.ids['project_id'], before)
+        assert {m['id'] for m in got['messages']} <= set(b_ids), (before, got)
+        assert a.marker not in json.dumps(got), f'before={before}: Bob\'s page carries Alice\'s conversation'
+    if max(b_ids) < above_alice:            # every Bob message is below the cursor: both pages are his whole history
+        assert page(b, b.ids['project_id'], above_alice) == page(b, b.ids['project_id'], above_all)
+    mine = page(a, a.ids['project_id'], above_all)
+    assert a.marker in json.dumps(mine) and {m['id'] for m in mine['messages']} <= set(a_ids)
+    refused = b.browser.get(url.format(a.ids['project_id']), params={'before': str(above_all)})
+    assert refused.status_code == 403 and a.marker not in refused.text, (refused.status_code, refused.text[:200])
+
+
 def test_signing_in_does_not_tell_whether_an_account_exists(world):
     """A's email with a wrong password is answered exactly like an email nobody registered (v28, v26, v27, live), and
     a password reset for A's email like one for an unknown email."""
