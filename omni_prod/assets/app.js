@@ -116,6 +116,7 @@ const T = {
     err403:'אין הרשאה לפעולה הזו.', err404:'לא נמצא.', err409:'צריך הבהרה לפני שממשיכים.',
     err503:'השירות הזה עוד לא זמין: ', errNet:'אין חיבור אלינו. בדקו את החיבור לאינטרנט ונסו שוב.', errTimeout:'לא קיבלנו תשובה תוך 2 דקות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
     err5xx:'משהו נכשל אצלנו. נסו שוב בעוד רגע; אם זה חוזר, שלחו צילום מסך.', offline:'אין חיבור לאינטרנט. מה שמוצג עשוי להיות לא מעודכן; הפעולות יחזרו לעבוד כשהחיבור יחזור.',
+    err429:'יותר מדי בקשות בזמן קצר, אז עצרנו לרגע כדי לשמור על החשבון. נסו שוב בעוד כמה דקות.',
     dataPersistent:'הנתונים שתזינו באפליקציה נשמרים גם אחרי הפעלה מחדש ובגרסה הבאה (אין עדיין גיבוי).',
     shareLabel:'מי יכול לפתוח', sharePRIVATE:'רק אני (פרטי)', shareSHARED:'כל מי שיש לו קישור שיתוף', sharePUBLIC:'כולם (ציבורי)', shareLink:'קישור שיתוף', dataTemporary:'נתונים זמניים: מה שתזינו יימחק כשהתצוגה תיעצר.',
     needPrompt:'כתבו לפחות כמה מילים על האפליקציה.', needEmail:'הזינו אימייל וסיסמה של 10 תווים לפחות.',
@@ -262,6 +263,7 @@ const T = {
     err403:'You do not have access to this.', err404:'Not found.', err409:'Clarification is needed before continuing.',
     err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 2 minutes. The action may still be running — refresh in a moment before trying again.',
     err5xx:'Server error. Try again in a moment; if it repeats, send a screenshot.', offline:'You are offline. What you see may be out of date; actions work again when the connection returns.',
+    err429:'Too many requests in a short time, so we paused for a moment to keep the account safe. Try again in a few minutes.',
     dataPersistent:'Data you enter in the app survives a restart and the next version (no backup yet).',
     shareLabel:'Who can open it', sharePRIVATE:'Only me (private)', shareSHARED:'Anyone with the share link', sharePUBLIC:'Everyone (public)', shareLink:'Share link', dataTemporary:'Temporary data: what you enter is deleted when the preview stops.',
     needPrompt:'Write at least a few words about the app.', needEmail:'Enter an email and a password of at least 10 characters.',
@@ -526,6 +528,7 @@ const T = {
     errNet: "لا يوجد اتصال بنا. تحققوا من اتصالكم بالإنترنت وحاولوا مرة أخرى.",
     errTimeout: "لم نتلقَّ ردًا خلال 2 دقيقة. ربما لا تزال العملية جارية — حدّثوا الصفحة بعد لحظة قبل أن تحاولوا مرة أخرى.",
     err5xx: "حدث خلل لدينا. حاولوا مرة أخرى بعد لحظة؛ وإذا تكرر ذلك، أرسلوا لقطة شاشة.",
+    err429: "طلبات كثيرة جدًا في وقت قصير، لذلك توقفنا للحظة لحماية الحساب. حاولوا مرة أخرى بعد بضع دقائق.",
     offline: "لا يوجد اتصال بالإنترنت. ما يظهر قد لا يكون محدّثًا؛ ستعود الإجراءات للعمل عند عودة الاتصال.",
     dataPersistent: "البيانات التي تُدخلونها في التطبيق تبقى محفوظة حتى بعد إعادة التشغيل وفي النسخة التالية (لا توجد نسخة احتياطية بعد).",
     shareLabel: "من يمكنه فتحه",
@@ -897,6 +900,11 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
 function explain(err) {
   if (!(err instanceof ApiError)) return String(err && err.message || err);
   const msg = err.message || '';
+  // Rate limits (2026-11-26, omni_prod/rate_limits.py): the server says it in Hebrew, Arabic and English, with the wait in
+  // minutes; this screen shows its sentence in the screen's language. A 429 without those sentences gets err429.
+  const limited = err.detail && ['rate_limited', 'rate_limit_unavailable'].includes(err.detail.error) && err.detail.messages;
+  if (limited && typeof limited[S.lang] === 'string') return limited[S.lang];
+  if (err.status === 429) return t('err429');
   if (err.status === 402 && err.detail && err.detail.error === 'plan_cannot_authorize_cost') return t('errPlanNotIncluded');
   if (err.status === 402 && err.detail && err.detail.error === 'build_allowance_exhausted') return t('errAllowanceExhausted');
   // A 401 on the sign-in screen means wrong credentials, not an expired session.
