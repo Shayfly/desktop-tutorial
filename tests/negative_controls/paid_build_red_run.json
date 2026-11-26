@@ -1,0 +1,91 @@
+{
+ "pr": "red-evidence",
+ "sha256": [
+  "tests/test_expect_text_contains_list.py",
+  "tests/test_skills_runtime_and_review.py",
+  "tests/test_luna_not_for_code_writing.py",
+  "tests/test_round_preflight.py"
+ ],
+ "controls": [
+  {
+   "id": "P1",
+   "what": "paid run 39377332673, rounds 1-3: expect_text_contains searches for the repr of the list again, so a page with both strings fails the responsive step (BEHAVIOR / A5)",
+   "mutations": [
+    {
+     "file": "omni_prod/web_saas_acceptance.py",
+     "old": "        needles = [str(x) for x in wanted] if isinstance(wanted, (list, tuple)) else [str(wanted)]",
+     "new": "        needles = [str(wanted)]  # NEGATIVE CONTROL: the check of paid run 39377332673"
+    }
+   ],
+   "targets": [
+    "tests/test_expect_text_contains_list.py"
+   ],
+   "expect_failed": [
+    "test_an_empty_list_or_empty_item_fails_instead_of_passing_vacuously",
+    "test_every_item_must_appear",
+    "test_items_match_escaped_json_like_a_string",
+    "test_the_failing_step_of_run_39377332673_now_passes",
+    "test_tuple_is_a_list_too"
+   ]
+  },
+  {
+   "id": "P2",
+   "what": "paid run 39377332673, QA review: the last declaration of every CSS block is dropped again ('only 22-35 CSS declarations: the page shows the browser default look')",
+   "mutations": [
+    {
+     "file": "omni_prod/skills_runtime.py",
+     "old": "    return sum(1 for block in _CSS_BLOCK.findall(css) for part in block.split(';') if _CSS_DECL.match(part))",
+     "new": "    return sum(1 for block in _CSS_BLOCK.findall(css) for part in block.split(';')[:-1] if _CSS_DECL.match(part))  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skills_runtime_and_review.py"
+   ],
+   "expect_failed": [
+    "test_a_minified_design_system_is_no_longer_reported_as_the_browser_default",
+    "test_media_blocks_selectors_comments_and_data_urls",
+    "test_media_is_still_required",
+    "test_the_build_css_counts_13_not_10"
+   ]
+  },
+  {
+   "id": "P3",
+   "what": "paid run 39377332673: gpt-6-luna may write code again (4 of 4 of its code answers were invalid JSON)",
+   "mutations": [
+    {
+     "file": "omni_prod/intelligence/task_policy.py",
+     "old": "    TaskClass('codegen', 'write the product code', 85, 85, deny_models=CODE_WRITING_DENY, prefer_models=CODE_STATION),",
+     "new": "    TaskClass('codegen', 'write the product code', 85, 85, prefer_models=CODE_STATION),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_luna_not_for_code_writing.py"
+   ],
+   "expect_failed": [
+    "test_codegen_repair_and_modification_never_go_to_luna_in_the_light_class",
+    "test_luna_is_never_offered_for_code_writing_in_any_class",
+    "test_the_policy_records_why"
+   ]
+  },
+  {
+   "id": "P4",
+   "what": "paid run 39377332673, round 0: the pre-flight checks coverage only again, so 'step S5 must reference contract acceptance_ids' costs a full repair round",
+   "mutations": [
+    {
+     "file": "omni_prod/round_preflight.py",
+     "old": "    invalid = _validate_plan(plan.personas, set(wanted))",
+     "new": "    invalid = None  # NEGATIVE CONTROL: coverage only, as in paid run 39377332673"
+    }
+   ],
+   "targets": [
+    "tests/test_round_preflight.py"
+   ],
+   "expect_failed": [
+    "test_an_unfixable_invalid_plan_still_costs_a_real_round",
+    "test_and_fixed_before_the_round_counts",
+    "test_every_rule_of_the_runner_is_checked",
+    "test_the_round_0_defect_of_run_39377332673_is_found_statically"
+   ]
+  }
+ ]
+}

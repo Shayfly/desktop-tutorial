@@ -37,6 +37,7 @@
     "tests/test_commit_resolved.py"
    ],
    "expect_failed": [
+    "test_a_json_file_the_resolution_deletes_is_committed_deleted",
     "test_a_resolved_markdown_rule_is_not_a_marker_and_the_other_file_still_refuses",
     "test_a_verified_resolution_is_committed",
     "test_broken_json_refuses_the_commit"

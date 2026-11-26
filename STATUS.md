@@ -8,6 +8,77 @@
 - **Cost report:** `GET /api/v28/owner/costs?days=14&scope=all|owner` (JSON) and `/owner/costs` (Hebrew RTL page), founder only (403 for others). Production numbers (read-only SQL, scratchpad report): 14 days 32 builds, model cost $19.04, repair 68% of it, loss of failed builds $9.11; Gemini priced from the schedule, never provider-reported or reconciled.
 - **Evidence:** `tests/test_owner_costs_pg.py` 7 passed on PostgreSQL 16; `tests/test_missing_price_never_refuses.py` 7 passed; controls `owner_costs` 8/8 PASS (pg), 2/2 (default); settle_computed, founder_cap_exempt, direct_model_enrollment controls re-run; ~2360 related tests passed.
 - **Not verified:** a real paid build with the new bounds (needs a paid build, not run); the route in production (not deployed); the whole `tests/` suite (by instruction).
+# 2026-11-26 — Law 2: the four red evidence runs root-caused; three cleared, one still listed (Claude Code; local commits on `claude/practical-hopper-oi3qj2-red-evidence`, not pushed, NOT run on GitHub)
+
+- Vision probe 43657047045 (2026-11-15, f02404a): all six models named both pictures; the step runs under `bash -e`, set `pipefail`, and `grep -v` on an empty stderr exited 1 before `exit $rc`. Fixed on main by 7d79150; the green re-run 43689691749 (be831c6, six of six) is now cited by `omni_prod/vision_models.py:16` ("vision-probe run ...": law 2 also checks the workflow). `tests/test_vision_probe_step.py` runs the step's own text on the real report output: the old step exits 1 with no exit notice, the current one exits 0. Controls `vision_probe_step` 3/3.
+- Model probe 37814803770 (2026-10-08): no defect -- gpt-6-luna and gpt-6.1-sol answered HTTP 429 "no credits remaining", claude-sonnet-5-5 HTTP 400 "credit balance is too low", and the probe failed closed. The green re-run 42527017456 (f299889; six of six on 2026-11-08 and 2026-11-18) is cited by skill_catalog, agent_os/skills, runtime_bindings (two) and intelligence/inventory. In PROVIDER_MATRIX, gpt-6.1-sol and claude-sonnet-5-5 (they answered in both attempts) go from implementation_status BLOCKED to IMPLEMENTED, health CREDIT_EXHAUSTED to UNKNOWN and availability INSUFFICIENT_CREDIT to UNKNOWN, and their blocker is emptied; the summary moves availability INSUFFICIENT_CREDIT 2 to UNKNOWN 2 and implementation_status BLOCKED 2 to 0, IMPLEMENTED 17 to 19 (corrects fe2707b's "no status count changes", which holds for the agent and skill registries only). Not a "works" status: both stay UNVERIFIED (no successful build call), and planning routes only AVAILABLE models (`omni_prod/planning/registry_view.py:62-65`). `tests/test_model_probe_runs.py` reproduces both runs from their logs. Controls `model_probe_runs` 3/3.
+- Paid build 39377332673 (2026-10-20): the build failed (verification_failed after three rounds), mostly on platform defects fixed in October: the round-0 plan pre-flight, the responsive step's list, the CSS count, luna writing code. Controls `paid_build_red_run` 4/4 restore each. Its OK-call record (inventory PAID_20261020) stays known red until a green ledger observation replaces it (postdeploy-checks stage=economics, read-only, $0).
+- Crash recovery 37954236866 (2026-10-09): crash-verify read the agent run before the worker closed it (fixed by 54620a4); `tests/test_postdeploy_crash_agent_graph.py` prints the logged FAIL line word for word, controls 2/2. The capability does not hold on main: since e5e11e5 a lost build with a paid call ends FAILED provider_liability_unknown, and the two crash runs that recovered a build to READY, 37940033628 (d1c7482, bld_ec5f51e6, recovery_attempts=1, status checked only) and 37954236866, both 2026-10-09, predate e5e11e5 and the ledger and settlement checks; the second started over (inspect 37955419872: the recovered worker called architecture again) and the first printed no ledger. CRASH is removed; Golden 5 is FAIL and the worker-kill injection BLOCKED (generators). S4.2 (continue from the last checkpoint) is not implemented; crash-verify checks it now (`postdeploy_checks.resume_verdict`, controls `postdeploy_crash_resume` 5/5). The plan and one question to the owner (money): in the branch report.
+- Law-2 resolver on this tree with GitHub's real answers for all 20 cited ids (read-only API, 2026-11-26): exit 0, 19 green, 1 known red (39377332673). `docs/evidence-runs-known-red.json` holds that one entry.
+- Found, not caused here: v24-ci `negative-controls` on main fa41a5d timed out at its 18-minute step limit (run 45784358231); this branch adds 17 controls.
+- Review of 78d3b79 (2026-11-26), fixes in separate commits: the stage's read of the build record is tested (`tests/test_postdeploy_crash_resume_stage.py` 3 passed; controls `postdeploy_crash_resume_stage` R4b R4c R4a 3/3; R4b and R4c had passed the old tests, failed=[] for both); the provider-matrix change of fe2707b and five declaration reasons are stated correctly (count 712 -> 712); crash run 37940033628 (d1c7482, bld_ec5f51e6, recovery_attempts=1) also ended READY, before e5e11e5, so "the one recovery that ended READY" is gone; the Golden 6 note and second_model_provider's blocked_by say what model-probe 42527017456 shows (statuses unchanged: PARTIAL, BLOCKED; no INFLATION); ONCE_PER_BUILD documents the content-site route's two 'codegen' calls; the known-red text names inventory.py:159. Declarations 712 -> 713. Left for a docs pass (same October no-credit claim, not generated): `docs/PARTNER_REVIEW_GAP_MAP_HE.md:16`, `docs/AUDIT_ACCESS.md:24`.
+- Not run: the whole `tests/` suite (by instruction); no workflow dispatched; nothing pushed.
+# 2026-11-26 — the evening of 2026-11-25 and this morning: two releases, four merges without a release, what is open (Claude Code)
+
+- **Released** (CI green on the exact head; the owner's standing approval of 2026-11-25, OWNERS.md rule 1):
+  - #531 `8b7d204` -> `ac10e94` [release]: A1 staged. The measured conversation profile (luna, then Sonnet) stayed
+    active and `CANDIDATES` listed both A1 models. deploy-worker 45699791750 success; Vercel
+    `dpl_HjuBGyt1MVgGWwApWesH4TJoayyc` READY.
+  - **A1 measurement** on the deployed worker `ac10e94` (conversation-rehearsal, path=agent, three scripted
+    conversations each): Gemini Flash-Lite 3/3 passed in 16 turns, $0.0288 in all (run 45702506669). Its job log shows
+    one failed call (call 7 of the first conversation, `VeniceOutputInvalid`: "Venice answer is not JSON: Expecting ','
+    delimiter"), and in 2 of the 16 turns (turns 1 and 4 of that conversation) the customer saw the reply "הסוכן לא
+    הספיק לענות הפעם"; the log does not tie the failed call to a turn (a turn can make two calls: the interpreter's
+    and the questioner's). Claude Haiku 3/3 passed in 15 turns, $0.0059, no failed call and no such reply (run
+    45702519795). The owner chose Flash-Lite first after the numbers ("א נבדוק אותו", 21:31 UTC), against Claude
+    Code's recommendation of Haiku first.
+  - #533 `91290f8` -> `8911e32` [release]: Flash-Lite first, Haiku when the primary is ineligible. deploy-worker
+    45709671445 success; Vercel `dpl_2kmLPjTcYV1yQRVDnKQrHigMnX2A` READY. **Production (worker and Vercel) is
+    `8911e32`.**
+- **Merged without a release** (production unchanged: deploy-worker skipped, Vercel production CANCELED):
+  - #534 `9d04b99` -> `4690d01`: laws 5 and 6 in CI; an added weakening and a deleted binary need a signed declaration.
+  - #530 `be137fd` -> `5bcfefe` (merged by the owner, 22:24): the replay judges stored versions with the contract
+    production used. **Defect on main, not deployed:** the lineage SQL follows `project_versions.parent_id`, so a build
+    version whose build died before recording it borrows the previous build's contract (a data app can be judged with
+    a content-site scope), and one lookup costs 0.25 to 13 s at 200,000 versions (local PostgreSQL 16; an estimate of
+    scale, production row counts not read). Fix: `9272dee` on `claude/practical-hopper-oi3qj2-replay-scope-530`
+    (parent_id never followed; the project's builds read once; the walk stops at the first contracted build), 19 pg
+    tests, controls contract_scope_lineage_pg 15/15 and replay_content_scope 7/7; merged into the sites bundle, which
+    must land before any other release. My bug.
+  - #532 `d7b861d` -> `18dba53` (merged by the owner, 22:24): the system map, the eleven laws, the PR report, OWNERS.
+    Merged before its review's 23 fixes; they are on `claude/practical-hopper-oi3qj2-s1-governance-fixes`. On main
+    after the merge, v24-ci `negative-controls` ran out its 18-minute limit (run 45713038574); the required `test` job
+    passed.
+  - #535 `5bf1522` -> `fa41a5d` (08:34): laws 2 and 6 in CI. Every run id cited as evidence is looked up
+    (`scripts/resolve_evidence_runs.py`, workflow `evidence-runs.yml`, on pull requests and daily); the four red ones
+    are listed in `docs/evidence-runs-known-red.json` and each prints a warning. After each scheduled freshness run on
+    main, a broken critical path opens or updates one GitHub issue, and a recovered path closes it. CI on `5bf1522`:
+    25 checks passed, `publish-report` skipped by its own condition.
+- **The owner's failed builds:**
+  - GOA (bld_3938e57065794a6495ddfea04dc5dcd1): a smoke shop was written as a law firm. Root: the palette fallback
+    `NO_SIGNAL = 'lawyers'` (`omni_prod/vertical_palettes.py:74`) was read by `site_content`'s `domain_for(category)` as
+    the business domain. The content route also accepted what it cannot serve (several pages, a picture per category,
+    pictures uploaded later), and one PRICE_NOT_GIVEN after a correction failed the build. My bug. Fix in progress
+    (branch route-honesty), for the sites bundle.
+  - The last 14 days (production, read-only): 8 of 27 builds READY, none on the first pass. Four roots, each shown on
+    real rows (diagnosis workflow w2fwdjhzk): image requirements planned without `constraints.subject`
+    (image_mismatch; ShayFly would fail again); repairs ranked by the head stage only, so a good repair is discarded;
+    the customer told stale findings; an RTL element placed at -9999px makes an 11,439 px overflow. Fixes in progress
+    (branches image-subject, repair-converge), for the sites bundle.
+- **Law 2:** four run ids cited as evidence of verified capabilities are red on GitHub: 37814803770 (model-probe),
+  37954236866 (crash recovery), 39377332673 (paid build, a supporting id), 43657047045 (vision-probe). #535 lists
+  them; a repair branch is in progress (red-evidence).
+- **Started (plan v3 S4.5):** a tenant isolation audit of memory, files and previews, with two real accounts on real
+  PostgreSQL (branch tenant-isolation).
+- **The owner's decision, 2026-11-26 (08:34 UTC):** music and video wait ("מוזיקה ווידיאו לחכות בינתיים נטפל
+  בזב אחר כך"); WAREHOUSE.md item 137. The open question of (a) Google with a Hebrew test or (b) waiting is answered (b).
+- **The owner's decisions, 2026-11-26 08:49 and 10:01 UTC:** no cap on the number of pictures (OWNERS.md rule 11; the
+  removal is in progress on `claude/practical-hopper-oi3qj2-image-subject`, for the sites bundle), and every limit a
+  customer meets that is not money is cancelled ("לגבי התקרות א׳", option (א) of Claude Code's question of 09:17 UTC;
+  OWNERS.md rule 12; in progress on `claude/practical-hopper-oi3qj2-caps-a`). The money limits stay in WAREHOUSE.md
+  item 136 until he has cost data.
+- **Not verified:** no paid build has run since the two releases; the A1 order is measured on three scripted
+  conversations each, not on customer traffic.
 
 # 2026-11-25 — Law 2 evidence runs and Law 6 freshness issues (Claude Code; implemented, review fixes in, verified locally, NOT yet run on GitHub)
 
@@ -4682,3 +4753,20 @@ Follow-up after the manual check: migration 045 was merged in #474. The [worker 
 - AcceptanceW still runs a nested suite and requires a successful exit. With optional dependencies present, the existing unittest command and 300-second timeout stay in place. Without them, the nested pytest command applies the repository's `not needs_env` selection and has a separate 600-second ceiling. Three modules and four individual tests that depend on FastAPI were measured and added to the manifest. They remain in full CI.
 - The standalone AcceptanceW test passed in the dependency-light environment on code commit `1453d7e` in 252.76 seconds. Both negative controls passed, including one that injects a real inner test failure and checks that the outer gate rejects it.
 - The same offline reproduction on current base `df37f4f` still failed (43 errors and four failures in the nested command). Full `pytest tests` with dependencies passed both before and after the fix: 4,015 on base and 4,016 on the branch, 294 skipped and one expected failure on each, with no failures or errors.
+
+## 2026-11-26 — S1.5–S1.8 follow-up: the review of #532, and the negative controls in three shards (Claude Code, HOLD)
+
+#532 merged on 2026-11-25 at `d7b861d` (merge `18dba53`) before the fixes for the 23 findings of its review. Branch `claude/practical-hopper-oi3qj2-s1-governance-fixes`, cut from `18dba53` and merged with main `fa41a5d`, carries them, and the fixes for the confirmed findings of the review of the follow-up itself (2026-11-26, its findings 1-3 and 5-13). **HOLD** until CI is green on its head and the main session's full suite has run.
+
+**Implemented and verified locally (commands and counts in the PR body):**
+- **S1.5, the system map.** Only the mapping is committed (`docs/SYSTEM_MAP.md`, a render of `omni_prod/system_map.py` alone). The full map is no longer committed: `v24-ci`, job `light`, builds it on every push and pull request (artifact `system-map`, run summary). Before, a committed copy and its currency test in the required `test` job would have turned main red after any merge of a branch cut before it.
+  - Environment names: 234 names (method: literals, constants, env mappings and 12 package helpers; 16 reads built at run time are counted, not guessed). The old count was 121.
+  - Two credit-exhausted models now map to PARTIAL, not CONNECTED; `registry_auditor` (unit tests only) maps to IMPLEMENTED.
+  - `/_omni/health/live` and `/_omni/health/ready` are listed with their router prefix; `omni-preview-host-` is a queue prefix.
+  - The published method names every getter and env mapping the reader uses (`environment` and `self.environ` were missing); the run summary says that on a pull request its commit (`$GITHUB_SHA`) is GitHub's merge commit, not the head.
+- **S1.7, the PR report.** Code is read before comments: a `<!--` inside a code span or a fenced block is text, and outside code comments are removed before the split. Empty and duplicate sections fail; what draws nothing is not content (a link reference definition, U+3164, U+2800, `&#8203;`, `&ensp;`, `<span></span>`). Status must begin with PASS, FAIL or HOLD as a whole word (`**PASS:** reason` counts); CRLF bodies and null bodies are handled; `none: <reason>` and dependabot pass. A revert needs no report only with GitHub's branch `revert-<n>-...`, a title `Revert "...` and a body naming this repository and the same <n>: the review's spoof (`Reverts someone/elsewhere#1`) now needs the report. The workflow reads `$GITHUB_EVENT_PATH` and holds no expression.
+- **S1.8.** `inbox/002-2026-11-25-owner-plan-v3.md` holds plan v3 and the owner's messages verbatim: every message from 2026-11-25 17:46 to 2026-11-26 10:01 UTC that decides, orders or answers an open question, each with the time he sent it (the transcript's queue entry), and Claude Code's reply of 21:54:24, marked as its own. OWNERS.md gains rules 9 to 12 (production SQL, migrations and deletions through CLAUDE.md section 5; the order of work; no image cap; the limits that are not money cancelled, the money limits in WAREHOUSE.md item 136; both removals in progress), and AGENTS.md lines 18 and 34 get dated notes; law 5 names the three shard checks.
+- **CI: negative controls in three shards.** Counted as the controls that run in v24-ci (not the pg job's own): run 45713038574 (main `18dba53`) timed out at the step's 18-minute limit with 1,186 of the 1,217 run and 31 left; all 1,200 of main `4690d01` had run in 9.6 minutes (run 45711355778). The same specs took 71.5 worker-minutes on the slow runner and 37.9 on the fast one (1.9 times). No single set caused it: the largest are site-content, images-as-files and laws-5-6. `NC_SHARD` gives each of three parallel jobs 452 or 453 of the 1,357 controls that run in v24-ci at this head; every spec runs in exactly one shard.
+- **CI: negative controls in four shards (2026-11-26, author claude).** On #537 (run 45829940347) shard 2 of 3 took 14 min 45 s of the step's 18 (13:31:32 to 13:46:17), and controls keep being added. `NC_SHARD` is now i/4. The runner has no time weights (`work` counts the controls that run in v24-ci), so the balance is by count: 1,372 controls, 457-458 per shard before, 343 each after (specs 57/50/51/51). Expected shard 2 time is about 11 minutes (an estimate: 14 min 45 s x 343/457). Evidence: `tests/test_negative_controls_parallel.py` and `tests/test_ci_workflow_concurrency.py` pass; `scripts/run_negative_controls.py nc_shards` 10/10 (NC6 drops shard 4). Not verified: CI on the new head.
+
+**Not verified:** CI on the new head, and the full suite (run by the main session). The duration of a sharded run on GitHub is an estimate (about 3.5 to 7 minutes per shard, from the two runs above) until the first run.

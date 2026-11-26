@@ -1,0 +1,44 @@
+{
+ "pr": "red-evidence",
+ "sha256": [
+  "tests/test_postdeploy_crash_agent_graph.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the agent graph is read without waiting for the worker to close the run (the check of 2b4bafd that failed run 37954236866)",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "    wait(lambda: (agent_graph(build_id)[0] or (None, None, False))[2] or None, 60, 3)",
+     "new": "    pass  # NEGATIVE CONTROL: no wait, as at 2b4bafd"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_crash_agent_graph.py"
+   ],
+   "expect_failed": [
+    "test_a_run_closed_after_the_build_status_passes",
+    "test_a_run_still_open_when_read_fails_with_the_logged_line"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the wait ends as soon as the run exists, closed or not",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "    wait(lambda: (agent_graph(build_id)[0] or (None, None, False))[2] or None, 60, 3)",
+     "new": "    wait(lambda: (agent_graph(build_id)[0] or (None, None, False))[0] or None, 60, 3)"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_crash_agent_graph.py"
+   ],
+   "expect_failed": [
+    "test_a_run_closed_after_the_build_status_passes",
+    "test_a_run_still_open_when_read_fails_with_the_logged_line"
+   ]
+  }
+ ]
+}

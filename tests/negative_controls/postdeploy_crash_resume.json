@@ -1,0 +1,97 @@
+{
+ "pr": "red-evidence",
+ "sha256": [
+  "tests/test_postdeploy_crash_resume.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a step the killed worker finished may be called again (starting over passes S4.2)",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "    repeated = sorted(set(finished) & set(called))",
+     "new": "    repeated = []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_the_logged_recovery_started_over_and_named_no_checkpoint",
+    "test_starting_over_fails_even_when_the_record_claims_a_checkpoint",
+    "test_the_workers_are_told_apart_by_their_first_call_not_by_the_row_order",
+    "test_crash_verify_records_the_s42_check_from_the_ledger"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the build record need not name its checkpoint",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "    if not checkpoint:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_the_logged_recovery_started_over_and_named_no_checkpoint",
+    "test_continuing_without_saying_so_in_the_record_fails"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a kill before any finished step counts as a resume",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "    elif not finished:\n",
+     "new": "    elif False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_a_kill_before_any_finished_step_tests_nothing"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "crash-verify no longer records the S4.2 check",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "    record('crash: build continued from its last checkpoint (S4.2)', *resume_verdict(attempts, recovery))",
+     "new": "    pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_crash_verify_records_the_s42_check_from_the_ledger"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the workers are told apart by the order of the rows, not by their first call",
+   "mutations": [
+    {
+     "file": "omni_prod/postdeploy_checks.py",
+     "old": "    order = sorted(first, key=lambda t: first[t])",
+     "new": "    order = list(first)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_postdeploy_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_the_workers_are_told_apart_by_their_first_call_not_by_the_row_order"
+   ]
+  }
+ ]
+}

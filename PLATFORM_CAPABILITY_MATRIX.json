@@ -197,12 +197,12 @@
   },
   {
    "capability": "job_resume",
-   "expected_behavior": "restart from the beginning, once",
+   "expected_behavior": "restart from the beginning, once; since e5e11e5 a lost build with a paid call is failed, not requeued",
    "test_layer": "real-server",
    "test_location": [],
    "last_result": "IMPLEMENTED",
-   "last_verified_commit": "2b4bafd",
-   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": null,
+   "last_verified_at": null,
    "environment": "pre-staging worker host"
   },
   {
@@ -213,8 +213,8 @@
     "tests/test_actual_cost_settlement.py"
    ],
    "last_result": "UNIT_TESTED",
-   "last_verified_commit": "2b4bafd",
-   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": null,
+   "last_verified_at": null,
    "environment": "pre-staging worker host"
   },
   {

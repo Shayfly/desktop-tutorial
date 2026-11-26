@@ -63,7 +63,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 93, UNIT_TESTED 30, INTEGRATION
 | Regression Guardian (`regression_guardian`) | meta | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_agent_os.py |  |
 | Golden Path Verifier (`golden_path_verifier`) | meta | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: .github/workflows/postdeploy-checks.yml, omni_prod/postdeploy_checks.py |  |
 | System Test Orchestrator (`system_test_orchestrator`) | meta | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_agent_os.py |  |
-| Failure Injection Agent (`failure_injection_agent`) | meta | **UNIT_TESTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/agent_os/meta.py — tests/test_failure_injection.py |  |
+| Failure Injection Agent (`failure_injection_agent`) | meta | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_failure_injection.py |  |
 | Quality Gate Agent (`quality_gate_agent`) | meta | **UNIT_TESTED** | founder | unit tests only — tests/test_agent_os.py |  |
 
 ## Skills
@@ -240,10 +240,10 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 93, UNIT_TESTED 30, INTEGRATION
 | `persistence_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
 | `migration_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: infra/staging/verify_neon_bootstrap.py |  |
 | `rollback_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
-| `cost_test` | QA | **UNIT_TESTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
+| `cost_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only |  |
 | `provider_failure_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only | simulated providers |
 | `restart_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
-| `resume_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/maintenance.py | build restarts from the beginning |
+| `resume_test` | QA | **IMPLEMENTED** | qa_agent | code exists; no evidence | build restarts from the beginning |
 | `cancellation_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
 | `behavioral_acceptance_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py |  |
 | `requirement_traceability_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py | acceptance IDs -> steps |
@@ -309,10 +309,10 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 93, UNIT_TESTED 30, INTEGRATION
 | `credit_reservation` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/subscription_store.py |  |
 | `agent_budget_assignment` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only |  |
 | `provider_budget_assignment` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
-| `usage_metering` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
-| `provider_price_lookup` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/model_catalog.py | versioned catalog |
-| `actual_cost_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
-| `credit_settlement` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
+| `usage_metering` | Economics | **IMPLEMENTED** | cost_economics_agent | code exists; no evidence |  |
+| `provider_price_lookup` | Economics | **IMPLEMENTED** | cost_economics_agent | code exists; no evidence | versioned catalog |
+| `actual_cost_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only |  |
+| `credit_settlement` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only |  |
 | `unused_reservation_release` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/subscription_store.py |  |
 | `margin_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/economics_report.py | margin UNKNOWN until revenue exists; costs from the ledger |
 | `cost_anomaly_detection` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
@@ -327,10 +327,10 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 93, UNIT_TESTED 30, INTEGRATION
 | `runtime_validation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `resource_allocation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `queue_job_submit` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/queueing.py |  |
-| `job_resume` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/maintenance.py | restart from the beginning, once |
+| `job_resume` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | code exists; no evidence | restart from the beginning, once; since e5e11e5 a lost build with a paid call is failed, not requeued |
 | `job_cancel` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/build_control.py, omni_prod/job_repository.py |  |
 | `job_timeout` | Infrastructure | **UNIT_TESTED** | infrastructure_agent | unit tests only |  |
-| `stale_job_recovery` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/maintenance.py |  |
+| `stale_job_recovery` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | code exists; no evidence |  |
 | `preview_prepare` | Deployment | **IMPLEMENTED** | deployment_agent | real-server evidence is stale; code changed since: omni_prod/preview_runtime.py |  |
 | `preview_deploy` | Deployment | **IMPLEMENTED** | deployment_agent | real-server evidence is stale; code changed since: omni_prod/preview_runtime.py |  |
 | `preview_health_check` | Deployment | **IMPLEMENTED** | deployment_agent | real-server evidence is stale; code changed since: omni_prod/preview_runtime.py |  |

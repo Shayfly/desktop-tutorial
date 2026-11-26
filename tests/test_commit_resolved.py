@@ -89,6 +89,19 @@ class CommitResolved(unittest.TestCase):
         self.assertEqual(json.loads((self.repo / 'x.json').read_text(encoding='utf-8')), {'a': 5})
         self.assertEqual(git(self.repo, 'status', '--porcelain').stdout.strip(), '')
 
+    def test_a_json_file_the_resolution_deletes_is_committed_deleted(self):
+        # 2026-11-26: main deleted SYSTEM_MAP.json (#536) while the sites bundle changed it; the resolution deletes it,
+        # and the JSON check read the missing file and refused the commit as "invalid json" (exit 4)
+        (self.repo / 'r.md').write_text(RULE + 'both\n', encoding='utf-8')
+        git(self.repo, 'rm', '-q', 'x.json')
+        out = self.run_script(str(self.repo))
+        self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
+        self.assertNotIn('invalid json', out.stdout)
+        self.assertTrue(self.committed())
+        self.assertFalse((self.repo / 'x.json').exists())
+        self.assertNotIn('x.json', git(self.repo, 'ls-files').stdout.split())
+        self.assertEqual(git(self.repo, 'status', '--porcelain').stdout.strip(), '')
+
     def test_the_exit_codes_are_the_documented_ones(self):
         doc = (SCRIPT.parents[1] / 'docs' / 'ops' / 'conflict-commit.md').read_text(encoding='utf-8')
         for code in ('| 0 |', '| 2 |', '| 3 |', '| 4 |', '| 5 |'):
