@@ -61,3 +61,6 @@ Provider/model tokens or credits, image/3D/video/audio units, retries and paid f
   (the highest price of the schedule x its token bound), capped at the reservation, in settlement, the plan meter and
   the reconciler; the cost itself stays UNKNOWN (`cost_record.llm_known_usd`, `stand_in_usd`), and the report labels
   the stand-in as such. A configured fallback route keeps its flat per-call authorization as before.
+- Migration 048 (the owner, 2026-11-26): an unknown cost is stored as NULL -- `build_jobs.ai_cost` of a build with an
+  unpriced call, `build_jobs.build_seconds` of a build that never started, `provider_usage_events.estimated_cost_usd` of
+  an unpriced image. Readers never add NULL as 0.
