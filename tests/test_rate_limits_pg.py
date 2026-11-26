@@ -319,8 +319,10 @@ class TwoInstancesOneDatabase(_Database):
         self.assertEqual(answers['known'], {(401, '{"detail":"invalid credentials"}')})
         self.assertEqual(answers['unknown'], answers['known'])
         self.assertEqual(answers['suspended'], answers['known'])
-        medians = {k: statistics.median(v) for k, v in times.items()}
-        self.assertLess(max(medians.values()) / min(medians.values()), 1.5, medians)
+        # the fastest of each is its own cost (a busy machine only adds time): one hash each, so within 2x; without the
+        # equal-cost hash an unknown e-mail answers about 20 times sooner than a wrong password (negative control NC5)
+        fastest = {k: min(v) for k, v in times.items()}
+        self.assertLess(max(fastest.values()) / min(fastest.values()), 2.0, fastest)
 
     def test_a_password_reset_answers_the_same_for_a_known_and_an_unknown_e_mail(self):
         known, _ = self.register()

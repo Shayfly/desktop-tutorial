@@ -5,12 +5,15 @@ Python imports and do not necessarily ship infra/postgres/*.sql.
 tests/test_deployment_verification.py fails if this drifts from the newest
 migration file, so adding a migration forces updating it in the same change.
 """
-REQUIRED_MIGRATION = 47
+REQUIRED_MIGRATION = 45
 # Every migration version shipped in infra/postgres (022-025 were never used).
-# 046 is the social sign-in migration of another branch (2026-11-26): until it merges, 47 follows 45 here. The second of
-# the two branches to merge lists both: tuple(range(26, 48)).
-EXPECTED_VERSIONS = tuple(range(1, 22)) + tuple(range(26, 46)) + (47,)
-REQUIRED_MIGRATION_NAME = '047_rate_limits'
+EXPECTED_VERSIONS = tuple(range(1, 22)) + tuple(range(26, 46))
+REQUIRED_MIGRATION_NAME = '045_corpus_pages'
+
+# 047 (rate limits, 2026-11-26) is added on lines of its own, so it merges with 046 (social sign-in, another branch) in
+# either order without touching the lines above: whichever of the two lands first, the values stay true.
+EXPECTED_VERSIONS += (47,)
+REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME = 47, '047_rate_limits'
 
 
 def db_fingerprint(host, dbname) -> str:

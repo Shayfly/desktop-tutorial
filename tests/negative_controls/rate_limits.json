@@ -1,0 +1,217 @@
+{
+ "pr": "rate-limits",
+ "sha256": [
+  "tests/test_rate_limits.py",
+  "tests/test_rate_limits_pg.py",
+  "omni_prod/rate_limits.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the limiter removed from the login route",
+   "mutations": [
+    {
+     "file": "omni_prod/rate_limits.py",
+     "old": "    _route('POST', r'/api/v2[678]/auth/login', LOGIN_PER_IP, LOGIN_PER_IDENTIFIER),\n",
+     "new": "    _route('POST', r'/api/v2[678]/auth/login-removed', LOGIN_PER_IP, LOGIN_PER_IDENTIFIER),  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits.py",
+    "tests/test_rate_limits_pg.py"
+   ],
+   "expect_failed": [
+    "test_every_bound_route_exists_in_the_real_app_and_no_sign_in_route_is_left_out",
+    "test_only_the_routes_that_protect_an_account_are_limited"
+   ],
+   "expect_failed_pg": [
+    "test_every_bound_route_exists_in_the_real_app_and_no_sign_in_route_is_left_out",
+    "test_login_per_address_trips_at_fifty",
+    "test_login_per_identifier_trips_at_ten_across_two_instances",
+    "test_only_the_routes_that_protect_an_account_are_limited",
+    "test_registration_counts_against_the_login_limit_of_its_e_mail",
+    "test_the_limit_resets_once_the_window_has_passed",
+    "test_without_the_store_sign_in_fails_closed_with_a_503_in_three_languages"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "per-instance memory instead of the shared store",
+   "mutations": [
+    {
+     "file": "omni_prod/rate_limits.py",
+     "old": "    return PostgresRateLimitStore(pool)\n",
+     "new": "    return MemoryRateLimitStore()  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits_pg.py"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_expired_counters_are_deleted_in_bounded_batches",
+    "test_login_per_address_trips_at_fifty",
+    "test_login_per_identifier_trips_at_ten_across_two_instances",
+    "test_off_vercel_a_spoofed_forwarding_header_does_not_change_the_identity",
+    "test_on_vercel_the_edge_address_counts_and_the_clients_own_headers_do_not",
+    "test_one_time_tokens_per_address_trip_at_thirty",
+    "test_password_reset_per_address_counts_every_request_and_trips_at_twenty",
+    "test_registration_counts_against_the_login_limit_of_its_e_mail",
+    "test_registration_per_address_trips_at_ten",
+    "test_social_sign_in_shares_the_counter_through_enforce",
+    "test_the_deployment_status_names_the_store_and_a_missing_047",
+    "test_the_limit_resets_once_the_window_has_passed",
+    "test_verification_sends_per_account_trip_at_five",
+    "test_without_the_store_sign_in_fails_closed_with_a_503_in_three_languages"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the spoofable header trusted: off Vercel the first X-Forwarded-For entry is taken as the address",
+   "mutations": [
+    {
+     "file": "omni_prod/rate_limits.py",
+     "old": "    address = _address(peer or '')\n",
+     "new": "    address = _address(str(headers.get('x-forwarded-for') or peer or '').split(',')[0])  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits.py",
+    "tests/test_rate_limits_pg.py"
+   ],
+   "expect_failed": [
+    "test_off_vercel_the_socket_peer_counts_and_every_forwarding_header_is_ignored"
+   ],
+   "expect_failed_pg": [
+    "test_off_vercel_a_spoofed_forwarding_header_does_not_change_the_identity",
+    "test_off_vercel_the_socket_peer_counts_and_every_forwarding_header_is_ignored"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a different answer for an unknown account: a sentence of its own",
+   "mutations": [
+    {
+     "file": "omni_prod/identity_lifecycle.py",
+     "old": "(enumeration by time)\n            raise PermissionError(\"invalid credentials\")\n",
+     "new": "(enumeration by time)\n            raise PermissionError(\"no account with this e-mail\")  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits_pg.py"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_login_answers_the_same_for_a_known_and_an_unknown_e_mail"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "an unknown account answered sooner: the equal-cost hash removed",
+   "mutations": [
+    {
+     "file": "omni_prod/identity_lifecycle.py",
+     "old": "            _hash_password(password, _NO_ACCOUNT_SALT)          # as long as a wrong password (enumeration by time)\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_login_answers_the_same_for_a_known_and_an_unknown_e_mail"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_login_answers_the_same_for_a_known_and_an_unknown_e_mail"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a password-reset answer as fast as its work: the floor removed",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "@answers_no_sooner_than(RESET_ANSWER_SECONDS)   # 2026-11-26",
+     "new": "# NEGATIVE CONTROL @answers_no_sooner_than(RESET_ANSWER_SECONDS)   # 2026-11-26"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits_pg.py::TwoInstancesOneDatabase::test_a_password_reset_answers_the_same_for_a_known_and_an_unknown_e_mail"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_a_password_reset_answers_the_same_for_a_known_and_an_unknown_e_mail"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "sign-in fails open when the store cannot answer",
+   "mutations": [
+    {
+     "file": "omni_prod/rate_limits.py",
+     "old": "'Cache-Control': 'no-store'})\n            return await response(scope, receive, send)\n        if not verdict",
+     "new": "'Cache-Control': 'no-store'})\n            return await self.app(scope, receive, send)  # NEGATIVE CONTROL\n        if not verdict"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits_pg.py"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_without_the_store_sign_in_fails_closed_with_a_503_in_three_languages"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the window never fades: the previous window counts in full",
+   "mutations": [
+    {
+     "file": "omni_prod/rate_limits.py",
+     "old": "    if previous * (window - elapsed) / window + current <= n:\n",
+     "new": "    if previous + current <= n:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits.py",
+    "tests/test_rate_limits_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_limit_trips_one_past_its_count_and_is_back_after_the_retry",
+    "test_the_arithmetic"
+   ],
+   "expect_failed_pg": [
+    "test_a_limit_trips_one_past_its_count_and_is_back_after_the_retry",
+    "test_the_arithmetic",
+    "test_the_limit_resets_once_the_window_has_passed"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the screen shows the raw code of a 429 again",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  if (limited && typeof limited[S.lang] === 'string') return limited[S.lang];\n  if (err.status === 429) return t('err429');\n",
+     "new": "  // NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rate_limits.py"
+   ],
+   "expect_failed": [
+    "test_explain_shows_the_servers_sentence_or_the_fallback"
+   ],
+   "expect_failed_pg": [
+    "test_explain_shows_the_servers_sentence_or_the_fallback"
+   ]
+  }
+ ]
+}
