@@ -8,7 +8,9 @@ Now the threshold (consistency gate, dependency gate, sandbox build + verify) st
 nothing below runs. When it passes, EVERY stage's check runs against it (preview, behaviour, browser, visual) and
 the round produces ONE ExecutionReport: the most severe failing stage (by `AutonomousProductEngine.progress()`) in
 full, plus one `ALSO_FAILING` line naming every other failing check, so nothing is swallowed and the repairer is not
-handed four unrelated failure dumps. progress() skips that line, so the report ranks by its most severe failure.
+handed four unrelated failure dumps. progress() skips that line. The repair loop ranks the round by EVERY failure, which
+`group_failures` keeps in full (AutonomousProductEngine.rank/judge; bld_cb2d1b90a90f430c98603d14f8afa1a8, 2026-11-24:
+ranked by its head stage alone, a version that fixed the review and still failed VISUAL was discarded six times).
 
 The stages stay nested over the threshold (stage[i]._inner is stage[i-1]) so `find_in_chain`, attribute delegation
 and `_run` resolve as before; only the order of execution changes.
@@ -23,7 +25,10 @@ def _stage_rank(report) -> int:
     from .autonomous_core import AutonomousProductEngine
     return AutonomousProductEngine.progress(report)[0]
 
-_POINTER = re.compile(r'[\w./-]+\.\w+:\d+')
+# A file:line pointer names a FILE: its extension starts with a letter. bld_cb2d1b90 (2026-11-24): the old pattern
+# ([\w./-]+\.\w+:\d+) read the contrast ratios '3.5:1' and '4.5:1' in a review finding as pointers, and the review
+# became the round's head stage on that alone.
+_POINTER = re.compile(r'[\w./-]+\.[A-Za-z]\w*:\d+')
 
 def _has_pointer(report) -> bool:
     return any(_POINTER.search(f.message or '') for f in report.failures)
