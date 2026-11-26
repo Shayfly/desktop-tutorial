@@ -84,6 +84,11 @@ jobs:
           python scripts/run_negative_controls.py section_library; a=$?
           python scripts/run_negative_controls.py library_cookie_banner; b=$?
           NC_SCOPE=declared python scripts/run_negative_controls.py typography_126_129; c=$?
+          # 2026-11-26 (#541, run 45855426699): NC1-NC3 and NC6 of repair_converge_offscreen drive Chromium (visual_qa's
+          # viewport and widening-element tests, the focused skip link); v24-ci's shards have none, so they were DID NOT
+          # RUN there. envs browser now: they run here, about 4 controls at 16 s on 2 workers, inside this step's 13 min.
+          NC_SCOPE=declared python scripts/run_negative_controls.py repair_converge_offscreen; d=$?
+          c=$(( c | d ))
           b=$(( b | c ))
           exit $(( a | b ))
 
