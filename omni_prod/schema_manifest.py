@@ -10,6 +10,11 @@ REQUIRED_MIGRATION = 45
 EXPECTED_VERSIONS = tuple(range(1, 22)) + tuple(range(26, 46))
 REQUIRED_MIGRATION_NAME = '045_corpus_pages'
 
+# 047 (rate limits, 2026-11-26) is added on lines of its own, so it merges with 046 (social sign-in, another branch) in
+# either order without touching the lines above: whichever of the two lands first, the values stay true.
+EXPECTED_VERSIONS += (47,)
+REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME = 47, '047_rate_limits'
+
 
 def db_fingerprint(host, dbname) -> str:
     """Comparable identity of a database without exposing a URL: host and

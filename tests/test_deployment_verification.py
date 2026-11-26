@@ -779,7 +779,9 @@ class SchemaCompatibilityEndpointTests(unittest.TestCase):
             body = self.app.v28_deployment()
         finally:
             os.environ.pop('VERCEL_GIT_COMMIT_SHA', None)
-        self.assertEqual(set(body), {'source_commit', 'environment', 'branch', 'schema', 'database_candidates'})
+        self.assertEqual(set(body), {'source_commit', 'environment', 'branch', 'schema', 'database_candidates',
+                                     'rate_limits'})
+        self.assertNotIn('@', json.dumps(body['rate_limits']))           # 2026-11-26: the store's state, no address
         self.assertEqual(body['source_commit'], SHA)
         # 72 step 0: host:port/db identities only -- never a user or a password.
         for ident in body['database_candidates'].values():

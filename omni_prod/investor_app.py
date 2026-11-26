@@ -87,10 +87,16 @@ from .ui_translations import ui_translation_payload
 from .stripe_billing import StripeCheckoutClient, StripeSubscriptionWebhookProcessor, StripeBillingError, verify_stripe_signature
 from .launch_readiness_v28 import launch_readiness_payload
 from .brand_native_clients import android_client, ios_client
+from .rate_limits import RESET_ANSWER_SECONDS, answers_no_sooner_than, install as install_rate_limits, store_for as rate_limit_store
 
 from .secret_redaction import install_log_redaction
 install_log_redaction()        # C27: every log record of the API process goes through the single redaction layer
 app = FastAPI(title='148AI', version='28.0.0')
+# Rate limits (the owner, 2026-11-26): every limited route, its limit and the reason are in omni_prod/rate_limits.py.
+# Added before every other middleware, so it is the innermost one: a 429 or a 503 still gets the request id, CORS and the
+# security headers. The store is the account database (_v28_pool, made further down), taken on the first limited request.
+_rate_limiter = install_rate_limits(app, store_factory=lambda: rate_limit_store(_v28_pool),
+                                    secret_factory=lambda: _control_plane_secret())
 _metrics=MetricsRegistry()
 configure_observability(app,_metrics)
 _PRODUCTION = os.getenv('OMNI_ENV','development')=='production'
@@ -1529,6 +1535,7 @@ def v28_verify_email(req: V28VerifyEmailRequest) -> dict:
         raise HTTPException(400, str(exc)) from exc
 
 @app.post('/api/v28/auth/password-reset/request', status_code=202)
+@answers_no_sooner_than(RESET_ANSWER_SECONDS)   # 2026-11-26: a token row is written for a known e-mail only; same time
 def v28_request_password_reset(req: V28PasswordResetRequest) -> dict:
     # Enumeration-safe and secret-safe: raw reset token is intentionally discarded
     # here. A configured outbound email adapter may consume it internally later.
@@ -3818,6 +3825,7 @@ def v28_deployment() -> dict:
             'environment': os.getenv('VERCEL_ENV') or os.getenv('OMNI_ENV', 'development'),
             'branch': os.getenv('VERCEL_GIT_COMMIT_REF') or None,
             'schema': _schema_compatibility(),
+            'rate_limits': _rate_limiter.health(),       # 2026-11-26: MIGRATION_MISSING names 047 (sign-in answers 503)
             # 72 step 0 (isolation): which database each candidate variable points to -- host:port/db only (hosts are
             # not secret, owner decision 2026-10-19), so a Preview can be checked against Production before switching.
             'database_candidates': _database_candidates()}

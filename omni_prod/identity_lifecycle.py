@@ -387,6 +387,12 @@ class PostgresIdentityRepository:
         return request
 
 
+# Account enumeration (2026-11-26, omni_prod/rate_limits.py): a login with an e-mail that has no usable account hashes the
+# password typed with this fixed salt -- the same PBKDF2 work as a wrong password -- so the time of the "invalid
+# credentials" answer does not say whether the account exists. The result is discarded; nothing is compared with it.
+_NO_ACCOUNT_SALT = b'148ai-no-account'
+
+
 class IdentityService:
     SESSION_TTL = timedelta(days=7)
     EMAIL_VERIFICATION_TTL = timedelta(hours=24)
@@ -447,6 +453,7 @@ class IdentityService:
     def login(self, *, email: str, password: str) -> tuple[Account, str]:
         account = self._repo.account_by_email(email.strip().lower())
         if not account or account.status in {"DELETION_PENDING", "DELETED", "SUSPENDED"}:
+            _hash_password(password, _NO_ACCOUNT_SALT)          # as long as a wrong password (enumeration by time)
             raise PermissionError("invalid credentials")
         salt = base64.urlsafe_b64decode(account.salt_b64.encode())
         if not hmac.compare_digest(account.password_hash, _hash_password(password, salt)):

@@ -10,6 +10,10 @@ _EMAIL_RE=re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 def _hash_password(password:str,salt:bytes)->str:
     return base64.urlsafe_b64encode(pbkdf2_hmac('sha256',password.encode(),salt,250_000)).decode()
 
+# 2026-11-26 (omni_prod/rate_limits.py, account enumeration): an unknown e-mail hashes the password typed with this salt,
+# the same work as a wrong password, so the time of "invalid credentials" does not say whether the account exists.
+_NO_ACCOUNT_SALT=b'148ai-no-account'
+
 @dataclass(frozen=True)
 class Account:
     id:str
@@ -57,6 +61,7 @@ class AccountService:
         email=email.strip().lower()
         with self._lock:
             aid=self._email_to_id.get(email)
+            if not aid: _hash_password(password,_NO_ACCOUNT_SALT)   # as long as a wrong password (enumeration by time)
             if not aid: raise PermissionError('invalid credentials')
             acct=self._accounts[aid]
             salt=base64.urlsafe_b64decode(acct.salt_b64.encode())
