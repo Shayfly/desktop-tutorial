@@ -65,7 +65,7 @@
    "evidence": [],
    "commits": [],
    "at": [],
-   "note": "fallback proven by injection tests; OpenAI/Anthropic have no credit, so no real second provider"
+   "note": "fallback proven by injection tests; OpenAI and Anthropic answer again (model-probe run 42527017456, 2026-11-18) but are not AVAILABLE to planning (no successful build call), so no real second provider yet"
   },
   {
    "scenario": "Golden 7 — Budget guard",

@@ -1025,7 +1025,7 @@
     {
      "part": "platform:second_model_provider",
      "status": "BLOCKED",
-     "why": "OpenAI: no credits (HTTP 429); Anthropic: credit balance too low (HTTP 400)"
+     "why": "no build has fallen back to a second provider: OpenAI and Anthropic answer again (model-probe run 42527017456, 2026-11-18), but gpt-6.1-sol and claude-sonnet-5-5 stay UNVERIFIED (no successful build c"
     }
    ]
   },
