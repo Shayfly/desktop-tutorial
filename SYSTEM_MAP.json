@@ -5300,6 +5300,7 @@
    "schedules": [],
    "jobs": [
     "browser-python",
+    "font-range",
     "game-kit"
    ]
   },
