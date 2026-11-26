@@ -229,6 +229,42 @@
     "test_one_bound_for_the_conversation_the_plan_and_the_build",
     "test_a_request_past_12000_characters_passes_the_plan_and_the_build"
    ]
+  },
+  {
+   "id": "NC13",
+   "what": "review S4: only the latest page of rows is read: older customer messages vanish from the count",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            before = page[0]['id']\n        else:",
+     "new": "            break\n        else:"
+    }
+   ],
+   "targets": [
+    "tests/test_silent_cuts.py::TheCountIsExact"
+   ],
+   "expect_failed": [
+    "test_messages_behind_many_assistant_rows_are_counted",
+    "test_sixty_messages_one_to_one_leave_forty_out",
+    "test_past_the_read_bound_it_says_older_were_not_read"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "messages past the read bound are not said",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if left_out or cut_chars or older_unread:",
+     "new": "        if left_out or cut_chars:"
+    }
+   ],
+   "targets": [
+    "tests/test_silent_cuts.py::TheCountIsExact"
+   ],
+   "expect_failed": [
+    "test_past_the_read_bound_it_says_older_were_not_read"
+   ]
   }
  ]
 }

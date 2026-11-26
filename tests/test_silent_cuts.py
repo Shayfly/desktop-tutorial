@@ -253,7 +253,50 @@ class ANewBriefCarriesTheEarlierMessages(unittest.TestCase):
         self.assertEqual(stored['interpretation']['request_cut'], cut)       # and stored with the message
 
 
-OUTLINE_HEAD = 'שם העסק: סטודיו נועה. אתר תדמית למספרה. טלפון 03-5551234.\nמבנה הדף:\n'
+class TheCountIsExact(unittest.TestCase):
+    """Review S4 (2026-11-26, probe carry_window.py): a 100-row window hid older customer messages from the count."""
+
+    def whole(self, store, **bounds):
+        sup = ConversationSupervisor(briefs=MemoryBriefs(), store=store, credits=10, context=lambda p: {})
+        for k, v in bounds.items():
+            setattr(sup, k, v)
+        text = sup._whole_request('p', 'אתר')
+        return text, sup.request_cut
+
+    def test_messages_behind_many_assistant_rows_are_counted(self):
+        s = MemoryConversationStore()
+        for i in range(10):
+            s.add_message(project_id='p', account_id='a', role='customer', content=f'EARLY-{i} פרט חשוב')
+        for i in range(20):                                    # 20 customer turns, each answered by 4 rows: 100 rows
+            s.add_message(project_id='p', account_id='a', role='customer', content=f'late-{i}')
+            for _ in range(4):
+                s.add_message(project_id='p', account_id='a', role='assistant', content='...')
+        text, cut = self.whole(s)
+        self.assertNotIn('EARLY', text)
+        self.assertEqual((cut['messages_left_out'], cut['chars_left_out']), (10, sum(len(f'EARLY-{i} פרט חשוב')
+                                                                                      for i in range(10))))
+
+    def test_sixty_messages_one_to_one_leave_forty_out(self):
+        s = MemoryConversationStore()
+        for i in range(60):
+            s.add_message(project_id='p', account_id='a', role='customer', content=f'm{i:02d} ' + 'x' * 100)
+            s.add_message(project_id='p', account_id='a', role='assistant', content='...')
+        text, cut = self.whole(s)
+        self.assertEqual((cut['messages_left_out'], cut['messages_carried'], cut['older_unread']), (40, 20, False))
+        self.assertIn('m59 ', text)
+        self.assertNotIn('m39 ', text)
+
+    def test_past_the_read_bound_it_says_older_were_not_read(self):
+        s = MemoryConversationStore()
+        for i in range(30):
+            s.add_message(project_id='p', account_id='a', role='customer', content=f'm{i}')
+        _, cut = self.whole(s, CARRY_PAGE=5, CARRY_PAGES=2)               # reads back 10 rows at most
+        self.assertTrue(cut['older_unread'])
+        from omni_prod.conversation.supervisor import _TXT
+        self.assertIn('5,000', _TXT['he']['request_cut_older'])
+
+
+OUTLINE_HEAD ='שם העסק: סטודיו נועה. אתר תדמית למספרה. טלפון 03-5551234.\nמבנה הדף:\n'
 
 
 class TheCustomersOwnOutline(unittest.TestCase):

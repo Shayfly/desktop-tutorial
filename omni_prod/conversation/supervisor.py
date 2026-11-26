@@ -233,6 +233,7 @@ _TXT = {
            'attached_kept': '(שמרתי {n} בפרויקט; מההודעה הזו היא לא נכנסת לבנייה.)',
            'request_cut': '(התחלתי את הבקשה מ-{kept} ההודעות הקודמות שלכם ומההודעה הזו. {chars} תווים מהודעות מוקדמות '
                           'יותר לא נכנסו לבקשה; אם יש בהם משהו חשוב, כתבו אותו שוב.)',
+           'request_cut_older': ' (ויש גם הודעות ישנות עוד יותר, מעבר ל-5,000 השורות האחרונות, שלא נקראו.)',
            'images': lambda n: 'תמונה אחת' if n == 1 else f'{n} תמונות'},
     'en': {'safe_default': 'No answer on {topic}, so I applied a safe default: {label}. You can change it any time in the "Requirements" tab.',
            'card_blocked': 'A decision on {topic} is missing, and we cannot continue without it. You can choose in the "Requirements" tab.',
@@ -292,6 +293,7 @@ _TXT = {
            'attached_kept': '(I saved {n} in the project; from this message it does not go into the build.)',
            'request_cut': '(I started the request from your {kept} earlier messages and this one. {chars} characters of '
                           'messages before those did not go into it; if anything there matters, write it again.)',
+           'request_cut_older': ' (There are older messages too, past the last 5,000 rows, that were not read.)',
            'images': lambda n: 'one image' if n == 1 else f'{n} images'},
 }
 
@@ -1138,7 +1140,11 @@ class ConversationSupervisor:
     # customer in the turn's reply and stored with it (interpretation.request_cut).
     MAX_CARRIED_MESSAGES = 20         # earlier customer messages a new brief may start from (was 5)
     MAX_REQUEST_CHARS = d.REQUEST_MAX_CHARS   # the whole request a brief starts from: 48,000 (was 12,000)
-    CARRY_READ = 100                  # the latest messages read to find them (customer and assistant turns alternate)
+    # Review S4 (2026-11-26): a window of the latest 100 rows hid older customer messages from the count, and from the
+    # notice. Every earlier message is read back, a page at a time, bounded: CARRY_PAGES pages of CARRY_PAGE rows; past
+    # that bound (5,000 rows before any brief exists) the notice says older messages were not read.
+    CARRY_PAGE = 100
+    CARRY_PAGES = 50
 
     def _whole_request(self, project_id, message: str) -> str:
         """The text a NEW brief starts from: everything the customer wrote in this project before a brief existed,
@@ -1148,7 +1154,15 @@ class ConversationSupervisor:
         A message said to be kept is part of the request. Bounded; whatever the bounds leave out is logged and kept in
         self.request_cut for the turn to say (never silent)."""
         self.request_cut = None
-        read = self.store.messages_for(project_id, limit=self.CARRY_READ)
+        read, before, older_unread = [], None, False
+        for _ in range(self.CARRY_PAGES):
+            page = self.store.messages_before(project_id, before, self.CARRY_PAGE)
+            read = page + read
+            if len(page) < self.CARRY_PAGE:
+                break
+            before = page[0]['id']
+        else:
+            older_unread = True                           # the bound was reached: older rows were not read
         earlier = [m.get('content') or '' for m in read
                    if m.get('role') == 'customer' and not (m.get('interpretation') or {}).get('system')
                    and not (m.get('interpretation') or {}).get('label')]   # a platform label is not their words (128)
@@ -1170,11 +1184,11 @@ class ConversationSupervisor:
             joined = '\n'.join(earlier)
             cut_chars = max(0, len(joined) - room)
             whole = (joined[:room] + '\n' + message).strip()[:self.MAX_REQUEST_CHARS]
-        if left_out or cut_chars:
+        if left_out or cut_chars or older_unread:
             self.request_cut = {'messages_left_out': len(left_out), 'chars_left_out': sum(map(len, left_out)) + cut_chars,
                                 'messages_carried': len(earlier), 'bound_messages': self.MAX_CARRIED_MESSAGES,
                                 'bound_chars': self.MAX_REQUEST_CHARS,
-                                'older_unread': len(read) >= self.CARRY_READ}       # the read window was full
+                                'older_unread': older_unread}
             import logging
             logging.getLogger(__name__).warning('REQUEST_CUT project=%s %s', project_id, self.request_cut)
         return whole
@@ -1379,6 +1393,8 @@ class ConversationSupervisor:
             # the stored message, never only in a log
             said = T['request_cut'].format(n=request_cut['messages_left_out'], chars=f"{request_cut['chars_left_out']:,}",
                                            kept=request_cut['messages_carried'])
+            if request_cut.get('older_unread'):
+                said += T['request_cut_older']
             notices = list((turn.interpretation or {}).get('notices') or []) + [{'kind': 'request_cut', 'message': said}]
             turn.interpretation = {**(turn.interpretation or {}), 'request_cut': request_cut, 'notices': notices}
             parts.append(said)
