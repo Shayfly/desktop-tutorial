@@ -2,6 +2,7 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| CRASH-RESUME (S4.2) | Claude Code | Local commits, not pushed; HOLD for CI, the release and a crash-verify run (postdeploy-checks stage=crash) | `claude/practical-hopper-oi3qj2-crash-resume`: `omni_prod/build_checkpoint.py`, `autonomous_core.build(resume=...)`, janitor continues, recorder carries; `tests/test_crash_resume_pg.py` 12 passed (4 kill points, real PostgreSQL, SIGKILL), `tests/test_crash_resume.py` 16 passed; controls crash_resume 10/10, touching sets 287/287 + 26/26; STATUS.md 2026-11-26 |
 | RED-EVIDENCE | Claude Code | Local commits, not pushed; HOLD for CI, the main session's dispatches and the owner's answer on S4.2 (money) | `claude/practical-hopper-oi3qj2-red-evidence`: vision 43689691749 and model 42527017456 re-cited (green, read 2026-11-26); crash evidence removed, Golden 5 FAIL, crash-verify checks S4.2; 39377332673 still listed; controls vision_probe_step 3/3, model_probe_runs 3/3, postdeploy_crash_agent_graph 2/2, postdeploy_crash_resume 5/5, paid_build_red_run 4/4, evidence_runs 52/52; STATUS.md 2026-11-26; review of 78d3b79 fixed in separate commits (stage read tested, R4b/R4c caught; records corrected; nits), declarations 712 -> 713 |
 | A1-RELEASE | Claude Code | Released | #531 `8b7d204` -> `ac10e94` [release], #533 `91290f8` -> `8911e32` [release]; runs 45702506669, 45702519795; deploy-worker 45699791750, 45709671445; STATUS.md 2026-11-26 |
 | LAWS-5-6 | Claude Code | Merged | #534 `9d04b99` -> `4690d01`; STATUS.md 2026-11-26 |
