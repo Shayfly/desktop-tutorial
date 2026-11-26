@@ -57,4 +57,7 @@ Provider/model tokens or credits, image/3D/video/audio units, retries and paid f
 - Settlement: a component whose price is missing is left out of COMPUTED_FROM_USAGE and named; CONSERVATIVE_RESERVATION
   remains only for liability that cannot be bounded (an earlier worker's call without exposure).
 - The founder account builds without money limits (safety bounds $25 and 400 calls per build); see pricing.py.
-
+- Money review of 2026-11-26 (B1): a model call whose price is missing is charged its authorized stand-in worst case
+  (the highest price of the schedule x its token bound), capped at the reservation, in settlement, the plan meter and
+  the reconciler; the cost itself stays UNKNOWN (`cost_record.llm_known_usd`, `stand_in_usd`), and the report labels
+  the stand-in as such. A configured fallback route keeps its flat per-call authorization as before.
