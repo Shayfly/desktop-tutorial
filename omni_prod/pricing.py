@@ -90,9 +90,14 @@ class PlanDefinition:
         d['variable_margin_floor'] = None if margin is None else str(margin)
         return d
 
-PUBLIC_PLAN_FIELDS = ('code', 'name', 'monthly_price_usd', 'annual_price_usd', 'included_credits', 'max_projects',
-                      'seats', 'allowed_cost_classes', 'branding', 'removable_branding', 'white_label', 'priority',
-                      'features', 'status')
+# The owner, 2026-11-26 (WAREHOUSE 136, option a): the plan view promised what no code keeps -- a project count
+# (max_projects: project creation has no slot limit, investor_app.v28_create_project), seats (no seat is counted
+# anywhere) and a build priority (one build queue, no priority in it). Those fields are not shown to the customer and
+# the two feature lines that repeated them ('priority builds', '5 seats') are gone. The money fields stay. The internal
+# view (to_dict) still holds every field.
+UNKEPT_PLAN_FIELDS = ('max_projects', 'seats', 'priority')
+PUBLIC_PLAN_FIELDS = ('code', 'name', 'monthly_price_usd', 'annual_price_usd', 'included_credits',
+                      'allowed_cost_classes', 'branding', 'removable_branding', 'white_label', 'features', 'status')
 
 
 def customer_usage_view(snapshot: dict) -> dict:
@@ -151,7 +156,7 @@ PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
         'optional', True, False, 'priority',
         (
             'everything in Amateur', 'standard model routing', 'deep repair loops', 'image/audio/music/voice',
-            'video/3D within usage budget', 'mobile/game pipelines', 'remove visible 148AI branding', 'priority builds',
+            'video/3D within usage budget', 'mobile/game pipelines', 'remove visible 148AI branding',
         ),
     ),
     PlanCode.STUDIO: PlanDefinition(
@@ -159,7 +164,7 @@ PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
         # CEO 2026-10-19: Studio may use every cost class.
         tuple(CostClass), 'white-label-eligible', True, True, 'high',
         (
-            'everything in Pro', '5 seats', 'team/RBAC workflows', 'API access', 'white-label exports',
+            'everything in Pro', 'team/RBAC workflows', 'API access', 'white-label exports',
             'higher media/GPU budget', 'shared projects', 'audit/Company OS', 'priority support',
         ),
     ),

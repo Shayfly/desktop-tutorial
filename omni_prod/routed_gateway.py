@@ -129,6 +129,10 @@ class RoutedModelGateway:
         # M5 Task 8: provider-reported usage for every attempt that got a response.
         self.usage = ProviderUsageLedger()
         self.recorder = recorder or AttemptRecorder()
+        # The owner, 2026-11-26 16:10 ("רק מדידה"): per attempt_seq, why the answer stopped (the provider's
+        # finish_reason / stop_reason; 'length' or 'max_tokens' = stopped at max_tokens), the max_tokens actually sent
+        # and that model's own maximum (the catalogue's max_output_tokens). Read by the content route.
+        self.attempt_output: dict[int, dict] = {}
         catalog_public = [m.to_public_dict() for m in ranked if hasattr(m, 'to_public_dict')]
         self.price_catalog_version = content_version(catalog_public) if catalog_public else None
         p = self.policy
@@ -324,6 +328,7 @@ class RoutedModelGateway:
             self.usage.record(usage)
             self._fill(record, gateway, usage, option, elapsed)
             self._settle(route, record)
+            self._note_output(record, route, gateway, kwargs)
             if usage is None and isinstance(exc, ModelHTTPError):
                 self._release_rejected(route, record)
             record.outcome = 'error' if usage is not None else self._outcome_of(exc)
@@ -357,6 +362,7 @@ class RoutedModelGateway:
         self._fill(record, gateway, usage, option, elapsed)
         self._settle(route, record)
         record.outcome = 'ok'
+        self._note_output(record, route, gateway, kwargs)
         if route.endpoint.external:
             self.health.record_success(route.endpoint.name)
         self.models_by_task.setdefault(task or 'general', set()).add(route.endpoint.name)
@@ -395,6 +401,13 @@ class RoutedModelGateway:
         if self.state.external_spend_usd < 0:
             self.state.external_spend_usd = Decimal('0')
         record.metered_cost_usd = Decimal('0')
+
+    def _note_output(self, record: AttemptRecord, route: ProviderRoute, gateway, kwargs: dict) -> None:
+        maximum = next((int(m.max_output_tokens) for m in self.ranked
+                        if getattr(getattr(m, 'endpoint', None), 'name', None) == route.endpoint.name), None)
+        self.attempt_output[record.attempt_seq] = {
+            'finish_reason': getattr(gateway, 'last_finish_reason', None) if gateway is not None else None,
+            'max_tokens_sent': kwargs.get('max_tokens'), 'model_maximum': maximum}
 
     @staticmethod
     def _fill(record: AttemptRecord, gateway, usage, option, elapsed: int) -> None:

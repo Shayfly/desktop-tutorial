@@ -46,7 +46,7 @@
    "mutations": [
     {
      "file": "omni_prod/rehearsal.py",
-     "old": "    return (brief.prompt + '\\n' + d.requirements_text(brief))[:12000]",
+     "old": "    return d.build_prompt(brief)[0]",
      "new": "    return brief.prompt"
     }
    ],

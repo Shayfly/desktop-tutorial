@@ -262,9 +262,9 @@
     "backup_recovery_agent": "REAL_SERVER_VERIFIED"
    },
    "skills": {
-    "IMPLEMENTED": 14,
+    "IMPLEMENTED": 17,
     "NOT_IMPLEMENTED": 6,
-    "REAL_SERVER_VERIFIED": 12,
+    "REAL_SERVER_VERIFIED": 9,
     "UNIT_TESTED": 1
    },
    "missing_roles": [],
@@ -283,14 +283,14 @@
    "readiness": "PARTIAL",
    "responsibilities": "threats, permissions, secrets, IP",
    "core_agents": {
-    "security_agent": "REAL_SERVER_VERIFIED",
+    "security_agent": "IMPLEMENTED",
     "compliance_ip_agent": "REAL_SERVER_VERIFIED"
    },
    "support_agents": {},
    "skills": {
-    "IMPLEMENTED": 1,
+    "IMPLEMENTED": 2,
     "NOT_IMPLEMENTED": 16,
-    "REAL_SERVER_VERIFIED": 4,
+    "REAL_SERVER_VERIFIED": 3,
     "UNIT_TESTED": 4
    },
    "missing_roles": [

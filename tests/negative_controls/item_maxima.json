@@ -1,0 +1,203 @@
+{
+ "pr": "caps-a-item-maxima",
+ "sha256": [
+  "tests/test_item_maxima.py",
+  "tests/test_section_library.py",
+  "omni_prod/site_content/schema.py",
+  "omni_prod/site_content/agents.py",
+  "omni_prod/site_content/__init__.py",
+  "omni_prod/preview_smoke.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the old limit is back: eight services",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "    'services': {**_head(), 'items': Lst(2, 24, ",
+     "new": "    'services': {**_head(), 'items': Lst(2, 8, "
+    }
+   ],
+   "targets": [
+    "tests/test_item_maxima.py"
+   ],
+   "expect_failed": [
+    "test_a_list_at_its_new_maximum_passes_and_one_more_is_too_many",
+    "test_the_model_is_told_the_new_bounds",
+    "test_the_owners_brief_at_24_services_validates_end_to_end"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the old limit is back: twelve prices in a group",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "'items': Lst(1, 30, Obj(",
+     "new": "'items': Lst(1, 12, Obj("
+    }
+   ],
+   "targets": [
+    "tests/test_item_maxima.py"
+   ],
+   "expect_failed": [
+    "test_a_list_at_its_new_maximum_passes_and_one_more_is_too_many",
+    "test_the_model_is_told_the_new_bounds"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the old limits are back for questions, steps, testimonials, topics, facts, paragraphs and numbers",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "    'faq': {**_head(), 'items': Lst(2, 24, ",
+     "new": "    'faq': {**_head(), 'items': Lst(2, 8, "
+    },
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "    'process': {**_head(), 'steps': Lst(2, 12, ",
+     "new": "    'process': {**_head(), 'steps': Lst(2, 6, "
+    },
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "    'testimonials': {**_head(), 'items': Lst(1, 12, ",
+     "new": "    'testimonials': {**_head(), 'items': Lst(1, 6, "
+    },
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "    'contact': {**_head(), 'topics': Lst(2, 12, ",
+     "new": "    'contact': {**_head(), 'topics': Lst(2, 6, "
+    },
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "'facts': Lst(1, 12, ",
+     "new": "'facts': Lst(1, 4, "
+    },
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "'paragraphs': Lst(1, 6, ",
+     "new": "'paragraphs': Lst(1, 3, "
+    },
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "'items': Lst(2, 6, Obj({'value': Num()",
+     "new": "'items': Lst(2, 4, Obj({'value': Num()"
+    }
+   ],
+   "targets": [
+    "tests/test_item_maxima.py"
+   ],
+   "expect_failed": [
+    "test_a_list_at_its_new_maximum_passes_and_one_more_is_too_many",
+    "test_the_model_is_told_the_new_bounds"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a long page reaches the checks cut in the middle of a fact (served_cut keeps the raw 45,000 characters)",
+   "mutations": [
+    {
+     "file": "omni_prod/preview_smoke.py",
+     "old": "    cut = page[:SERVED_CUT]\n    end = cut.rfind('</section>')\n",
+     "new": "    cut = page[:SERVED_CUT]\n    return cut\n    end = cut.rfind('</section>')\n"
+    }
+   ],
+   "targets": [
+    "tests/test_item_maxima.py"
+   ],
+   "expect_failed": [
+    "test_a_page_cut_in_the_middle_of_a_fact_reads_as_an_invented_fact",
+    "test_the_cut_keeps_a_short_page_whole_and_is_stable",
+    "test_the_preview_stage_hands_the_checks_the_trimmed_page",
+    "test_the_prepass_reads_a_long_page_as_the_review_stage_will_never_a_fact_cut_in_half"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the route never switches the trim on: its review stage reads a long page cut mid-fact",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "        preview.trim_cut = A.R.PAGE\n",
+     "new": "        pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_item_maxima.py"
+   ],
+   "expect_failed": [
+    "test_the_route_switches_the_trim_on_for_its_preview_stage_and_only_there"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the pre-pass reads the raw 45,000-character cut again",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "                                       'rendered_pages': {'/': served_cut(served)}}),",
+     "new": "                                       'rendered_pages': {'/': served[:PREVIEW_CUT]}}),"
+    }
+   ],
+   "targets": [
+    "tests/test_item_maxima.py"
+   ],
+   "expect_failed": [
+    "test_the_prepass_reads_a_long_page_as_the_review_stage_will_never_a_fact_cut_in_half"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "parity compares the trimmed capture with the raw cut: every long page fails SITE_PARITY",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            if served_cut(pages['/'], full_length=len(page)) != served_cut(page):",
+     "new": "            if pages['/'] != page[:PREVIEW_CUT]:"
+    }
+   ],
+   "targets": [
+    "tests/test_item_maxima.py"
+   ],
+   "expect_failed": [
+    "test_parity_holds_for_a_long_page_and_still_finds_another_page"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "review S7: a long page is no longer read whole each round: copy rewritten past the cut goes unreviewed",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        if whole:\n            return replace(report, passed=False",
+     "new": "        if False:\n            return replace(report, passed=False"
+    }
+   ],
+   "targets": [
+    "tests/test_item_maxima.py::TheWholePageIsReviewedEveryRound"
+   ],
+   "expect_failed": [
+    "test_an_invented_phone_past_the_cut_fails_the_round"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "review nit: a page of exactly 45,000 characters is trimmed as if it had been cut",
+   "mutations": [
+    {
+     "file": "omni_prod/preview_smoke.py",
+     "old": "(len(page) if full_length is None else full_length) <= SERVED_CUT:",
+     "new": "(len(page) if full_length is None else full_length) < SERVED_CUT:"
+    }
+   ],
+   "targets": [
+    "tests/test_item_maxima.py::TheServedCut"
+   ],
+   "expect_failed": [
+    "test_the_cut_keeps_a_short_page_whole_and_is_stable"
+   ]
+  }
+ ]
+}

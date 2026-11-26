@@ -11,6 +11,49 @@
 - **Money review of 00d7404 (same day, fixed in d33a59f):** B1 an unpriced call of a customer build settled at $0 and refunded the plan meter -- now charged its stand-in worst case (capped at the reservation), shown UNKNOWN in the report with the stand-in labelled; `build_jobs.ai_cost` is not written for such a build (the column is NOT NULL since migration 004, so it stays 0; NULL needs a migration, the owner's call) and the evidence keeps `llm_known_usd` / `stand_in_usd`. S1 price-unknown is decided by the gateway's mark, so a configured fallback route keeps its $0.25 per call. S2 the reconciler charges a price-unknown call its stand-in instead of holding. S3 BOUND_NEAR tested, labelled "authorized ledger, not spend", logged on a jump to a refusal. `build_seconds` is no longer written (NOT NULL; duration comes from the timestamps). **Not done:** S4 (the report's query cost on a large window) -- skipped by the coordinator's decision.
 - **Migration 048 (the owner, 2026-11-26 ~16:50 UTC: "לא ידועה במיגרציה"; written, NOT applied anywhere but throwaway local databases -- the coordinator applies it to production under CLAUDE.md §5 before the release):** `build_jobs.ai_cost`, `build_jobs.build_seconds` and `provider_usage_events.estimated_cost_usd` become NULLable (`DROP NOT NULL`, idempotent; rollback `infra/postgres/rollback/048_unknown_cost_nullable.down.sql`). A build with an unpriced call writes `ai_cost` NULL (the known part stays in `cost_record.llm_known_usd`), a build that never started writes `build_seconds` NULL, an unpriced image event writes no estimate (the `unpriced:` marker stays). Every reader treats NULL as unknown: the report, settlement (`computed_provider_cost`), `usage_for_build`. The release must not precede the migration: the worker would write NULL into a NOT NULL column. `schema_manifest` requires 048 (046/047 belong to other branches and join when they merge).
 - **The owner, 2026-11-26 ~16:10 UTC:** "כן. רק מדידה" -- his conversation (intake) caps per project and per day are removed, measurement kept, a $50 safety bound per reservation (`intake/budget.OWNER_INTAKE_SAFETY_USD`); his calls still count in the shared daily scope. "כרגע לא, רק באישור שלי" -- every removal of the day applies to `usr_GCWlMxENgr9vpwph` only (`pricing.owner_account`), whatever `OMNI_FOUNDER_ACCOUNT_IDS` says. Evidence: `tests/test_owner_rules_and_money_review.py` 12 passed; controls owner_costs NC9-NC16.
+# 2026-11-26 — caps-a: the customer limits that are not money, cancelled (Claude Code; branch, not pushed)
+
+The owner's decision of 2026-11-26 10:01 UTC, option (א) (WAREHOUSE 136: money limits stay). Branch
+`claude/practical-hopper-oi3qj2-caps-a`, local commits only (no push, no PR, no release). Implemented and verified
+locally (tests and negative controls below); not verified in CI or production.
+
+- Content route: up to 3 corrections (was 1), each round in the build evidence (`site_route.correction_rounds`).
+- Content schema item maxima raised (services/FAQ 24, steps 12, testimonials 12, price list 12 x 30, topics 12, facts
+  12, paragraphs 6, numbers 6); a page past the preview's 45,000-character capture is judged up to its last complete
+  section (`preview_smoke.served_cut`), never a fact cut in half.
+- No silent cut of the customer's words: the model reads the whole message (8,000); the build prompt keeps every
+  approved decision (bound 64,000, a cut said in the prompt, the plan and the build evidence); a new brief carries 20
+  messages / 48,000 characters and says what it left out; model reply 4,000, requirements 60, proposals 200, each
+  applied bound said; the customer's outline 60 sections / 4,000 characters, a cut said at gate 1.
+- A live preview lives a day (was an hour); the owner's link follows it. An approval is valid a day (was 30 minutes);
+  any change to what it covers still refuses it.
+- The conversation history is paged by a cursor (GET .../conversation/messages?before=).
+- 20 images a message (was 6), 200 a project (was 40); 3 MiB and the 4.5 MB body stay.
+- The public plan view no longer promises max_projects, seats, priority or 'priority builds'.
+- Tokens (the owner, 2026-11-26 ~16:10 UTC, "לבטל מגבלה על טוקנים כרגע רק מדידה"): the content path's
+  MAX_CONTENT_TOKENS (8,000) and MAX_REWRITE_TOKENS (3,000) are removed; each call asks for the model's own documented
+  maximum (catalogue `max_output_tokens`; claude-sonnet-5-5 64,000, gemini-3.8-flash 32,768) and the router sends each
+  model exactly its own. Every content call is measured into `site_route.content_usage` (model, input/output tokens,
+  metered cost, finish reason, per call and the build's totals; a total is null, never 0, when a call is unmeasured);
+  a stop on max_tokens is logged `SITE_CONTENT_TRUNCATED` and listed as `truncated_at_model_maximum` or
+  `truncated_at_budget_allowance`. The money caps stay: the router still authorizes every call against the build's
+  budget, and `fit_to_budget` may send less than the maximum (never below 12,000 for codegen). Verified by
+  tests/test_content_corrections.py::TheTokensAreMeasuredNotCapped (real RoutedModelGateway, scripted provider) and
+  controls content_corrections 13/13. Not verified: a real paid build (no paid call was made).
+- Evidence: see TASKS.md CAPS-A and the branch's commit messages. Open: the UI shell's part (visual-edit.js MAX_IMAGES,
+  app.js notices, history paging, request_cut in the plan panel, the dead project_limit_reached branch).
+- **Follow-up of the apps bundle (the platform UI changes there; caps-a does not touch app.js or visual-edit.js).**
+  What caps-a records and returns by the API but is NOT on screen yet: (1) `messages[].notices` (a bound that applied
+  to a turn: reply cut, model output cut, request cut, outline cut) -- a cut reply and the request/outline notices are
+  also in the reply text, which is on screen; (2) `history: {has_older, before}` and
+  `GET /api/v28/projects/{id}/conversation/messages?before=<id>&limit=1..100` (older messages; error
+  `invalid_history_page`); (3) `plan.request_cut.message` in the plan panel; (4) `site_route.shortened_said` (a list
+  the model shortened to fit one answer); (5) `visual-edit.js:143` `MAX_IMAGES = 6` -> 20, the server's
+  `attachments.MAX_PER_MESSAGE`; (6) the dead `project_limit_reached` branch in `app.js:905-913` and its test
+  `tests/test_v7_readiness_regression.py::test_project_quota_has_distinct_client_remedy`; (7) the `site_content_invalid`
+  text "גם אחרי התיקון" (there are up to three corrections). A launch of a version whose preview is live now answers
+  `status: REUSED` with that preview's id (the screen reads only preview_id).
+
 # 2026-11-26 — The business name asked twice, the summary under a question, and a rehearsal checker that saw neither (Claude Code; branch committed, not pushed)
 
 - Evidence: the live conversation rehearsals 45702506669 (Flash-Lite) and 45702519795 (Haiku) on ac10e94 reported `passed=True, facts_missing=[]` while doors ("שם העסק: 148 דלתות") was asked "איך קוראים לעסק?" two and three times, butcher and bare were asked a name they had quoted, the summary had no name, and five of the six runs showed the summary in the same message as a question.
