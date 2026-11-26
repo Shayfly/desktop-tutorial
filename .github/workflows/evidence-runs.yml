@@ -16,6 +16,7 @@ on:
       - docs/evidence-runs-known-red.json
       - omni_prod/agent_os/agents.py
       - omni_prod/agent_os/evidence.py
+      - omni_prod/agent_os/meta.py
       - omni_prod/agent_os/skills.py
       - omni_prod/agent_os/truth_matrix.py
       - omni_prod/intelligence/inventory.py
