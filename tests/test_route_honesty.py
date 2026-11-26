@@ -11,6 +11,7 @@ write them, and the build died on one sentence: sections.process.lead PRICE_NOT_
      no domain, no domain facts, no trade words, no palette name for the model, and the neutral palette's own process
      and FAQ are offered, not required; a near word or a trigram match lends the palette only
   2. (test_route_one_page.py) a request one page cannot hold goes to the legacy path by name
+  3. (test_route_invented_facts.py) after the one correction, an invented fact loses its sentence, not the build
 
 The real decide(), validator, section library and payload; nothing is scripted here (AGENTS.md rule 2)."""
 import hashlib

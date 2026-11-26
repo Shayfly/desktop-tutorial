@@ -3,6 +3,7 @@
  "sha256": [
   "tests/test_route_honesty.py",
   "tests/test_route_one_page.py",
+  "tests/test_route_invented_facts.py",
   "tests/fixtures/site_content_bld_3938e570.json",
   "omni_prod/vertical_palettes.py",
   "omni_prod/site_content/__init__.py",
@@ -226,6 +227,130 @@
    ],
    "expect_failed": [
     "test_near_misses_stay_on_the_content_route"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the build dies on one invented sentence again: nothing is removed after the one correction",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            if V.blocking(problems):\n                doc, problems = self._without_invented(doc, problems, sheet, offered, route)\n            if V.blocking(problems):\n                report['problems']",
+     "new": "            if V.blocking(problems):\n                report['problems']"
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_an_optional_field_left_empty_is_removed",
+    "test_one_invented_sentence_is_removed_and_the_build_goes_on"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "a required field left with no sentence is removed instead of failing",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        elif getattr(leaf_spec(path, outline_titles), 'optional', False):",
+     "new": "        elif True:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_strip_invented_alone"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "any blocking problem is stripped, not only an invented fact (a customer's phone in copy)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "    other = sorted({p.code for p in blocking if p.code not in INVENTED})",
+     "new": "    other = []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_strip_invented_alone"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "the whole field goes, not the one sentence",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        kept = [s for i, s in enumerate(sentences) if i not in bad]",
+     "new": "        kept = []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_one_invented_sentence_is_removed_and_the_build_goes_on",
+    "test_strip_invented_alone"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "a text is written in place of the sentence removed",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "            out = set_path(out, path, ' '.join(kept))",
+     "new": "            out = set_path(out, path, ' '.join(kept + ['מחירים משתלמים.']))  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_one_invented_sentence_is_removed_and_the_build_goes_on",
+    "test_strip_invented_alone"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "the evidence does not say what was removed",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        report.setdefault('stripped', []).extend(removed)",
+     "new": "        report.setdefault('stripped', [])  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_an_optional_field_left_empty_is_removed",
+    "test_one_invented_sentence_is_removed_and_the_build_goes_on"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "a customer fact in the wrong place joins the invented family",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "INVENTED = ('PRICE_NOT_GIVEN', ",
+     "new": "INVENTED = ('FACT_IN_COPY', 'PRICE_NOT_GIVEN', "
+    }
+   ],
+   "targets": [
+    "tests/test_route_invented_facts.py"
+   ],
+   "expect_failed": [
+    "test_strip_invented_alone",
+    "test_the_family_is_the_validators"
    ]
   }
  ]
