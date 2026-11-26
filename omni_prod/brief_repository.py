@@ -22,7 +22,11 @@ from datetime import datetime, timedelta, timezone
 
 from .discovery import Brief, complete
 
-APPROVAL_TTL = timedelta(minutes=int(os.getenv('OMNI_APPROVAL_TTL_MINUTES', '30')))
+# The owner, 2026-11-26 (WAREHOUSE 136, option a): an approval was valid 30 minutes, then refused as approval_expired
+# even though nothing it covers had changed -- a limit that is not money. It is valid a day. What it covers is checked
+# again when it is used, whatever its age (consume): the brief revision and fingerprint, the contract and its
+# fingerprint, the price and budget fingerprint; any change refuses it as approval_stale.
+APPROVAL_TTL = timedelta(minutes=int(os.getenv('OMNI_APPROVAL_TTL_MINUTES', '1440')))
 
 
 class StaleBrief(RuntimeError):

@@ -4,7 +4,7 @@ The real section library, the real validator, the real gate executors and the re
 gateway is scripted (AGENTS.md rule 2). The brief is the owner's production row (bld_b0eb47a5, read-only; its
 fingerprint is asserted in test_site_content_render.py).
 
-  the generator: a document still invalid after its one correction fails loudly, its problems in the evidence;
+  the generator: a document still invalid after its corrections fails loudly, its problems in the evidence;
                  every section the page does not show is said with its reason, and an unexplained gap raises
   the repairer:  after a verified round, a refused rewrite ends the loop on its best version (never an exception that
                  throws the verified work away); a rewrite of a path it was not given is refused; a finding the
@@ -63,15 +63,16 @@ def with_bad_copy():
 
 
 class TheGenerator(unittest.TestCase):
-    def test_a_document_still_invalid_after_its_one_correction_fails_loudly(self):
+    def test_a_document_still_invalid_after_its_corrections_fails_loudly(self):
         content = A.set_path(json.loads(json.dumps(CONTENT)), 'sections.services.items[1].desc',
                              'התקשרו אלינו 03-5551234 לייעוץ.')
-        gw = ScriptedGateway(content=content)                  # the correction returns the same document
+        gw = ScriptedGateway(content=content)                  # every correction returns the same document
         engine = routed(gw)
         spec = engine.architect.create_spec(PROMPT)
         with self.assertRaises(A.SiteContentInvalid) as caught:
             engine.generator.generate(spec)
-        self.assertEqual(gw.roles().count('content'), 2)       # the call and its one correction, no more
+        # the call and its corrections, no more (the owner, 2026-11-26: up to 3, tests/test_content_corrections.py)
+        self.assertEqual(gw.roles().count('content'), 1 + A.MAX_CORRECTIONS)
         self.assertIn(('sections.services.items[1].desc', 'FACT_IN_COPY'),
                       {(p['path'], p['code']) for p in engine.site_report['problems']})
         self.assertIn('FACT_IN_COPY', str(caught.exception))

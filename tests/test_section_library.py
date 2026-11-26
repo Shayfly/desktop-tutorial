@@ -272,5 +272,141 @@ class RoundTwo(unittest.TestCase):
         self.assertIn('09:00–18:00', footer)
 
 
+def words(n: int, seed: str = 'מילה') -> str:
+    """Hebrew prose of exactly n characters (words of several lengths, so lines wrap as real copy does)."""
+    pool = (seed, 'אחרת', 'ארוכה', 'קצר', 'משפט', 'שירות', 'מקצועי', 'בתל אביב', 'ללקוחות')
+    out, i = [], 0
+    while len(' '.join(out)) < n:
+        out.append(pool[i % len(pool)])
+        i += 1
+    return ' '.join(out)[:n].rstrip() or seed
+
+
+def content_at_maxima(direction: str) -> dict:
+    """The library's content with every list of the content route at its maximum (site_content.schema.SECTIONS, raised
+    by the owner on 2026-11-26) and every list item's strings at their longest -- the largest page the route can
+    render. Synthetic test data; the facts are the owner's law-firm brief (demo_law_firm)."""
+    from omni_prod.site_content import schema as K
+    S, H = K.SECTIONS, K._H
+    most = lambda key, field: S[key][field].max                                        # noqa: E731
+    c = copy.deepcopy(D.CONTENT)
+    c['direction'] = direction
+    # every layout variant is drawn: two directions take each axis's first variant, two its second
+    pick = 0 if direction in ('formal', 'bold') else 1
+    c['layout'] = {axis: opts[pick] for axis, opts in L.LAYOUTS.items()}
+    c['hero'].update(title=words(H['h1']), lead=words(220), cta=words(30), note=words(90), panel_label=words(40),
+                     panel_caption=words(40))
+    c['stats'] = [(str(1990 + i), words(30, 'שנים')) for i in range(most('stats', 'items'))]
+    c['services'] = {'eyebrow': words(40), 'title': words(H['h2']), 'lead': words(220),
+                     'items': [(words(H['h3'], f'שירות{i}'), words(220)) for i in range(most('services', 'items'))]}
+    c['about'] = {'eyebrow': words(40), 'title': words(H['h2']), 'lead': words(220),
+                  'paragraphs': [words(400) for _ in range(most('about', 'paragraphs'))],
+                  'facts': [(words(20, f'פרט{i}'), words(80, 'ערך')) for i in range(S['about']['facts'].max)]}
+    c['process'] = {'eyebrow': words(40), 'title': words(H['h2']),
+                    'steps': [(words(H['h3'], f'שלב{i}'), words(200)) for i in range(most('process', 'steps'))]}
+    c['faq'] = {'eyebrow': words(40), 'title': words(H['h2']),
+                'items': [(words(90, f'שאלה{i}'), words(400)) for i in range(most('faq', 'items'))]}
+    c['testimonials'] = {'eyebrow': words(40), 'title': words(H['h2']),
+                         'items': [{'text': words(300), 'name': words(20, 'לקוחה')}
+                                   for _ in range(most('testimonials', 'items'))]}
+    groups, per_group = S['pricelist']['groups'].max, S['pricelist']['groups'].item.fields['items'].max
+    c['pricelist'] = {'eyebrow': words(40), 'title': words(H['h2']), 'groups': [
+        {'title': words(H['h3'], f'קבוצה{g}'), 'items': [
+            {'name': words(H['h4'], f'פריט{i}'), 'price': '1,390 ₪', 'desc': words(120)} for i in range(per_group)]}
+        for g in range(groups)]}
+    c['cta'] = {'title': words(H['h2']), 'text': words(200)}
+    c['contact'] = dict(c['contact'], eyebrow=words(40), title=words(H['h2']), lead=words(220),
+                        topics=[words(30, f'נושא{i}') for i in range(S['contact']['topics'].max)])
+    # The menu labels and the hero button keep the owner's own lengths: at their schema maxima (7 labels of 24
+    # characters, a 30-character button) the page overflows already with the demo's item counts -- 27 px at 1440 and
+    # 16 px at 320 (measured 2026-11-26, caps-a; a defect on main, reported, not caused by the item counts). This test
+    # proves the item counts.
+    c['hero']['cta'] = D.CONTENT['hero']['cta']
+    c['nav'] = list(D.CONTENT['nav']) + [('pricelist', 'מחירון'), ('testimonials', 'המלצות')]
+    return c
+
+
+READABLE = """() => {
+  const text = 'h1,h2,h3,h4,p,li,dd,dt,summary,figcaption,blockquote,label,.btn';
+  const clipped = [...document.querySelectorAll(text)].filter(e => e.offsetParent !== null
+      && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflowX !== 'visible')
+    .map(e => e.tagName + '.' + e.className).slice(0, 5);
+  const wider = [...document.querySelectorAll('main *')].filter(e => {
+      const r = e.getBoundingClientRect(); return r.width > 0 && (r.right > innerWidth + 1 || r.left < -1); })
+    .map(e => e.tagName + '.' + e.className).slice(0, 5);
+  const small = [...document.querySelectorAll('main p, main li, main dd, main dt, main summary, main figcaption, main label')]
+    .filter(e => e.offsetParent !== null && parseFloat(getComputedStyle(e).fontSize) < 14)
+    .map(e => e.tagName + '.' + e.className + ' ' + getComputedStyle(e).fontSize).slice(0, 5);
+  return {over: document.documentElement.scrollWidth - innerWidth, clipped, wider, small}; }"""
+
+
+class ItemMaxima(unittest.TestCase):
+    """The owner, 2026-11-26 (WAREHOUSE 136 option a): the content route's item maxima were raised (24 services and
+    questions, 12 steps, testimonials, facts and topics, 12 groups of 30 prices, 6 numbers and paragraphs). The largest
+    page the route can render, in every art direction, in a real browser: nothing scrolls sideways at 320-1440 px,
+    no text is clipped or pushed off the screen, body text stays at least 14 px, every item is on the page, and the
+    production visual check finds nothing on it that it does not find on the owner's normal page."""
+    maxDiff = None
+
+    def test_the_largest_page_fits_every_width_and_stays_readable(self):
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:  # pragma: no cover
+            self.skipTest('playwright is required to render the page')
+        from omni_prod import visual_qa as VQ
+        from omni_prod.site_content import schema as K
+        contract = D.build()[1]
+        audit_js = re.search(r'AUDIT = r"""(.*?)"""', VQ.SCRIPT, re.S).group(1)
+        offline = lambda doc: re.sub(r'<link[^>]+fonts\.g[^>]+>', '', doc)             # noqa: E731
+        problems, sizes, audits = {}, {}, {}
+        with sync_playwright() as p:
+            b = p.chromium.launch()
+            pg = b.new_page(viewport={'width': 320, 'height': 800})
+            for direction in ('formal', 'warm', 'bold', 'elegant'):
+                doc, skipped = L.page(content_at_maxima(direction), contract)
+                sizes[direction] = len(doc)
+                steps = re.search(r'<ol class="steps[^"]*">(.*?)</ol>', doc, re.S).group(1)
+                counts = {'services': doc.count('<article class="card">'), 'steps': steps.count('<li>'),
+                          'faq': doc.count('<details><summary>'), 'quotes': doc.count('<figure class="quote">'),
+                          'price items': doc.count('<div class="item-head">'),
+                          'price groups': doc.count('<div class="price-group">')}
+                if 'svc-list' in doc:                       # the editorial list layout: rows, not cards
+                    counts['services'] = re.search(r'<ol class="svc-list">(.*?)</ol>', doc, re.S).group(1).count('<li>')
+                expected = {'services': K.SECTIONS['services']['items'].max, 'steps': K.SECTIONS['process']['steps'].max,
+                            'faq': K.SECTIONS['faq']['items'].max, 'quotes': K.SECTIONS['testimonials']['items'].max,
+                            'price items': K.SECTIONS['pricelist']['groups'].max
+                            * K.SECTIONS['pricelist']['groups'].item.fields['items'].max,
+                            'price groups': K.SECTIONS['pricelist']['groups'].max}
+                if counts != expected:
+                    problems[f'{direction} counts'] = (counts, expected)
+                pg.set_content(offline(doc))
+                for w in (320, 390, 768, 1024, 1440):
+                    pg.set_viewport_size({'width': w, 'height': 800})
+                    m = pg.evaluate(READABLE)
+                    found = {k: v for k, v in m.items() if v}
+                    if found:
+                        problems[f'{direction}/{w}'] = found
+            for name, v in VQ.VIEWPORTS.items():
+                ctx = b.new_context(viewport={'width': v['width'], 'height': v['height']}, is_mobile=v['mobile'],
+                                    has_touch=v['mobile'], device_scale_factor=1, locale='he-IL')
+                kinds = {}
+                for label, doc in (('normal', self.doc_normal()), ('maxima', L.page(content_at_maxima('formal'),
+                                                                                    contract)[0])):
+                    page = ctx.new_page()
+                    page.set_content(offline(doc))
+                    page.wait_for_timeout(1200)                  # the production audit's settle time
+                    kinds[label] = {f['kind'] for f in page.evaluate(audit_js, v['mobile'])['findings']}
+                    page.close()
+                audits[name] = sorted(kinds['maxima'] - kinds['normal'])
+                ctx.close()
+            b.close()
+        self.assertEqual(problems, {})
+        self.assertEqual(audits, {'desktop': [], 'mobile': []})
+        self.assertGreater(min(sizes.values()), 45_000)            # past the preview's cut: preview_smoke.served_cut
+
+    def doc_normal(self):
+        return L.page(D.CONTENT, D.build()[1])[0]
+
+
 if __name__ == '__main__':
     unittest.main()

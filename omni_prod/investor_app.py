@@ -77,7 +77,8 @@ from .product_architect import ProductArchitect
 from .capability_repository import PostgresCapabilityRepository
 from .capability_registry import CapabilityRegistry
 from .capabilities import CapabilityStatus
-from .preview_repository import PostgresPreviewRepository
+from .preview_repository import DEFAULT_TTL_SECONDS as _PREVIEW_DEFAULT_TTL, PostgresPreviewRepository
+from .discovery import BUILD_PROMPT_MAX as _PROMPT_MAX   # the plan and build `prompt` bound (review B1, 2026-11-26)
 from .preview_runtime import (NotPreviewable, PreviewBackendUnavailable, ensure_durable_workspace,
                               external_preview_url, parse_preview_contract, parse_web_saas_acceptance_plan)
 from .rights_ip import JURISDICTIONS
@@ -518,7 +519,7 @@ class V26RestoreRequest(BaseModel):
     version_id: str = Field(min_length=1,max_length=160)
 
 class V27BuildRequest(BaseModel):
-    prompt: str = Field(min_length=3,max_length=12000)
+    prompt: str = Field(min_length=3,max_length=_PROMPT_MAX)
     target_markets: list[str] = Field(default_factory=lambda:['US','EU','IL'])
     build_contract_id: str | None = Field(default=None, min_length=1, max_length=160)
     idempotency_key: str | None = Field(default=None, min_length=8, max_length=160)
@@ -578,7 +579,7 @@ class V28ModificationRequest(BaseModel):
     # Visual edit (directive 2026-10-11): the element picked in the preview and,
     # when locate() listed several, the candidate the person chose.
     target: dict | None = None
-    attachment_ids: list[str] = Field(default_factory=list, max_length=6)
+    attachment_ids: list[str] = Field(default_factory=list, max_length=20)   # = attachments.MAX_PER_MESSAGE
 
 class V28ModificationAcceptRequest(BaseModel):
     force: bool = False
@@ -1931,7 +1932,7 @@ def _internal_qa_funding(account_id: str):
 
 
 class V28PlanRequest(BaseModel):
-    prompt: str = Field(min_length=3, max_length=12000)
+    prompt: str = Field(min_length=3, max_length=_PROMPT_MAX)
     # Directive 2026-10-09 §4-5: plan from the approved discovery brief. The
     # contract prompt then carries the brief's requirements and fingerprint.
     brief_revision: int | None = Field(default=None, ge=1)
@@ -2066,7 +2067,7 @@ class V28ConversationMessage(BaseModel):
     message: str = Field(default='', max_length=8000)
     answers: dict[str, str] = Field(default_factory=dict)
     request_key: str | None = Field(default=None, max_length=80)
-    attachment_ids: list[str] = Field(default_factory=list, max_length=6)
+    attachment_ids: list[str] = Field(default_factory=list, max_length=20)   # = attachments.MAX_PER_MESSAGE
     brief_revision: int | None = Field(default=None, ge=1)
     # Gate 1 is NOT a conversation message (2026-10-28): its own route is POST .../spec-approval; this field is kept
     # for older clients and is routed to the same action (an empty message is valid with it).
@@ -2162,7 +2163,7 @@ def _supervisor(key: str, account_id: str | None = None):
         def admission(project_id, row, lang):   # 79: the banner's own check, saving no contract
             from . import discovery as d
             from .build_contract_repository import MemoryBuildContractRepository
-            prompt = (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000]   # = _brief_prompt
+            prompt = d.build_prompt(row.brief)[0]                                    # = _brief_prompt
             return _plan_admission(account_id, project_id, prompt, row, MemoryBuildContractRepository(), lang)[0]
     return ConversationSupervisor(briefs=_brief_repo(), store=_conversation_store(), gateway=None,
                                   credits=credits, credits_from_plan=credits_from_plan, context=_project_context(key),
@@ -2170,20 +2171,30 @@ def _supervisor(key: str, account_id: str | None = None):
                                   reservations=reservations, enqueue=enqueue, admission=admission)
 
 
+def _conversation_message(m: dict) -> dict:
+    """One stored message as the customer's screen gets it."""
+    return {'id': m.get('id'), 'role': m['role'], 'content': m['content'], 'brief_revision': m['brief_revision'],
+            'intent': (m.get('interpretation') or {}).get('intent'),
+            'actions': (m.get('interpretation') or {}).get('actions') or [],
+            'attachments': (m.get('interpretation') or {}).get('attachments') or [],
+            # the owner, 2026-11-26: a bound that applied to this turn, in the customer's words (never silent)
+            'notices': (m.get('interpretation') or {}).get('notices') or [],
+            'ai_status': _conversation_message_status(m)}
+
+
 def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
+    from .conversation.store import history_page
     store, repo = _conversation_store(), _brief_repo()
     row = repo.latest(project_id)
     plan = store.plan_for(project_id, row.fingerprint) if row else None
     from .conversation.supervisor import _plan_view
+    # the owner, 2026-11-26: the latest page of the history, with the cursor to the page before it (has_older,
+    # before -> GET .../conversation/messages?before=<id>); the flow mark is not a message
+    page = history_page(store, project_id, shape=_conversation_message)
     return {
         'turn': turn.to_dict(lang) if turn is not None else None,
-        'messages': [{'role': m['role'], 'content': m['content'], 'brief_revision': m['brief_revision'],
-                      'intent': (m.get('interpretation') or {}).get('intent'),
-                      'actions': (m.get('interpretation') or {}).get('actions') or [],
-                      'attachments': (m.get('interpretation') or {}).get('attachments') or [],
-                      'ai_status': _conversation_message_status(m)}
-                     for m in store.messages_for(project_id, limit=100)
-                     if not (m.get('interpretation') or {}).get('system')],   # the flow mark is not a message
+        'messages': page['messages'],
+        'history': {'has_older': page['has_older'], 'before': page['before']},
         'discovery': _discovery_view(row, lang) if row else None,
         'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
         # what will actually answer the next message (never 'model' just because a switch is on)
@@ -2348,6 +2359,21 @@ def v28_conversation_get(project_id: str, request: Request) -> dict:
     return _conversation_view(project_id, _lang(request))
 
 
+@app.get('/api/v28/projects/{project_id}/conversation/messages')
+def v28_conversation_history(project_id: str, request: Request, before: str | None = None, limit: str = '100') -> dict:
+    """The owner, 2026-11-26: older messages, a page at a time. `before` is the cursor the last page gave (the oldest id
+    it read); the answer carries the next one ('before', 'has_older'). Same owner check as the conversation itself.
+    A cursor or a size that is not a whole number is the same 422 invalid_history_page as one out of range."""
+    from .conversation.store import history_page
+    _discovery_account(request, project_id)
+    try:
+        cursor = None if before is None else int(before) if re.fullmatch(r'-?\d{1,18}', before) else before
+        size = int(limit) if re.fullmatch(r'-?\d{1,6}', limit) else limit
+        return history_page(_conversation_store(), project_id, before=cursor, limit=size, shape=_conversation_message)
+    except ValueError as exc:
+        raise HTTPException(422, detail={'error': 'invalid_history_page', 'message': str(exc)}) from exc
+
+
 @app.get('/api/v28/projects/{project_id}/memory')
 def v28_project_memory(project_id: str, request: Request) -> dict:
     """Structured project memory: ten separate sections from durable tables."""
@@ -2486,7 +2512,13 @@ def _brief_prompt(project_id: str, revision: int) -> tuple[str, object]:
         # O10: name what is missing (pending question ids and contradictions), not only that something is.
         raise HTTPException(409, detail={'error': 'brief_incomplete', 'message': 'Some questions are still open.',
                                          **d.missing(row.brief)})
-    return (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000], row
+    # the owner, 2026-11-26: the approved decisions are never cut (discovery.build_prompt); a cut of the request, when
+    # one is still needed past BUILD_PROMPT_MAX, is said in the prompt, the plan view and the build evidence
+    try:
+        prompt, _cut = d.build_prompt(row.brief)
+    except ValueError as exc:
+        raise HTTPException(409, detail={'error': 'request_too_long', 'message': str(exc)}) from exc
+    return prompt, row
 
 
 # The architect's role and data tokens (product_architect._infer_roles / _infer_data_requirements and the
@@ -2655,6 +2687,13 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     preview['credits_required'] = build_credits
     preview['brief_revision'] = req.brief_revision
     preview['allowance'] = _v28.subscription(token=token)
+    if brief_row is not None:
+        # the owner, 2026-11-26: a request too long for the build prompt is cut at its start, never silently -- the
+        # plan view returns it in the customer's words (discovery.build_prompt): recorded and returned by the API, on
+        # screen once the apps bundle shows plan.request_cut
+        from . import discovery as _d
+        cut = _d.request_cut_of(prompt)
+        preview['request_cut'] = {**cut, 'message': _d.request_cut_message(cut, _lang(request))} if cut else None
     if internal_qa:
         # Founder-only prototype diagnostics. Advisory information only: the
         # live reserve transaction RECHECKS this budget under a DB lock.
@@ -3032,7 +3071,8 @@ def v28_build_events(project_id: str, build_id: str, request: Request, after: in
 # may be on other hosts (see worker_tasks.py / queueing.preview_host_queue).
 #
 
-_PREVIEW_TTL_SECONDS = int(os.getenv('OMNI_PREVIEW_TTL_SECONDS', '3600'))
+# the owner, 2026-11-26: a day, not an hour (preview_repository.DEFAULT_TTL_SECONDS says what one preview holds)
+_PREVIEW_TTL_SECONDS = int(os.getenv('OMNI_PREVIEW_TTL_SECONDS', str(_PREVIEW_DEFAULT_TTL)))
 
 def _preview_public_view(preview: dict, public_project_id: str, acceptance: dict | None = None) -> dict:
     # Internal routing/runtime fields (container id, worker host/port, host
@@ -3103,8 +3143,13 @@ def _v28_preview_launch(project_id: str, version_id: str, request: Request) -> d
         # of creating a row and spending a worker slot to learn the same thing.
         return JSONResponse(status_code=422, content={'status': 'NOT_PREVIEWABLE', 'reason': str(exc)})
 
-    preview_id = f"prv_{uuid.uuid4().hex}"
     preview_repo = PostgresPreviewRepository(_v28_pool)
+    # review S3 (2026-11-26): the same version's preview, still starting or running, is reused -- a day-long preview is
+    # not a new container on every launch (one host carries them all)
+    live = preview_repo.live_for(key, version_id)
+    if live is not None:
+        return JSONResponse(status_code=202, content={"status": "REUSED", "preview_id": live})
+    preview_id = f"prv_{uuid.uuid4().hex}"
     preview_repo.create(preview_id, key, version_id, ttl_seconds=_PREVIEW_TTL_SECONDS)
 
     redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')

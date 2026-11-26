@@ -14,6 +14,8 @@ BROWSER_ONLY = ('test_every_variant_in_every_direction_passes_every_gate_and_nev
                 'test_nothing_scrolls_sideways_in_any_direction_or_shape',
                 'test_nothing_scrolls_sideways_on_a_phone_or_a_wide_screen',
                 'test_round_two_holds_on_every_palette_at_phone_and_desktop_width',
+                # caps-a 2 (2026-11-26): ItemMaxima renders the largest page in Chromium (skipTest without playwright)
+                'test_the_largest_page_fits_every_width_and_stays_readable',
                 'test_the_production_visual_check_finds_nothing_it_enforces_on_a_phone_or_a_desktop',
                 'test_the_purged_page_is_pixel_identical_to_the_full_stylesheet',
                 'test_the_render_check_sees_every_element_settled_after_300ms')
