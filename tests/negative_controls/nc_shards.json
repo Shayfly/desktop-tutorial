@@ -93,12 +93,12 @@
   },
   {
    "id": "NC6",
-   "what": "CI runs two of the three shards",
+   "what": "CI runs three of the four shards (shard 4 dropped)",
    "mutations": [
     {
      "file": ".github/workflows/v24-ci.yml",
-     "old": "        shard: [1, 2, 3]\n",
-     "new": "        shard: [1, 2]  # NEGATIVE CONTROL\n"
+     "old": "        shard: [1, 2, 3, 4]\n",
+     "new": "        shard: [1, 2, 3]  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
@@ -114,8 +114,8 @@
    "mutations": [
     {
      "file": ".github/workflows/v24-ci.yml",
-     "old": "      fail-fast: false\n      matrix:\n        shard: [1, 2, 3]\n",
-     "new": "      fail-fast: true  # NEGATIVE CONTROL\n      matrix:\n        shard: [1, 2, 3]\n"
+     "old": "      fail-fast: false\n      matrix:\n        shard: [1, 2, 3, 4]\n",
+     "new": "      fail-fast: true  # NEGATIVE CONTROL\n      matrix:\n        shard: [1, 2, 3, 4]\n"
     }
    ],
    "targets": [
@@ -127,12 +127,12 @@
   },
   {
    "id": "NC8",
-   "what": "review 2026-11-26, finding 5: a matrix exclude drops shard 3",
+   "what": "review 2026-11-26, finding 5: a matrix exclude drops shard 4",
    "mutations": [
     {
      "file": ".github/workflows/v24-ci.yml",
-     "old": "        shard: [1, 2, 3]\n",
-     "new": "        shard: [1, 2, 3]\n        exclude:\n          - shard: 3  # NEGATIVE CONTROL\n"
+     "old": "        shard: [1, 2, 3, 4]\n",
+     "new": "        shard: [1, 2, 3, 4]\n        exclude:\n          - shard: 4  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
@@ -144,12 +144,12 @@
   },
   {
    "id": "NC9",
-   "what": "review 2026-11-26, finding 5: a condition on the controls step skips shard 3",
+   "what": "review 2026-11-26, finding 5: a condition on the controls step skips shard 4",
    "mutations": [
     {
      "file": ".github/workflows/v24-ci.yml",
      "old": "      - name: Negative controls (one SPEC ::notice per spec; per-control NC-EVIDENCE log lines; ::error on FAIL)\n",
-     "new": "      - name: Negative controls (one SPEC ::notice per spec; per-control NC-EVIDENCE log lines; ::error on FAIL)\n        if: matrix.shard != 3  # NEGATIVE CONTROL\n"
+     "new": "      - name: Negative controls (one SPEC ::notice per spec; per-control NC-EVIDENCE log lines; ::error on FAIL)\n        if: matrix.shard != 4  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [

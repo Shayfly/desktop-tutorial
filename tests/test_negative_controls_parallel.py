@@ -183,6 +183,7 @@ class Shards(unittest.TestCase):
         self.assertEqual(step['run'], 'python scripts/run_negative_controls.py')
         self.assertEqual(step['env']['NC_SHARD'], '${{ matrix.shard }}/' + str(len(shards)))
         self.assertEqual(shards, list(range(1, len(shards) + 1)))       # 1..n: no shard is missing
+        self.assertEqual(shards, [1, 2, 3, 4])                          # 2026-11-26: four; dropping shard 4 is caught
         for where in (step, job):
             self.assertNotIn('if', where)                               # no shard's controls are skipped
             self.assertNotIn('continue-on-error', where)
