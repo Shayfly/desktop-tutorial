@@ -2021,13 +2021,23 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
 # The build contract that produced a version (directly, or through a chain of
 # promoted modifications) decides the demand-driven acceptance scope. Read from
 # the immutable contract, never from generated files.
+# A version's lineage follows both a promoted change (modification_requests) and the workspace's own versions
+# (project_versions.parent_id: "accepted in workspace", "undo visual edit", "rollback from workspace"). Before
+# 2026-11-25 only the first was followed, so a version made by an undo or a rollback had no contract: the strict
+# acceptance floor applied to a content site (verify-replay run 45607249874: v_88812e8a4066448e and
+# v_8fd6c2ad3b174200 required auth/role/data_* although their build, bld_c35b8332, was an approved content site).
 _CONTRACT_SCOPE_FOR_VERSION_SQL = """
-WITH RECURSIVE lineage(version_id, depth) AS (
+WITH RECURSIVE edges(child, parent) AS (
+    SELECT m.promoted_version_id, m.source_version_id FROM modification_requests m
+    WHERE m.promoted_version_id IS NOT NULL AND m.source_version_id IS NOT NULL
+    UNION
+    SELECT v.id, v.parent_id FROM project_versions v WHERE v.parent_id IS NOT NULL
+), lineage(version_id, depth) AS (
     SELECT %s::text, 0
-    UNION ALL
-    SELECT m.source_version_id, l.depth + 1
-    FROM modification_requests m
-    JOIN lineage l ON m.promoted_version_id = l.version_id
+    UNION
+    SELECT e.parent, l.depth + 1
+    FROM edges e
+    JOIN lineage l ON e.child = l.version_id
     WHERE l.depth < 64
 )
 SELECT c.contract_json->'infrastructure', c.contract_json->'required_integrations',

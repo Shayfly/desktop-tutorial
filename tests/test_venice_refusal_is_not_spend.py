@@ -51,7 +51,7 @@ class TheRefusalCostsNothing(unittest.TestCase):
     def test_402_and_401_are_metered_as_not_contacted(self):
         for status, exc in ((402, VC.VeniceInsufficientCredit), (401, VC.VeniceAuthError)):
             with self.subTest(status=status):
-                venice = Refusing(models('claude-sonnet-5-5', 'claude-haiku-5-5'), status)
+                venice = Refusing(models('gemini-3-5-flash-lite', 'claude-haiku-5-5'), status)
                 g = gateway(venice)
                 mark = W.ledger_mark(g)
                 with self.assertRaises(exc):
@@ -63,17 +63,20 @@ class TheRefusalCostsNothing(unittest.TestCase):
 
     def test_a_server_error_after_sending_is_still_unknown(self):
         # only a refusal is known to cost nothing: a 500 after the request may have been processed stays UNKNOWN
-        venice = Refusing(models('claude-sonnet-5-5'), 500)
-        g = gateway(venice)
-        mark = W.ledger_mark(g)
-        with self.assertRaises(VC.VeniceError):
-            g.complete_json(system='S', user='U', max_tokens=500, call_id='c1')
-        self.assertEqual(W.meter(g, {'max_tokens': 500}, call_id='c1', before=mark)['cost_state'], 'UNKNOWN')
+        for model in ('gemini-3-5-flash-lite', 'claude-haiku-5-5'):
+            with self.subTest(model=model):
+                venice = Refusing(models(model), 500)
+                g = gateway(venice)
+                mark = W.ledger_mark(g)
+                with self.assertRaises(VC.VeniceError):
+                    g.complete_json(system='S', user='U', max_tokens=500, call_id='c1')
+                self.assertEqual(venice.sent_model, [model])
+                self.assertEqual(W.meter(g, {'max_tokens': 500}, call_id='c1', before=mark)['cost_state'], 'UNKNOWN')
 
     def test_refusals_never_fill_the_conversation_cap(self):
         g = R.ProductionPathGateway(R.agent_quote(TheRehearsalMeasuresTheAgent.PROD), cap_usd=Decimal('0.15'),
                                     max_turns=8)
-        venice = Refusing(models('claude-sonnet-5-5', 'claude-haiku-5-5'), 402)
+        venice = Refusing(models('gemini-3-5-flash-lite', 'claude-haiku-5-5'), 402)
         real = V.VeniceIntakeGateway
         with mock.patch.dict(os.environ, KEY), \
                 mock.patch.object(V, 'VeniceIntakeGateway', lambda q, **kw: real(q, env=KEY, transport=venice, **kw)):
@@ -82,6 +85,7 @@ class TheRefusalCostsNothing(unittest.TestCase):
         self.assertEqual((g.spent, g.turns), (Decimal('0'), 0))
         self.assertTrue(all(o.limit is None for o in outs))                 # ten refusals, never "the cap"
         self.assertEqual(len(g.call_errors), 10)
+        self.assertEqual(venice.sent_model, ['gemini-3-5-flash-lite'] * 10)
 
 
 class TheCustomerIsToldTheTruth(unittest.TestCase):
