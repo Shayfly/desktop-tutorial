@@ -18,6 +18,12 @@
   SiteParityExecutor     the served GET / is the rendered page (cut where the preview cuts it), and the repository
                          holds no other page; a new check, so it enters gate.CALIBRATING (SITE_PARITY) at warn
 
+After a correction, a document whose only blocking problems are invented facts (INVENTED: a price, a number, a
+count, a channel, a review the customer never gave) loses exactly the sentences that state them, deterministically,
+recorded in the evidence ('stripped'), before another correction is spent on them; a required field that would be
+left empty, or any other problem, goes on to the next correction and, once the MAX_CORRECTIONS are spent, fails
+(strip_invented).
+
 Every loop is bounded (at most MAX_CORRECTIONS corrective calls per generation, one rewrite call per repair round, the
 engine's own round bounds), every failure is loud (SiteContentInvalid, SiteRenderDefect, RepairDeclined), and there is
 no fallback to the legacy generator once the route was chosen.
@@ -288,6 +294,91 @@ def set_path(doc: dict, path: str, value: str) -> dict:
     return out
 
 
+# ---- an invented fact after the one correction ----------------------------------------------------------------------
+# route-honesty (bld_3938e570, 2026-11-25): after the one correction, ONE sentence with a price the customer never gave
+# (sections.process.lead PRICE_NOT_GIVEN) failed the whole build. A problem of this family says the copy STATES a fact
+# the customer did not give; the sentence that states it can be taken out, and nothing has to be written in its place.
+# Every other code -- shape, length, Hebrew, a customer fact in the wrong place (FACT_IN_COPY), a real price next to
+# the wrong label (PRICE_CONTEXT), a reference, a placeholder, the name -- still fails the build loudly.
+INVENTED = ('PRICE_NOT_GIVEN', 'PRICE_CONTRADICTED', 'INVENTED_NUMBER', 'INVENTED_COUNT', 'CHANNEL_NOT_GIVEN',
+            'REVIEW_TEXT_WRITTEN', 'UNVERIFIABLE_CLAIM', 'UNSUPPORTED_DETAIL')
+if set(INVENTED) - set(V.CODES):                      # a renamed validator code must not leave a dead entry here
+    raise RuntimeError(f'INVENTED names codes the validator does not have: {sorted(set(INVENTED) - set(V.CODES))}')
+_SENTENCE = re.compile(r'(?<=[.!?])\s+|\s*\n\s*')
+
+
+def leaf_spec(path: str, outline_titles: dict):
+    """The schema spec of one copy leaf (schema.SECTIONS / schema.TOP), or None for a path the schema does not have."""
+    steps = _steps(path)
+    if len(steps) == 1:
+        return K.TOP.get(steps[0]) if steps[0] in ('tagline', 'description') else None
+    if len(steps) < 3 or steps[0] != 'sections' or steps[1] not in K.SECTIONS:
+        return None
+    spec = K.spec_for(steps[1], outline_titles).get(steps[2])
+    for s in steps[3:]:
+        if isinstance(s, int) and isinstance(spec, K.Lst):
+            spec = spec.item
+        elif isinstance(s, str) and isinstance(spec, K.Obj):
+            spec = spec.fields.get(s)
+        else:
+            return None
+    return spec
+
+
+def _drop(doc: dict, path: str) -> dict:
+    out = json.loads(json.dumps(doc, ensure_ascii=False))
+    steps = _steps(path)
+    node = out
+    for s in steps[:-1]:
+        node = node[s]
+    del node[steps[-1]]
+    return out
+
+
+def strip_invented(doc: dict, problems, check, outline_titles: dict) -> tuple[dict | None, list[dict], str | None]:
+    """(the document without the sentences that state an invented fact, [what was removed and why], None) -- or
+    (None, [], why not). `check(doc)` is the route's validation of a document.
+
+    Only when EVERY blocking problem is of the INVENTED family on a model-written copy leaf: in each such leaf, the
+    sentences that carry the problem on their own (validated alone in the leaf's place) are removed and the rest kept,
+    in order, joined by a space. A leaf left with no sentence is removed when its field is optional
+    (schema: Str(optional=True)); a required one refuses (an empty required field is never written). The result must
+    validate with no blocking problem, or nothing is removed. No text is ever written in place of what is removed."""
+    blocking = V.blocking(problems)
+    other = sorted({p.code for p in blocking if p.code not in INVENTED})
+    if other:
+        return None, [], f'not an invented fact: {", ".join(other)}'
+    copy = dict(V.leaves(doc))
+    outside = sorted({p.path for p in blocking if p.path not in copy})
+    if outside:
+        return None, [], f'not on a copy string: {", ".join(outside)}'
+    by_path: dict[str, list] = {}
+    for p in blocking:
+        by_path.setdefault(p.path, []).append(p)
+    out, removed = doc, []
+    for path in sorted(by_path):
+        codes = {p.code for p in by_path[path]}
+        sentences = [s for s in _SENTENCE.split(copy[path]) if s.strip()]
+        bad = [i for i, s in enumerate(sentences)
+               if any(q.path == path and q.code in codes for q in V.blocking(check(set_path(out, path, s))))]
+        if not bad:
+            return None, [], f'{path}: no single sentence carries {", ".join(sorted(codes))}'
+        kept = [s for i, s in enumerate(sentences) if i not in bad]
+        entry = {'path': path, 'codes': sorted(codes), 'why': [p.why for p in by_path[path]][:3],
+                 'removed': [sentences[i][:300] for i in bad], 'field_removed': not kept}
+        if kept:
+            out = set_path(out, path, ' '.join(kept))
+        elif getattr(leaf_spec(path, outline_titles), 'optional', False):
+            out = _drop(out, path)
+        else:
+            return None, [], f'{path} is required: removing its only sentence would leave it empty'
+        removed.append(entry)
+    left = V.blocking(check(out))
+    if left:
+        return None, [], 'still invalid without those sentences: ' + '; '.join(f'{p.path} {p.code}' for p in left[:6])
+    return out, removed, None
+
+
 def _norm(text: str) -> str:
     return ' '.join(_html.unescape(str(text)).replace(' ', ' ').split())
 
@@ -453,8 +544,11 @@ class ContentSiteGenerator:
         # a generator built without its agent (tests/test_domain_registry builds one with __new__) has no routed
         # gateway: output_maximum then reads the runtime or repository catalogue, as for any unrouted gateway
         gateway = getattr(getattr(self, 'agent', None), 'gateway', None)
-        return {'request': sheet.for_model(), 'palette': route.palette, 'direction': route.direction,
-                'voice': route.voice,
+        # a palette's name is a trade's ('counsel'): the model is given it only for a business the brief names, so the
+        # neutral palette of an unnamed business never reads as "a law firm" (bld_3938e570)
+        named = getattr(route, 'category', None) is not None
+        return {'request': sheet.for_model(), 'palette': route.palette if named else None,
+                'direction': route.direction, 'voice': route.voice,
                 'trade_words': list(getattr(route, 'domain_words', None) or []),
                 'schema': K.schema_for_model(offered, route.outline_titles, name_given=bool(sheet.name),
                                              layouts=LAYOUTS),
@@ -490,6 +584,11 @@ class ContentSiteGenerator:
         for _ in range(MAX_CORRECTIONS + 1):
             problems = V.validate(doc, sheet, offered, route.outline_titles)
             block = V.blocking(problems)
+            if block and rounds:
+                # after a correction, invented facts alone lose their sentences (strip_invented, free and
+                # deterministic) before another paid correction is spent on them
+                doc, problems = self._without_invented(doc, problems, sheet, offered, route)
+                block = V.blocking(problems)
             if block:
                 if len(rounds) >= MAX_CORRECTIONS:
                     report['problems'] = [p.to_dict() for p in problems]
@@ -546,6 +645,21 @@ class ContentSiteGenerator:
         names = [route.outline_titles[k] for k in (route.order or []) if k in route.outline_titles]
         files = R.repository(doc, sheet, html, spec=spec, contract=route.contract, bound=bound, order_names=names)
         return tuple(FilePatch(path, text) for path, text in sorted(files.items()))
+
+    def _without_invented(self, doc, problems, sheet, offered, route):
+        """(document, problems) after strip_invented: the sentences removed are in the evidence ('stripped'), and
+        when nothing may be removed, why ('not_stripped') -- the document and its problems are then returned as they
+        were, and the caller fails the build as before."""
+        def check(d):
+            return V.validate(d, sheet, offered, route.outline_titles)
+        stripped, removed, why = strip_invented(doc, problems, check, route.outline_titles)
+        report = self.core.site_report
+        if stripped is None:
+            report['not_stripped'] = why
+            return doc, problems
+        report.setdefault('stripped', []).extend(removed)
+        _LOG.info('SITE_STRIPPED %s', '; '.join(f"{r['path']} {','.join(r['codes'])}" for r in removed))
+        return stripped, check(stripped)
 
     def _render(self, doc, sheet, route):
         return R.render(doc, sheet, route.contract, expect_fp=route.contract_fp, direction=route.direction,

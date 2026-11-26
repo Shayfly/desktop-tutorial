@@ -55,7 +55,7 @@ from omni_prod.rehearsal import approved_prompt
 from omni_prod.remote_sandbox import RemoteSandboxConfig, RemoteSandboxRepositoryExecutor
 from omni_prod.sandbox_request_policy import SandboxRequestRejected, validate_command, validate_snapshot
 from omni_prod.unified_engine import UnifiedOmniEngine
-from omni_prod.uploaded_assets import MARKER as LOGO_MARKER, _MainImage, logo_transform
+from omni_prod.uploaded_assets import MARKER as LOGO_MARKER, logo_transform
 from omni_prod.workspace import PostgresProjectWorkspace
 from tests.test_generated_images_in_page import evidence_for, image_req
 from tests.test_m495_capability_executor import MemoryStore
@@ -142,7 +142,8 @@ def jpeg_photo():
     out = io.BytesIO()
     Image.open(HERO_FILE).convert('RGB').resize((900, 900)).save(out, 'JPEG', quality=85)
     data = out.getvalue()
-    return _MainImage(data, 'image/jpeg', hashlib.sha256(data).hexdigest(), 'הדלפק', index=1, place='hero')
+    return G.GeneratedImage(index=1, requirement_id='r1', purpose='hero', mime='image/jpeg', width=900, height=900,
+                            sha256=hashlib.sha256(data).hexdigest(), alt='הדלפק', data=data)
 
 
 def http(url: str, *, attempts: int = 40):
@@ -299,10 +300,13 @@ class TheGeneratedServer(unittest.TestCase):
         self.assertIn('GET /assets/148ai-image-1.webp answered HTTP 404', report.failures[0].message)
 
     def test_a_jpeg_is_served_as_image_jpeg(self):
+        # image weight (2026-11-26): a photo is carried as a JPEG when the JPEG is its smaller conversion (a textured
+        # photo); which format wins is the converter's own test (test_web_rendition). Here the carried file is a JPEG
+        # made directly, because what is checked is how the server answers for one.
         photo = jpeg_photo()
         from omni_prod.generated_images import _Transform
         repo = _Transform(None, [photo])(site(page_with(photo.marker), port=free_port()))
-        self.assertEqual(photo.uri, 'assets/148ai-upload-1.jpg')
+        self.assertEqual(photo.uri, 'assets/148ai-image-1.jpg')
         report, ex, _ = smoke(repo)
         self.assertTrue(report.passed, report.failures)
 
@@ -340,8 +344,11 @@ class TheGeneratedServer(unittest.TestCase):
         self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual(seen[hero.uri], hero.data)                   # the image's bytes, not the envelope text
         self.assertEqual(seen['app.py'], repo['app.py'].encode('utf-8'))
-        # a tampered envelope never reaches the write
-        bad = dict(repo, **{hero.uri: repo[hero.uri][:-8] + 'AAAAAAAA'})
+        # a tampered envelope never reaches the write (one base64 character changed: the conversion's WebP ends in zero
+        # bytes, so writing 'AAAAAAAA' over its last eight characters, as this did before 2026-11-26, changed nothing)
+        env = repo[hero.uri]
+        at = len(env) - 20
+        bad = dict(repo, **{hero.uri: env[:at] + ('B' if env[at] != 'B' else 'C') + env[at + 1:]})
         body = json.dumps({'repository': bad, 'argv': ['python', 'app.py'], 'build_id': 'bld_118'}).encode('utf-8')
         seen.clear()
         with mock.patch.dict(os.environ, {'OMNI_SANDBOX_SHARED_SECRET': secret}), \

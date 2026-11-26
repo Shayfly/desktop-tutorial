@@ -89,6 +89,8 @@ def run(prompt: str) -> dict:
         install_page_locale(engine, prompt)
         from .share_preview import install as install_share_preview
         install_share_preview(engine)
+        from .offscreen import install as install_offscreen
+        install_offscreen(engine)
         from .product_review import install_review_request
         report['review_request_installed'] = install_review_request(engine, prompt)
         from .fact_canon import install_facts

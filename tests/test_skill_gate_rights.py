@@ -23,7 +23,7 @@ from omni_prod import skill_units as U
 from omni_prod.autonomous_core import AutonomousProductEngine
 from omni_prod.repository_assets import file_bytes
 from omni_prod.skill_units import gate as G
-from tests.test_contract_prompt_readers import (MARKER, PHOTO, PHOTO_FILE, PHOTO_SHA, PHOTO_URI, PROD_SHA, _Recording,
+from tests.test_contract_prompt_readers import (CARRIED, MARKER, PHOTO_FILE, PHOTO_SHA, PHOTO_URI, PROD_SHA, _Recording,
                                                 contract, engine_for, hero, worker_install)
 from tests.test_skill_gates import BUTCHER, _Arch, _Files, _Sandbox, as_app_py
 
@@ -109,9 +109,10 @@ class ThePageAsWritten(unittest.TestCase):
         sandbox = _Recording()
         engine = self._engine(sandbox)
         result = engine.build('x')
-        # warehouse 118: the sandbox gets the photo as a file the page references, with exactly its bytes
+        # warehouse 118: the sandbox gets the photo as a file the page references, with exactly its bytes -- the
+        # photo's conversion since the image weight change (2026-11-26)
         self.assertIn(f'src="{PHOTO_FILE}"', sandbox.seen[0]['index.html'])
-        self.assertEqual(file_bytes(PHOTO_FILE, sandbox.seen[0][PHOTO_FILE]), PHOTO)
+        self.assertEqual(file_bytes(PHOTO_FILE, sandbox.seen[0][PHOTO_FILE]), CARRIED['data'])
         written = g5_view(engine, sandbox.seen[0])                       # G5 judges the placeholder, as written
         self.assertIn(f'src="{MARKER}"', written['index.html'])
         self.assertNotIn(PHOTO_FILE, written)

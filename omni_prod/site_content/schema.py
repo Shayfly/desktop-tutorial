@@ -133,6 +133,8 @@ def offered_sections(sheet, palette: dict, order: list[str] | None, outline_titl
     else:
         for key in palette['sections']:
             offered[key] = 'required'
+        for key in palette.get('optional_sections', ()):    # an unnamed business (site_content.unnamed_entry)
+            offered.setdefault(key, 'optional')
         for key in ('stats', 'testimonials', 'pricelist'):
             if key in offered:
                 continue

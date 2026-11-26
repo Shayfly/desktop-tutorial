@@ -514,8 +514,14 @@
   },
   {
    "id": "NC29",
+   "note_2026_11_26": "repair-converge: the post-build group's failed report now carries the threshold's test count itself (verification_group, bld_cb2d1b90), so the advisory filter's own fallback alone no longer drops it; the control removes both carriers, and the same test catches it",
    "what": "a pass made of advisory findings carries no test count: the release policy reads the sandbox tests as UNKNOWN",
    "mutations": [
+    {
+     "file": "omni_prod/verification_group.py",
+     "old": "        return ExecutionReport(False, tuple(failures), worst.build_log, tests_executed=base.tests_executed)\n",
+     "new": "        return ExecutionReport(False, tuple(failures), worst.build_log)\n"
+    },
     {
      "file": "omni_prod/site_content/agents.py",
      "old": "            tests = base.tests_executed if base is not None and base.passed else report.tests_executed\n",
