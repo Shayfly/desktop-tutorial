@@ -1,3 +1,25 @@
+# 2026-11-26 — caps-a: the customer limits that are not money, cancelled (Claude Code; branch, not pushed)
+
+The owner's decision of 2026-11-26 10:01 UTC, option (א) (WAREHOUSE 136: money limits stay). Branch
+`claude/practical-hopper-oi3qj2-caps-a`, local commits only (no push, no PR, no release). Implemented and verified
+locally (tests and negative controls below); not verified in CI or production.
+
+- Content route: up to 3 corrections (was 1), each round in the build evidence (`site_route.correction_rounds`).
+- Content schema item maxima raised (services/FAQ 24, steps 12, testimonials 12, price list 12 x 30, topics 12, facts
+  12, paragraphs 6, numbers 6); a page past the preview's 45,000-character capture is judged up to its last complete
+  section (`preview_smoke.served_cut`), never a fact cut in half.
+- No silent cut of the customer's words: the model reads the whole message (8,000); the build prompt keeps every
+  approved decision (bound 64,000, a cut said in the prompt, the plan and the build evidence); a new brief carries 20
+  messages / 48,000 characters and says what it left out; model reply 4,000, requirements 60, proposals 200, each
+  applied bound said; the customer's outline 60 sections / 4,000 characters, a cut said at gate 1.
+- A live preview lives a day (was an hour); the owner's link follows it. An approval is valid a day (was 30 minutes);
+  any change to what it covers still refuses it.
+- The conversation history is paged by a cursor (GET .../conversation/messages?before=).
+- 20 images a message (was 6), 200 a project (was 40); 3 MiB and the 4.5 MB body stay.
+- The public plan view no longer promises max_projects, seats, priority or 'priority builds'.
+- Evidence: see TASKS.md CAPS-A and the branch's commit messages. Open: the UI shell's part (visual-edit.js MAX_IMAGES,
+  app.js notices, history paging, request_cut in the plan panel, the dead project_limit_reached branch).
+
 # 2026-11-26 — the evening of 2026-11-25 and this morning: two releases, four merges without a release, what is open (Claude Code)
 
 - **Released** (CI green on the exact head; the owner's standing approval of 2026-11-25, OWNERS.md rule 1):

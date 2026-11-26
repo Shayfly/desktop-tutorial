@@ -2,6 +2,7 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| CAPS-A | Claude Code | Implemented, verified locally; branch not pushed | `claude/practical-hopper-oi3qj2-caps-a`; tests/test_content_corrections.py, test_item_maxima.py, test_silent_cuts.py, test_preview_lifetime.py, test_approval_lifetime.py, test_conversation_history.py, test_upload_counts.py, test_plan_view_promises.py; controls 34/34 new; STATUS.md 2026-11-26 |
 | A1-RELEASE | Claude Code | Released | #531 `8b7d204` -> `ac10e94` [release], #533 `91290f8` -> `8911e32` [release]; runs 45702506669, 45702519795; deploy-worker 45699791750, 45709671445; STATUS.md 2026-11-26 |
 | LAWS-5-6 | Claude Code | Merged | #534 `9d04b99` -> `4690d01`; STATUS.md 2026-11-26 |
 | LAWS-2-6 | Claude Code | Merged (CI only, no release) | #535 `5bf1522` -> `fa41a5d`; CI 25 passed; supersedes the rows LAW2-EVIDENCE-RUNS and LAW6-FRESHNESS-ISSUES below; STATUS.md 2026-11-26 |
