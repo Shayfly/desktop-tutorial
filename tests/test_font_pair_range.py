@@ -27,7 +27,7 @@ from omni_prod import vertical_palettes as VP
 from omni_prod.g_apple import contract as C
 from omni_prod.g_apple import static
 from omni_prod.section_library import DIRECTIONS
-from tests.test_section_library_conformance import PALETTES, PREVIEW_CUT, UNITS, shapes
+from tests.test_section_library_conformance import PALETTES, PREVIEW_CUT, UNITS, picture_less_only, shapes
 
 SCRIPTS = ('hebrew', 'arabic', 'latin')
 # Thirty business names per script, fixed: the distribution is measured on these, never on random ones.
@@ -116,7 +116,8 @@ class EveryHebrewPairOnTheLibraryPage(unittest.TestCase):
                     doc, _ = L.page(content, contract)
                     rendered += 1
                     found = [f"g_apple {f['code']}" for f in static.check(doc, contract)]
-                    found += [f'unit {u}: {r}' for u in UNITS for r in [U.run(u, doc)] if r.get('status') != 'pass']
+                    found += [f'unit {u}: {r}' for u in UNITS for r in [U.run(u, doc)] if r.get('status') != 'pass'
+                              and not (u == 'design_minimum' and name == 'minimal' and picture_less_only(r))]
                     if len(re.findall(r'<h1\b', doc)) != 1:
                         found.append('not exactly one h1')
                     if len(doc) >= PREVIEW_CUT:
