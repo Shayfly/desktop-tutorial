@@ -1,3 +1,35 @@
+# 2026-11-27 — Visual plan S0-S3: the first screen is led by the picture, the page measures its pictures, the items' pictures stay on the library route (Claude Code; branch `claude/practical-hopper-oi3qj2-visual-s1s2`, pushed, NO PR, NOT released)
+
+- **Root cause (docs/plans/VISUAL_SITES_PLAN.md):** the designed route could not hold pictures, the route that holds pictures is
+  not designed, and no check asked for a picture. 3 of the last 5 READY pages had none; a hero photo covered 11-16 percent of the
+  first desktop screen with the opening hours printed on it; a picture per item (asked, or by default since inbox/005) sent the
+  build to the legacy path (`beyond_one_page: picture_per_item`, `item_pictures_default`), 5-9 times dearer and worse looking.
+- **S1 (tests/test_hero_photo_led.py, controls hero_photo_led 12/12):** a page with a hero image gets `photo` or `cover`
+  (`section_library.PHOTO_HERO`, `LIBRARY_VERSION` 4): the picture is 0.458 of the desktop first screen and 0.37 of the phone's
+  (was 0.107-0.157 and 0.29-0.30); the facts are a strip under it, never on it; text on the cover reads at 4.5:1 on a white and a
+  black picture (pixels sampled). Naming a photo hero for a page with no picture raises; the content model is still offered
+  only split and banner; the content route drops its hero choice when the page has a hero picture.
+- **S2 (tests/test_visual_picture_measures.py, controls visual_picture_measures 12/12):** the visual QA script measures the
+  pictures (count, first-screen and page share, longest run, compositions, text over a picture from the rendered pixels) into
+  `evidence_json.visual_qa.viewports.<v>.measures`; four rules (`no_picture`, `small_hero_picture`, `text_on_picture`,
+  `long_run_without_picture`) read one table (`visual_thresholds` in directions.json, raises on a missing key or an unknown
+  rule). Warn mode: in RULES, not in DEFAULT_ENFORCED; no build outcome changes. Identity entry `visual-s2-picture-measures`
+  fd3a45bf -> e915ac8b.
+- **S3 (tests/test_item_pictures_in_library.py, controls item_pictures_in_library 12/12):** the fact sheet binds each listed
+  item to its picture (`@item:N`); a services card names its item (`"item"`), the renderer attaches the picture, the model never
+  chooses one; all or none, else the item pictures stand in a gallery that declares `data-places="products"` for a4. `decide()`
+  keeps a picture per item, a photo in products/gallery and several pictures on the library route (merged with
+  images-strong a441b38, whose `item_pictures_default` legacy route is removed); a page per item and the owner's later edits
+  still go to legacy by name.
+- **Not done / not verified:** no production build has run any of this (no READY build exists after #541); the thresholds are first
+  estimates from eight renders and the cover scrim darkens the picture (90/80/20 percent of the text colour, the lightest that
+  passed 4.5:1 on a white picture); S3 plan criterion 6 (`longest_run_without_picture` <= 2.5 on a page with 6 item pictures)
+  is not met on the conformance page (4.5 desktop, 6.0 phone: the pictures are in two sections of a long page); an outline that
+  names a gallery while no picture exists still routes to legacy `outline_without_basis` (the route decides before the pictures
+  exist); the stored table of the plan's section 1.1 asserts the numbers that do not depend on a machine's fonts only.
+- **Machine load:** three real-chain tests (test_site_content_engine, test_library_cookie_banner) failed once each with the machine
+  at load 8 on 4 cores (other agents' browser runs) and passed alone and on main; they are timing, not this change.
+
 # 2026-11-27 — A stronger image model and a picture per listed item by default (Claude Code; branch `claude/practical-hopper-oi3qj2-images-strong`, pushed, NO PR, no paid call)
 
 - **Owner decisions (inbox/005, PR #562):** 3 ("ג") a stronger image model without a side-by-side test; 2 ("ב") every

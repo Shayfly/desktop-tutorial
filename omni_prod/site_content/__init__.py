@@ -274,28 +274,26 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
     from . import facts as Fx
     request_text = Fx.request_text(prompt)
     places = [m_[5] for m_ in _IMAGE_BINDING.finditer(prompt or '')]
-    bad = [p for p in places if p not in ('hero', 'story')] + [p for p in set(places) if places.count(p) > 1]
+    # visual plan S3: the library holds a picture among the items (the services cards) and a gallery, so a customer's photo
+    # placed in `products` or `gallery`, and several photos in one of those places, no longer send the build to the legacy
+    # path; the hero and the story still hold one photo each
+    bad = [p for p in places if p not in ('hero', 'story', 'products', 'gallery')] + \
+          [p for p in set(places) if p in ('hero', 'story') and places.count(p) > 1]
     if bad:
         return Route(LEGACY, f'image_place_{bad[0]}')
     from ..media_pipeline import _ICON_TERMS
     said = ' '.join(request_text.split()).lower()
     if any(t in said for t in _ICON_TERMS):
         return Route(LEGACY, 'icon_image')
-    from ..a4 import pictures
-    if pictures(prompt)['asked'] > 1:
-        return Route(LEGACY, 'several_pictures')
     # route-honesty (bld_3938e570): a picture per item, a page per item or separate pages, or the owner adding content
     # later is more than this route's one page holds -- the legacy path writes the site's code (its own routes and
     # pages), so the build goes there, by name, with the customer's words that asked for it (one_page.beyond)
     from .one_page import beyond
-    asked = beyond(Fx.customer_text(prompt))
+    # a picture for each item stays on this route (visual plan S3: the services cards carry them, the gallery holds the
+    # rest); a page per item and the owner's later edits are still more than one page holds
+    asked = [(kind, words) for kind, words in beyond(Fx.customer_text(prompt)) if kind != 'picture_per_item']
     if asked:
         return Route(LEGACY, ('beyond_one_page: ' + '; '.join(f'{kind} "{words}"' for kind, words in asked))[:200])
-    from ..capability_planner import item_pictures, item_pictures_wanted
-    if item_pictures_wanted(prompt) and item_pictures(prompt)['generated']:
-        # a picture per listed item is the default (the owner, 2026-11-27); this route has no card that carries one yet
-        # (S3 of docs/plans/VISUAL_SITES_PLAN.md), so a generated picture would be paid for and not shown: by name
-        return Route(LEGACY, 'item_pictures_default')
     d = direction(prompt, lang=lang)
     if d.reason:
         return Route(LEGACY, d.reason)

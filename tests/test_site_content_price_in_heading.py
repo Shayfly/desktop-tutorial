@@ -182,6 +182,10 @@ class OneNotionOfTheLimit(unittest.TestCase):
                     'description': fill(K.TOP['description'], 'description'), 'sections': sections}
         sheet = copy.copy(Fx.fact_sheet(PROMPT))
         sheet.reviews = [{'id': '@review:1', 'text': 'ביקורת', 'author': 'לקוחה'}]
+        # visual plan S3: the gallery and the services cards' item references are sections and fields of the schema too
+        sheet.gallery_images = [{'src': '148ai-asset://image/9', 'alt': 'עבודה'}]
+        sheet.items = [{'id': '@item:1', 'text': 'נושא'}, {'id': '@item:2', 'text': 'עוד נושא'}]
+        sheet.item_images = {i['id']: {'src': f'148ai-asset://image/{n}', 'alt': i['text']} for n, i in enumerate(sheet.items, 1)}
         c = contract()
         html, _ = R.render(document, sheet, c, expect_fp=c['fingerprint'], direction='formal', year='2026',
                            outline_titles={}, order=None, windows=())

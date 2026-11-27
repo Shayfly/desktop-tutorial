@@ -48,7 +48,6 @@ def cases() -> dict[str, str]:
             "fallback); define these as CSS custom properties.\n", ''),
         'phone_not_one': _with_request('טלפון נוסף: 04-8123456.'),
         'icon_image': _with_request('אני רוצה גם לוגו למשרד.'),
-        'several_pictures': _with_request('אני רוצה 3 תמונות של המשרד.'),
         'not_content_only': PROMPT.replace('Product kind: CONTENT-ONLY website', 'Product kind: web app'),
         # other trades through the same brief: another palette, another art direction, another font pair
         'salon': PROMPT.replace(_LAW_FIRM, 'מספרה "סטודיו נועה"'),
@@ -107,7 +106,7 @@ class DirectionAgreesWithTheRoute(unittest.TestCase):
                     self.assertEqual(route.reason, d.reason)
                 else:
                     # a legacy reason decided before the direction (the route's own preconditions)
-                    self.assertIn(route.reason.split(':')[0], {'not_content_only', 'icon_image', 'several_pictures',
+                    self.assertIn(route.reason.split(':')[0], {'not_content_only', 'icon_image',
                                                                 'phone_not_one', 'not_hebrew'}, route.reason)
 
     def test_the_owners_brief_direction(self):

@@ -22,7 +22,11 @@ Codes (every one has a failing document in tests/test_site_content_validate.py):
                       star rating (★★★★★) or a rating in words ("דירוג 5 כוכבים") the customer never gave
   CHANNEL_NOT_GIVEN   a contact channel the page does not have: WhatsApp with no WhatsApp in the sheet ("נמשיך
                       בוואטסאפ"), e-mail with no e-mail
-  REF_UNKNOWN         a @price:N / @review:N the sheet does not have, or a review reference outside testimonials
+  REF_UNKNOWN         a @price:N / @review:N / @item:N the sheet does not have, or a review reference outside testimonials
+  ITEM_PICTURE_UNPLACED
+                      the customer's items all have pictures (visual plan S3) and a services card names no item, two
+                      cards name the same item, or an item's picture is on no card: the renderer puts each picture on
+                      the card of the item it shows, and the model only says which card is which item
   REVIEW_TEXT_WRITTEN a quote with a dash and a name in copy: reviews are the customer's, by reference only
   PRICE_NOT_GIVEN     a currency sign or word in copy: prices are the customer's spans, by reference only
   PRICE_NOT_SHOWN     a price the customer gave for the page is referenced nowhere ("show the prices exactly as given")
@@ -54,7 +58,7 @@ from . import schema as K
 CODES = ('SCHEMA_SHAPE', 'LAYOUT_UNKNOWN', 'TOO_LONG', 'TOO_FEW', 'TOO_MANY', 'EMPTY_TEXT', 'NOT_HEBREW',
          'FACT_IN_COPY', 'INVENTED_NUMBER', 'INVENTED_COUNT', 'CHANNEL_NOT_GIVEN', 'REF_UNKNOWN', 'REVIEW_TEXT_WRITTEN',
          'PRICE_NOT_GIVEN', 'PRICE_NOT_SHOWN', 'PRICE_CONTEXT', 'PRICE_CONTRADICTED', 'NAME_NOT_GIVEN', 'PLACEHOLDER',
-         'UNVERIFIABLE_CLAIM', 'UNSUPPORTED_DETAIL')
+         'UNVERIFIABLE_CLAIM', 'UNSUPPORTED_DETAIL', 'ITEM_PICTURE_UNPLACED')
 CLAIMS_GATE = 'SITE_CLAIMS'
 _HEBREW = re.compile('[א-ת]')
 _REF = re.compile(r'@(price|review):(\d{1,3})')
@@ -114,7 +118,7 @@ def leaves(doc: dict) -> list[tuple[str, str]]:
         elif isinstance(value, list):
             for i, v in enumerate(value):
                 walk(v, f'{path}[{i}]')
-        elif isinstance(value, str) and not re.fullmatch(r'@(?:price|review):\d{1,3}', value) \
+        elif isinstance(value, str) and not re.fullmatch(r'@(?:price|review|item):\d{1,3}', value) \
                 and not _NUMBER_PATH.search(path):
             out.append((path.lstrip('.'), value))
     for key in ('tagline', 'description'):
@@ -433,11 +437,41 @@ def validate(doc, sheet, offered: dict, outline_titles: dict | None = None, *, l
             if not _price_in_context(sheet.price(value), '', name):
                 out.append(Problem(path, 'PRICE_CONTEXT', f'{value} is the customer\'s price for '
                                    f'"{sheet.price(value)["label"]}", not for "{name}"'))
+    out += _item_problems(sections, sheet)
     used = {m.group(0) for _, text in leaves(doc) for m in _REF.finditer(text)} | {v for _, v in _refs(sections)}
     missing = [p for p in sheet.prices if p['id'] not in used]
     if missing:
         out.append(Problem('sections', 'PRICE_NOT_SHOWN', 'prices the customer gave are on no section: '
                            + ', '.join(f"{p['id']} ({p['label']} {p['span']})" for p in missing)))
+    return out
+
+
+def _item_problems(sections: dict, sheet) -> list[Problem]:
+    """The services cards' item references (visual plan S3). A reference the sheet does not have is REF_UNKNOWN. When
+    every listed item has a picture, each card must name one item, once, and every item must be named."""
+    svc = sections.get('services')
+    cards = svc.get('items') if isinstance(svc, dict) and isinstance(svc.get('items'), list) else []
+    out: list[Problem] = []
+    named: dict[str, int] = {}
+    for i, card in enumerate(cards):
+        ref = card.get('item') if isinstance(card, dict) else None
+        if not isinstance(ref, str):
+            continue
+        path = f'sections.services.items[{i}].item'
+        if sheet.item(ref) is None:
+            out.append(Problem(path, 'REF_UNKNOWN', f'{ref} is not one of the customer\'s items'))
+        elif ref in named:
+            out.append(Problem(path, 'ITEM_PICTURE_UNPLACED', f'{ref} is named by the cards {named[ref]} and {i}: one card per item'))
+        else:
+            named[ref] = i
+    if sheet.services_pictured() and cards:
+        for i, card in enumerate(cards):
+            if isinstance(card, dict) and 'item' not in card:
+                out.append(Problem(f'sections.services.items[{i}]', 'ITEM_PICTURE_UNPLACED',
+                                   'every card carries the picture of one of the items: add "item": one of items_with_pictures'))
+        out += [Problem('sections.services.items', 'ITEM_PICTURE_UNPLACED',
+                        f"{it['id']} ({it['text']}) has a picture and no card names it")
+                for it in sheet.items if it['id'] not in named]
     return out
 
 

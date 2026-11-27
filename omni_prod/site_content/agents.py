@@ -547,7 +547,12 @@ class ContentSiteGenerator:
         # a palette's name is a trade's ('counsel'): the model is given it only for a business the brief names, so the
         # neutral palette of an unnamed business never reads as "a law firm" (bld_3938e570)
         named = getattr(route, 'category', None) is not None
-        return {'request': sheet.for_model(), 'palette': route.palette if named else None,
+        request = sheet.for_model()
+        if sheet.services_pictured():
+            request['item_rule'] = ('Every item in items_with_pictures has a picture the platform places. Each services card '
+                                    'shows ONE of them: write "item": its id, once per item, and write the card about that '
+                                    'item. You never see or choose a picture.')
+        return {'request': request, 'palette': route.palette if named else None,
                 'direction': route.direction, 'voice': route.voice,
                 'trade_words': list(getattr(route, 'domain_words', None) or []),
                 'schema': K.schema_for_model(offered, route.outline_titles, name_given=bool(sheet.name),

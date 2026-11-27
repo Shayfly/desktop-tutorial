@@ -125,10 +125,12 @@ class ThePictureIsTheDefault(unittest.TestCase):
 
 
 class TheRoute(unittest.TestCase):
-    def test_a_defaulted_item_picture_is_not_dropped_by_a_route_that_cannot_place_it(self):
+    def test_a_defaulted_item_picture_stays_on_the_library_route_which_places_it(self):
+        # visual plan S3: the services cards carry the pictures and the gallery holds the rest, so a picture per item
+        # never sends a build to the legacy path (it was 'item_pictures_default' while the library had no card for one)
         with on():
             route = SC.decide(LISTED, OWNER, year='2026')
-            self.assertEqual((route.route, route.reason), ('legacy', 'item_pictures_default'))
+            self.assertEqual((route.route, route.reason), ('section_library', 'all preconditions hold'))
             self.assertEqual(SC.decide(with_request('בלי תמונות', LISTED), OWNER, year='2026').route, 'section_library')
             self.assertEqual(SC.decide(PROMPT, OWNER, year='2026').route, 'section_library')
 

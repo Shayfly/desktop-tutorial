@@ -2,6 +2,7 @@
 
 | ID | Owner | Status | Evidence |
 |---|---|---|---|
+| VISUAL-S0-S3 | Claude Code | S0 (PR #558 head c983924), S1, S2, S3 committed and pushed to `claude/practical-hopper-oi3qj2-visual-s1s2`; no PR, no production build; the owner's SHA approval and CI pending | `tests/test_hero_photo_led.py`, `tests/test_visual_picture_measures.py`, `tests/test_item_pictures_in_library.py`; controls hero_photo_led, visual_picture_measures, item_pictures_in_library 12/12 each; identity `visual-s2-picture-measures`; STATUS.md 2026-11-27 |
 | IMAGES-STRONG | Claude Code | Implemented, verified locally; branch pushed, no PR, no paid call; S3 renderer (picture inside each card) still open | `claude/practical-hopper-oi3qj2-images-strong`; `tests/test_item_pictures_default.py`, controls images_strong_default 10/10; STATUS.md 2026-11-27 |
 | RATE-LIMITS | Claude Code | Local commits, not pushed; review fixes in (B1 lock-out, S1, S3, S4, N1, N2, N5); verified locally; 047 to be applied by the coordinator before the release | `claude/practical-hopper-oi3qj2-rate-limits`; `omni_prod/rate_limits.py`, `infra/postgres/047_rate_limits.sql`; tests 28 + 24 passed; controls rate_limits 9/9 and 17/17 (pg); STATUS.md 2026-11-26 |
 | OWNER-COSTS | Claude Code | Implemented, verified locally; not pushed | `claude/practical-hopper-oi3qj2-owner-costs`; `tests/test_owner_costs_pg.py`, `tests/test_missing_price_never_refuses.py`, controls owner_costs 8/8; STATUS.md 2026-11-26 |

@@ -261,9 +261,13 @@ def _head(d: dict, key: str) -> str:
     return f'<div class="section-head">{eyebrow}<h2 class="title" id="{key}-title">{e(d["title"])}</h2>{lead}</div>'
 
 
-def _section(key: str, tone: str, inner: str, wrap: str = '') -> str:
+def _section(key: str, tone: str, inner: str, wrap: str = '', serves: tuple = ()) -> str:
+    """`serves`: the customer's places (a4: products) this section holds pictures for although its own name is another's --
+    the pictured services cards stand for the products, a gallery may stand in for them. The attribute is read by a4's
+    placement check (uploaded_assets.place_state): its section words for `products` match the attribute value itself."""
     cls = ' '.join(['section'] + tone.split())
-    return (f'<section class="{cls}" id="{key}" aria-labelledby="{key}-title"><div class="wrap{" " + wrap if wrap else ""}">'
+    places = f' data-places="{" ".join(serves)}"' if serves else ''
+    return (f'<section class="{cls}" id="{key}"{places} aria-labelledby="{key}-title"><div class="wrap{" " + wrap if wrap else ""}">'
             f'{inner}</div></section>')
 
 
@@ -365,8 +369,22 @@ def _layout(c: dict, axis: str) -> str:
     return c['_layout'][axis] if '_layout' in c else LAYOUTS[axis][0]
 
 
+def pictured_items(items) -> bool:
+    """Do the services items carry a picture each (a third element, {src, alt, ...})? All or none: a section is given in
+    full or left out, so some cards with a picture and some without raises."""
+    have = [len(i) > 2 and bool(i[2]) for i in items]
+    if any(have) and not all(have):
+        raise ValueError('some services items have a picture and some do not: all or none')
+    return bool(have) and all(have)
+
+
 def services(c: dict, tone: str) -> str:
     s = c['services']
+    if pictured_items(s['items']):                 # a picture on the top of each card, the item's own (visual plan S3)
+        cards = ''.join(f'<article class="card card--picture">{img(i[2], cls="card-photo")}<div class="card-body">'
+                        f'<h3>{e(i[0])}</h3><p>{e(i[1])}</p></div></article>' for i in s['items'])
+        return _section('services', tone, f'{_head(s, "services")}<div class="cards cards--pictures">{cards}</div>',
+                        serves=('products',))
     if _layout(c, 'services') == 'list':           # an editorial numbered list: rows on hairlines, no boxes
         rows = ''.join(f'<li><h3>{e(t)}</h3><p>{e(d)}</p></li>' for t, d in s['items'])
         return _section('services', tone, f'{_head(s, "services")}<ol class="svc-list">{rows}</ol>')
@@ -460,7 +478,7 @@ def gallery(c: dict, tone: str) -> str:
     g = c['gallery']
     figs = ''.join(f'<figure>{img(i)}' + (f'<figcaption>{e(i["caption"])}</figcaption>' if i.get('caption') else '')
                    + '</figure>' for i in g['images'])
-    return _section('gallery', tone, f'{_head(g, "gallery")}<div class="gallery">{figs}</div>')
+    return _section('gallery', tone, f'{_head(g, "gallery")}<div class="gallery">{figs}</div>', serves=tuple(g.get('serves', ())))
 
 
 def process(c: dict, tone: str) -> str:
@@ -682,6 +700,8 @@ def layout_for(c: dict) -> dict:
     out = {k: given.get(k) or opts[seed[i] % len(opts)] for i, (k, opts) in enumerate(LAYOUTS.items())}
     if photo and not given.get('hero'):
         out['hero'] = PHOTO_HERO[seed[0] % len(PHOTO_HERO)]          # a picture leads the first screen (visual plan S1)
+    if pictured_items((c.get('services') or {}).get('items') or ()):
+        out['services'] = 'cards'               # the numbered list has no card to carry a picture
     if c['direction'] == 'elegant' and out['hero'] not in PHOTO_HERO:
         out['hero'] = 'split'       # elegant's hero is its centred block; a banner would undo the direction
     return out

@@ -151,8 +151,27 @@ def to_library(doc: dict, sheet, *, direction: str, year: str, outline_titles: d
             c['stats_label'] = _sub(sec['stats']['label'], sheet)
     if 'services' in sec:
         s = sec['services']
-        c['services'] = {**_head(s, 'services', sheet, outline_titles),
-                         'items': [(_sub(i['title'], sheet), _sub(i['desc'], sheet)) for i in s['items']]}
+        rows = []
+        for i in s['items']:
+            row = (_sub(i['title'], sheet), _sub(i['desc'], sheet))
+            if sheet.services_pictured():
+                # every listed item has its picture: each card carries the picture of the item it names (all or none)
+                image = sheet.item_images.get(i.get('item'))
+                if image is None:
+                    raise SiteRenderDefect(f"the services card {i['title']!r} reached the renderer without an item whose "
+                                           f"picture it carries ({i.get('item')!r})")
+                row += (dict(image),)
+            rows.append(row)
+        c['services'] = {**_head(s, 'services', sheet, outline_titles), 'items': rows}
+    if 'gallery' in sec:
+        s = sec['gallery']
+        pictures = sheet.gallery_pictures()
+        if not pictures:
+            raise SiteRenderDefect('a gallery section reached the renderer with no picture in the sheet')
+        c['gallery'] = {**_head(s, 'gallery', sheet, outline_titles), 'images': [dict(x) for x in pictures],
+                        **({'serves': ['products']} if sheet.products_in_gallery() else {})}
+    elif sheet.gallery_pictures():
+        raise SiteRenderDefect('the sheet has pictures for a gallery and the document has no gallery section')
     if 'about' in sec:
         s = sec['about']
         about = {**_head(s, 'about', sheet, outline_titles), 'paragraphs': [_sub(p, sheet) for p in s['paragraphs']]}
@@ -205,7 +224,7 @@ def to_library(doc: dict, sheet, *, direction: str, year: str, outline_titles: d
     return c
 
 
-_NAV = ('services', 'pricelist', 'about', 'process', 'testimonials', 'faq', 'contact')
+_NAV = ('services', 'pricelist', 'gallery', 'about', 'process', 'testimonials', 'faq', 'contact')
 
 
 def binds(sheet, contract: dict, year: str) -> dict:
@@ -220,6 +239,8 @@ def render(doc: dict, sheet, contract: dict, *, expect_fp: str, direction: str, 
     SiteRenderDefect -- never filled in."""
     if contract.get('fingerprint') != expect_fp:
         raise SiteRenderDefect(f"design contract {contract.get('fingerprint')} is not the route's {expect_fp}")
+    from .schema import page_order
+    order = page_order(sheet, order)            # the gallery after the customer's outline, when pictures need one
     content = to_library(doc, sheet, direction=direction, year=year, outline_titles=outline_titles, order=order)
     try:
         return L.page(content, contract, order=order, windows=windows)

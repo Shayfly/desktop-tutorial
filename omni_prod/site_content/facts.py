@@ -99,10 +99,14 @@ class FactSheet:
     outline: list[tuple[str, str]]
     exclusions: list[str]
     images: dict = field(default_factory=dict)
+    items: list = field(default_factory=list)            # [{'id': '@item:N', 'text'}]: the brief's listed items, when a picture stands for one
+    item_images: dict = field(default_factory=dict)      # '@item:N' -> {src, alt, width, height}: the picture of that item
+    gallery_images: list = field(default_factory=list)   # pictures the customer or the plan put in the gallery, and item pictures no item took
     problems: list[str] = field(default_factory=list)
     counts: dict = field(default_factory=dict)          # typed counts the customer gave (fact_canon.count_facts)
     withheld_prices: list = field(default_factory=list)  # prices of the build itself (a budget): never on the page
     name_candidates: list = field(default_factory=list)  # with no declared name: the customer's quoted names
+    unbound_products: list = field(default_factory=list)  # pictures placed among the items that no listed item took
 
     def allowed_numbers(self) -> set[str]:
         return {n['value'] for n in self.numbers}
@@ -116,6 +120,26 @@ class FactSheet:
 
     def review(self, ref: str) -> dict | None:
         return next((r for r in self.reviews if r['id'] == ref), None)
+
+    def item(self, ref: str) -> dict | None:
+        return next((i for i in self.items if i['id'] == ref), None)
+
+    def services_pictured(self) -> bool:
+        """Every listed item (at least two, a services section's minimum) has its picture: the services cards carry
+        them. The library's rule is all or none -- a section is given in full or left out."""
+        return len(self.items) >= 2 and all(i['id'] in self.item_images for i in self.items)
+
+    def gallery_pictures(self) -> list:
+        """What the gallery shows: its own pictures, and -- when the cards cannot carry them all -- the item pictures,
+        so nothing that was paid for is dropped in silence."""
+        out = list(self.gallery_images)
+        if not self.services_pictured():
+            out += [self.item_images[i['id']] for i in self.items if i['id'] in self.item_images]
+        return out
+
+    def products_in_gallery(self) -> bool:
+        """Does the gallery stand in for the products section (a picture placed among the items that no card carries)?"""
+        return (not self.services_pictured() and bool(self.item_images)) or bool(self.unbound_products)
 
     def model_text(self, text: str) -> str:
         """A customer text as the model may read it: facts blanked, each price replaced by its reference."""
@@ -142,6 +166,8 @@ class FactSheet:
             'facts_the_platform_shows': [k for k in ('phone', 'whatsapp', 'email', 'address', 'hours')
                                          if getattr(self, k)],
             'images': sorted(self.images),
+            **({'items_with_pictures': [{'id': i['id'], 'text': i['text']} for i in self.items]} if self.services_pictured()
+               else {}),
         }
 
     def to_dict(self) -> dict:
@@ -151,7 +177,8 @@ class FactSheet:
                 'prices': self.prices, 'withheld_prices': self.withheld_prices, 'numbers': self.numbers,
                 'outline': [list(x) for x in self.outline],
                 'exclusions': self.exclusions, 'images': self.images, 'problems': self.problems, 'counts': self.counts,
-                'name_candidates': self.name_candidates}
+                'name_candidates': self.name_candidates, 'items': self.items, 'item_images': self.item_images,
+                'gallery_images': self.gallery_images, 'unbound_products': self.unbound_products}
 
     def spans(self) -> list[str]:
         """Every fact the served page must show, as the customer wrote it (content/facts.json; the fixed test asserts
@@ -306,19 +333,53 @@ def _whatsapp(prompt: str, canon, customer: str) -> tuple[str | None, str | None
     return None, 'unknown', [f.source_ref for f in phones]
 
 
-def _images(asset_plan, images) -> tuple[dict, list[str]]:
-    """{place: {src, alt, width, height}} for the hero and story places; a place the route cannot render is a problem."""
+def _norm(text) -> str:
+    return ' '.join(str(text or '').split())
+
+
+def _images(asset_plan, images, prompt: str = '') -> tuple[dict, list[str], dict]:
+    """({place: {src, alt, width, height}} for the hero and story places, the problems, the item and gallery pictures).
+
+    Visual plan S3: a picture placed among the items (`products`) is bound to the brief's listed item it shows -- a
+    generated one by its alt (the item's own words), the customer's own photos in the order of the list, as the brief
+    covers its first items -- and a picture placed in the gallery, or among the items but taking no item, stands in
+    the gallery. A place the route cannot render (an icon) is still a problem."""
     sizes = {getattr(i, 'marker', None): (getattr(i, 'width', None), getattr(i, 'height', None)) for i in images or ()}
-    out, problems = {}, []
+
+    def pic(slot) -> dict:
+        w, h = sizes.get(slot['marker'], (None, None))
+        return {'src': slot['marker'], 'alt': slot['alt'], **({'width': w} if w else {}), **({'height': h} if h else {})}
+    out, problems, gallery, product_slots = {}, [], [], []
     for slot in asset_plan or ():
         place = slot['place']
-        if place not in ('hero', 'story') or place in out:
+        if place in ('hero', 'story'):
+            if place in out:
+                problems.append(f'image_place_{place}')
+            else:
+                out[place] = pic(slot)
+        elif place == 'gallery':
+            gallery.append(pic(slot))
+        elif place == 'products':
+            product_slots.append(slot)
+        else:
             problems.append(f'image_place_{place}')
-            continue
-        w, h = sizes.get(slot['marker'], (None, None))
-        out[place] = {'src': slot['marker'], 'alt': slot['alt'], **({'width': w} if w else {}),
-                      **({'height': h} if h else {})}
-    return out, problems
+    items, bound, unbound = [], {}, []
+    if product_slots:
+        from ..capability_planner import item_pictures
+        split = item_pictures(prompt)
+        items = [{'id': f'@item:{n}', 'text': _norm(t)} for n, t in enumerate([*split['covered'], *split['generated']], 1)]
+        owned = sorted((x for x in product_slots if x['source'] == 'upload'), key=lambda x: x['index'])
+        for item, slot in zip(items, owned):
+            bound[item['id']] = pic(slot)
+        for slot in owned[len(items):]:
+            unbound.append(pic(slot))
+        for slot in (x for x in product_slots if x['source'] != 'upload'):
+            hit = next((i for i in items if i['id'] not in bound and i['text'] == _norm(slot['alt'])), None)
+            if hit is None:
+                unbound.append(pic(slot))
+            else:
+                bound[hit['id']] = pic(slot)
+    return out, problems, {'items': items, 'item_images': bound, 'gallery': gallery + unbound, 'unbound': unbound}
 
 
 _WHATSAPP_PROBLEM = {'negated': 'whatsapp_negated', 'landline': 'whatsapp_landline', 'unknown': 'whatsapp_number_unknown'}
@@ -345,7 +406,7 @@ def fact_sheet(prompt: str, *, asset_plan=None, images=()) -> FactSheet:
     names = sorted(canon.values('name'))
     if len(names) > 1:
         problems.append('name_not_one')
-    placed, image_problems = _images(asset_plan, images)
+    placed, image_problems, pictured = _images(asset_plan, images, prompt)
     prices, withheld = _prices(customer)
     sections = outline(prompt)
     hours = [v for k, v in F.facts_to_show(prompt) if k == 'hours']
@@ -356,7 +417,8 @@ def fact_sheet(prompt: str, *, asset_plan=None, images=()) -> FactSheet:
         address=addresses[0] if len(addresses) == 1 else None, hours=hours, reviews=_reviews(canon),
         prices=prices, withheld_prices=withheld, numbers=_numbers(customer), customer=customer, outline=sections,
         name_candidates=[] if len(names) == 1 else name_candidates(customer, sections),
-        exclusions=[x['key'] for x in read_customer_exclusions(prompt)], images=placed,
+        exclusions=[x['key'] for x in read_customer_exclusions(prompt)], images=placed, items=pictured['items'],
+        item_images=pictured['item_images'], gallery_images=pictured['gallery'], unbound_products=pictured['unbound'],
         problems=problems + image_problems,
         counts={k: sorted(canon.values(k)) for k in ('reviewCount', 'rating', 'customerCount', 'count')
                 if canon.values(k)})
