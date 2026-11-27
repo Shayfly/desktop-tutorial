@@ -1214,14 +1214,22 @@ for _n in ('app.js','visual-edit.js','app.css'):
     _HTML=_HTML.replace(f'/assets/{_n}"', f'/assets/{_n}?v={_ASSET_VERSION}"')
 _REVALIDATE={'Cache-Control':'no-cache'}
 
+# WH-100: the page references each asset as /assets/<name>?v=<hash of the three files>, so a request that carries the
+# current hash can never be stale: it is served immutable and the CDN/browser stop calling the Python function (and its
+# cold start) for every asset on every page load. A request without the hash, or with an old one, keeps no-cache.
+_IMMUTABLE={'Cache-Control':'public, max-age=31536000, immutable'}
+
+def _asset_cache_headers(request:Request)->dict:
+    return _IMMUTABLE if request.query_params.get('v')==_ASSET_VERSION else _REVALIDATE
+
 @app.get('/assets/app.css')
-def asset_css(): return Response((_ASSET_DIR/'app.css').read_text(encoding='utf-8'),media_type='text/css',headers=_REVALIDATE)
+def asset_css(request:Request): return Response((_ASSET_DIR/'app.css').read_text(encoding='utf-8'),media_type='text/css',headers=_asset_cache_headers(request))
 
 @app.get('/assets/app.js')
-def asset_js(): return Response((_ASSET_DIR/'app.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_REVALIDATE)
+def asset_js(request:Request): return Response((_ASSET_DIR/'app.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_asset_cache_headers(request))
 
 @app.get('/assets/visual-edit.js')
-def asset_visual_edit_js(): return Response((_ASSET_DIR/'visual-edit.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_REVALIDATE)
+def asset_visual_edit_js(request:Request): return Response((_ASSET_DIR/'visual-edit.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_asset_cache_headers(request))
 
 @app.get('/manifest.webmanifest')
 def pwa_manifest(): return Response((_ASSET_DIR/'manifest.webmanifest').read_text(encoding='utf-8'),media_type='application/manifest+json',headers={'Cache-Control':'public,max-age=3600'})
