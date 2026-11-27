@@ -219,7 +219,8 @@ def direction(prompt: str, *, lang: str = 'he', phone_optional: bool = False) ->
     part = dict(category=category, domain_kw=domain_kw, palette=palette, entry=entry, colours=colours, script=script,
                 sheet=sheet, business=business, pair=pair)
     try:
-        contract, source = render_contract(prompt, colours, fonts=T.contract_fonts(pair) if pair else None)
+        contract, source = render_contract(prompt, colours, variants=VP.variants_for(palette),
+                                           fonts=T.contract_fonts(pair) if pair else None)
     except ContractError as exc:
         return Direction(f'no_design_contract: {exc}'[:200], **part)
     part.update(contract=contract, contract_source=source)

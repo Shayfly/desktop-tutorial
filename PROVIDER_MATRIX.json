@@ -134,6 +134,7 @@
     "classification",
     "conversation",
     "conversation_complex",
+    "direction_sketch",
     "intake_extraction",
     "architecture",
     "codegen",
@@ -233,6 +234,7 @@
     "classification",
     "conversation",
     "conversation_complex",
+    "direction_sketch",
     "intake_extraction",
     "architecture",
     "repair",
@@ -330,6 +332,7 @@
     "classification",
     "conversation",
     "conversation_complex",
+    "direction_sketch",
     "intake_extraction",
     "architecture",
     "repair",
@@ -429,6 +432,7 @@
     "classification",
     "conversation",
     "conversation_complex",
+    "direction_sketch",
     "intake_extraction",
     "architecture",
     "review"
@@ -525,6 +529,7 @@
     "classification",
     "conversation",
     "conversation_complex",
+    "direction_sketch",
     "intake_extraction",
     "architecture",
     "codegen",
@@ -625,6 +630,7 @@
     "classification",
     "conversation",
     "conversation_complex",
+    "direction_sketch",
     "intake_extraction",
     "architecture",
     "codegen",
@@ -2320,6 +2326,19 @@
   {
    "task": "conversation_complex",
    "description": "complex or sensitive intake turn (escalated)",
+   "preferred_floor": 85,
+   "mandatory_floor": 70,
+   "allow_models": [],
+   "deny_models": [],
+   "independent_of": [],
+   "deterministic_first": false,
+   "prefer_models": [
+    "anthropic-claude-sonnet-5-5"
+   ]
+  },
+  {
+   "task": "direction_sketch",
+   "description": "the headline and first words of a direction sketch",
    "preferred_floor": 85,
    "mandatory_floor": 70,
    "allow_models": [],

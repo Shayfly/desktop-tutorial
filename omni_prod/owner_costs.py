@@ -25,7 +25,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 MAX_DAYS = 90
-STAGES = ('intake_conversation', 'architecture', 'codegen', 'repair', 'review', 'vision_checks', 'images',
+STAGES = ('intake_conversation', 'direction_sketch', 'architecture', 'codegen', 'repair', 'review', 'vision_checks', 'images',
           'translations_and_general', 'classification', 'modification', 'other')
 _TASK_STAGE = {'architecture': 'architecture', 'codegen': 'codegen', 'repair': 'repair', 'review': 'review',
                'general': 'translations_and_general', 'classification': 'classification',
@@ -101,8 +101,8 @@ def cost_report(pool, *, days: int = 14, scope: str = 'all', founder_ids: set[st
             ([f'failed-build-release:{i}' for i in ids],)).fetchall()
         projects = sorted({b[11] for b in builds if b[11]})
         intake = conn.execute(
-            "SELECT project_id, reserved_at, COALESCE(model, provider), state, cost_state, actual_usd "
-            "FROM intake_reservations WHERE project_id = ANY(%s) AND reserved_at < %s ORDER BY reserved_at",
+            "SELECT project_id, reserved_at, COALESCE(model, provider), state, cost_state, actual_usd, "
+            "COALESCE(quote->>'task', '') FROM intake_reservations WHERE project_id = ANY(%s) AND reserved_at < %s ORDER BY reserved_at",
             (projects, now)).fetchall()
         project_builds = conn.execute(
             "SELECT br.public_project_id, bj.created_at FROM build_jobs bj JOIN build_requests br ON br.build_id = bj.id "
@@ -234,20 +234,30 @@ def _assemble(builds, attempts, usage, losses, refunds, intake, project_builds, 
         prior = [t for t in earlier.get(project, []) if t < created]
         start = max(prior) if prior else None
         conv = {'calls': 0, 'known_cost_usd': Decimal('0'), 'calls_without_cost': 0}
-        for p, when, model, state, cost_state, act in intake:
+        sketch = {'calls': 0, 'known_cost_usd': Decimal('0'), 'calls_without_cost': 0}     # S6.3: a part of `conv`
+        for row in intake:
+            p, when, model, state, cost_state, act = row[:6]
+            task = row[6] if len(row) > 6 else ''
             if p != project or when >= created or (start is not None and when < start) or state == 'RELEASED':
                 continue
-            conv['calls'] += 1
+            parts = (conv, sketch) if task == 'direction_sketch' else (conv,)
+            for part in parts:
+                part['calls'] += 1
             if act is None or state == 'UNKNOWN':
-                conv['calls_without_cost'] += 1
+                for part in parts:
+                    part['calls_without_cost'] += 1
                 gap('intake_model', model or '?', 'intake call with unknown cost (UNKNOWN reservation)', bid, when, 1)
                 continue
-            conv['known_cost_usd'] += _d(act)
-        agg_stage['intake_conversation']['calls'] += conv['calls']
-        agg_stage['intake_conversation']['known_cost_usd'] += conv['known_cost_usd']
-        agg_stage['intake_conversation']['calls_without_cost'] += conv['calls_without_cost']
-        if conv['calls']:
-            agg_stage['intake_conversation']['builds'].add(bid)
+            for part in parts:
+                part['known_cost_usd'] += _d(act)
+        # the conversation's own calls and the direction sketches' words are two stages; `conv` stays the total of both
+        talk = {k: conv[k] - sketch[k] for k in conv}
+        for stage_key, part in (('intake_conversation', talk), ('direction_sketch', sketch)):
+            agg_stage[stage_key]['calls'] += part['calls']
+            agg_stage[stage_key]['known_cost_usd'] += part['known_cost_usd']
+            agg_stage[stage_key]['calls_without_cost'] += part['calls_without_cost']
+            if part['calls']:
+                agg_stage[stage_key]['builds'].add(bid)
         for item in evidence.get('cost_data_missing') or []:
             gap(str(item.get('kind')), str(item.get('name')), f"{item.get('gap')}: {item.get('why')}", bid, created)
         lrow = loss.get(bid)
@@ -270,7 +280,8 @@ def _assemble(builds, attempts, usage, losses, refunds, intake, project_builds, 
         ao['loss_usd'] += loss_usd
         stage_rows = {k: {**v, 'known_cost_usd': _s(v['known_cost_usd'])} for k, v in stages.items()}
         stage_rows['images'] = {k: (_s(v) if k == 'known_cost_usd' else v) for k, v in images.items()}
-        stage_rows['intake_conversation'] = {k: (_s(v) if k == 'known_cost_usd' else v) for k, v in conv.items()}
+        stage_rows['intake_conversation'] = {k: (_s(v) if k == 'known_cost_usd' else v) for k, v in talk.items()}
+        stage_rows['direction_sketch'] = {k: (_s(v) if k == 'known_cost_usd' else v) for k, v in sketch.items()}
         per_build.append({
             'build_id': bid, 'owner_build': bool(owner), 'status': status, 'error_code': error_code,
             'created_at': created.isoformat() if hasattr(created, 'isoformat') else str(created),
