@@ -1,0 +1,299 @@
+{
+ "pr": "direction-sketch-money",
+ "sha256": [
+  "tests/test_direction_sketch_money_pg.py",
+  "omni_prod/direction_sketch/copy.py",
+  "omni_prod/direction_sketch/store.py",
+  "infra/postgres/049_direction_sketches.sql"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the cap of the first sketch is $1.00 and not $0.10",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/copy.py",
+     "old": "SKETCH_MAX_USD = Decimal('0.10') ",
+     "new": "SKETCH_MAX_USD = Decimal('1.00') "
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_with_the_free_scope_nearly_full_the_next_reserve_is_refused_and_the_sketch_stays_deterministic"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a quote above the cap is no longer refused before anything is reserved",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/copy.py",
+     "old": "    if quote.amount_usd > SKETCH_MAX_USD:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_quote_above_the_cap_reserves_nothing"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the one-free-sketch index loses its predicate on the funding (it then also binds the owner's sketches)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "infra/postgres/049_direction_sketches.sql",
+     "old": "    WHERE funding = 'company_first' AND copy_state IN ('pending', 'written');",
+     "new": "    WHERE copy_state IN ('pending', 'written');"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_every_sketch_of_the_owner_is_funded_by_the_company_outside_the_one_free_rule"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a document the validator blocks leaves the sketch pending (the slot stays taken)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/copy.py",
+     "old": "                store.finish(sketch.id, 'failed', reason=f'not shown: {why}')",
+     "new": "                pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_blocked_document_is_not_stored_as_copy"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the bound on the free sketch's attempts is removed",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/copy.py",
+     "old": "        if used >= FREE_ATTEMPTS:",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_fourth_attempt_after_three_failures_is_refused"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the free call is reserved on the conversation's own project scope (it would eat its $0.15)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/copy.py",
+     "old": "project_id=project_id, quote_=quote, caps=scope_caps, purpose='sketch-free',",
+     "new": "project_id=project_id, quote_=quote, caps=scope_caps, purpose='project',"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_fails_the_sketch_and_its_quote_stays_held_on_the_free_scope",
+    "test_its_call_is_reserved_on_the_free_scope_and_no_credit_is_touched",
+    "test_the_fourth_attempt_after_three_failures_is_refused",
+    "test_with_the_free_scope_nearly_full_the_next_reserve_is_refused_and_the_sketch_stays_deterministic"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the content validator is skipped: a document with a phone in it is stored as the sketch's words",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/copy.py",
+     "old": "            ok, why = validate(doc, direction)",
+     "new": "            ok, why = True, None"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_blocked_document_is_not_stored_as_copy"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "an UNKNOWN call is no longer named: it reads like a call with no words",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/copy.py",
+     "old": "    elif r.state == B.UNKNOWN:",
+     "new": "    elif False:"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_fails_the_sketch_and_its_quote_stays_held_on_the_free_scope"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the worker accepts a task the quote did not name",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/intake/reservation_worker.py",
+     "old": "    if task not in RESERVED_TASKS or payload.get('task', task) != task:",
+     "new": "    if task not in RESERVED_TASKS:"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_payload_naming_another_task_than_its_quote_is_released_and_never_sent"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "every account is funded as the owner's (every sketch on the company, outside the one-free rule)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/copy.py",
+     "old": "    if owner_account(account_id):\n        return 'owner'",
+     "new": "    if True:\n        return 'owner'"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_second_sketch_after_a_written_free_one_is_not_free",
+    "test_its_call_is_reserved_on_the_free_scope_and_no_credit_is_touched",
+    "test_the_fourth_attempt_after_three_failures_is_refused",
+    "test_with_the_free_scope_nearly_full_the_next_reserve_is_refused_and_the_sketch_stays_deterministic"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the store reads a sketch without its account (another account's sketch is returned)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/store.py",
+     "old": "                            'AND account_id = %s', (sketch_id, project_id, account_id))",
+     "new": "                            'AND (account_id = %s OR true)', (sketch_id, project_id, account_id))"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_create_is_idempotent_and_a_sketch_of_another_account_or_project_is_not_found"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the kill switch is no longer asked before the sketch is reserved",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/copy.py",
+     "old": "    if not external_spend_enabled():\n        return 'external model spend is disabled'",
+     "new": "    if False:\n        return 'external model spend is disabled'"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_switch_off_before_the_request_reserves_nothing"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the cost report folds the sketch's words into the conversation again (the task is not read from the quote)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/owner_costs.py",
+     "old": "            task = row[6] if len(row) > 6 else ''",
+     "new": "            task = ''"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_report_reads_each_build_back_per_stage_round_model_and_credit"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "a call that produced no words leaves the sketch pending (the slot stays taken)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/copy.py",
+     "old": "            store.finish(sketch.id, 'failed', reason=f'no words: {str(result.get(\"error\") or \"empty\")[:120]}')",
+     "new": "            pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_not_json_a_timeout_and_a_blocked_document_free_the_slot",
+    "test_the_fourth_attempt_after_three_failures_is_refused",
+    "test_the_total_on_a_projects_free_scope_never_passes_the_cap"
+   ]
+  }
+ ]
+}

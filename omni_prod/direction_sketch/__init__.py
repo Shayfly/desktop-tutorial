@@ -58,6 +58,8 @@ class SketchDirection:
     titles: dict              # the customer's own section titles, by key
     layout: dict
     phone_given: bool
+    voice: str = ''           # the palette's voice and the trade's verified words: what the words' writer is told
+    domain_words: tuple = ()
     sheet: object = field(default=None, compare=False, repr=False)
 
     def to_dict(self) -> dict:
@@ -100,7 +102,8 @@ def direction_of(brief) -> SketchDirection:
     return SketchDirection(
         business=business, category=d.category, category_found=d.domain_kw['category_found'], palette=d.palette,
         art_direction=d.entry['direction'], colours=d.colours, pair=d.pair['id'], script=d.script, contract=d.contract,
-        sections=ordered, titles=dict(d.titles), layout=layout, phone_given=bool(d.sheet.phone), sheet=d.sheet)
+        sections=ordered, titles=dict(d.titles), layout=layout, phone_given=bool(d.sheet.phone), voice=d.entry['voice'],
+        domain_words=tuple(d.domain_kw.get('domain_words') or ()), sheet=d.sheet)
 
 
 def ready(brief, *, account_id: str | None, has_version: bool, has_open_build: bool) -> Ready:

@@ -60,6 +60,9 @@ TASK_CLASSES: dict[str, TaskClass] = {t.key: t for t in (
     # unavailable strong model degrades to the standard lane, never below it.
     TaskClass('conversation_complex', 'complex or sensitive intake turn (escalated)', 85, 70,
               prefer_models=CONVERSATION_STATION),
+    # S6.3 (the owner, 2026-11-26): the words of a direction sketch -- one small call, the conversation's floors and station
+    TaskClass('direction_sketch', 'the headline and first words of a direction sketch', 85, 70,
+              prefer_models=CONVERSATION_STATION),
     TaskClass('intake_extraction', 'structured requirements from the dialogue', 70, 70, deterministic_first=True),
     TaskClass('architecture', 'architecture + plan for the build', 85, 70, prefer_models=ARCHITECT_STATION),
     # Founder 2026-10-20: gpt-6-luna out of code writing. Paid run 39377332673 (inspect 39378559811): every
