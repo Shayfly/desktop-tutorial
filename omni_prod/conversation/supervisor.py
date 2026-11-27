@@ -178,10 +178,10 @@ def _picture_notes(brief, lang: str) -> list[str]:
         elif entry.get('default'):
             out.append(words[key + '_default'])
     # review SF1: the customer's own photos among the items, and which items they stand for -- said, not assumed
-    from ..capability_planner import _picture_per_item, item_pictures
+    from ..capability_planner import item_pictures, item_pictures_wanted
     full = (brief.prompt or '') + '\n' + d.requirements_text(brief)
     split = item_pictures(full)
-    if split['own'] and _picture_per_item(full):
+    if split['own'] and item_pictures_wanted(full):
         out.append(words['own'].format(n=split['own'], covered=', '.join(split['covered'])) if split['covered']
                    else words['own_none'].format(n=split['own']))
         out.append(words['gen'].format(generated=', '.join(split['generated'])) if split['generated']

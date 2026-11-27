@@ -1,3 +1,26 @@
+# 2026-11-27 — A stronger image model and a picture per listed item by default (Claude Code; branch `claude/practical-hopper-oi3qj2-images-strong`, pushed, NO PR, no paid call)
+
+- **Owner decisions (inbox/005, PR #562):** 3 ("ג") a stronger image model without a side-by-side test; 2 ("ב") every
+  listed service or product gets a picture unless the customer says none.
+- **Model:** FLUX 1.1 pro on Replicate replaces FLUX schnell as the default: $0.04 per image (schnell $0.003), listed by
+  Replicate with commercial use, under the Black Forest Labs API terms. One table (`MODEL_PROFILES` in
+  `omni_prod/providers/replicate_connection.py`) holds price, licence, billing unit and "one image per request" per model,
+  so schnell stays selectable by `OMNI_IMAGE_PROVIDER_MODEL`. The cost metering is unchanged (`computed_from_usage`, never
+  actual). The owner's paid connection test stays on schnell (its confirmation says $0.003).
+- **Picture per item:** `capability_planner.item_pictures_wanted` = asked in words, or by default on a content site whose
+  approved brief lists two or more items, unless `media_pipeline.pictures_declined` (Hebrew, English, Arabic; "בלי תמונות
+  מלאי" is not a refusal). A brief that lists no item plans nothing and asks nothing.
+- **Cost:** ten item pictures and the main one: worst case $0.44, a quarter of the $2 cap (test). Measured production
+  numbers for the model: none, no paid call was made.
+- **Not done, said:** (1) the section library cannot yet place a picture inside each item's card (S3 of
+  `docs/plans/VISUAL_SITES_PLAN.md`: the `items` binding, `picture-cards`, the gallery), so a defaulted item picture routes
+  to the legacy path by name (`item_pictures_default`) instead of the library route; paying for a picture that is not
+  shown is the alternative and was refused. (2) The official Replicate and Black Forest Labs pages could not be opened
+  from the build sandbox (host not allowed): the price and the "commercial use" label come from a search result of the
+  Replicate model page, read 2026-11-27, and the BFL API terms were not read (`legal_review: none`). (3) The request
+  schema of FLUX 1.1 pro (no `num_outputs`, `aspect_ratio` and `output_format` accepted) is from the model's published
+  interface as remembered, and was not exercised live; the first real image is the verification.
+
 # 2026-11-27 — The golden rehearsal carries a customer photo, runs as a non-founder, reports the time budget (Claude Code; branch `claude/practical-hopper-oi3qj2-wh117`, pushed, NO PR, NOT dispatched)
 
 - **Root cause (warehouse 117, 71, 115, 118):** the rehearsal took text only, so a build with a customer photo could be

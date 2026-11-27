@@ -107,6 +107,9 @@ class ImageProviderConfig:
     # Michael 2026-11-13: "output" when the model is billed per output image (FLUX schnell), anything else when not.
     # Only an "output" model gets a computed_from_usage cost (measured outputs x the versioned price) -- never actual.
     billing_unit: str = ""
+    # A model that makes ONE image per prediction and takes no num_outputs input (FLUX 1.1 pro). The planner asks for
+    # quantity 1 per picture; a quantity above 1 for such a model is refused, never silently delivered short.
+    single_output: bool = False
     max_bytes: int = 20 * 1024 * 1024
     timeout_seconds: float = 60.0
     output_hosts: tuple[str, ...] = ()
@@ -132,6 +135,7 @@ class ImageProviderConfig:
             maximum_usd_per_image=_decimal(_clean(env, "OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE")),
             price_source=_clean(env, "OMNI_IMAGE_PROVIDER_PRICE_SOURCE"),
             billing_unit=_clean(env, "OMNI_IMAGE_PROVIDER_BILLING_UNIT").lower(),
+            single_output=_clean(env, "OMNI_IMAGE_PROVIDER_SINGLE_OUTPUT").lower() in {"1", "true", "yes"},
             max_bytes=int(_clean(env, "OMNI_IMAGE_PROVIDER_MAX_BYTES") or 20 * 1024 * 1024),
             # #324: entries are validated by safe_fetch._allowlist; a set-but-malformed value (" , ", "=") stays a
             # configured list and allows nothing -- it never silently becomes "no allowlist".
@@ -428,6 +432,10 @@ class PredictionImageProvider:
         if requirement.key != CAPABILITY_KEY:
             raise LookupError(f"capability {requirement.key} is not supported by {self.name}")
         self._refuse_when_spend_is_off()         # C32 (#93): before any journal intent and before any request
+        if self.config.single_output and int(requirement.quantity) != 1:
+            # before the journal intent: nothing was sent, nothing is owed
+            raise ValueError(f"{self.name}: model {self.config.model} makes one image per request, "
+                             f"quantity {requirement.quantity} asked")
         record = self.journal.begin(idempotency_key, provider=self.name)
         if record.provider_task_id:
             return ProviderTaskHandle(self.name, record.provider_task_id, requirement.id, idempotency_key)
@@ -436,8 +444,9 @@ class PredictionImageProvider:
                 f"{self.name}: a previous submit for {idempotency_key} may have reached the provider and the "
                 "provider has no declared idempotency header; manual reconciliation required")
         body: dict[str, Any] = {"input": {"prompt": self._prompt(requirement),
-                                          "output_format": self.config.output_format,
-                                          "num_outputs": int(requirement.quantity)}}
+                                          "output_format": self.config.output_format}}
+        if not self.config.single_output:
+            body["input"]["num_outputs"] = int(requirement.quantity)
         ratio = str(requirement.constraints.get("aspect_ratio") or "")
         if ratio and self.config.base_url.rstrip("/") == "https://api.replicate.com/v1":
             body["input"]["aspect_ratio"] = ratio      # #324: the proportions its page purpose needs

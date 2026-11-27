@@ -11,7 +11,7 @@ from .a4 import ITEM_PURPOSE
 from .capabilities import CapabilityPlan, CapabilityRequirement
 from .capability_registry import CapabilityRegistry
 from .intent_terms import ai_agent_intent, has_term
-from .media_pipeline import AssetKind, is_default_hero
+from .media_pipeline import AssetKind, is_default_hero, pictures_declined
 
 
 # Asset-generation capabilities: activated only when the creative plan requests
@@ -112,6 +112,17 @@ def _picture_per_item(full_prompt: str) -> bool:
     from .site_content.facts import customer_text
     from .site_content.one_page import beyond
     return any(kind == "picture_per_item" for kind, _ in beyond(customer_text(full_prompt)))
+
+
+def item_pictures_wanted(full_prompt: str) -> bool:
+    """A picture of each listed item: when the customer asks for it in their words (_picture_per_item), and -- the
+    owner, 2026-11-27 (inbox/005, decision 2) -- by default on a content site whose approved brief lists its items
+    (_brief_items: at least two), unless the customer says no pictures (media_pipeline.pictures_declined). Nothing is
+    planned for a brief that lists no item: the default never asks a question."""
+    if _picture_per_item(full_prompt):
+        return True
+    from .media_pipeline import _CONTENT_SITE
+    return (_CONTENT_SITE in (full_prompt or "") and not pictures_declined(full_prompt) and bool(_brief_items(full_prompt)))
 
 
 def _items_label() -> re.Pattern:
@@ -439,7 +450,7 @@ class CapabilityPlanner:
         # the contract asks for the list. Never when the approved decisions exclude images.
         item_subjects = ()
         text = full_prompt if full_prompt is not None else prompt
-        if semantic.get(IMAGE_KEY) != "not_required" and _picture_per_item(text):
+        if semantic.get(IMAGE_KEY) != "not_required" and item_pictures_wanted(text):
             # S3 (release review of 550320c): the customer's own photos are the items' pictures -- founder decision
             # #28 (media_pipeline), the check a4.pictures and media_pipeline.default_hero already make. Said in the
             # contract's notes, never a silent drop.

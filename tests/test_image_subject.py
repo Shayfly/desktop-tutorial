@@ -28,6 +28,7 @@ from __future__ import annotations
 import hashlib
 import json
 import unittest
+from unittest import mock
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
@@ -36,7 +37,7 @@ from omni_prod import generated_images as G
 from omni_prod import image_match as M
 from omni_prod.build_contract import BuildContractStatus
 from omni_prod.capabilities import CapabilityPlan, CapabilityRequirement
-from omni_prod.capability_planner import IMAGE_NOT_PLANNED, IMAGE_SUBJECT_UNRESOLVED
+from omni_prod.capability_planner import IMAGE_NOT_PLANNED, IMAGE_SUBJECT_UNRESOLVED, _picture_per_item
 from omni_prod.capability_registry import CapabilityRegistry
 from omni_prod.capability_repository import MemoryCapabilityRepository
 from omni_prod.image_prompt import final_prompt, gateway_translator, prepare_image_prompts
@@ -56,7 +57,11 @@ ENGLISH = 'A picture made from the customer words'               # what the tran
 
 
 def compile_contract(prompt):
-    return ProductArchitect().compile(prompt, project_id='prj_image_subject', contract_version=1)
+    """These tests are about the MAIN picture's subject. A picture per listed item is the default since 2026-11-27
+    (capability_planner.item_pictures_wanted: tests/test_item_pictures_default.py); here it is read as before, only
+    when the customer asks for it in words, so that the GOA row (which lists its items) plans the one hero it did."""
+    with mock.patch('omni_prod.capability_planner.item_pictures_wanted', side_effect=_picture_per_item):
+        return ProductArchitect().compile(prompt, project_id='prj_image_subject', contract_version=1)
 
 
 def images(contract):

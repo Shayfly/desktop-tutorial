@@ -291,6 +291,11 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
     asked = beyond(Fx.customer_text(prompt))
     if asked:
         return Route(LEGACY, ('beyond_one_page: ' + '; '.join(f'{kind} "{words}"' for kind, words in asked))[:200])
+    from ..capability_planner import item_pictures, item_pictures_wanted
+    if item_pictures_wanted(prompt) and item_pictures(prompt)['generated']:
+        # a picture per listed item is the default (the owner, 2026-11-27); this route has no card that carries one yet
+        # (S3 of docs/plans/VISUAL_SITES_PLAN.md), so a generated picture would be paid for and not shown: by name
+        return Route(LEGACY, 'item_pictures_default')
     d = direction(prompt, lang=lang)
     if d.reason:
         return Route(LEGACY, d.reason)
