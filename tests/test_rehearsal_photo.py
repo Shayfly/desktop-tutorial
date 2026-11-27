@@ -248,6 +248,9 @@ class TheNonFounderAccount(unittest.TestCase):
 
 
 class TheTimeBudget(unittest.TestCase):
+    def setUp(self):
+        self.addCleanup(R._OPTIONS.reset, R._OPTIONS.set(R.Options()))      # the defaults, whatever ran before
+
     def test_parse(self):
         self.assertIsNone(R.parse_time_budget(''))
         self.assertEqual(R.parse_time_budget('120, 600'), (120, 600))
@@ -316,8 +319,14 @@ class MainReadsTheOptions(unittest.TestCase):
             seen['prompt'] = prompt
             return {'outcome': 'exception', 'build_id': 'x'}
         out = io.StringIO()
-        with mock.patch.object(R, 'run', fake_run), redirect_stdout(out):
-            rc = R.main(argv)
+        before = R._OPTIONS.get()
+        try:
+            with mock.patch.object(R, 'run', fake_run), redirect_stdout(out):
+                rc = R.main(argv)
+        finally:
+            # main() sets the options for the rest of its process and never resets them (it is the process's last
+            # call); a test must not leave them to the next test (unittest runs MainReadsTheOptions before TheTimeBudget)
+            R._OPTIONS.set(before)
         return rc, seen
 
     def test_the_defaults_are_the_old_behaviour(self):
