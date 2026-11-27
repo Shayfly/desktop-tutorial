@@ -166,8 +166,9 @@ def test_a_sketch_changes_nothing_that_decides_a_build(world):
     brief_before = (row.revision, row.fingerprint)
     counts_before = _counts()
     made = a.browser.post(f'/api/v28/projects/{a.project}/sketches', json={}).json()['sketch']
-    a.browser.get(f"/api/v28/projects/{a.project}/sketches/{made['id']}")
-    a.browser.get(f"/api/v28/projects/{a.project}/sketches/{made['id']}/page")
+    for tail in ('', '/page'):                                         # the owner reads her own sketch: the gate lets her in
+        mine = a.browser.get(f"/api/v28/projects/{a.project}/sketches/{made['id']}{tail}")
+        assert mine.status_code == 200, (tail, mine.status_code, mine.text[:200])
     row = IA._brief_repo().latest(a.project)
     assert (row.revision, row.fingerprint) == brief_before             # the three routes wrote nothing to the brief
     said = a.say('כן, זה הכיוון')
@@ -207,6 +208,7 @@ def test_another_account_gets_the_unknown_project_answer_on_all_three_routes(wor
         theirs = getattr(b.browser, method)(f'/api/v28/projects/{a.project}/{tail}', **kw)
         nothing = getattr(b.browser, method)(f'/api/v28/projects/{unknown_project}/{tail}', **kw)
         assert (theirs.status_code, theirs.json()) == (nothing.status_code, nothing.json()), (method, tail)
+        assert theirs.status_code in (403, 404), (method, tail, theirs.status_code)      # refused for sure, not a crash that looks alike
         assert made not in theirs.text and 'סטודיו' not in theirs.text
         anonymous = getattr(_browser(), method)(f'/api/v28/projects/{a.project}/{tail}', **kw)
         assert anonymous.status_code in (401, 403) and 'סטודיו' not in anonymous.text
