@@ -309,6 +309,12 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v5
         with: {node-version: "22"}
+      # 2026-11-27 (warehouse 132): customer_flow_browser.cjs reads its 409 from the real admission gate
+      # (tests/customer_flow_409_fixture.py imports omni_prod.investor_app), so this job needs the app's Python deps
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
       - name: Parse-check browser scripts before downloading Chromium
         run: |
           node --check omni_prod/assets/app.js
