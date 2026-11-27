@@ -216,19 +216,52 @@ def _run(browser, url, *, phone: bool, texts: dict, time_limit: int) -> tuple[li
     return findings, m
 
 
-def probe_html(html: str, defn: dict, *, launch=None) -> dict:
-    """Play the page at both widths. Returns {'ok', 'findings', 'measures'}; ok only with zero findings."""
+def probe_html(html: str, defn: dict, *, launch=None, files: dict | None = None) -> dict:
+    """Play the page at both widths. Returns {'ok', 'findings', 'measures'}; ok only with zero findings. `files` are the
+    other files of the game ({'assets/148ai-player.png': bytes}), written next to the page so its art loads as it will."""
     with tempfile.TemporaryDirectory() as d:
         path = Path(d) / 'index.html'
         path.write_text(html, encoding='utf-8')
-        with _chromium()() as p:
-            browser = (launch or _launch)(p)
-            try:
-                findings, measures = [], {}
-                for phone in (False, True):
-                    f, m = _run(browser, path.as_uri(), phone=phone, texts=defn['texts'], time_limit=defn['time_limit_s'])
-                    findings += f
-                    measures['phone' if phone else 'computer'] = m
-            finally:
-                browser.close()
+        for name, data in (files or {}).items():
+            target = (Path(d) / name).resolve()
+            if Path(d).resolve() not in target.parents:
+                raise ValueError(f'game_probe: {name!r} is outside the game')
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+        # A page with art is served over HTTP, as a deployment serves it: from a file:// address its images are cross-origin
+        # and taint the canvas the probe reads. A page with none opens from the file, as it always did.
+        server, url = None, path.as_uri()
+        if files:
+            import functools
+            import http.server
+            import threading
+
+            class Quiet(http.server.SimpleHTTPRequestHandler):
+                def log_message(self, *args):
+                    pass
+
+                def do_GET(self):          # the browser asks for a favicon by itself; its 404 is not the game's error
+                    if self.path == '/favicon.ico':
+                        self.send_response(204)
+                        self.end_headers()
+                    else:
+                        super().do_GET()
+            server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(Quiet, directory=d))
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+            url = f'http://127.0.0.1:{server.server_port}/index.html'
+        try:
+            with _chromium()() as p:
+                browser = (launch or _launch)(p)
+                try:
+                    findings, measures = [], {}
+                    for phone in (False, True):
+                        f, m = _run(browser, url, phone=phone, texts=defn['texts'], time_limit=defn['time_limit_s'])
+                        findings += f
+                        measures['phone' if phone else 'computer'] = m
+                finally:
+                    browser.close()
+        finally:
+            if server is not None:
+                server.shutdown()
+                server.server_close()
     return {'ok': not findings, 'findings': findings, 'measures': measures}
