@@ -175,8 +175,8 @@ def test_a_sketch_changes_nothing_that_decides_a_build(world):
     assert _counts() == counts_before
     row = IA._brief_repo().latest(a.project)
     assert row.fingerprint == brief_before[1]                          # a typed "yes" changes no decision of the brief
-    for table in ('build_jobs', 'build_approvals', 'credit_reservations'):
-        assert counts_before.get(table, 0) == 0
+    with IA._v28_pool.connection() as conn:                            # and this customer has no build, approval or credit at all
+        assert conn.execute('SELECT count(*) FROM credit_reservations WHERE account_id = %s', (a.account_id,)).fetchone()[0] == 0
 
 
 def test_a_project_that_already_has_a_version_gets_no_sketch_and_no_offer(world):
