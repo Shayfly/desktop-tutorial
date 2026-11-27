@@ -1,0 +1,668 @@
+{
+ "_about": "Page-type corpus of warehouse 123 (2026-11-27). Rows: source 'production' = the first customer message of a real project (tests/fixtures/classification_corpus.json, intake_messages, read only) or an approved prompt of a real build (referenced by fixture file and key, not copied); source 'claude' = written by Claude Code in the shape production writes an approved prompt, because no production row exists for those types (event, documentation, product, personal, landing, portfolio-by-name, community-by-name). `page_type` is the label a reviewer would give, judged row by row by Claude Code on 2026-11-27 -- NOT an owner label; the owner's expert may relabel a row, and a row labelled None is a request the typology cannot name without asking the customer (found 'none' or 'tie'). A web_app row is `not_a_page`. Frozen: a row changes only with a reason in the commit that changes it.",
+ "rows": [
+  {
+   "source": "production",
+   "family": "web_app",
+   "text": "An internal tool for my team to track equipment loans, in English, no login",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "production",
+   "family": "web_app",
+   "text": "Build a simple todo list app",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "production",
+   "family": "web_app",
+   "text": "אני מנהלת סטודיו קטן לפילאטיס בחיפה עם 3 מדריכות. אני רוצה אתר שבו מתאמנות רואות את מערכת השיעורים של השבוע, נרשמות לשיעור ומבטלות עד 4 שעות לפני",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "production",
+   "family": "web_app",
+   "text": "אני ספר עם שתי כיסאות. רוצה שהלקוחות יקבעו תור מהטלפון, יבטלו לבד, ושאראה יומן יומי. שיהיה בעברית ופשוט. בלי התחברות ובלי הרשאות.",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "אני רוצה אתר אוהדים של ביתר ירושלים שיהיה מידע על המועדון ותמונות של שחקנים",
+   "page_type": "community",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "web_app",
+   "text": "אני רוצה אתר לספרייה קהילתית בשכונה. אנשים יכולים לראות אילו ספרים יש, לבקש להשאיל ספר, ומנהל הספרייה מאשר ומסמן כשהספר חזר.",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "אני רוצה שתבנה לי אתר אוהדים של בית״ר ירושלים מידע מורחב על הקבוצה היסטוריה ועוד",
+   "page_type": "community",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "web_app",
+   "text": "אפליקציה לניהול ניקוד במשחקי לוח, בלי התחברות. טופס עם שדה ניקוד מספרי לכל סיבוב, וטבלה שמסכמת את הניקוד.",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "אתר אוהדים של בית״ר ירושלים עם תמונות של השחקנים מידע והיסטוריה",
+   "page_type": "community",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "אתר אוהדים של רבי נחמן מאומן",
+   "page_type": "community",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "אתר אינטרנט לחנות לדלתות פנים עם מבצע מיוחד לגבי דלת פנים לממ״ד במחיר של 1390 ש״ח כולל הובלה והתקנה",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "web_app",
+   "text": "אתר ווב בעברית עם טופס וטבלת תוצאות. טופס עם שם ומספר, שמירה בטבלה ממוינת מהגבוה לנמוך, הצגת עשרת המובילים.",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "production",
+   "family": "web_app",
+   "text": "אתר ווב לטבלת שעות עבודה: טופס עם שדה מספר שעות וכפתור שמירה, וטבלה שמסכמת. בלי התחברות.",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "אתר לחנות פרחים בשם פרחי אילת — משלוחים לאילת, תשלום במזומן בלבד, והזמנה מראש לחתונות",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "דף נחיתה לבית קפה קטן, עם תמונה ראשית גדולה של כוס קפה על שולחן עץ ליד חלון, כותרת, שעות פתיחה וכפתור \"הזמנת שולחן\".",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "האטליז של סבא שמעון, רחוב נתיב המזלות 22, ירושלים, טלפון 0504000162. שעות: א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00, שבת סגור. בשר בקר טרי, עוף",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "המספרה דל איציק בוזגלו רחוב התמרים 20 אילת טלפון 050344565",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "web_app",
+   "text": "מערכת הזמנות למספרה באילת עם מערכת תורים",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "production",
+   "family": "web_app",
+   "text": "מערכת לניהול תורים למספרה קטנה, עם התחברות לספרים בלבד",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "רוצה אתר תדמית למספרה באילת, עם מחירון וטופס יצירת קשר",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "תבנה לי דף לחנות הפרחים שלי, \"שושנת העמקים\", ברח' נתיב המזלות 22, ירושלים. שיהיה כפתור להתקשר 052-1234567 וכפתור וואטסאפ לאותו מספר",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "אתר",
+   "page_type": null,
+   "found": "none"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "text": "שם העסק: 148 דלתות בהנהלת: נסים אוחנה טלפון: 050-345-6723. טון: ישיר, מקצועי. מבנה הדף: הירו — דלת ממד. החלטות מפורשות: דף סטטי. בלי טופס הרשמה.",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לאטליז \"בשר השכונה\" ברחוב הרצל 12, חיפה. טלפון 04-8123456.",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר תדמית לבית קפה שכונתי בתל אביב עם תפריט ומחירים",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "דף נחיתה למאפייה שלי בחיפה",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר למאמן כושר אישי ברעננה עם מחירון",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לעורך דין לענייני משפחה, עם טופס יצירת קשר",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לרואה חשבון בפתח תקווה",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לחשמלאי מוסמך באזור השרון, עם כפתור חיוג",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לאינסטלטור, זמין 24 שעות",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר למספרה שלי בחולון",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לצלמת חתונות עם גלריה",
+   "page_type": "portfolio",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "תיק עבודות למעצבת גרפית",
+   "page_type": "portfolio",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "בלוג על בישול טבעוני",
+   "page_type": null,
+   "found": "none"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לצימר בגליל עם תמונות ומחירים",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר למרפאת שיניים ברמת גן",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לווטרינר בבאר שבע עם שעות קבלה",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לחנות תכשיטים בעבודת יד",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לקבלן שיפוצים עם גלריית עבודות",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר למנעולן באשדוד",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לחברת הובלות",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר למכון כושר עם מערכת שעות",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "דף נחיתה לסדנת קרמיקה",
+   "page_type": "landing",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר למזגנים, התקנה ותיקון, כפתור וואטסאפ",
+   "page_type": null,
+   "found": "none"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לקייטרינג לאירועים עם תפריטים",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לחנות פרחים עם שני כפתורים גדולים לוואטסאפ ולחיוג",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לחנות יין, בלי הזמנות אונליין",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר ללהקת חתונות עם סרטון הופעה קצר",
+   "page_type": null,
+   "found": "none"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לחברת דלתות, הובלה, הרכבה ופירוק הדלת הישנה",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "website for a dental clinic in Haifa",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "landing page for my bakery",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "portfolio site for a photographer",
+   "page_type": "portfolio",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "מערכת לניהול לקוחות לסוכן ביטוח",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "אתר למספרה עם קביעת תורים אונליין",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "מערכת הזמנת שולחנות למסעדה",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "אתר לבית קפה עם הזמנות אונליין לאיסוף",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "טופס הרשמה לחוג עם רשימת נרשמים למנהלת",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "אתר לניהול ספרייה עם מנויים",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "אתר בעברית לניהול טבלת ליגת כדורגל עם טופס להזנת תוצאות",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "מערכת לניהול מלאי לחנות",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "לוח מודעות לשכונה שבו כל אחד מפרסם מודעה",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "מערכת לניהול משמרות לעובדים",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "אתר עם התחברות ללקוחות לצפייה בהזמנות שלהם",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "web app to track my expenses",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "a CRM for my small agency",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "dashboard for my sales numbers",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "מחשבון משכנתא",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "web_app",
+   "text": "רשימת קניות משותפת למשפחה",
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לחנות משחקים לילדים",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לאולפן הקלטות מוזיקה",
+   "page_type": null,
+   "found": "none"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר עם טון ישיר ומקצועי לחברת אינסטלציה",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לעסק משפחתי עשיר בתוכן",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "שלום, אתר לעסק שלי",
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לגננת עם תמונות מהגן ושעות פעילות",
+   "page_type": null,
+   "found": "none"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "תבנה לי דף לסדנת יוגה בשבתות",
+   "page_type": null,
+   "found": "none"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "fixture": "site_content_bld_b0eb47a5.json",
+   "key": [
+    "prompt"
+   ],
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "fixture": "site_content_bld_3938e570.json",
+   "key": [
+    "prompt"
+   ],
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "fixture": "run10b_briefs.json",
+   "key": [
+    "briefs",
+    "locksmith_hard"
+   ],
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "fixture": "run10b_briefs.json",
+   "key": [
+    "briefs",
+    "florist_details"
+   ],
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "fixture": "run10b_briefs.json",
+   "key": [
+    "briefs",
+    "florist_nodetails"
+   ],
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "production",
+   "family": "web_app",
+   "fixture": "run10b_briefs.json",
+   "key": [
+    "briefs",
+    "positive_signup"
+   ],
+   "page_type": null,
+   "found": "not_a_page"
+  },
+  {
+   "source": "production",
+   "family": "website",
+   "fixture": "run10b_briefs.json",
+   "key": [
+    "briefs",
+    "positive_contact_form"
+   ],
+   "page_type": "business",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אני רוצה דף לכנס השנתי שלנו בנושא חקלאות מתקדמת, ב-14.12.2026 במרכז הכנסים בבאר שבע. עם הרשמה, תוכנית יום והרצאות.\n--- Approved project brief (binding; fingerprint 0123456789abcdef) ---\nSign-in: NONE. Do not add login, sessions, users or roles.\nDo not store personal or contact details of people.\nProduct kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given.\nAudience: Customers / the public\nMain action: הרשמה לכנס השנתי בחקלאות מתקדמת\nScreens: פתיח, על הכנס, דוברים, שאלות נפוצות, הרשמה\nInitial content: כנס שנתי; תאריך 14.12.2026; מקום: מרכז הכנסים, באר שבע\nLanguage: Hebrew, right-to-left; dates shown as DD/MM/YYYY.\nDesign: style clean; primary colour #1e3a5f; palette #1e3a5f, #b45309, #f8fafc, #0f172a (primary, accent, background, text); font 'Heebo', system-ui, sans-serif.",
+   "page_type": "event",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "תבנה לי אתר תיעוד למוצר שלנו: מדריך התקנה, מדריך למשתמש ושאלות נפוצות.\n--- Approved project brief (binding; fingerprint 0123456789abcdef) ---\nSign-in: NONE. Do not add login, sessions, users or roles.\nDo not store personal or contact details of people.\nProduct kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given.\nAudience: Customers / the public\nMain action: קריאת התיעוד של המוצר\nScreens: פתיח, מדריך התקנה, מדריך למשתמש, שאלות נפוצות\nInitial content: תיעוד טכני; התקנה; הגדרה; גרסאות\nLanguage: Hebrew, right-to-left; dates shown as DD/MM/YYYY.\nDesign: style clean; primary colour #1e3a5f; palette #1e3a5f, #b45309, #f8fafc, #0f172a (primary, accent, background, text); font 'Heebo', system-ui, sans-serif.",
+   "page_type": "documentation",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "דף מוצר לשואב האבק הרובוטי החדש שלנו, עם תכונות, מפרט ותמונות.\n--- Approved project brief (binding; fingerprint 0123456789abcdef) ---\nSign-in: NONE. Do not add login, sessions, users or roles.\nDo not store personal or contact details of people.\nProduct kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given.\nAudience: Customers / the public\nMain action: הצגת המוצר החדש והזמנה מוקדמת\nScreens: פתיח, תכונות, תמונות, מפרט, הזמנה\nInitial content: מוצר חדש: שואב אבק רובוטי; תכונות; מפרט; הזמנה מוקדמת\nLanguage: Hebrew, right-to-left; dates shown as DD/MM/YYYY.\nDesign: style clean; primary colour #1e3a5f; palette #1e3a5f, #b45309, #f8fafc, #0f172a (primary, accent, background, text); font 'Heebo', system-ui, sans-serif.",
+   "page_type": "product",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר אישי למעצבת פנים, עם קורות חיים, כמה שורות על עצמי ופרטי קשר.\n--- Approved project brief (binding; fingerprint 0123456789abcdef) ---\nSign-in: NONE. Do not add login, sessions, users or roles.\nDo not store personal or contact details of people.\nProduct kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given.\nAudience: Customers / the public\nMain action: הכרות עם המעצבת ויצירת קשר\nScreens: פתיח, על עצמי, קורות חיים, צור קשר\nInitial content: קורות חיים; על עצמי; פרטי קשר\nLanguage: Hebrew, right-to-left; dates shown as DD/MM/YYYY.\nDesign: style clean; primary colour #1e3a5f; palette #1e3a5f, #b45309, #f8fafc, #0f172a (primary, accent, background, text); font 'Heebo', system-ui, sans-serif.",
+   "page_type": "personal",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "דף נחיתה לקמפיין הנחה לחבילות ספא, עם השארת פרטים.\n--- Approved project brief (binding; fingerprint 0123456789abcdef) ---\nSign-in: NONE. Do not add login, sessions, users or roles.\nDo not store personal or contact details of people.\nProduct kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given.\nAudience: Customers / the public\nMain action: השארת פרטים לקבלת ההנחה\nScreens: פתיח, יתרונות, השארת פרטים\nInitial content: קמפיין הנחה; להשאיר פרטים; הצעת מחיר\nLanguage: Hebrew, right-to-left; dates shown as DD/MM/YYYY.\nDesign: style clean; primary colour #1e3a5f; palette #1e3a5f, #b45309, #f8fafc, #0f172a (primary, accent, background, text); font 'Heebo', system-ui, sans-serif.",
+   "page_type": "landing",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "תיק עבודות לצלם נוף, עם גלריית עבודות נבחרות ופרטי קשר.\n--- Approved project brief (binding; fingerprint 0123456789abcdef) ---\nSign-in: NONE. Do not add login, sessions, users or roles.\nDo not store personal or contact details of people.\nProduct kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given.\nAudience: Customers / the public\nMain action: הצגת עבודות הצילום ויצירת קשר\nScreens: פתיח, גלריה, על הצלם, צור קשר\nInitial content: תיק עבודות; עבודות נבחרות; צילום נוף\nLanguage: Hebrew, right-to-left; dates shown as DD/MM/YYYY.\nDesign: style clean; primary colour #1e3a5f; palette #1e3a5f, #b45309, #f8fafc, #0f172a (primary, accent, background, text); font 'Heebo', system-ui, sans-serif.",
+   "page_type": "portfolio",
+   "found": "named"
+  },
+  {
+   "source": "claude",
+   "family": "website",
+   "text": "אתר לקהילת הרצים של השכונה, עם מידע על הקבוצה, תמונות מהריצות והצטרפות.\n--- Approved project brief (binding; fingerprint 0123456789abcdef) ---\nSign-in: NONE. Do not add login, sessions, users or roles.\nDo not store personal or contact details of people.\nProduct kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given.\nAudience: Customers / the public\nMain action: הצטרפות לקהילת הרצים\nScreens: פתיח, על הקהילה, תמונות, הצטרפות\nInitial content: קהילת רצים; קבוצה; שכונה; להצטרף\nLanguage: Hebrew, right-to-left; dates shown as DD/MM/YYYY.\nDesign: style clean; primary colour #1e3a5f; palette #1e3a5f, #b45309, #f8fafc, #0f172a (primary, accent, background, text); font 'Heebo', system-ui, sans-serif.",
+   "page_type": "community",
+   "found": "named"
+  }
+ ]
+}
