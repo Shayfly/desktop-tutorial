@@ -82,12 +82,15 @@ CUSTOMER_TEXT = ('omni_prod/intake/venice.py', 'omni_prod/intake/approval_flow.p
                  'omni_prod/build_readiness.py', 'omni_prod/build_announcement.py', 'omni_prod/assets/app.js',
                  'omni_prod/gate_words.py',        # every blocking finding, in the customer's words (warehouse 132)
                  'omni_prod/conversation/spec_card.py',
+                 'omni_prod/planning/feasibility_words.py',   # warehouse 132: what blocks a build, with the next action
                  'omni_prod/intake/media_reading.py')   # warehouse 128: its sentences are conversation replies
 # The conversation-and-approval route: here the count is zero, not a ratchet (the owner, 2026-11-22: "this is the heart").
 CONVERSATION = ('omni_prod/intake/venice.py', 'omni_prod/intake/approval_flow.py', 'omni_prod/intake/interpreter.py',
                 'omni_prod/conversation/supervisor.py', 'omni_prod/discovery.py', 'omni_prod/window_catalog.py',
                 # 2026-11-23: the spec card writes the words of the approval screen itself (the owner's example)
                 'omni_prod/conversation/spec_card.py',
+                # warehouse 132: the supervisor says every blocked build with these words
+                'omni_prod/planning/feasibility_words.py',
                 # warehouse 128: the supervisor sends media_reading._TEXT as conversation replies (review 2026-11-24)
                 'omni_prod/intake/media_reading.py')
 # A string that is not shown to the customer although it holds a platform word, with the reason.
@@ -127,3 +130,18 @@ def scan(path: str, root='.') -> list[tuple[int, str, str]]:
             if (path, term) not in NOT_SHOWN:
                 out.append((line, term, s))
     return out
+
+
+def route_counts(root='.') -> dict:
+    """The platform words still in each customer route, counted (warehouse 132, acceptance 3): {'routes': {path: n}, 'total': n}.
+    The target is zero; tests/fixtures/customer_words_baseline.json is the ratchet that holds it there."""
+    routes = {path: len(scan(path, root=root)) for path in CUSTOMER_TEXT}
+    return {'routes': routes, 'total': sum(routes.values())}
+
+
+if __name__ == '__main__':                  # python -m omni_prod.customer_words : one ::notice line per route
+    _counts = route_counts()
+    for _path, _n in sorted(_counts['routes'].items()):
+        print(f'::notice title=customer words::{_path}: {_n} platform word(s)')
+    print(f'::notice title=customer words::all routes: {_counts["total"]} platform word(s), target 0')
+    raise SystemExit(1 if _counts['total'] else 0)

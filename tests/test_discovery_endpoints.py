@@ -119,7 +119,9 @@ class DiscoveryEndpointTests(unittest.TestCase):
             with self.assertRaises(investor_app.HTTPException) as ctx:
                 investor_app._bind_execution_plan('prj_1',row.fingerprint)
         self.assertEqual(ctx.exception.status_code,409)
-        self.assertEqual(ctx.exception.detail['findings'],[finding])
+        # warehouse 132: each finding also carries its words in the three languages; its own fields are unchanged
+        self.assertEqual([{k:v for k,v in f.items() if k!='words'} for f in ctx.exception.detail['findings']],[finding])
+        self.assertEqual(sorted(ctx.exception.detail['findings'][0]['words']),['ar','en','he'])
         self.assertIn(finding['item'],ctx.exception.detail.get('message',''))
         self.assertIn(finding['alternative'],ctx.exception.detail.get('message',''))
 

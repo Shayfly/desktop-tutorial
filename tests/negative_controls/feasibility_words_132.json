@@ -1,0 +1,208 @@
+{
+ "pr": "wh132-findings",
+ "sha256": [
+  "tests/test_feasibility_words.py",
+  "omni_prod/planning/feasibility_words.py",
+  "omni_prod/conversation/supervisor.py",
+  "tests/feasibility_words_browser.cjs"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a new gate finding is added to the code with no customer words (the walk of every Finding( in the code finds it)",
+   "mutations": [
+    {
+     "file": "omni_prod/planning/feasibility.py",
+     "old": "    gap = snap['gaps'].get('review.independent_provider')\n",
+     "new": "    f.append(Finding('a new check nobody worded', BLOCKED, 'x'))  # NEGATIVE CONTROL\n    gap = snap['gaps'].get('review.independent_provider')\n"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_every_item_the_code_can_produce_has_words_in_every_language",
+    "test_the_real_gate_on_real_contracts_finds_nothing_it_cannot_word"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the words of a Hebrew customer are the English ones",
+   "mutations": [
+    {
+     "file": "omni_prod/planning/feasibility_words.py",
+     "old": "    what, why, nxt = getattr(entry, lang)\n",
+     "new": "    what, why, nxt = getattr(entry, 'en' if lang == 'he' else lang)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_a_blocked_build_is_said_in_each_language_with_its_next_action",
+    "test_an_entry_with_no_next_step_is_refused",
+    "test_the_answer_to_can_you_add_x_is_in_the_customers_language_in_all_three"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a finding with no next action is served (the check of the three parts is dropped)",
+   "mutations": [
+    {
+     "file": "omni_prod/planning/feasibility_words.py",
+     "old": "    for part in (what, why, nxt):\n        if not isinstance(part, str)",
+     "new": "    for part in (what, why):  # NEGATIVE CONTROL\n        if not isinstance(part, str)"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_an_entry_with_no_next_step_is_refused"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a platform word reaches the customer (the server, in the \"on our side\" step)",
+   "mutations": [
+    {
+     "file": "omni_prod/planning/feasibility_words.py",
+     "old": "    'he': 'זה אצלנו, לא אצלכם. נסו שוב בעוד כמה דקות',\n",
+     "new": "    'he': 'זה בשרת שלנו, לא אצלכם. נסו שוב בעוד כמה דקות',  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py",
+    "tests/test_customer_words.py"
+   ],
+   "expect_failed": [
+    "test_no_other_customer_text_gains_a_platform_word",
+    "test_no_platform_word_reaches_the_customer",
+    "test_the_conversation_route_holds_no_platform_word",
+    "test_the_platform_words_in_every_customer_route_are_counted_and_the_count_is_zero",
+    "test_the_words_file_is_customer_text_and_holds_no_platform_word"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the supervisor says a blocked build as the platform's item names again",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        return FW.reply(blocked, lang if lang in FW.LANGS else 'en')\n",
+     "new": "        return '; '.join(f['item'] for f in blocked)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_a_blocked_build_is_said_in_each_language_with_its_next_action",
+    "test_the_reply_to_approve_before_it_is_ready_names_no_item"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "\"cannot be approved yet\" drops the reasons that block the build",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            if blocked:                      # warehouse 132: the reasons are said in words",
+     "new": "            if False:                      # NEGATIVE CONTROL: the reasons are said in words"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_the_reply_to_approve_before_it_is_ready_names_no_item"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the answer to \"can you add X?\" says the gate's raw item and reason again",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                out.append(FW.sentence(hit[0].to_dict(), lang))        # warehouse 132: what, why and the next action\n",
+     "new": "                out.append(hit[0].item + ': ' + hit[0].reason)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_the_answer_to_can_you_add_x_is_in_the_customers_language_in_all_three"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the plan view the screen reads carries no words",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "'findings': FW.attach(plan['feasibility'].get('findings'))}}",
+     "new": "'findings': plan['feasibility'].get('findings')}}  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_the_plan_view_carries_the_words_of_every_finding_in_three_languages"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the blocker the workspace reads carries no words",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "'findings': FW.attach(findings), 'message'",
+     "new": "'findings': findings, 'message'"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_the_blocker_the_workspace_reads_carries_the_words_too"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "several open questions are said once each (the repeat check is dropped)",
+   "mutations": [
+    {
+     "file": "omni_prod/planning/feasibility_words.py",
+     "old": "        if said not in seen:\n",
+     "new": "        if True:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_several_open_questions_are_one_sentence",
+    "test_the_reply_to_approve_before_it_is_ready_names_no_item"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the words file is no longer scanned for platform words",
+   "mutations": [
+    {
+     "file": "omni_prod/customer_words.py",
+     "old": "                 'omni_prod/planning/feasibility_words.py',   # warehouse 132: what blocks a build, with the next action\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_the_words_file_is_customer_text_and_holds_no_platform_word"
+   ]
+  }
+ ]
+}
