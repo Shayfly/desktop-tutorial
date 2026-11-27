@@ -21,6 +21,7 @@ from ..intake import artifact_fields as AF
 from ..intake.families import EXECUTABLE, FAMILIES
 from ..planning.feasibility import CORE_CHECKS
 from .. import pricing
+from . import page_types as PT
 
 BUILDER_WEB_V1 = 'web_graph_v1'        # planning.architect.web_graph + the autonomous core: the one engine that exists
 
@@ -41,6 +42,7 @@ class OutputProfile:
     cost_ceiling_usd: Decimal              # the per-build model-spend cap the engine enforces today (LIGHT class)
     repair_rounds_max: int                 # pricing.DEFAULT_REPAIR_ROUNDS, what the engine allows today
     human_review: bool                     # no human reviewer exists in the pipeline today
+    page_types: tuple[str, ...] = ()       # warehouse 123: the kinds of page this output type is (page_types.py); () = not a page
 
     def to_dict(self) -> dict:
         d = dict(self.__dict__)
@@ -76,6 +78,9 @@ def _field_names(kind: str) -> tuple[str, ...]:
     return tuple(f.name for f in AF.fields_for(kind))
 
 
+PAGE_FAMILIES = ('website',)       # the output types that are pages; a web_app is a tool, with no page type
+
+
 def _profile(kind: str) -> OutputProfile:
     others = {f for other in EXECUTABLE if other != kind for f in _field_names(other)}
     required = _field_names(kind)
@@ -89,6 +94,7 @@ def _profile(kind: str) -> OutputProfile:
         cost_ceiling_usd=pricing.m5_class_llm_cap(pricing.CostClass.LIGHT),
         repair_rounds_max=pricing.DEFAULT_REPAIR_ROUNDS,
         human_review=False,
+        page_types=PT.TYPES if kind in PAGE_FAMILIES else (),
     )
 
 
@@ -141,6 +147,8 @@ def check_truth(profiles, unsupported, executable, families) -> None:
 
 
 check_truth(PROFILES, UNSUPPORTED, EXECUTABLE, FAMILIES)
+if not set(PAGE_FAMILIES) <= set(PROFILES):
+    raise RuntimeError(f'page families {PAGE_FAMILIES} have no output profile')
 
 
 def profile_for(family: str) -> OutputProfile | None:
@@ -155,3 +163,13 @@ def route(family: str) -> Routing:
     if family in UNSUPPORTED:
         return Routing(family, None, UNSUPPORTED[family])
     raise ProfileMissing(f'no output profile and no unsupported entry for product family {family!r}')
+
+
+def detect_page_type(family: str, prompt: str) -> PT.Detection:
+    """Warehouse 123: the page type of an approved prompt, for an output family. Only a page family has one: a web_app, or
+    a family declared unsupported, is `not_a_page`. An unknown family raises ProfileMissing, never a default. The stable
+    key is `.page_type` (None when the customer's words name none or two equally; `.found` says which)."""
+    routing = route(family)
+    if routing.profile is None or not routing.profile.page_types:
+        return PT.Detection(None, 'not_a_page')
+    return PT.detect(prompt)

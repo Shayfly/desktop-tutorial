@@ -91,7 +91,59 @@
     "tests/test_error_codes_tell_the_real_cause.py"
    ],
    "expect_failed": [
-    "test_every_code_a_failed_build_can_carry_has_a_hebrew_and_an_english_message"
+    "test_every_code_a_failed_build_can_carry_has_a_hebrew_and_an_english_message",
+    "test_every_code_a_failed_build_can_carry_also_has_an_arabic_message"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the Arabic message of a queue-side failure (worker_lost) is missing: the customer would read a bare code",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "\"worker_lost\":\"علِق البناء فأوقفناه.\",",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_error_codes_tell_the_real_cause.py"
+   ],
+   "expect_failed": [
+    "test_every_code_a_failed_build_can_carry_also_has_an_arabic_message"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the Hebrew message of a dead worker says 'the server' (the platform word) instead of what happened to the build",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "worker_lost:'הבנייה נתקעה ועצרנו אותה.'",
+     "new": "worker_lost:'השרת נתקע ועצרנו אותו.'"
+    }
+   ],
+   "targets": [
+    "tests/test_error_codes_tell_the_real_cause.py"
+   ],
+   "expect_failed": [
+    "test_no_failure_message_names_the_platform_or_the_queue"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the English message of a build timeout names the queue",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "build_timeout:'The build took too long and we stopped it before it finished.'",
+     "new": "build_timeout:'The queue job took too long and we stopped it before it finished.'"
+    }
+   ],
+   "targets": [
+    "tests/test_error_codes_tell_the_real_cause.py"
+   ],
+   "expect_failed": [
+    "test_no_failure_message_names_the_platform_or_the_queue"
    ]
   }
  ]
