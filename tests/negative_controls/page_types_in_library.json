@@ -1,0 +1,96 @@
+{
+ "pr": "wh123-page-types-in-library",
+ "sha256": [
+  "tests/test_page_types_in_library.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a page type is built without the sections it cannot do without",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "        if absent:\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types_in_library.py"
+   ],
+   "expect_failed": [
+    "test_a_page_type_cannot_be_built_without_the_sections_it_cannot_do_without"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the skeleton's order is ignored: a portfolio page opens like a business page",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "        if order is None:\n            order = list(skeleton['sections'])\n",
+     "new": "        if order is None:\n            order = None\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types_in_library.py"
+   ],
+   "expect_failed": [
+    "test_a_portfolio_page_follows_its_skeleton_and_says_what_it_left_out",
+    "test_the_business_skeleton_is_the_librarys_own_order"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the page does not carry its type",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "f'{f\"data-page-type={page_type} \" if page_type else \"\"}'",
+     "new": "''"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types_in_library.py"
+   ],
+   "expect_failed": [
+    "test_a_portfolio_page_follows_its_skeleton_and_says_what_it_left_out",
+    "test_the_customers_own_outline_still_wins_over_the_skeleton"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the library no longer checks the skeletons against its own sections",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    PAGE_TYPES.check(PAGE_TYPES._DATA, [k for k, _ in ORDER])\n",
+     "new": "    pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types_in_library.py"
+   ],
+   "expect_failed": [
+    "test_the_library_stops_at_import_on_a_skeleton_with_a_section_it_does_not_render"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a page built without page_type changes: the owner's page is no longer what main renders",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "if page_type else \"\"}'",
+     "new": "if True else \"\"}'"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types_in_library.py"
+   ],
+   "expect_failed": [
+    "test_the_business_skeleton_is_the_librarys_own_order",
+    "test_without_a_page_type_the_owners_page_is_byte_identical_to_main"
+   ]
+  }
+ ]
+}

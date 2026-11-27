@@ -615,6 +615,17 @@ ORDER = (('hero', hero), ('stats', stats), ('services', services), ('pricelist',
          ('faq', faq), ('contact', contact))
 REQUIRED = ('title', 'description', 'name', 'phone', 'direction', 'hero')
 
+# Warehouse 123: the skeleton of each page type (output_profile/page_types.json) is data this library consumes. It may
+# name only sections that are in ORDER; a skeleton naming one the library does not render stops the import.
+from ..output_profile import page_types as PAGE_TYPES      # noqa: E402  (after ORDER, which it is checked against)
+
+
+def check_page_types() -> None:
+    PAGE_TYPES.check(PAGE_TYPES._DATA, [k for k, _ in ORDER])
+
+
+check_page_types()
+
 # Variety (the owner, 2026-11-20: "מגוון בהכול ברמה הכי גבוהה"): every section with more than one designed layout. The
 # first option is the default; elegant keeps its centred hero. A business gets its own combination, stable across builds:
 # what the content names wins, the rest comes from its name -- two businesses on one palette do not look alike.
@@ -670,11 +681,16 @@ def _schema(c: dict) -> str:
 
 
 def page(content: dict, contract: dict, order: list[str] | None = None, windows=(),
-         draft: dict | None = None) -> tuple[str, list[str]]:
+         draft: dict | None = None, page_type: str | None = None) -> tuple[str, list[str]]:
     """(html, skipped section keys). `contract` is a G-APPLE contract (contract.build). `order` is the customer's own
     outline as section keys (the hero always opens the page); without it, ORDER. `windows` are the approved window ids
     (window_catalog), each one of RENDERED_WINDOWS. A missing required fact, an unknown section key, an unknown art
     direction or a window the library does not render raises; nothing is filled in silently.
+
+    `page_type` (warehouse 123): one of output_profile.page_types.TYPES. The page then takes that type's skeleton as its
+    order (the customer's own `order`, when given, still wins), raises when the content lacks a section the type cannot do
+    without, says in `skipped` a section it has content for that the skeleton leaves out, and carries data-page-type.
+    Without it the page is byte-identical to what it was before the keyword existed (tests/test_page_types.py).
 
     `draft` (the direction sketch, S6.3): {'ribbon': the draft ribbon's text}. The page then carries the ribbon and a
     noindex meta, and a section whose content is {'outline': True, 'title': ...} is rendered as an outline block. Without
@@ -683,6 +699,14 @@ def page(content: dict, contract: dict, order: list[str] | None = None, windows=
     _need(c, REQUIRED, 'page')
     if draft is not None and not (isinstance(draft, dict) and draft.get('ribbon')):
         raise ValueError("draft needs {'ribbon': text}")
+    skeleton = PAGE_TYPES.skeleton(page_type) if page_type is not None else None     # an unknown type raises
+    if skeleton is not None:
+        absent = [k for k in skeleton['required_sections'] if not c.get(k)]
+        if absent:
+            raise ValueError(f'page type {page_type!r} cannot do without {absent}; give them or choose another type '
+                             '(a section is given in full or left out; nothing is filled in)')
+        if order is None:
+            order = list(skeleton['sections'])
     outlined = {k for k, v in c.items() if draft is not None and is_outline(v)}
     window_html = windows_markup(windows)
     sequence = ORDER
@@ -703,6 +727,8 @@ def page(content: dict, contract: dict, order: list[str] | None = None, windows=
             skipped.append('stats:merged into the hero panel (elegant)')
         elif (order is None or key in order or key == 'hero') and c.get(key) and (key != 'stats' or stats_shown(c)):
             rendered.append(key)
+        elif skeleton is not None and key not in order and c.get(key):
+            skipped.append(f'{key}:not in the {page_type} skeleton')
         else:
             skipped.append(key)
     c = dict(c, _merged=('stats',) if merge else (), _layout=layout_for(c))
@@ -737,6 +763,7 @@ def page(content: dict, contract: dict, order: list[str] | None = None, windows=
             f'{font_links(contract)}<style>{contract["css"]}\n{purge(CSS, classes, attrs) if PURGE else CSS}</style>{_schema(c)}')
     doc = (f'<!doctype html><html {T.html_attrs(script)}><head>{head}</head>'
            f'<body data-direction="{direction}" data-148-kit="section-library/{LIBRARY_VERSION}" '
+           f'{f"data-page-type={page_type} " if page_type else ""}'
            f'data-layout="{" ".join(f"{k}:{v}" for k, v in c["_layout"].items())}"'
            f'{" data-display-weight=regular" if single else ""}>{markup}</body></html>')
     from ..bidi_ranges import wrap_ranges        # "09:00–18:00" stays in its order on a right-to-left page
