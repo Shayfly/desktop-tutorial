@@ -24,6 +24,63 @@ import time
 MAX_BRIEF_STEPS = 40
 
 
+# Warehouse 117 / 71 / 115 / 118 (the owner's order of 2026-11-27): three optional upgrades of THIS rehearsal, each off
+# unless asked. They travel as one `Options` value (set by main(), read where the rehearsal needs it) so that every
+# existing signature, caller and test of the rehearsal keeps its meaning.
+#   photo        a committed fixture image goes through the customer's path (omni_prod/rehearsal_photo)
+#   account_id   the rehearsal's account: a NON-founder one, so the worker's founder-only features decide as they do
+#                for a customer (agentic repair, the design critic, the image match)
+#   time_budget  (repair_until_seconds, stop_at_seconds): the worker's own build time budget (queueing.BUILD_*);
+#                an override only SHORTENS it, to make a short rehearsal reach the self-stop (warehouse 115)
+from contextvars import ContextVar
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Options:
+    photo: object = None
+    account_id: str | None = None
+    time_budget: tuple | None = None
+
+
+_OPTIONS: ContextVar = ContextVar('rehearsal_options', default=Options())
+
+
+def options() -> Options:
+    return _OPTIONS.get()
+
+
+def parse_time_budget(text: str):
+    """'' -> None (the worker's constants). 'repair,stop' in seconds -> a pair that is positive, ordered, and not
+    longer than the worker's own limits (a rehearsal that waited longer than a customer's build proves nothing)."""
+    if not (text or '').strip():
+        return None
+    from .queueing import BUILD_REPAIR_UNTIL_SECONDS, BUILD_STOP_AT_SECONDS
+    parts = [x.strip() for x in text.split(',')]
+    if len(parts) != 2 or not all(x.isdigit() and int(x) > 0 for x in parts):
+        raise ValueError(f"time_budget must be 'repair_seconds,stop_seconds' (positive integers), not {text!r}")
+    repair, stop = int(parts[0]), int(parts[1])
+    if repair >= stop:
+        raise ValueError(f'time_budget: repair ({repair}) must be below stop ({stop})')
+    if repair > BUILD_REPAIR_UNTIL_SECONDS or stop > BUILD_STOP_AT_SECONDS:
+        raise ValueError(f'time_budget may only shorten the worker\'s budget ({BUILD_REPAIR_UNTIL_SECONDS},'
+                         f'{BUILD_STOP_AT_SECONDS}), not {repair},{stop}')
+    return repair, stop
+
+
+def _attach_photo(brief):
+    """The customer's upload, as the conversation records it (supervisor: brief.assets['image'])."""
+    photo = options().photo
+    if photo is not None:
+        brief.assets['image'] = dict(photo.meta)
+    return brief
+
+
+def _photo_answers() -> dict:
+    photo = options().photo
+    return dict(photo.answers) if photo is not None else {}
+
+
 def approved_prompt(request: str, answers: dict) -> str:
     """The prompt a CUSTOMER's build gets: the request plus the approved brief block (discovery.requirements_text),
     built by the conversation's own functions. Calibration, 2026-11-17 (rehearsals 44025252867, 44025259144): a raw
@@ -34,6 +91,8 @@ def approved_prompt(request: str, answers: dict) -> str:
     `answers` raises: nothing is guessed."""
     from . import discovery as d
     brief = d.start(request)
+    brief = _attach_photo(brief)                      # warehouse 117: the fixture photo, with its role questions
+    answers = {**answers, **_photo_answers()}         # the customer's answers about the picture itself
     for _ in range(MAX_BRIEF_STEPS):                      # bounded: the catalogue is finite
         must = d.must_ask(brief)
         if must:
@@ -102,6 +161,34 @@ def run(prompt: str) -> dict:
         report['outline_carried'] = len(install_page_outline(engine, prompt))
     except Exception as exc:
         report['request_installs_error'] = f'{type(exc).__name__}: {exc}'[:300]
+    # Warehouse 71 and 115: the account the build runs as, and the build time budget, as in the worker (worker_tasks,
+    # after the request installs). Each step that cannot be installed is in the report and fails the rehearsal
+    # (`extras_ok`); none is skipped in silence.
+    opts = options()
+    control = None
+    try:
+        from .build_control import BuildControl, install as install_build_control
+        from .queueing import BUILD_JOB_TIMEOUT_SECONDS, BUILD_REPAIR_UNTIL_SECONDS, BUILD_STOP_AT_SECONDS
+        repair_until, stop_at = opts.time_budget or (BUILD_REPAIR_UNTIL_SECONDS, BUILD_STOP_AT_SECONDS)
+        control = BuildControl(None, report['build_id'], repair_until_seconds=repair_until, stop_at_seconds=stop_at)
+        install_build_control(engine, gateway, control)
+        report['time_budget'] = {'repair_until_seconds': repair_until, 'stop_at_seconds': stop_at,
+                                 'job_timeout_seconds': BUILD_JOB_TIMEOUT_SECONDS,
+                                 'shortened': opts.time_budget is not None}
+        if opts.account_id:
+            from .design_review import install_design_critic
+            from .image_match import enabled_for as image_match_enabled
+            from .pricing import m5_founder_account
+            from .worker_tasks import _install_agentic_repair
+            who = {'user_id': opts.account_id}
+            report['account'] = {
+                'mode': 'non_founder', 'user_id': opts.account_id, 'founder': m5_founder_account(opts.account_id),
+                'agentic_repair': _install_agentic_repair(engine, who),
+                'design_critic': install_design_critic(engine, who, prompt),
+                'image_match': bool(image_match_enabled(who)),
+                'not_covered': 'plan limits, credits and the subscription (a rehearsal has no database and no account row)'}
+    except Exception as exc:
+        report['account_installs_error'] = f'{type(exc).__name__}: {exc}'[:300]
     # The same skill gates a customer's build runs (gate.WORKER_GATES), each in its own mode. A calibrating gate warns:
     # its findings are in the report, which is how a gate is calibrated on real generated pages before it blocks.
     try:
@@ -131,9 +218,28 @@ def run(prompt: str) -> dict:
                                     gateway=TaskTaggedGateway(getattr(gateway, '_inner', gateway), 'review'))
     except Exception as exc:
         report['g_apple_error'] = f'{type(exc).__name__}: {exc}'[:300]
+    # Warehouse 117 / 118: the customer's photo, on the customer's path (uploaded_assets.install_main_image). The build is
+    # not run when it cannot be installed: no spend on a build that would not carry the photo.
+    photo_error = None
+    if opts.photo is not None:
+        try:
+            from .rehearsal_photo import PROJECT_ID, FixturePool, FixtureStore
+            from .uploaded_assets import install_main_image
+            account = opts.account_id or 'rehearsal-account'
+            prompt = install_main_image(engine, prompt=prompt, pool=FixturePool(opts.photo, account),
+                                        store=FixtureStore(opts.photo), project_id=PROJECT_ID, account_id=account)
+            report['photo_installed'] = {'fixture': opts.photo.name, 'sha256': opts.photo.sha256,
+                                         'placed': len(getattr(getattr(engine, 'core', engine), 'uploaded_images', None) or [])}
+            if not report['photo_installed']['placed']:
+                raise RuntimeError('the brief placed no image: the fixture photo is not in the approved request')
+        except Exception as exc:
+            photo_error = f'{type(exc).__name__}: {exc}'[:1500]
+            report.update(photo_install_error=photo_error[:300], outcome='exception', error=photo_error)
     try:
         if site_error is not None:          # the worker fails here too: no build, no spend
             raise RuntimeError(f'the content route could not be decided, so the build did not start: {site_error}')
+        if photo_error is not None:         # likewise: the photo the customer asked for would not be on the page
+            raise RuntimeError(f'the photo could not be installed, so the build did not start: {photo_error}')
         result = engine.build(prompt)
     except Exception as exc:
         from .worker_tasks import failure_code
@@ -169,6 +275,7 @@ def run(prompt: str) -> dict:
         except Exception as exc:
             report['error_code_error'] = f'{type(exc).__name__}: {exc}'[:300]
         report['round_failures'] = round_failures(engine)
+    report.update(run_extras(engine, control, result, report))
     report['release_policy'] = release_policy(engine, gateway, result)
     from .skill_units.gate import report as skill_gate_report
     report['skill_gates'] = skill_gate_report(engine)
@@ -320,6 +427,7 @@ def annotations(report: dict) -> list[str]:
                              f"seconds={report.get('seconds')} {report.get('error', '')}"),
              note('acceptance', '\n'.join(report.get('acceptance') or [])),
              note('files', ', '.join(report.get('files') or []) + '\n' + (report.get('manifest') or ''))]
+    lines[1:1] = extra_notes(report)         # warehouse 117/71/115/118: what was asked, right after the outcome
     lines.append(note('taxonomy', f"first_pass={report.get('first_pass')} failures="
                                   + json.dumps(report.get('failure_taxonomy') or [], ensure_ascii=False)))
     policy = report.get('release_policy') or {}
@@ -375,11 +483,83 @@ def annotations(report: dict) -> list[str]:
     return lines
 
 
+def run_extras(engine, control, result, report: dict) -> dict:
+    """What the three optional upgrades measured, read from the finished build (warehouse 115, 117, 118)."""
+    out: dict = {}
+    if control is not None and report.get('time_budget'):
+        tb = dict(report['time_budget'])
+        elapsed = round(control.elapsed())
+        if report.get('error_code') == 'build_timeout':
+            ended = 'build_deadline'                       # the build stopped ITSELF at stop_at_seconds (BuildDeadline)
+        elif report.get('stop_reason') == 'time_budget':
+            ended = 'repair_cut_off_by_time'               # no new repair round after repair_until_seconds
+        else:
+            ended = 'within_budget'
+        tb.update(elapsed_seconds=elapsed, checks=control.checks, ended_by=ended,
+                  queue_limit_reached=elapsed >= tb['job_timeout_seconds'])
+        out['time_budget'] = tb
+    photo = options().photo
+    if photo is not None:
+        from .rehearsal_photo import photo_report
+        images = list(getattr(getattr(engine, 'core', engine), 'uploaded_images', None) or [])
+        if result is None or not images:
+            out['photo'] = {'images': [], 'inline_data_uri_in': [], 'as_file': False, 'hero_kept': False, 'ok': False,
+                            'reason': 'the build produced no repository' if result is None else 'no photo was placed'}
+        else:
+            out['photo'] = photo_report(result.repository, images)
+    return out
+
+
+def extras_ok(report: dict) -> bool:
+    """The optional upgrades a rehearsal was asked for must have held: the install steps ran, the photo reached the
+    page as a file and the hero was kept, the run was a non-founder's, and the queue's own limit did not end it."""
+    if report.get('account_installs_error') or report.get('photo_install_error'):
+        return False
+    if 'photo' in report and not (report['photo'] or {}).get('ok'):
+        return False
+    if 'account' in report and report['account'].get('founder'):
+        return False
+    return not (report.get('time_budget') or {}).get('queue_limit_reached')
+
+
+def extra_notes(report: dict) -> list[str]:
+    """Annotation lines for what was asked (GitHub keeps the first 10 of a step: these come right after the outcome)."""
+    def note(title, body):
+        return f"::notice title={title}::" + str(body)[:3400].replace('%', '%25').replace('\r', '').replace('\n', '%0A')
+    out = []
+    if report.get('photo'):
+        from .rehearsal_photo import photo_lines
+        out += photo_lines(report['photo'])
+    if report.get('photo_install_error'):
+        out.append('::error title=customer photo::the photo could not be installed: ' + str(report['photo_install_error']))
+    if report.get('account') or report.get('account_installs_error'):
+        out.append(note('account', report.get('account_installs_error') or json.dumps(report['account'], ensure_ascii=False)))
+    if report.get('time_budget'):
+        out.append(note('time budget', json.dumps(report['time_budget'])))
+    return out
+
+
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if not argv or not argv[0].strip():
         print('usage: python -m omni_prod.rehearsal "<prompt>" [\'{"content_only": "yes", ...}\']', file=sys.stderr)
         return 2
+    # warehouse 117/71/115: [prompt, answers, image, account, time_budget]; every unknown value raises, none is guessed
+    env = os.environ
+    extra = [(argv[i] if len(argv) > i else env.get(name, '')).strip()
+             for i, name in ((2, 'REHEARSAL_IMAGE'), (3, 'REHEARSAL_ACCOUNT'), (4, 'REHEARSAL_TIME_BUDGET'))]
+    photo = None
+    if extra[0]:
+        from .rehearsal_photo import load
+        photo = load(extra[0])
+        if len(argv) < 2 or not argv[1].strip():
+            raise ValueError("an image needs the customer's approved brief: pass answers as JSON ('{}' when the brief "
+                             'asks nothing of the customer)')
+    account_id = None
+    if extra[1]:
+        from .rehearsal_photo import check_account
+        account_id = check_account(extra[1])
+    _OPTIONS.set(Options(photo=photo, account_id=account_id, time_budget=parse_time_budget(extra[2])))
     prompt, brief_mode = argv[0], len(argv) > 1 and bool(argv[1].strip())
     if brief_mode:                                        # the customer's path: an approved brief, not a raw request
         answers = json.loads(argv[1])
@@ -397,6 +577,8 @@ def main(argv=None) -> int:
 def ready(report: dict) -> bool:
     """A rehearsal is ready when a customer's build would be: the engine said ready, the quality gate passed AND the
     release policy decided READY."""
+    if not extras_ok(report):
+        return False
     return (report.get('outcome') == 'ready' and bool(report.get('quality', {}).get('passed'))
             and (report.get('release_policy') or {}).get('decision') == 'READY')
 

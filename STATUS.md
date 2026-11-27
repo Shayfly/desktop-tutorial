@@ -1,3 +1,24 @@
+# 2026-11-27 — The golden rehearsal carries a customer photo, runs as a non-founder, reports the time budget (Claude Code; branch `claude/practical-hopper-oi3qj2-wh117`, pushed, NO PR, NOT dispatched)
+
+- **Root cause (warehouse 117, 71, 115, 118):** the rehearsal took text only, so a build with a customer photo could be
+  proven in production by the owner alone; it had no account (every run was founder-like); it did not install the
+  worker's `BuildControl`, so no real build ever showed the self-stop; and nothing reported whether the photo reached the
+  page as a file and the hero was kept.
+- **Implemented and verified locally (additive only, 0 deleted lines):** `omni_prod/rehearsal.py` (upgrade) and
+  `omni_prod/rehearsal_photo.py` (fixture, attachment stand-in, report). Optional inputs `image`, `account`,
+  `time_budget` of `golden-rehearsal.yml`. The photo goes through the customer's path: the brief's image questions,
+  `ProductArchitect.compile`, the real `AttachmentRepository.get`/`read` (only the pool row and the bytes are the
+  fixture's), `install_main_image`, the real transform and gate. The report and a `::notice title=customer photo` say
+  `photo_as_file` (a verified file under `assets/`, referenced by path, no raster `data:image` anywhere, no marker left)
+  and `hero_kept` (`generated_images.placement` ok); either one no is a red run.
+- **Not covered, said:** the attachment row and bytes are the fixture's, not the database's and the object store's
+  (a rehearsal writes nothing); a non-founder rehearsal covers the worker's founder-only features, not the plan limits,
+  credits or subscription (no database); `time_budget` only SHORTENS the worker's budget, so a short run reaches the
+  self-stop; no production run was made.
+- **Evidence:** `tests/test_rehearsal_photo.py` 35 passed; controls `rehearsal_photo` 14/14; the rehearsal tests, the
+  fast suite (122 files, exit 0), `test_negative_controls_apply`, `ci_test_coverage`, `deletions_declared`,
+  `weakening_declared` and `system_map --check` exit 0.
+
 # 2026-11-27 — The customer's screen says what #542 changed (Claude Code; branch `claude/practical-hopper-oi3qj2-ui-notices`, NOT pushed to a PR, NOT live)
 
 - **Implemented and verified locally:** a character counter under the request box, "load earlier messages" on the paging
