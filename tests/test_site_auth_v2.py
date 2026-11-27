@@ -34,7 +34,9 @@ BASELINE_SHA = '2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49'
 # 2026-11-26 (repair-converge, declared in docs/identity/allowed-identity-changes.json, prepared; the owner's signature
 # is pending): the visual QA script reads the meta viewport and names the overflowing element; ACCESSIBILITY carries
 # the platform's visually-hidden rule (omni_prod/offscreen.py).
-BASELINE_DIGEST = 'fd3a45bf33f61c27ef08db0b41f1c147ae9c621dfd61d069744bb9c6e48be084'
+# 2026-11-27 (visual-s2-picture-measures, declared in docs/identity/allowed-identity-changes.json, signed on the owner's
+# standing grant): the visual QA script also measures the pictures of the page and reads its threshold from a staged file.
+BASELINE_DIGEST = 'e915ac8bd7eb834a480a172997defdf65488388eb026e0b0a3725caae1e69443'
 
 
 def _digest(flag: str) -> str:
