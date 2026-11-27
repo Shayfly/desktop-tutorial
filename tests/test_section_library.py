@@ -124,10 +124,25 @@ class TheLibrary(unittest.TestCase):
             b = p.chromium.launch()
             pg = b.new_page(viewport={'width': 1440, 'height': 900})
             pg.set_content(page_html)
-            pg.wait_for_timeout(300)
-            faded = pg.evaluate("""[...document.querySelectorAll('main *')].filter(el => {
-                const s = getComputedStyle(el); return parseFloat(s.opacity) < 0.99 && !el.closest('.panel-art'); })
-                .map(el => el.tagName + '.' + el.className).slice(0, 5)""")
+            # The 300ms run on the page's animation clock, not on the test's wall clock (2026-11-27): an entrance
+            # starts at the first frame the browser draws, and on a loaded runner (two controls at once) that frame
+            # came more than the 50ms margin (300 - the 250ms --motion-base) after set_content returned, so a hero
+            # still 'entering' was read at its first 60-90% (CI job 140581088391: h1, .lead, .actions, .panel).
+            # Wait for a drawn frame, take the earliest start of an animation as the start of the entrance, then
+            # wait until the clock is 300ms past it. A step that stays hidden, or an entrance longer than 300ms,
+            # is still read as faded; the wait is bounded and raises when the clock does not run.
+            faded = pg.evaluate("""async () => {
+                const frame = () => new Promise(r => requestAnimationFrame(r));
+                await frame(); await frame();
+                const starts = document.getAnimations().map(a => a.startTime).filter(t => t !== null);
+                const t0 = starts.length ? Math.min(...starts) : document.timeline.currentTime;
+                for (let i = 0; document.timeline.currentTime < t0 + 300; i++) {
+                    if (i > 600) throw new Error('the animation clock stopped before 300ms');
+                    await frame();
+                }
+                return [...document.querySelectorAll('main *')].filter(el => {
+                    const s = getComputedStyle(el); return parseFloat(s.opacity) < 0.99 && !el.closest('.panel-art'); })
+                    .map(el => el.tagName + '.' + el.className).slice(0, 5); }""")
             b.close()
         self.assertEqual(faded, [])
 
