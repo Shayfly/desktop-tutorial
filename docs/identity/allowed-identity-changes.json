@@ -2,6 +2,30 @@
  "rule": "Michael 2026-11-13: while identity.yml blocks, a flag-off change passes only with ONE signed entry that matches it exactly -- from_digest/to_digest and the exact added/removed/changed/data_changed gate-closure paths. No wildcards. reviewer must not be the author. Checked by scripts/identity_declared.py. to_digest is unique in this file: a consumed entry is never used twice. The one exception (release review 2026-11-26, docs/ops/worker-rollback.md): an entry with revert_of naming exactly one valid entry ABOVE it in this file, whose digests and path sets are exactly that entry's swapped, may repeat its from_digest as to_digest; the reverted entry is then consumed. A revert is appended at the end of changes; a plain entry may not repeat a to_digest declared above it.",
  "changes": [
   {
+    "id": "visual-s2-picture-measures",
+    "from_digest": "fd3a45bf33f61c27ef08db0b41f1c147ae9c621dfd61d069744bb9c6e48be084",
+    "to_digest": "e915ac8bd7eb834a480a172997defdf65488388eb026e0b0a3725caae1e69443",
+    "added": [],
+    "removed": [],
+    "changed": [
+      "omni_prod/section_library/__init__.py",
+      "omni_prod/site_content/render.py",
+      "omni_prod/visual_qa.py"
+    ],
+    "data_changed": [
+      "omni_prod/section_library/directions.json",
+      "omni_prod/section_library/library.css",
+      "omni_prod/skill_units/design_minimum/fixtures/broken/expected.json",
+      "omni_prod/skill_units/design_minimum/fixtures/broken/icons_only.html",
+      "omni_prod/skill_units/design_minimum/manifest.json"
+    ],
+    "reason": "2026-11-27, visual plan S2 (inbox/004): the flag-off digest changes fd3a45bf -> e915ac8b only because the visual QA script (omni_prod/visual_qa.SCRIPT, one of the digest's components) now also measures how much picture the page has (pictures, shares, longest run, compositions, text over a picture read from the rendered pixels) and reads one number (min_picture_px) from a file the executor stages. Four picture rules read the measures platform-side against one table in directions.json (visual_thresholds); they are advisory (not in DEFAULT_ENFORCED), so no build outcome changes. The path sets are identity_declared.diff of the source manifests of main f0ee71d and this branch (python -m omni_prod.pipeline_identity --source): section_library/__init__.py and library.css carry the photo-led heroes (S1) and the S0 overlay fix, site_content/render.py drops the model's hero layout when the page has a hero picture, and the design_minimum files are S0's (a visual is a picture, not an icon).",
+    "author": "claude",
+    "reviewer": "shai",
+    "reviewed_at": "2026-11-27",
+    "signature_note": "Signed by the owner's instruction (standing grant 2026-11-16; 'I approve declarations', 2026-11-25). The reviewer field was typed by the author (claude) on that instruction."
+  },
+  {
     "id": "sites-bundle-2026-11-26",
     "from_digest": "f2fd495d7d482cfec82093e5ccccf0d2965631b8ff3494c7871cced21bd40d76",
     "to_digest": "fd3a45bf33f61c27ef08db0b41f1c147ae9c621dfd61d069744bb9c6e48be084",
