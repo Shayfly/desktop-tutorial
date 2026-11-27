@@ -11,8 +11,18 @@ REPLICATE = {'REPLICATE_API_TOKEN': 'x', 'OMNI_IMAGE_PROVIDER': 'replicate'}
 
 
 class ComputedFromUsage(unittest.TestCase):
-    def test_flux_schnell_is_billed_per_output_and_gets_a_computed_cost(self):
+    def test_flux_1_1_pro_is_billed_per_output_and_gets_a_computed_cost(self):
         c = ImageProviderConfig.from_env(REPLICATE)
+        self.assertEqual(c.billing_unit, 'output')
+        got = computed_from_usage(c, outputs=2, status='succeeded')
+        self.assertEqual(got['cost_basis'], 'computed_from_usage')
+        self.assertEqual(Decimal(got['computed_cost_usd']), Decimal('0.08'))
+        self.assertEqual(got['unit_price_usd'], '0.04')
+        self.assertEqual(got['price_source'], 'https://replicate.com/black-forest-labs/flux-1.1-pro#2026-11-27')
+        self.assertNotIn('actual_cost_usd', got)
+
+    def test_flux_schnell_is_billed_per_output_and_gets_a_computed_cost(self):
+        c = ImageProviderConfig.from_env({**REPLICATE, 'OMNI_IMAGE_PROVIDER_MODEL': 'black-forest-labs/flux-schnell'})
         self.assertEqual(c.billing_unit, 'output')
         got = computed_from_usage(c, outputs=2, status='succeeded')
         self.assertEqual(got['cost_basis'], 'computed_from_usage')

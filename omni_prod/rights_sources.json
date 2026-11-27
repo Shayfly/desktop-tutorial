@@ -26,9 +26,9 @@
      "148ai-asset://image/"
     ]
    },
-   "right": "generated for this build by the platform's image model, black-forest-labs/flux-schnell on Replicate, released under Apache-2.0",
-   "basis": "https://replicate.com/black-forest-labs/flux-schnell -- \"Released under the apache-2.0 licence, the model can be used for personal, scientific, and commercial purposes.\"",
-   "read_on": "2026-11-16",
+   "right": "generated for this build by the platform's image model: black-forest-labs/flux-1.1-pro on Replicate (from 2026-11-27, FLUX 1.1 pro, commercial use of outputs under the Black Forest Labs API terms) or, for earlier builds, black-forest-labs/flux-schnell (Apache-2.0)",
+   "basis": "https://replicate.com/black-forest-labs/flux-1.1-pro -- listed by Replicate with commercial use (read 2026-11-27 through a search result of that page; the page itself, and the Black Forest Labs API terms it points to, were not opened: legal_review none); https://replicate.com/black-forest-labs/flux-schnell -- \"Released under the apache-2.0 licence, the model can be used for personal, scientific, and commercial purposes.\"",
+   "read_on": "2026-11-27",
    "legal_review": "none"
   },
   "authored_svg": {

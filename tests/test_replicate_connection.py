@@ -14,8 +14,16 @@ def test_saved_replicate_token_selects_priced_image_provider():
     config = ImageProviderConfig.from_env({'REPLICATE_API_TOKEN': 'test-only-token'})
     assert config.status()[0] == 'PARTIAL'
     assert config.api_key_ref == 'env:REPLICATE_API_TOKEN'
-    assert config.model == 'black-forest-labs/flux-schnell'
+    assert config.model == 'black-forest-labs/flux-1.1-pro'      # the owner, 2026-11-27: a stronger model
+    assert config.maximum_usd_per_image == Decimal('0.04')
+    assert config.single_output is True
+
+
+def test_schnell_stays_selectable_by_configuration_with_its_own_price():
+    config = ImageProviderConfig.from_env({'REPLICATE_API_TOKEN': 'test-only-token',
+                                           'OMNI_IMAGE_PROVIDER_MODEL': 'black-forest-labs/flux-schnell'})
     assert config.maximum_usd_per_image == Decimal('0.003')
+    assert config.single_output is False
 
 
 def test_explicit_other_provider_is_preserved():
@@ -33,8 +41,8 @@ def test_replicate_official_model_submit_uses_input_only_and_resumes():
     def transport(req, timeout):
         calls.append(req)
         assert req.get_header('User-agent') == '148AI/1.0'
-        assert req.full_url == 'https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions'
-        assert json.loads(req.data) == {'input': {'prompt': 'Original blue bird icon', 'output_format': 'png', 'num_outputs': 1}}
+        assert req.full_url == 'https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions'
+        assert json.loads(req.data) == {'input': {'prompt': 'Original blue bird icon', 'output_format': 'png'}}
         return io.BytesIO(b'{"id":"prediction-123","status":"starting"}')
 
     # C32 (#93): spend allowed here on purpose; the closed-switch case is tests/test_image_provider_honours_kill_switch.py

@@ -3,29 +3,29 @@
  "as_of": "2026-11-18",
  "summary": {
   "credential_state": {
-   "CREDENTIAL_PRESENT": 16,
+   "CREDENTIAL_PRESENT": 17,
    "CREDENTIAL_UNKNOWN": 10
   },
   "connection_state": {
-   "CONNECTION_TESTED": 7,
+   "CONNECTION_TESTED": 8,
    "NOT_CONNECTED": 19
   },
   "verification_state": {
    "REAL_EXECUTION_VERIFIED": 4,
-   "UNVERIFIED": 22
+   "UNVERIFIED": 23
   },
   "availability": {
    "AVAILABLE": 3,
    "DEPRECATED": 1,
-   "NOT_ROUTED": 20,
+   "NOT_ROUTED": 21,
    "UNKNOWN": 2
   },
   "implementation_status": {
-   "IMPLEMENTED": 19,
+   "IMPLEMENTED": 20,
    "NOT_IMPLEMENTED": 3,
    "REAL_SERVER_VERIFIED": 4
   },
-  "models": 26
+  "models": 27
  },
  "models": [
   {
@@ -880,6 +880,70 @@
   },
   {
    "provider_key": "replicate",
+   "model_key": "replicate-flux-1-1-pro",
+   "provider_model_id": "black-forest-labs/flux-1.1-pro",
+   "id_source": "Replicate official model",
+   "model_family": "FLUX",
+   "provider_type": "image",
+   "capability_types": [
+    "media.image.generate"
+   ],
+   "intended_task_types": [
+    "image_asset"
+   ],
+   "execution_adapter": "image_provider (Replicate predictions)",
+   "adapter_implementation_path": "omni_prod/providers/image_provider.py, omni_prod/providers/replicate_connection.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": null,
+   "supports_tool_calls": false,
+   "supports_structured_output": false,
+   "supports_streaming": false,
+   "supports_reasoning": false,
+   "supports_vision": false,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "REPLICATE_API_TOKEN"
+   ],
+   "credential_scope": "vercel-preview",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "CONNECTION_TESTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": "2026-10-11",
+   "evidence_reference": [
+    "Vercel project 148aiv28 environment variable names (read 2026-10-11, values not read) @ 2026-10-11: REPLICATE_API_TOKEN present (Preview, sensitive); no LLM provider key on Vercel",
+    "Vercel Preview deployment p40n0qijl, GET /api/v28/providers/replicate/check @ 2026-10-06: authenticated account check connection_verified=true; no prediction was ever submitted"
+   ],
+   "price_schedule_reference": null,
+   "price_in_force": null,
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "Replicate per-model licence",
+   "commercial_usage_constraints": "FLUX 1.1 pro via Replicate: listed with commercial use, $0.04 per image, https://replicate.com/black-forest-labs/flux-1.1-pro (2026-11-27); under the Black Forest Labs API terms, not opened",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "default model of the image provider from 2026-11-27 (owner decision 3, no side-by-side test); no image ever generated; one image per request, no num_outputs",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": false,
+   "catalog_quality": null,
+   "eligible_tasks": [],
+   "current_operational_status": "candidate: not routed (not in the worker catalog)",
+   "blocker": ""
+  },
+  {
+   "provider_key": "replicate",
    "model_key": "replicate-flux-schnell",
    "provider_model_id": "black-forest-labs/flux-schnell",
    "id_source": "Replicate official model",
@@ -934,7 +998,7 @@
    "commercial_plan": "Replicate per-model licence",
    "commercial_usage_constraints": "per-model licence: FLUX Schnell is Apache-2.0 (check per model)",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
-   "known_limitations": "no image ever generated; the worker has no OMNI_IMAGE_PROVIDER_* configuration",
+   "known_limitations": "no image ever generated; kept for the paid connection test of the owner ($0.003, replicate_image_test)",
    "fallback_eligibility": "none",
    "in_worker_catalog": false,
    "catalog_quality": null,
