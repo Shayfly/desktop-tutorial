@@ -22,7 +22,7 @@ permissions:
 jobs:
   browser-python:
     runs-on: ubuntu-latest
-    timeout-minutes: 27
+    timeout-minutes: 34
     steps:
       - uses: actions/checkout@v4
         with:
@@ -73,7 +73,11 @@ jobs:
         if: always()
         # 2026-11-21 (run 44954125388): 24 controls since the library merge; 21 ran and passed in 6 minutes and the
         # step was cut at its limit. Measured there: about 16 s a control with 2 workers, so 24 need about 6.5 minutes.
-        timeout-minutes: 13
+        # 2026-11-27 (run 45982884969, #549): every control passed and the step was cut at 13 minutes. Measured there:
+        # all 41 controls PASS in about 13.5 minutes (section_library alone about 11 minutes, 24/24; then
+        # library_cookie_banner 9/9, typography 4/4, repair_converge_offscreen 4/4), so the limit is 20 (the job's 27
+        # became 34: 9 + 4 + 20 + 1). No control and no NC_JOBS value changed.
+        timeout-minutes: 20
         env:
           NC_ENV: browser
           NC_JOBS: "2"
