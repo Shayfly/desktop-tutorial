@@ -1448,7 +1448,7 @@ class ConversationSupervisor:
         # writes the values the request implies into the brief (shown as assumptions), and its ONE ordered question
         # replaces the questionnaire's list. Only a conflict with a confirmed value is still asked back first.
         gaps, gap_q = self._gaps(project_id, message, interp, answers, new_brief, lang,
-                                 contested={c['field'] for c in res.conflicts})
+                                 contested={c['field'] for c in res.conflicts}, two_names=bool(name_choice))
         # C6 (CEO 2026-10-27): the detector decides completeness. Its open material field is recorded in the brief
         # (so the approval gate sees it), a field it asks is never also shown as an assumption, and the catalog is
         # only the fallback: when the detector has nothing material left, a catalog question that may not be assumed
@@ -1672,7 +1672,7 @@ class ConversationSupervisor:
         # warehouse 122: a required page field is a gap question that is not a card (it is not in d.BY_ID), so
         # `turn.questions` is empty while its text is in the reply; the name / colour question must not replace that reply
         # (not when the model failed: that reply is already the failure message, and model_failed below guards it)
-        page_gap = gap_q is not None and gap_q.field not in d.BY_ID and not model_failed
+        page_gap = gap_q is not None and gap_q.field not in d.BY_ID and not model_failed and not name_choice
         if no_name and name_choice and not res.conflicts and not model_failed:
             turn.questions = []      # review SF3: the choice exists only in this message -- asked now, the rest after
         if no_name and not page_gap and not res.conflicts and not turn.blocked and not turn.questions and not model_failed:
@@ -2060,7 +2060,7 @@ class ConversationSupervisor:
                 closed.update((q.field, q.id))
         return closed
 
-    def _gaps(self, project_id, message, interp, answers, brief, lang, contested=()):
+    def _gaps(self, project_id, message, interp, answers, brief, lang, contested=(), two_names=False):
         """(gaps evidence, the one next Question or None).
 
         The spec is rebuilt from the durable conversation on EVERY turn (_replayed_spec): the store is the only
@@ -2111,7 +2111,8 @@ class ConversationSupervisor:
         model_turn = str(getattr(interp, 'interpreter', '')).startswith('model')
         gateway = getattr(self.worker_interpreter, 'gateway', None) if model_turn else None   # one call, same budget
         q = Questioner(getattr(gateway, 'complete_json', None)).next(spec, pending, explain=unsure, allowed=allowed)
-        if q is not None and PR.is_page_reason(next((f.reason for f in spec.fields if f.name == q.field), '')):
+        if (q is not None and not two_names      # two names are asked which first: the page field then stays unasked
+                and PR.is_page_reason(next((f.reason for f in spec.fields if f.name == q.field), ''))):
             d.note_page_asked(brief, q.field)               # warehouse 122: a required field is asked at most once
         return {**spec.detect(pending), 'allowed': allowed, 'previous': previous, 'held_open': sorted(held),
                 'assumed_now': assumed_now,

@@ -266,6 +266,36 @@
    "expect_failed": [
     "test_a_required_field_marked_as_asked_was_put_to_the_customer_not_swallowed_by_the_name_or_colour_question"
    ]
+  },
+  {
+   "id": "NC15",
+   "what": "a required field chosen in the turn that asks which of two names is marked as asked although the customer did not see it",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "if (q is not None and not two_names ",
+     "new": "if (q is not None "
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": ["test_two_names_are_asked_which_first_and_the_page_field_waits_unasked_for_its_turn"]
+  },
+  {
+   "id": "NC16",
+   "what": "a required page field blocks the which-of-two-names question",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": " and not model_failed and not name_choice\n",
+     "new": " and not model_failed\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": ["test_on_the_real_path_two_names_are_asked_which_and_the_answer_settles_it"]
   }
  ]
 }

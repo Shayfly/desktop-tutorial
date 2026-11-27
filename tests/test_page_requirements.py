@@ -19,6 +19,7 @@ from pathlib import Path
 from unittest import mock
 
 from omni_prod import customer_words as CW
+from omni_prod.intake import conversation_agent as agent
 from omni_prod import discovery as d
 from omni_prod import domain_registry as DR
 from omni_prod import page_requirements as PR
@@ -371,6 +372,23 @@ class TheConversation(unittest.TestCase):
                     t = s.turn(project_id='p', account_id='a', lang='he', message='תחליטו אתם על השאר')
                 self.assertIn('hours', shown)
                 self.assertEqual({k: v for k, v in shown.items() if not v}, {})
+
+    def test_two_names_are_asked_which_first_and_the_page_field_waits_unasked_for_its_turn(self):
+        """The which-name question takes the turn; a required field the detector chose in that same turn is not marked
+        asked (the customer did not see it) and is put to the customer in the next turns."""
+        self.say('אתר לאטליז בחיפה. אתר תוכן בלבד, לא שומרים כלום. טלפון 04-8123456')
+        t = self.say('השם שלנו הוא "בשר השכונה" אבל באתר תכתבו "הקצב של חיפה"')
+        self.assertEqual(getattr(t, 'asked_in_words', None), [agent.NAME_ID])
+        self.assertIn('"בשר השכונה"', t.reply)
+        self.assertEqual(d.page_asked(self.brief()), [])
+        shown = []
+        for _ in range(6):
+            t = self.say('הקצב של חיפה' if agent.NAME_ID in (getattr(t, 'asked_in_words', None) or []) else 'כן')
+            q = ((t.gaps or {}).get('question') or {})
+            if q.get('field') in d.page_asked(self.brief()):
+                shown.append(q['field'] if q['text'] in t.reply else None)
+        self.assertTrue(shown)
+        self.assertNotIn(None, shown)
 
     def test_a_brief_that_never_met_the_conversation_is_byte_identical(self):
         self.assertNotIn('Page details', d.requirements_text(d.start(BUTCHER)))
