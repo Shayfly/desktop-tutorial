@@ -108,10 +108,10 @@ bdi, .hours-seg { white-space: nowrap; }
 .panel dd { font-weight: var(--weight-bold); }
 .panel a { color: inherit; }
 .panel--photo { padding-block-start: var(--space-96); }
-.panel-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.panel--photo::before { content: ""; position: absolute; inset: 0; z-index: 0;
+.panel-photo { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; }
+.panel--photo::before { content: ""; position: absolute; inset: 0; z-index: 1;
   background: linear-gradient(to top, color-mix(in srgb, var(--color-primary) 94%, transparent) 35%, transparent 85%); }
-.panel--photo > :not(img) { position: relative; z-index: 1; }
+.panel--photo > :not(img) { position: relative; z-index: 2; }
 
 /* ---------- numbers strip ---------- */
 .stats { border-block: 1px solid var(--color-border); background: var(--color-surface); }
