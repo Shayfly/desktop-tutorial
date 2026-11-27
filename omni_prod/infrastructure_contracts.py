@@ -178,6 +178,10 @@ class InfrastructureQuote:
     # what build economics reserves; None means unknown and blocks the build.
     provisioning_estimated_usd: Decimal | None = None
     provisioning_maximum_usd: Decimal | None = None
+    # The owner 2026-11-26: False when a CONFIGURED provisioner has no price. Then the build is not refused: the
+    # provisioning cost is recorded as unknown, by name (build_cost_plan). An unconfigured provisioner keeps True and
+    # its None maximum still refuses the build -- that kind cannot be provisioned at all, which is not a price question.
+    price_known: bool = True
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "kind", _coerce_kind(self.kind))

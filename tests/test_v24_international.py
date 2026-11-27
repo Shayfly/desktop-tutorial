@@ -138,7 +138,15 @@ class ApiTests(unittest.TestCase):
     def test_targets(self):
         self.assertEqual(self.c.get('/api/targets/mobile/android').json()['store_artifact'],'aab')
         self.assertEqual(self.c.get('/api/targets/game/unreal').json()['engine'],'unreal')
-    def test_bug_billing_endpoint(self): self.assertFalse(self.c.post('/api/billing/classify',json={'category':'system_bug','estimated_compute_units':100}).json()['billable'])
+    def test_bug_billing_endpoint(self):
+        # S4.5 (2026-11-26): the route checks the caller's session itself; it relied on production_auth, which Vercel
+        # production does not run, and answered anyone.
+        body={'category':'system_bug','estimated_compute_units':100}
+        self.assertEqual(self.c.post('/api/billing/classify',json=body).status_code,401)
+        email='billing-classify-'+Path(__file__).stem+'@example.com'
+        reg=self.c.post('/api/v28/auth/register',json={'email':email,'password':'StrongPass123!'})
+        token=reg.json()['token'] if reg.status_code==200 else self.c.post('/api/v28/auth/login',json={'email':email,'password':'StrongPass123!'}).json()['token']
+        self.assertFalse(self.c.post('/api/billing/classify',json=body,headers={'Authorization':'Bearer '+token}).json()['billable'])
 
 if __name__=='__main__': unittest.main()
 

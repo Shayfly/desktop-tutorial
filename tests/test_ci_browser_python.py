@@ -33,7 +33,7 @@ class TheBrowserJob(unittest.TestCase):
 
     def test_it_runs_on_every_pull_request_within_the_ci_cost_limit(self):
         self.assertIn('pull_request', self.events)
-        self.assertLessEqual(self.job['timeout-minutes'], 27)     # 20 until the library's 24 controls (2026-11-21)
+        self.assertLessEqual(self.job['timeout-minutes'], 34)     # 20 until the library's 24 controls (2026-11-21), 27 until run 45982884969 (2026-11-27)
         install = self.run_of('Install Chromium (bounded attempts, retried)')
         per_try = int(re.search(r'timeout (\d+) python -m playwright install --with-deps chromium', install['run']).group(1))
         self.assertLessEqual(per_try * 3 + 30, install['timeout-minutes'] * 60)
@@ -60,7 +60,7 @@ class TheBrowserJob(unittest.TestCase):
         # #541: visual_qa's viewport and widening tests need Chromium, which v24-ci's shards lack
         self.assertIn('run_negative_controls.py repair_converge_offscreen', step['run'])
         # its controls share test_visual_qa's fixed ports, so they run one at a time (run 45860673027)
-        self.assertIn('NC_JOBS=1 NC_SCOPE=declared python scripts/run_negative_controls.py repair_converge_offscreen', step['run'])
+        self.assertNotIn('NC_JOBS=1 NC_SCOPE', step['run'])               # free ports: the step keeps its 2 workers
         self.assertIn('run_negative_controls.py library_cookie_banner', step['run'])
         self.assertIn('exit $(( a | b ))', step['run'])                     # one failing spec fails the step
         # bundle 2 (warehouse 126): the typography spec's 4 browser controls run here too, and fail the step

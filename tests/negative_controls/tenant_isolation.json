@@ -1,0 +1,896 @@
+{
+ "pr": "tenant-isolation",
+ "sha256": [
+  "tests/test_tenant_isolation_pg.py",
+  "tests/test_tenant_isolation_registry.py",
+  "tests/tenant_isolation_routes.json",
+  "omni_prod/build_contract_repository.py",
+  "omni_prod/investor_app.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the platform's ownership check is removed: _key no longer requires the caller to own the project",
+   "mutations": [
+    {
+     "file": "omni_prod/v26_platform.py",
+     "old": "        account=self.account(token); self.accounts.require_project(owner_id=account.id,project_id=project_id)\n",
+     "new": "        account=self.account(token)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v26/projects/{project_id}/export-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v26/projects/{project_id}/export-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v26/projects/{project_id}/history-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v26/projects/{project_id}/history-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v27/projects/{project_id}/export-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v27/projects/{project_id}/export-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v27/projects/{project_id}/history-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v27/projects/{project_id}/history-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/conversation-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/conversation-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/discovery-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/discovery-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/memory-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/memory-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/proposal-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/proposal-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/rights-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/rights-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v26/projects/{project_id}/restore-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v26/projects/{project_id}/restore-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v27/projects/{project_id}/restore-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v27/projects/{project_id}/restore-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v27/projects/{project_id}/rights/evidence-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v27/projects/{project_id}/rights/original-alternative-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v27/projects/{project_id}/rights/original-alternative-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v27/projects/{project_id}/rights/review-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v27/projects/{project_id}/rights/review-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/approvals-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/approvals-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/attachments-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/attachments-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/build-contracts-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/build-contracts-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/builds-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/builds-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/discovery-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/discovery-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/discovery/answers-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/discovery/answers-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/proposal/edit-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/proposal/edit-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/proposal/undo-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/proposal/undo-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/readings/{draft_fingerprint}/approve-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/readings/{draft_fingerprint}/approve-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/readings/{draft_fingerprint}/discard-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/readings/{draft_fingerprint}/discard-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/rights/original-alternative-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/rights/original-alternative-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/spec-approval-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/spec-approval-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/usage/quote-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/usage/quote-strict]"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "one route loses its ownership check: GET .../conversation reads the project's conversation for any caller",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "def v28_conversation_get(project_id: str, request: Request) -> dict:\n    _discovery_account(request, project_id)\n",
+     "new": "def v28_conversation_get(project_id: str, request: Request) -> dict:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_an_anonymous_caller_gets_only_the_unauthenticated_answer[GET /api/v28/projects/{project_id}/conversation]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/conversation-deployed]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/conversation-strict]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_an_anonymous_caller_gets_only_the_unauthenticated_answer[GET /api/v28/projects/{project_id}/conversation]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/conversation-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/conversation-strict]"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the owner filter of the project lookup is dropped: any account's project is found by its id",
+   "mutations": [
+    {
+     "file": "omni_prod/project_lifecycle.py",
+     "old": "FROM creator_projects WHERE id=%s AND owner_id=%s\",",
+     "new": "FROM creator_projects WHERE id=%s AND (owner_id=%s OR true)\","
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_another_account_gets_the_unknown_id_answer[DELETE /api/v28/projects/{project_id}/attachments/{attachment_id}-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[DELETE /api/v28/projects/{project_id}/attachments/{attachment_id}-strict]",
+    "test_another_account_gets_the_unknown_id_answer[DELETE /api/v28/projects/{project_id}/previews/{preview_id}-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[DELETE /api/v28/projects/{project_id}/previews/{preview_id}-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/attachments-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/attachments-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/attachments/{attachment_id}-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/attachments/{attachment_id}-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/builds/latest-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/builds/latest-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/builds/{build_id}-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/builds/{build_id}-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/builds/{build_id}/capabilities-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/builds/{build_id}/capabilities-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/builds/{build_id}/events-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/builds/{build_id}/events-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/builds/{build_id}/plan-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/builds/{build_id}/plan-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/conversation-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/conversation-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/discovery-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/discovery-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/export-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/export-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/history-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/history-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/memory-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/memory-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/modifications/latest-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/modifications/latest-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/modifications/{modification_id}-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/modifications/{modification_id}-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/modifications/{modification_id}/candidate-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/modifications/{modification_id}/candidate-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/modifications/{modification_id}/events-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/modifications/{modification_id}/events-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/previews/{preview_id}-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/previews/{preview_id}-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/proposal-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/proposal-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/rights-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/rights-strict]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/state-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/state-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/approvals-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/approvals-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/attachments-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/attachments-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/attachments/{attachment_id}/reading-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/attachments/{attachment_id}/reading-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/branding-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/branding-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/build-contracts-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/build-contracts-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/builds-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/builds-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/builds/{build_id}/cancel-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/builds/{build_id}/cancel-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/conversation-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/conversation-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/discovery-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/discovery-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/discovery/answers-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/discovery/answers-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/modifications/{modification_id}/accept-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/modifications/{modification_id}/accept-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/modifications/{modification_id}/cancel-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/modifications/{modification_id}/cancel-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/modifications/{modification_id}/reject-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/modifications/{modification_id}/reject-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/access-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/access-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/proposal/edit-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/proposal/edit-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/proposal/undo-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/proposal/undo-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/readings/{draft_fingerprint}/approve-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/readings/{draft_fingerprint}/approve-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/readings/{draft_fingerprint}/discard-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/readings/{draft_fingerprint}/discard-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/restore-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/restore-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/rights/original-alternative-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/rights/original-alternative-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/rollback-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/rollback-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/spec-approval-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/spec-approval-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/unarchive-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/unarchive-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/usage/quote-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/usage/quote-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/versions/{version_id}/modifications-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/versions/{version_id}/modifications-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/versions/{version_id}/previews-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/versions/{version_id}/previews-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/versions/{version_id}/visual-edit/locate-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/versions/{version_id}/visual-edit/locate-strict]"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a child lookup loses its project scope: a preview is found by its id alone",
+   "mutations": [
+    {
+     "file": "omni_prod/preview_repository.py",
+     "old": "                           runtime_host, host_port, workdir_path, stopped_at, cleaned_at, data_storage, access_mode\n                    FROM project_previews\n                    WHERE id = %s AND project_id = %s\n",
+     "new": "                           runtime_host, host_port, workdir_path, stopped_at, cleaned_at, data_storage, access_mode\n                    FROM project_previews\n                    WHERE id = %s AND (project_id = %s OR true)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/previews/{preview_id}-deployed]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/previews/{preview_id}-strict]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/access-deployed]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/access-strict]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing-deployed]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing-strict]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/previews/{preview_id}-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/previews/{preview_id}-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/access-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/access-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing-strict]"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the key prefix is widened: attachments are stored under the project only, not under the account",
+   "mutations": [
+    {
+     "file": "omni_prod/attachments.py",
+     "old": "        key = f'attachments/{account_id}/{project_id}/{att_id}.{EXT[mime]}'\n",
+     "new": "        key = f'attachments/{project_id}/{att_id}.{EXT[mime]}'\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_object_keys_carry_their_tenant_and_are_reached_only_through_owned_rows",
+    "tests/test_tenant_isolation_pg.py::test_the_destructive_routes_work_for_their_owner"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_object_keys_carry_their_tenant_and_are_reached_only_through_owned_rows",
+    "test_the_destructive_routes_work_for_their_owner"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the internal key forgets the owner: every account's key for a project id is the same",
+   "mutations": [
+    {
+     "file": "omni_prod/account_tenant.py",
+     "old": "        digest=sha256((owner_id+'\\0'+project_id).encode()).hexdigest()[:24]\n",
+     "new": "        digest=sha256((project_id).encode()).hexdigest()[:24]\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_object_keys_carry_their_tenant_and_are_reached_only_through_owned_rows"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_object_keys_carry_their_tenant_and_are_reached_only_through_owned_rows"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a foreign share token is accepted: the router finds a token without checking which preview it was made for",
+   "mutations": [
+    {
+     "file": "omni_prod/preview_access.py",
+     "old": "                        'WHERE token_hash = %s AND preview_id = %s AND revoked_at IS NULL AND expires_at > now() '\n",
+     "new": "                        'WHERE token_hash = %s AND (preview_id = %s OR true) AND revoked_at IS NULL AND expires_at > now() '\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_the_preview_router_lets_each_token_open_only_its_own_preview"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_the_preview_router_lets_each_token_open_only_its_own_preview"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "live_core finds a project by id alone, whoever asks",
+   "mutations": [
+    {
+     "file": "live_core/postgres_store.py",
+     "old": "                row = conn.execute(\"SELECT * FROM live_projects WHERE id=%s AND owner_id=%s\", (project_id, owner_id)).fetchone()\n",
+     "new": "                row = conn.execute(\"SELECT * FROM live_projects WHERE id=%s AND (owner_id=%s OR true)\", (project_id, owner_id)).fetchone()\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[GET /api/live/projects/{project_id}/versions-deployed]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[GET /api/live/projects/{project_id}/versions-strict]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[POST /api/live/builds-deployed]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[POST /api/live/builds-strict]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_another_account_gets_the_unknown_id_answer[GET /api/live/projects/{project_id}/versions-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/live/projects/{project_id}/versions-strict]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/live/builds-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/live/builds-strict]"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the existence oracle of 2026-11-26 comes back: another project's contract is told apart from a missing one",
+   "mutations": [
+    {
+     "file": "omni_prod/build_contract_repository.py",
+     "old": "        if contract is None or contract.project_id != project_id:\n            raise BuildContractNotFound(contract_id)\n",
+     "new": "        if contract is None:\n            raise BuildContractNotFound(contract_id)\n        if contract.project_id != project_id:\n            raise PermissionError(\"build contract does not belong to project\")\n"
+    },
+    {
+     "file": "omni_prod/build_contract_repository.py",
+     "old": "        # S4.5 (2026-11-26): no second lookup by id alone -- another project's contract is not found, like a missing one.\n        raise BuildContractNotFound(contract_id)\n",
+     "new": "        with self._pool.connection() as conn:\n            owner = conn.execute(\"SELECT project_id FROM m5_build_contracts WHERE id=%s\", (contract_id,)).fetchone()\n        if owner:\n            raise PermissionError(\"build contract does not belong to project\")\n        raise BuildContractNotFound(contract_id)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_a_foreign_build_contract_id_is_answered_like_an_unknown_one",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/builds-deployed]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/builds-strict]",
+    "tests/test_tenant_isolation_pg.py::test_the_contract_repositories_do_not_tell_a_foreign_contract_from_a_missing_one"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_a_foreign_build_contract_id_is_answered_like_an_unknown_one",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/builds-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/builds-strict]",
+    "test_the_contract_repositories_do_not_tell_a_foreign_contract_from_a_missing_one"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a new route is served without a registry entry",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "@app.get('/api/v28/projects/{project_id}/memory')\n",
+     "new": "@app.get('/api/v28/projects/{project_id}/memory-copy')\n@app.get('/api/v28/projects/{project_id}/memory')\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_is_only_what_it_claims_to_be[GET /api/v28/projects/{project_id}/memory-copy]",
+    "test_every_identifier_a_route_takes_is_declared[GET /api/v28/projects/{project_id}/memory-copy]",
+    "test_the_registry_lists_every_route_the_served_app_answers"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a route stops calling its gate even though another filter hides the rows: the attachment list without _owner",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    account, _ = _owner(project_id, request)\n    return {'attachments': [public(r) for r in _attachments().list(project_id=project_id, account_id=account.id)]}\n",
+     "new": "    account = _v28.account(_v28_bearer(request))\n    return {'attachments': [public(r) for r in _attachments().list(project_id=project_id, account_id=account.id)]}\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py"
+   ],
+   "expect_failed": [
+    "test_every_gate_is_called_by_its_endpoint[GET /api/v28/projects/{project_id}/attachments]"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "a new identifier field is added to a request without being declared (version_id on the conversation)",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    attachment_ids: list[str] = Field(default_factory=list, max_length=20)   # = attachments.MAX_PER_MESSAGE\n    brief_revision: int | None = Field(default=None, ge=1)\n",
+     "new": "    attachment_ids: list[str] = Field(default_factory=list, max_length=20)   # = attachments.MAX_PER_MESSAGE\n    version_id: str | None = None\n    brief_revision: int | None = Field(default=None, ge=1)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py"
+   ],
+   "expect_failed": [
+    "test_every_identifier_a_route_takes_is_declared[POST /api/v28/projects/{project_id}/conversation]"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "a catalogue route loses its own session check (it relied on production_auth): GET /api/v25/parity answers anyone",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "def v25_parity(request:Request)->dict:\n    _signed_in(request)\n",
+     "new": "def v25_parity(request:Request)->dict:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_an_anonymous_caller_gets_only_the_unauthenticated_answer[GET /api/v25/parity]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_an_anonymous_caller_gets_only_the_unauthenticated_answer[GET /api/v25/parity]"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the same route without its session check fails the registry too (its gate is never called, no session check)",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "def v25_parity(request:Request)->dict:\n    _signed_in(request)\n",
+     "new": "def v25_parity(request:Request)->dict:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py"
+   ],
+   "expect_failed": [
+    "test_every_gate_is_called_by_its_endpoint[GET /api/v25/parity]",
+    "test_every_route_that_is_not_public_checks_the_session_itself[GET /api/v25/parity]"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "the demo store answers again where its writers are refused: GET /api/projects/{id}/history",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "def project_history(project_id:str)->dict:\n    _reject_demo_store()\n",
+     "new": "def project_history(project_id:str)->dict:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_an_anonymous_caller_gets_only_the_unauthenticated_answer[GET /api/projects/{project_id}/history]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[GET /api/projects/{project_id}/history-deployed]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[GET /api/projects/{project_id}/history-strict]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_an_anonymous_caller_gets_only_the_unauthenticated_answer[GET /api/projects/{project_id}/history]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/projects/{project_id}/history-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/projects/{project_id}/history-strict]"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "a write before the ownership check: the sharing route changes the preview's mode, then refuses -- the answer is unchanged, only A's rows show it",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    preview = _owned_preview(project_id, preview_id, request)\n    access = PreviewAccess(_v28_pool)\n    access.set_mode(preview_id, req.mode)\n",
+     "new": "    PreviewAccess(_v28_pool).set_mode(preview_id, req.mode)\n    preview = _owned_preview(project_id, preview_id, request)\n    access = PreviewAccess(_v28_pool)\n    access.set_mode(preview_id, req.mode)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_an_anonymous_caller_gets_only_the_unauthenticated_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing-deployed]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing-strict]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_an_anonymous_caller_gets_only_the_unauthenticated_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[POST /api/v28/projects/{project_id}/previews/{preview_id}/sharing-strict]"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "a read before the ownership check: the attachment route reads the object, then refuses -- the answer is unchanged, only the store's reads show it",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "def v28_attachment_get(project_id: str, attachment_id: str, request: Request):\n    from .attachments import AttachmentError\n",
+     "new": "def v28_attachment_get(project_id: str, attachment_id: str, request: Request):\n    from .attachments import AttachmentError\n    with _v28_pool.connection() as _peek:\n        [_attachments().store.get_bytes(k) for (k,) in _peek.execute('SELECT storage_key FROM conversation_attachments WHERE id = %s', (attachment_id,)).fetchall()]\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_an_anonymous_caller_gets_only_the_unauthenticated_answer[GET /api/v28/projects/{project_id}/attachments/{attachment_id}]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/attachments/{attachment_id}-deployed]",
+    "tests/test_tenant_isolation_pg.py::test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/attachments/{attachment_id}-strict]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_an_anonymous_caller_gets_only_the_unauthenticated_answer[GET /api/v28/projects/{project_id}/attachments/{attachment_id}]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/attachments/{attachment_id}-deployed]",
+    "test_another_account_gets_the_unknown_id_answer[GET /api/v28/projects/{project_id}/attachments/{attachment_id}-strict]"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "a careless account route looks a project up by a text field, and its author declares the field plain to quiet the registry: the sweep with A's ids in every text field shows A's project",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "@app.patch('/api/v28/projects/{project_id}')\n",
+     "new": "class _Peek(BaseModel):\n    project: str = ''\n\n@app.post('/api/v28/projects/peek')\ndef v28_project_peek(req: _Peek, request: Request) -> dict:\n    account = _signed_in(request)\n    with _v28_pool.connection() as conn:\n        row = conn.execute('SELECT id, title FROM creator_projects WHERE id=%s', (req.project,)).fetchone()\n    return {'caller': account.id, 'project': list(row) if row else None}\n\n@app.patch('/api/v28/projects/{project_id}')\n"
+    },
+    {
+     "file": "tests/tenant_isolation_routes.json",
+     "old": "  \"GET /api/v28/projects/search\": {\"kind\": \"account\", \"gate\": \"search_projects\"},\n",
+     "new": "  \"GET /api/v28/projects/search\": {\"kind\": \"account\", \"gate\": \"search_projects\"},\n  \"POST /api/v28/projects/peek\": {\"kind\": \"account\", \"gate\": \"_signed_in\"},\n"
+    },
+    {
+     "file": "tests/tenant_isolation_routes.json",
+     "old": "  \"prompt\": \"free text, never used to look a row up\",\n",
+     "new": "  \"project\": \"free text, never used to look a row up\",\n  \"prompt\": \"free text, never used to look a row up\",\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_account_and_public_routes_never_show_another_customer[POST /api/v28/projects/peek]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_account_and_public_routes_never_show_another_customer[POST /api/v28/projects/peek]"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "a missing session is said as 400 again (a broad except swallows the 401)",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    except HTTPException:\n        raise                  # S4.5: a missing session is 401 (it was caught below and said as 400 \"401: ...\")\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_an_anonymous_caller_gets_only_the_unauthenticated_answer[POST /api/v28/auth/email-verification/request]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_an_anonymous_caller_gets_only_the_unauthenticated_answer[POST /api/v28/auth/email-verification/request]"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "an account route takes a query field that names a project without being named like an id (the review's peek3)",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "def v28_projects(request: Request) -> dict:\n",
+     "new": "def v28_projects(request: Request, project: str = '') -> dict:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py"
+   ],
+   "expect_failed": [
+    "test_every_identifier_a_route_takes_is_declared[GET /api/v28/projects]"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "an account route takes an embedded scalar body field project_id (the review's peek2)",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "def v28_logout(request: Request, response: Response) -> dict:\n",
+     "new": "def v28_logout(request: Request, response: Response, project_id: str = __import__('fastapi').Body(None, embed=True)) -> dict:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py"
+   ],
+   "expect_failed": [
+    "test_every_identifier_a_route_takes_is_declared[POST /api/v28/auth/logout]"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "a nested model field carries an identifier into account routes (signals[].version_id)",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "class V27CompanySignal(BaseModel):\n",
+     "new": "class V27CompanySignal(BaseModel):\n    version_id: str | None = None\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py"
+   ],
+   "expect_failed": [
+    "test_every_identifier_a_route_takes_is_declared[POST /api/v27/company-os/ceo-brief]",
+    "test_every_identifier_a_route_takes_is_declared[POST /api/v27/company-os/triage]"
+   ]
+  },
+  {
+   "id": "NC23",
+   "what": "an account route reads a header that names a project",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "def v28_subscription(request: Request) -> dict:\n",
+     "new": "def v28_subscription(request: Request, x_project_id: str | None = __import__('fastapi').Header(None)) -> dict:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py"
+   ],
+   "expect_failed": [
+    "test_every_identifier_a_route_takes_is_declared[GET /api/v28/me/subscription]"
+   ]
+  },
+  {
+   "id": "NC24",
+   "what": "an account route takes a free-form dict body nobody declared",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "def v28_me(request: Request) -> dict:\n",
+     "new": "def v28_me(request: Request, payload: dict = __import__('fastapi').Body(None)) -> dict:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py"
+   ],
+   "expect_failed": [
+    "test_every_identifier_a_route_takes_is_declared[GET /api/v28/me]"
+   ]
+  },
+  {
+   "id": "NC25",
+   "what": "a sub-application is mounted and declared public: its routes would escape the registry",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "_BRAND_DIR = Path(__file__).resolve().parent / 'assets' / 'brand'\n",
+     "new": "_SUB = FastAPI()\n@_SUB.get('/projects/{project_id}/state')\ndef _sub_state(project_id: str): return {'project': project_id}\napp.mount('/api/v29', _SUB)\n_BRAND_DIR = Path(__file__).resolve().parent / 'assets' / 'brand'\n"
+    },
+    {
+     "file": "tests/tenant_isolation_routes.json",
+     "old": "  \"MOUNT /ui\": {\"kind\": \"public\", \"gate\": \"none\"}\n",
+     "new": "  \"MOUNT /api/v29\": {\"kind\": \"public\", \"gate\": \"none\"},\n  \"MOUNT /ui\": {\"kind\": \"public\", \"gate\": \"none\"}\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_is_only_what_it_claims_to_be[MOUNT /api/v29]"
+   ]
+  },
+  {
+   "id": "NC26",
+   "what": "a tenant route is labelled capability_url to skip the two-account matrix",
+   "mutations": [
+    {
+     "file": "tests/tenant_isolation_routes.json",
+     "old": "  \"GET /api/v28/projects/{project_id}/state\": {\"kind\": \"tenant\", \"world\": \"v28\", \"gate\": \"project_state\", \"ids\": [\"project_id\"], \"owner\": [200]},\n",
+     "new": "  \"GET /api/v28/projects/{project_id}/state\": {\"kind\": \"capability_url\", \"world\": \"v28\", \"gate\": \"none\", \"ids\": [\"project_id\"]},\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py"
+   ],
+   "expect_failed": [
+    "test_each_kind_is_only_what_it_claims_to_be[GET /api/v28/projects/{project_id}/state]",
+    "test_no_gate_is_a_middleware_or_missing[GET /api/v28/projects/{project_id}/state]"
+   ]
+  },
+  {
+   "id": "NC27",
+   "what": "deployed but not durable: the legacy refusal no longer reads VERCEL_ENV, so a Vercel deployment with an incomplete S3 configuration opens the unscoped demo store",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    if os.getenv('VERCEL_ENV','').strip().lower() not in ('','development'):\n        return True\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py"
+   ],
+   "expect_failed": [
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/projects/{project_id}/history-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/projects/{project_id}/history-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/projects/{project_id}/memory-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/projects/{project_id}/memory-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/projects/{project_id}/versions/{version_id}/download-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/projects/{project_id}/versions/{version_id}/download-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/source/game/{engine}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/source/game/{engine}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/source/mobile/{platform}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/source/mobile/{platform}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/v25/projects/{project_id}/export-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/v25/projects/{project_id}/export-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/v25/source/omni-android-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /api/v25/source/omni-android-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /hosted/v25/{deployment_id}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /hosted/v25/{deployment_id}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /hosted/v26/{deployment_id}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /hosted/v26/{deployment_id}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /hosted/v27/{deployment_id}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /hosted/v27/{deployment_id}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /hosted/v28/{deployment_id}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /hosted/v28/{deployment_id}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /runtime/v25/{deployment_id}/data/{collection}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /runtime/v25/{deployment_id}/data/{collection}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /runtime/v26/{deployment_id}/data/{collection}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /runtime/v26/{deployment_id}/data/{collection}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /runtime/v27/{deployment_id}/data/{collection}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /runtime/v27/{deployment_id}/data/{collection}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /runtime/v28/{deployment_id}/data/{collection}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[GET /runtime/v28/{deployment_id}/data/{collection}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/demo/build-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/demo/build-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/live/build-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/live/build-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v25/build-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v25/build-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v25/projects/{project_id}/patch-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v25/projects/{project_id}/patch-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v25/projects/{project_id}/promote-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v25/projects/{project_id}/promote-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v26/projects/{project_id}/build-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v26/projects/{project_id}/build-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v26/projects/{project_id}/live-build-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v26/projects/{project_id}/live-build-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v26/projects/{project_id}/patch-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v26/projects/{project_id}/patch-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v26/projects/{project_id}/promote-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v26/projects/{project_id}/promote-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v27/projects/{project_id}/build-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v27/projects/{project_id}/build-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v27/projects/{project_id}/live-build-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v27/projects/{project_id}/live-build-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v27/projects/{project_id}/patch-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v27/projects/{project_id}/patch-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v27/projects/{project_id}/promote-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v27/projects/{project_id}/promote-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v28/projects/{project_id}/build-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v28/projects/{project_id}/build-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v28/projects/{project_id}/live-build-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v28/projects/{project_id}/live-build-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v28/projects/{project_id}/patch-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v28/projects/{project_id}/patch-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v28/projects/{project_id}/promote-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /api/v28/projects/{project_id}/promote-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v25/{deployment_id}/data/{collection}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v25/{deployment_id}/data/{collection}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v25/{deployment_id}/login-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v25/{deployment_id}/login-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v25/{deployment_id}/register-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v25/{deployment_id}/register-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v26/{deployment_id}/data/{collection}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v26/{deployment_id}/data/{collection}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v26/{deployment_id}/login-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v26/{deployment_id}/login-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v26/{deployment_id}/register-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v26/{deployment_id}/register-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v27/{deployment_id}/data/{collection}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v27/{deployment_id}/data/{collection}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v27/{deployment_id}/login-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v27/{deployment_id}/login-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v27/{deployment_id}/register-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v27/{deployment_id}/register-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v28/{deployment_id}/data/{collection}-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v28/{deployment_id}/data/{collection}-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v28/{deployment_id}/login-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v28/{deployment_id}/login-production]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v28/{deployment_id}/register-preview]",
+    "test_deployed_but_not_durable_still_refuses_every_legacy_route[POST /runtime/v28/{deployment_id}/register-production]",
+    "test_the_legacy_refusal_reads_the_vercel_environment_and_fails_closed[Production -True]",
+    "test_the_legacy_refusal_reads_the_vercel_environment_and_fails_closed[preview-True]",
+    "test_the_legacy_refusal_reads_the_vercel_environment_and_fails_closed[production-True]",
+    "test_the_legacy_refusal_reads_the_vercel_environment_and_fails_closed[staging-x-True]"
+   ]
+  },
+  {
+   "id": "NC28",
+   "what": "a route extracts the token and never validates it: m5/status calls _v28_bearer instead of _signed_in (an anonymous caller still gets 401; a forged token passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "def v28_m5_status(request: Request) -> dict:\n    _signed_in(request)\n",
+     "new": "def v28_m5_status(request: Request) -> dict:\n    _v28_bearer(request)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_a_forged_token_is_refused_by_every_route_that_is_not_public[GET /api/v28/m5/status-garbage]",
+    "tests/test_tenant_isolation_pg.py::test_a_forged_token_is_refused_by_every_route_that_is_not_public[GET /api/v28/m5/status-resigned]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_a_forged_token_is_refused_by_every_route_that_is_not_public[GET /api/v28/m5/status-garbage]",
+    "test_a_forged_token_is_refused_by_every_route_that_is_not_public[GET /api/v28/m5/status-resigned]"
+   ]
+  },
+  {
+   "id": "NC29",
+   "what": "branding and usage/quote answer a bad token with their own refusal (402, 400) instead of 401",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    _signed_in(request)        # S4.5: a bad token is 401, not the plan refusal's 402\n",
+     "new": ""
+    },
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    _signed_in(request)        # S4.5: a bad token is 401, not the quote refusal's 400\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/branding-garbage]",
+    "tests/test_tenant_isolation_pg.py::test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/branding-resigned]",
+    "tests/test_tenant_isolation_pg.py::test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/usage/quote-garbage]",
+    "tests/test_tenant_isolation_pg.py::test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/usage/quote-resigned]"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/branding-garbage]",
+    "test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/branding-resigned]",
+    "test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/usage/quote-garbage]",
+    "test_a_forged_token_is_refused_by_every_route_that_is_not_public[POST /api/v28/projects/{project_id}/usage/quote-resigned]"
+   ]
+  },
+  {
+   "id": "NC30",
+   "what": "the history cursor pages every project: messages_before drops the project from its query",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/store.py",
+     "old": "            rows = conn.execute(f'SELECT {self._MSG} FROM intake_messages WHERE project_id = %s AND id < %s '\n",
+     "new": "            rows = conn.execute(f'SELECT {self._MSG} FROM intake_messages WHERE (project_id = %s OR TRUE) AND id < %s '\n"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_pg.py::test_the_history_cursor_pages_only_the_callers_own_messages"
+   ],
+   "envs": [
+    "pg"
+   ],
+   "expect_failed": [
+    "test_the_history_cursor_pages_only_the_callers_own_messages"
+   ]
+  }
+ ]
+}

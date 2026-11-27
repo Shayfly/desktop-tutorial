@@ -21,7 +21,7 @@ Counts: BLOCKED 3, IMPLEMENTED 13, INTEGRATION_TESTED 3, NOT_IMPLEMENTED 5, REAL
 |---|---|---|---|---|---|---|---|
 | Describe the product in natural language (Hebrew/English) | discovery_agent | skill:requirement_extraction=IMPLEMENTED; skill:acceptance_criteria_generation=IMPLEMENTED | **IMPLEMENTED** | yes |  | $0 |  |
 | Clarifying questions only when needed | discovery_agent | skill:smart_question_generation=IMPLEMENTED; skill:safe_default_selection=IMPLEMENTED | **IMPLEMENTED** | yes |  | $0 |  |
-| Plan and cost quote before the build | product_planner | skill:build_plan_generation=IMPLEMENTED; skill:build_quote=REAL_SERVER_VERIFIED | **IMPLEMENTED** | yes | postdeploy-checks run 37961193099 | $0 |  |
+| Plan and cost quote before the build | product_planner | skill:build_plan_generation=IMPLEMENTED; skill:build_quote=IMPLEMENTED | **IMPLEMENTED** | yes |  | $0 |  |
 | Approval binds the build to the approved contract | executive_orchestrator | platform:contract_bound_approval=IMPLEMENTED | **IMPLEMENTED** | yes |  | $0 |  |
 | Sign up / sign in to 148AI | security_agent | platform:platform_accounts=UNIT_TESTED | **UNIT_TESTED** | yes | tests/test_m5_identity_lifecycle.py | $0 |  |
 | Generate the product code | coding_agent | skill:file_create=IMPLEMENTED | **IMPLEMENTED** | yes |  | metered per call |  |
@@ -43,7 +43,7 @@ Counts: BLOCKED 3, IMPLEMENTED 13, INTEGRATION_TESTED 3, NOT_IMPLEMENTED 5, REAL
 | Download the product as ZIP | release_agent | platform:zip_export=UNIT_TESTED | **UNIT_TESTED** | yes | tests/test_v25_unified_v10_parity.py | $0 |  |
 | Publish to a live address | deployment_agent | skill:release_publish=NOT_IMPLEMENTED; platform:publish=NOT_IMPLEMENTED | **NOT_IMPLEMENTED** |  |  | $0 | refused with 501; not shown in the UI |
 | Stop a build; live progress journal | infrastructure_agent | skill:job_cancel=IMPLEMENTED | **IMPLEMENTED** | yes |  | $0 |  |
-| Recover a build after a worker crash | infrastructure_agent | skill:job_resume=IMPLEMENTED; skill:stale_job_recovery=IMPLEMENTED | **IMPLEMENTED** |  |  | $0 |  |
+| Recover a build after a worker crash | infrastructure_agent | skill:job_resume=UNIT_TESTED; skill:stale_job_recovery=IMPLEMENTED | **IMPLEMENTED** |  | tests/test_crash_resume_pg.py | $0 |  |
 | Charge only actual usage (metered settlement) | cost_economics_agent | skill:credit_reservation=IMPLEMENTED; skill:actual_cost_calculation=UNIT_TESTED; skill:credit_settlement=UNIT_TESTED; platform:write_ahead_cost_ledger=INTEGRATION_TESTED | **IMPLEMENTED** |  | tests/test_actual_cost_settlement.py | ledger |  |
 | Cost per build / per successful build / by model, from the ledger | cost_economics_agent | skill:margin_calculation=UNIT_TESTED; platform:unit_economics_report=UNIT_TESTED | **UNIT_TESTED** |  | tests/test_economics_report.py | $0 |  |
 | Every check stored per build, bound to the artifact | quality_gate_agent | platform:durable_stage_evidence=INTEGRATION_TESTED | **INTEGRATION_TESTED** |  | tests/test_release_policy.py | $0 |  |

@@ -501,7 +501,10 @@ def failure_code(exc: BaseException) -> str:
     from .build_control import BuildDeadline
     from .verification_verdict import queue_timeouts
     from .site_content.agents import SiteContentInvalid, SiteRenderDefect
+    from .build_checkpoint import CheckpointUnusable
     text = str(exc)
+    if isinstance(exc, CheckpointUnusable):        # S4.2: requeued to continue, but its checkpoint cannot be trusted
+        return 'checkpoint_unusable'
     if isinstance(exc, SiteContentInvalid):        # the model's content document, still invalid after its correction
         return 'site_content_invalid'
     if isinstance(exc, SiteRenderDefect):          # the platform's own render (library, fact sheet, contract)
@@ -583,6 +586,15 @@ def provider_usage_evidence(gateway) -> dict:
 # M1: durable async build
 # --------------------------------------------------------------------------
 
+def build_spend(gateway, spent) -> Decimal:
+    """The build's provider spend for its evidence: this worker's (`spent`) and, on a recovered build, the metered cost
+    the earlier workers' calls left in the ledger (prior_metered) -- the ledger's metered total when every call was
+    metered (S4.2, re-review of 73ed4b7). A call with no metered cost adds nothing here, as in the ledger."""
+    prior = getattr(gateway, 'prior_metered', None)
+    extra = Decimal(str(prior.get('metered_usd') or 0)) if isinstance(prior, dict) else Decimal('0')
+    return Decimal(str(spent)) + extra
+
+
 def spend_snapshot(gateway) -> tuple[Decimal, int]:
     state = getattr(gateway, 'state', None) if gateway is not None else None
     if state is None:
@@ -640,7 +652,7 @@ def _capability_actual_cost(capability_evidence) -> tuple[Decimal | None, bool]:
 
 
 def computed_provider_cost(*, llm_actual, gateway_spend: Decimal, prior, capability_evidence,
-                           infra_max: Decimal) -> tuple[Decimal | None, dict]:
+                           infra_max: Decimal, unpriced_llm_usd: Decimal = Decimal('0')) -> tuple[Decimal | None, dict]:
     """Michael 2026-11-14 (b1): the settlement basis when the provider did not report an actual.
 
     Before this, a build whose actual was unknown (an image whose provider reports no price, or one model call
@@ -650,29 +662,43 @@ def computed_provider_cost(*, llm_actual, gateway_spend: Decimal, prior, capabil
     ledger, where a call without reported usage stays at its authorized worst case) + each capability event's
     actual, else its catalog estimate, else its maximum + the infrastructure maximum (still a reserve). It is
     never relabelled as actual (COST_MODEL.md: computed != actual). None when a component has no number at all;
-    the caller then settles at the reservation and says so loudly."""
+    the caller then settles at the reservation and says so loudly.
+
+    The owner 2026-11-26 and the money review of 00d7404 (B1): a model call whose PRICE is missing keeps its
+    authorized stand-in worst case in the gateway ledger, so the computed cost -- and the plan meter it settles --
+    is charged that amount (`unpriced_llm_usd` names it; never $0). A capability event with no number is named in
+    `cost_data_missing` and adds nothing it does not know. Only liability that cannot be bounded (an earlier worker's
+    call with no exposure) still returns None and settles at the reservation."""
+    from .provider_contracts import unpriced
     missing = []
+    price_missing = []
     if llm_actual is not None:
         llm = Decimal(str(llm_actual))
         llm_basis = 'metered'
     else:
         llm = Decimal(str(gateway_spend))
         llm_basis = 'gateway_spend_ledger'
+        if unpriced_llm_usd:      # money review B1: charged at the stand-in worst case, never at $0 -- and named
+            price_missing.append(f'model calls without a price: charged at the stand-in worst case {unpriced_llm_usd}')
         if prior:
             llm += Decimal(str(prior.get('metered_usd') or 0)) + Decimal(str(prior.get('unknown_exposure_usd') or 0))
             if prior.get('unknown_calls') and not prior.get('unknown_exposure_usd'):
                 missing.append('earlier_worker_unknown_call_without_exposure')
+            if prior.get('price_missing_calls'):
+                price_missing.append('model calls without a price (earlier worker)')
     cap = Decimal('0')
     usage = [] if not capability_evidence else list(capability_evidence.get('usage') or [])
     for event in usage:
         raw = next((event.get(k) for k in ('actual_cost_usd', 'estimated_cost_usd', 'maximum_cost_usd')
                     if event.get(k) is not None), None)
-        if raw is None:
-            missing.append(f"capability:{event.get('requirement_id') or event.get('provider') or '?'}")
+        if raw is None or (unpriced(event.get('pricing_version')) and event.get('actual_cost_usd') is None):
+            price_missing.append(f"capability:{event.get('requirement_id') or event.get('provider') or '?'}")
             continue
         cap += Decimal(str(raw))
     basis = {'basis': 'computed_from_usage', 'llm_usd': str(llm), 'llm_basis': llm_basis,
              'capability_usd': str(cap), 'infrastructure_usd': str(infra_max)}
+    if price_missing:
+        basis['cost_data_missing'] = price_missing
     if missing:
         return None, {**basis, 'missing': missing}
     return llm + cap + infra_max, basis
@@ -711,6 +737,34 @@ def _install_agentic_repair(engine, request) -> bool:
     return True
 
 
+def _bind_founder_calls(gateway) -> dict:
+    """The owner 2026-11-26: a founder build may make up to FOUNDER_SAFETY_CALLS_PER_BUILD model calls (the worker's
+    OMNI_EXTERNAL_CALLS_PER_BUILD, 150, is an operator knob for every other build). A gateway that cannot take the
+    bound keeps its own limit -- still bounded -- and the evidence and the log say so."""
+    from .pricing import FOUNDER_SAFETY_CALLS_PER_BUILD, founder_safety_bounds
+    out = {'founder_no_build_limit': True, 'safety_bounds': founder_safety_bounds()}
+    bind = getattr(gateway, 'bind_call_limit', None)
+    if not callable(bind):
+        logging.getLogger(__name__).warning('FOUNDER_CALL_BOUND_NOT_BOUND the gateway has no bind_call_limit; '
+                                            'the worker call limit stays')
+        return {**out, 'calls_binding': 'NOT_SUPPORTED_BY_GATEWAY'}
+    return {**out, **bind(FOUNDER_SAFETY_CALLS_PER_BUILD)}
+
+
+def bind_founder_change_request(gateway, request: dict) -> dict | None:
+    """A change request (modification) has no admission quote: its gateway runs on the worker's
+    OMNI_EXTERNAL_BUDGET_USD (0.50 in production, model_budget_binding.worker_env_budget_usd of the builds) and
+    OMNI_EXTERNAL_CALLS_PER_BUILD. For the founder account (the owner 2026-11-26) both become the safety bounds;
+    every other account keeps the worker's values. Returns the binding evidence, or None when nothing changed."""
+    from .pricing import FOUNDER_SAFETY_BUILD_USD, founder_no_build_limit
+    if not founder_no_build_limit((request or {}).get('user_id')):
+        return None
+    if not callable(getattr(gateway, 'bind_budget', None)):
+        raise PermissionError('model_budget_unenforceable: gateway cannot bind the founder change-request bound')
+    return {'binding': 'founder_safety_bound', **gateway.bind_budget(FOUNDER_SAFETY_BUILD_USD),
+            **_bind_founder_calls(gateway)}
+
+
 def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
     """Fail closed before paid model calls; reuse the existing gateway budget.
 
@@ -725,6 +779,8 @@ def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
         raise PermissionError('model_budget_missing: legacy request has no authorized LLM budget')
     if not callable(getattr(gateway, 'bind_budget', None)):
         raise PermissionError('model_budget_unenforceable: gateway cannot bind authorization')
+    from .pricing import founder_no_build_limit
+    owner_unlimited = founder_no_build_limit(request.get('user_id'))   # an unknown flag value raises here, by name
 
     try:
         reserved = Decimal(str(components['llm_maximum_usd']))
@@ -732,8 +788,12 @@ def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
             raise ValueError('invalid reserved LLM budget')
         class_name = components.get('cost_class')
         from .pricing import m5_founder_account, m5_founder_build_budget
+        from .pricing import FOUNDER_SAFETY_BUILD_USD
         founder_test = bool(components.get('founder_test')) and m5_founder_account(request.get('user_id'))
-        if founder_test:   # CEO 2026-11-08: the founder's admitted test budget, never above the founder cap
+        unlimited = founder_test and owner_unlimited
+        if unlimited:      # the owner 2026-11-26: no money limit; the admitted budget up to the safety bound only
+            reserved = min(reserved, FOUNDER_SAFETY_BUILD_USD)
+        elif founder_test:   # CEO 2026-11-08: the founder's admitted test budget, never above the founder cap
             reserved = min(reserved, m5_founder_build_budget())
         elif class_name in (CostClass.LIGHT.value, CostClass.STANDARD.value):
             reserved = min(reserved, m5_class_llm_cap(class_name))
@@ -742,6 +802,8 @@ def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
             # they are never allowed to fall back to the worker env budget.
             pass
         out = {'binding': 'bound', **gateway.bind_budget(reserved)}
+        if unlimited:
+            out.update(_bind_founder_calls(gateway))
         if class_name:
             if not callable(getattr(gateway, 'restrict_to_cost_class', None)):
                 raise PermissionError('model_class_unenforceable: gateway lacks class restriction')
@@ -785,6 +847,93 @@ def capability_authorization_ceiling(request: dict) -> Decimal:
     return Decimal(str(request.get('authorized_provider_cost_usd', '0.25')))
 
 
+def capability_ceiling_for(request: dict) -> Decimal:
+    """The ceiling the capability stage gets. The owner 2026-11-26: a founder build is not stopped by the quoted
+    capability slice (a price that moved between quote and run would block its images); up to the safety bound
+    (pricing.FOUNDER_SAFETY_BUILD_USD) instead. Every other build keeps capability_authorization_ceiling exactly."""
+    ceiling = capability_authorization_ceiling(request)
+    from .pricing import FOUNDER_SAFETY_BUILD_USD, founder_no_build_limit
+    components = (request.get('economics_quote') or {}).get('components') or {}
+    if components.get('founder_test') and founder_no_build_limit(request.get('user_id')):
+        return max(ceiling, FOUNDER_SAFETY_BUILD_USD)
+    return ceiling
+
+
+def _unpriced_calls(gateway) -> list:
+    """Model calls to a catalog model with no known price (routed_gateway marks them, attempt_ledger.price_unknown):
+    they ran, their tokens are recorded, their cost is UNKNOWN; the plan is charged their authorized stand-in worst
+    case (money review B1). Decided by the mark, never by "metered is None" (S1): a configured fallback route has no
+    catalog price either and keeps its flat per-call authorization as its cost, as before."""
+    from .attempt_ledger import price_unknown
+    records = getattr(getattr(gateway, 'recorder', None), 'records', None) or []
+    return [r for r in records if getattr(r, 'kind', None) == 'provider_call'
+            and getattr(r, 'metered_cost_usd', None) is None and (getattr(r, 'authorized_cost_usd', None) or 0) > 0
+            and getattr(r, 'provider_reported_cost_usd', None) is None
+            and price_unknown(getattr(r, 'selection_reason', None))]
+
+
+def cost_data_missing(gateway, capability_evidence=None, economics_quote=None) -> list[dict]:
+    """The owner 2026-11-26 10:20 UTC: "לא מחייב אם אין לנו את כל הנתונים זה לא אמור כרגע מבחינתנו לכשל בבניה, אבל
+    לעדכן". A missing price (or a call whose usage never came back) never fails or refuses a build; every such gap of
+    THIS build is named here with what WAS measured (calls, tokens), so it is never read as $0. One row per model,
+    capability or infrastructure kind and gap: 'price_missing' (ran, tokens known, no price) or 'usage_not_reported'
+    (the provider answered nothing measurable: timeout or unreadable answer; bounded by its authorization)."""
+    from .provider_contracts import unpriced
+    rows: dict[tuple, dict] = {}
+    records = getattr(getattr(gateway, 'recorder', None), 'records', None) or []
+    for r in records:
+        if getattr(r, 'kind', None) != 'provider_call' or getattr(r, 'metered_cost_usd', None) is not None:
+            continue
+        if not (getattr(r, 'authorized_cost_usd', None) or 0) > 0 or getattr(r, 'provider_reported_cost_usd', None) is not None:
+            continue
+        tin, tout = getattr(r, 'input_tokens', None), getattr(r, 'output_tokens', None)
+        from .attempt_ledger import price_unknown
+        if price_unknown(getattr(r, 'selection_reason', None)):
+            gap = 'price_missing'
+            why = ('the model has no known price (catalog / source-backed schedule): the tokens are recorded, the cost '
+                   'is unknown; the plan is charged the stand-in worst case')
+        elif tin is not None or tout is not None:
+            gap = 'flat_authorization'
+            why = ('a configured route without a catalog price: the tokens are recorded; its cost is its flat per-call '
+                   'authorization (OMNI_EXTERNAL_MAX_ESTIMATED_COST_USD_PER_CALL), not a measured price')
+        else:
+            gap = 'usage_not_reported'
+            why = ('the provider reported no usage (a timeout or an unreadable answer): the cost is unknown, bounded '
+                   'by the call\'s authorized worst case')
+        name = getattr(r, 'model', None) or getattr(r, 'provider', None) or '?'
+        row = rows.setdefault(('model', name, gap), {'kind': 'model', 'name': name, 'provider': getattr(r, 'provider', None),
+                                                     'gap': gap, 'why': why, 'calls': 0, 'input_tokens': 0,
+                                                     'output_tokens': 0, 'tasks': []})
+        row['authorized_usd'] = str(Decimal(str(row.get('authorized_usd') or 0))
+                                    + Decimal(str(getattr(r, 'authorized_cost_usd', 0) or 0)))
+        row['calls'] += 1
+        row['input_tokens'] += int(tin or 0)
+        row['output_tokens'] += int(tout or 0)
+        task = getattr(r, 'task_type', None)
+        if task and task not in row['tasks']:
+            row['tasks'].append(task)
+    components = (economics_quote or {}).get('components') or {}
+    admitted = {str(i.get('requirement_id')): i for i in components.get('cost_data_missing') or []
+                if i.get('kind') == 'capability' and i.get('requirement_id')}
+    for event in list((capability_evidence or {}).get('usage') or []):
+        numbers = [event.get(k) for k in ('actual_cost_usd', 'estimated_cost_usd', 'maximum_cost_usd')]
+        if not unpriced(event.get('pricing_version')) and any(v is not None for v in numbers):
+            continue
+        rid = str(event.get('requirement_id') or '')
+        name = event.get('capability_key') or (admitted.get(rid) or {}).get('name') or rid or event.get('provider') or '?'
+        row = rows.setdefault(('capability', rid or name, 'price_missing'), {
+            'kind': 'capability', 'name': name, 'requirement_id': rid or None, 'provider': event.get('provider'),
+            'gap': 'price_missing', 'why': 'the provider is configured without a price: it ran, its cost is unknown',
+            'events': 0})
+        row['events'] += 1
+    for item in components.get('cost_data_missing') or []:       # admitted unpriced, whether or not it ran
+        ident = item.get('requirement_id') or item.get('name')
+        key = (item.get('kind'), ident, item.get('gap'))
+        if key not in rows:
+            rows[key] = {**item, 'source': 'admission quote', **({'events': 0} if item.get('kind') == 'capability' else {})}
+    return sorted(rows.values(), key=lambda r: (str(r.get('kind')), str(r.get('name')), str(r.get('gap'))))
+
+
 def metered_llm_cost(gateway, external_calls: int) -> tuple[Decimal | None, dict]:
     """Exact model cost from usage: each external call's metered cost
     (provider-reported tokens x the catalog price of that model, recorded with
@@ -814,14 +963,19 @@ def prior_worker_metered_cost(pool, build_id: str) -> dict | None:
     (lost) worker. None when nothing was recorded. `unknown` counts served
     calls without metered cost; the call in flight at the moment of a crash
     never reached the ledger and cannot be counted."""
+    from .attempt_ledger import PRICE_UNKNOWN_MARK
     try:
         with pool.connection() as conn:
             row = conn.execute(
                 "SELECT count(*), COALESCE(sum(metered_cost_usd), 0), "
                 "count(*) FILTER (WHERE metered_cost_usd IS NULL AND outcome IN ('ok', 'unknown') "
                 "                 AND COALESCE(authorized_cost_usd, 0) > 0), "
-                "COALESCE(sum(authorized_cost_usd) FILTER (WHERE metered_cost_usd IS NULL AND outcome IN ('ok', 'unknown')), 0) "
-                "FROM task_attempts WHERE build_id = %s AND kind = 'provider_call'", (build_id,)).fetchone()
+                "COALESCE(sum(authorized_cost_usd) FILTER (WHERE metered_cost_usd IS NULL AND outcome IN ('ok', 'unknown')), 0), "
+                # money review S1: a price-unknown call is named by its mark (it is charged its stand-in exposure,
+                # like any unmetered call above); a fallback route without a catalog price is not one of them
+                "count(*) FILTER (WHERE metered_cost_usd IS NULL AND selection_reason LIKE %s) "
+                "FROM task_attempts WHERE build_id = %s AND kind = 'provider_call'",
+                ('%' + PRICE_UNKNOWN_MARK + '%', build_id)).fetchone()
     except Exception:
         logging.getLogger(__name__).warning('prior attempt lookup failed for %s', build_id, exc_info=True)
         return None
@@ -831,7 +985,8 @@ def prior_worker_metered_cost(pool, build_id: str) -> dict | None:
     # (write-ahead row still 'unknown'): its cost is unknown, bounded by its
     # authorization (unknown_exposure_usd) -- never counted as zero or exact.
     return {'calls': int(row[0]), 'metered_usd': Decimal(str(row[1])), 'unknown_calls': int(row[2]),
-            'unknown_exposure_usd': Decimal(str(row[3] if len(row) > 3 else 0))}
+            'unknown_exposure_usd': Decimal(str(row[3] if len(row) > 3 else 0)),
+            'price_missing_calls': int(row[4] if len(row) > 4 else 0)}
 
 
 def resolve_m5_billing(
@@ -874,8 +1029,11 @@ def resolve_m5_billing(
             llm_actual, cost_basis = metered_llm_cost(gateway, external_calls)
     if prior:
         cost_basis = {**cost_basis, 'earlier_workers': {k: str(v) for k, v in prior.items()}}
-        llm_actual = (None if llm_actual is None or prior['unknown_calls']
+        llm_actual = (None if llm_actual is None or prior['unknown_calls'] or prior.get('price_missing_calls')
                       else llm_actual + prior['metered_usd'])
+    # The owner 2026-11-26: every gap is named; a build with one is never "actual" (an unpriced part is not $0).
+    gaps = cost_data_missing(gateway, capability_evidence, economics_quote)
+    unpriced_llm = sum((Decimal(str(r.authorized_cost_usd)) for r in _unpriced_calls(gateway)), Decimal('0'))
     quote = dict(economics_quote or {})
     # Generated-app/platform infrastructure is reserved at its conservative
     # maximum; no provider reports its actual per-build cost, so any non-zero
@@ -884,13 +1042,22 @@ def resolve_m5_billing(
     infra_actual = Decimal('0') if infra_max == 0 else None
     actual = (None if llm_actual is None or capability_actual is None or infra_actual is None
               else llm_actual + capability_actual + infra_actual)
+    if gaps:
+        actual = None
     computed = None
+    computed_basis = {}
     if actual is None:
         gateway_spend, _ = spend_snapshot(gateway)
         computed, computed_basis = computed_provider_cost(
             llm_actual=llm_actual, gateway_spend=gateway_spend, prior=prior,
-            capability_evidence=capability_evidence, infra_max=infra_max)
+            capability_evidence=capability_evidence, infra_max=infra_max, unpriced_llm_usd=unpriced_llm)
         cost_basis = {**cost_basis, 'settlement': computed_basis}
+        reserved_total = quote.get('total_authorized_variable_usd')
+        if computed is not None and unpriced_llm > 0 and reserved_total not in (None, '', 'None') \
+                and computed > Decimal(str(reserved_total)):
+            # money review B1: the stand-in is charged, but never above what this build reserved
+            computed = Decimal(str(reserved_total))
+            cost_basis['settlement'] = {**computed_basis, 'capped_at_reservation': str(computed)}
         if computed is None:
             # Fails loudly, never silently: the reservation is the only number left, and the log and the evidence
             # name the component that had none.
@@ -901,6 +1068,25 @@ def resolve_m5_billing(
     # inputs are known. A non-zero infrastructure maximum is still a reserve,
     # not an actual, so suppress contribution rather than fabricate precision.
     revenue = None if revenue_raw is None or infra_max != 0 else Decimal(str(revenue_raw))
+    # What this build cost us, recorded at the source (the owner 2026-11-26, cost data "מבחינתנו"): the actual, else
+    # the computed measured part, never the reservation as a cost; the model part goes to build_jobs.ai_cost.
+    record = {
+        'total_usd': str(actual) if actual is not None else (str(computed) if computed is not None else None),
+        'basis': 'ACTUAL' if actual is not None else ('COMPUTED_FROM_USAGE' if computed is not None
+                                                      else 'CONSERVATIVE_RESERVATION'),
+        'llm_usd': (str(llm_actual) if actual is not None else computed_basis.get('llm_usd')),
+        'llm_basis': cost_basis.get('llm'), 'capability_usd': (str(capability_actual) if actual is not None
+                                                               else computed_basis.get('capability_usd')),
+        'infrastructure_usd': str(infra_max), 'external_model_calls': external_calls,
+        'unpriced_model_calls': len(_unpriced_calls(gateway)), 'cost_data_missing': gaps,
+        # money review B1: what is KNOWN, and the stand-in charged for calls whose price is missing (not a price)
+        'stand_in_usd': str(unpriced_llm),
+        'llm_known_usd': (str(llm_actual) if actual is not None else
+                          (str(Decimal(str(computed_basis['llm_usd'])) - unpriced_llm)
+                           if computed_basis.get('llm_usd') is not None else None)),
+        'complete': actual is not None or (computed is not None and not gaps),
+        'bounds_near': list(getattr(gateway, 'near_bounds', None) or []),
+    }
     if not ready:
         # Founder 2026-11-02 (DELIVERY-001): a failed build releases its credits; the provider cost it really incurred
         # stays on record (reservation + plan provider-spend meter), it is never SETTLED to the customer.
@@ -909,6 +1095,7 @@ def resolve_m5_billing(
         evidence = {'action': 'released_failed', 'cost_basis': cost_basis}
         if released:
             evidence.update(released)
+        evidence['cost_record'] = record
         return 'released', evidence, actual
     settlement = subscriptions.settle(
         build_id=build_id, actual_provider_cost_usd=actual,
@@ -918,7 +1105,36 @@ def resolve_m5_billing(
     evidence = {'action': 'settled', 'cost_basis': cost_basis}
     if settlement:
         evidence.update(settlement)
+    evidence['cost_record'] = record
     return 'settled', evidence, actual
+
+
+def _evidence_gaps(settlement_evidence, gateway, capability_evidence, economics_quote) -> list:
+    """The build evidence's top-level cost_data_missing: the settlement's own list when it made one, else measured now."""
+    record = settlement_evidence.get('cost_record') if isinstance(settlement_evidence, dict) else None
+    if isinstance(record, dict) and 'cost_data_missing' in record:
+        return record['cost_data_missing']
+    return cost_data_missing(gateway, capability_evidence, economics_quote)
+
+
+def recorded_ai_cost(settlement_evidence) -> Decimal | str | None:
+    """build_jobs.ai_cost (migration 004; never written before 2026-11-26): the model spend of the build as measured --
+    metered or computed, never the reservation and never a stand-in for a model without a price. None when nothing
+    was measured: the column is then left as it is and the evidence says why (cost_record.basis)."""
+    record = (settlement_evidence or {}).get('cost_record') if isinstance(settlement_evidence, dict) else None
+    raw = (record or {}).get('llm_usd')
+    if raw in (None, '', 'None'):
+        return None
+    if Decimal(str((record or {}).get('stand_in_usd') or 0)) > 0:
+        # money review B1 + migration 048 (the owner 2026-11-26): a build with an unpriced call has no known model
+        # cost -- written as NULL (unknown); the evidence keeps llm_known_usd and stand_in_usd
+        from .job_repository import UNKNOWN_COST
+        return UNKNOWN_COST
+    try:
+        value = Decimal(str(raw))
+    except ArithmeticError:
+        return None
+    return value if value.is_finite() and value >= 0 else None
 
 
 _FOUNDER_DRAFT_CODES = frozenset({'verification_failed', 'quality_gate_failed', 'preview_not_ready',
@@ -1127,10 +1343,28 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
     capability_evidence = None
     infrastructure_evidence = None
     model_budget_binding = None
+    # S4.2: the janitor's recovery record, the checkpoint this run continues from and this run's checkpoint writer. The
+    # terminal evidence carries the record and the build's last checkpoint whichever path ends the build.
+    from . import build_checkpoint
+    claim = recorded = recovery_evidence = checkpoints = None
+
+    def carried_evidence() -> dict:
+        last = checkpoints.last if checkpoints is not None and checkpoints.last is not None else recorded
+        return {'recovery': recovery_evidence, 'checkpoint': last,
+                'checkpoint_errors': (checkpoints.errors or None) if checkpoints is not None else None}
+    jobs = build_checkpoint.CarryEvidence(jobs, carried_evidence)
 
     try:
         if preflight is not None:
             preflight()
+        if attempt_pool is not None:
+            claim = build_checkpoint.read_claim(attempt_pool, build_id)
+            recovery_evidence = claim.get('recovery')
+            fence = getattr(jobs, 'fence', None)
+            if callable(fence):           # this run's transitions and heartbeats change the row only in its epoch
+                fence(build_id, claim['epoch'])
+            # ...and its settlement or release too (re-review of 73ed4b7): a stale epoch raises StaleWorker
+            subscriptions = build_checkpoint.FencedBilling(subscriptions, claim['epoch'])
         _report_phase(jobs, build_id, 'PLANNING', 'validating the build contract and product plan')
         # M5 Task 6: a contract-bound product cannot become READY without its
         # required generated-app infrastructure. Checked before any paid model
@@ -1191,6 +1425,21 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 gateway.on_attempt_start = control.flush_attempts   # write-ahead ledger
             # A recovered build: calls a lost worker already made are still owed.
             gateway.prior_metered = prior_worker_metered_cost(attempt_pool, build_id)
+        loaded = carried_budget = None
+        if claim is not None:
+            # S4.2: the janitor requeued this build to continue. Its checkpoint is read back and every byte checked
+            # HERE -- after the earlier workers' cost is known to the settlement (prior_metered), before any paid call of
+            # this run -- so a checkpoint that cannot be trusted fails the build before anything is spent again.
+            recorded = build_checkpoint.resume_record(claim)
+            if recorded is not None:
+                loaded = build_checkpoint.load(recorded, store=getattr(workspace, 'storage', None),
+                                               unzip=getattr(workspace, '_unzip_repo', None), build_id=build_id,
+                                               contract_fingerprint=request.get('build_contract_fingerprint'))
+                # the same budgets: what the earlier workers recorded (their metered cost and the authorized amount of
+                # their unanswered call, which the settlement adds) comes off the build's reserved budget and call limit,
+                # read in ONE snapshot that also becomes the settlement's prior_metered (re-review of 73ed4b7, S1)
+                carried_budget = build_checkpoint.resume_budget(
+                    gateway, attempt_pool, build_id, worker=getattr(getattr(gateway, 'recorder', None), 'trace_id', None))
         if capability_stage is not None:
             _report_phase(jobs, build_id, 'ASSETS', 'generating and verifying required assets')
             # #324 (Michael 2026-11-13): an image is generated from an ENGLISH prompt translated once from the brief
@@ -1205,12 +1454,17 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 only=set((resolver(capability_plan) if resolver else {}) or {}))
             capability_evidence = capability_stage.prepare(
                 build_id=build_id, project_id=internal_project_id, plan=capability_plan,
-                authorized_maximum_usd=capability_authorization_ceiling(request),
+                authorized_maximum_usd=capability_ceiling_for(request),   # the founder: the safety bound
                 now=time.time(),
             )
         if agent_recorder is not None:  # Agent OS: the real build as a durable agent task graph
             control.recorder = agent_recorder
-            agent_recorder.start(from_brief='Approved project brief' in (prompt or ''))
+            # S4.2: a build that continues carries the lost worker's finished tasks into its run, never re-runs them
+            agent_recorder.start(from_brief='Approved project brief' in (prompt or ''),
+                                 **({'resume': {'checkpoint': build_checkpoint.label(recorded), 'stage': recorded['stage'],
+                                                'round': recorded.get('round'), 'written_at': recorded.get('written_at'),
+                                                'report_passed': recorded.get('report_passed')}}
+                                    if recorded is not None else {}))
             if hasattr(agent_recorder, 'bind'):     # plan-governed builds: plan limits + per-task charging
                 agent_recorder.bind(engine, gateway)
             if getattr(agent_recorder, 'enforce', False):   # ...and the approved criteria are the test basis (G3)
@@ -1238,7 +1492,10 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             build_prompt = install_generated_images(
                 engine, prompt=prompt, plan=capability_plan, evidence=capability_evidence,
                 store=getattr(getattr(capability_stage, 'executor', None), 'artifact_store', None),
-                vision=gateway if image_match_enabled(request) else None)   # lens 11 / I-01, before code
+                # lens 11 / I-01, before code. The questions are recorded for the checkpoint; a continued build
+                # replays a verdict only for the same image bytes and asks the model again for any other (S4)
+                vision=(None if not image_match_enabled(request) else build_checkpoint.vision_for(
+                    engine, gateway, recorded)))
             image_match = getattr(getattr(engine, 'core', engine), 'image_match', None)
             if image_match is None and getattr(getattr(engine, 'core', engine), 'generated_images', None):
                 # not run by rollout: said in the evidence and the log, never a silent pass
@@ -1294,7 +1551,31 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         from .fact_canon import needs_customer_input
         getattr(engine, 'core', engine).missing_input = (                    # #335 (d)
             lambda messages: needs_customer_input(messages, build_prompt))
-        result = engine.build(build_prompt)
+        # S4.2: every checkpoint of this run goes to object storage and to build_jobs.evidence_json (CheckpointWriter);
+        # a build the janitor requeued to continue reads its last checkpoint back, every byte checked, and goes on
+        resume = None
+        store, zip_repo = getattr(workspace, 'storage', None), getattr(workspace, '_zip_repo', None)
+        if claim is not None and callable(getattr(store, 'put_bytes', None)) and callable(zip_repo):
+            checkpoints = build_checkpoint.CheckpointWriter(
+                pool=attempt_pool, build_id=build_id, epoch=claim['epoch'], store=store, zip_repo=zip_repo,
+                contract_fingerprint=request.get('build_contract_fingerprint'), prompt=build_prompt, engine=engine,
+                round_snapshots=round_snapshots, flush=control.flush,
+                worker=getattr(getattr(gateway, 'recorder', None), 'trace_id', None),
+                why_not=build_checkpoint.not_resumable_reason(engine))
+            getattr(engine, 'core', engine).checkpoint_hook = checkpoints
+        if loaded is not None:
+            # loaded and checked before any paid call (above); the prompt is final only now
+            build_checkpoint.check_prompt(recorded, build_prompt)
+            not_restored = build_checkpoint.restore_executors(engine, loaded.executors)
+            round_snapshots[:0] = loaded.round_snapshots
+            recovery_evidence = {**(recovery_evidence or {}), 'resumed_from': loaded.resumed_from(
+                carried_budget=carried_budget, history_not_restored=not_restored)}
+            resume = loaded.resume
+            logging.getLogger(__name__).info('BUILD_RESUMED build=%s from %s', build_id, build_checkpoint.label(recorded))
+        if resume is not None:
+            result = engine.build(build_prompt, resume=resume)
+        else:
+            result = engine.build(build_prompt)
         if agent_recorder is not None and hasattr(agent_recorder, 'raise_if_violated'):
             agent_recorder.raise_if_violated()   # plan-governed: a swallowed violation still fails closed
         _report_phase(jobs, build_id, 'VERIFYING', 'running quality, security and rights gates')
@@ -1416,7 +1697,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'build_log_tail': result.report.build_log[-4000:],
             'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
             'provider_usage': provider_usage_evidence(gateway),
-            'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
+            'provider_spend_usd': str(build_spend(gateway, spent)), 'external_model_calls': calls,
+            'provider_spend_basis': SPEND_BASIS,
             'model_budget_binding': model_budget_binding,
             'design_review': {'enabled': bool(design_review_on), 'reviews': _design_reviews(engine)},
             'agentic_repair': {'enabled': bool(agentic_repair),
@@ -1464,12 +1746,14 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            **({'gate_waste': _gate_waste(engine, None, 0), 'escalation': str(exc)[:500]}
                               if escalated else {}),
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
+                           'cost_data_missing': _evidence_gaps(settlement_evidence, gateway, capability_evidence, economics_quote),
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
-                           'provider_spend_usd': str(spent), 'external_model_calls': calls,
+                           'provider_spend_usd': str(build_spend(gateway, spent)), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS, 'model_budget_binding': model_budget_binding},
             actual_provider_cost_usd=actual_cost,
+            ai_cost_usd=recorded_ai_cost(settlement_evidence),   # the owner 2026-11-26: recorded at the source
         )
         return BuildStatus.CANCELLED.value
     except InfrastructureStageBlocked as exc:
@@ -1489,13 +1773,15 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             result_version_id=version_id, artifact_key=artifact_key,
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
+                           'cost_data_missing': _evidence_gaps(settlement_evidence, gateway, capability_evidence, economics_quote),
                            'infrastructure': exc.evidence,
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
-                           'provider_spend_usd': str(spent), 'external_model_calls': calls,
+                           'provider_spend_usd': str(build_spend(gateway, spent)), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
+            ai_cost_usd=recorded_ai_cost(settlement_evidence),   # the owner 2026-11-26: recorded at the source
         )
         raise
     except CapabilityStageBlocked as exc:
@@ -1518,12 +1804,14 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             result_version_id=version_id, artifact_key=artifact_key,
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence, 'capabilities': blocked_evidence,
+                           'cost_data_missing': _evidence_gaps(settlement_evidence, gateway, blocked_evidence, economics_quote),
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
-                           'provider_spend_usd': str(spent), 'external_model_calls': calls,
+                           'provider_spend_usd': str(build_spend(gateway, spent)), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
+            ai_cost_usd=recorded_ai_cost(settlement_evidence),   # the owner 2026-11-26: recorded at the source
         )
         raise
     except Exception as exc:
@@ -1543,15 +1831,17 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             result_version_id=version_id, artifact_key=artifact_key,
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
+                           'cost_data_missing': _evidence_gaps(settlement_evidence, gateway, capability_evidence, economics_quote),
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            **_aborted_review_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
-                           'provider_spend_usd': str(spent),
+                           'provider_spend_usd': str(build_spend(gateway, spent)),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
                            'site_route': _site_route_evidence(engine),
                            'request_cut': _request_cut_evidence(prompt),
                            'model_budget_binding': model_budget_binding},
             actual_provider_cost_usd=actual_cost,
+            ai_cost_usd=recorded_ai_cost(settlement_evidence),   # the owner 2026-11-26: recorded at the source
         )
         raise
 
@@ -1564,10 +1854,13 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         evidence['billing'] = billing
         evidence['economics_quote'] = economics_quote
         evidence['economics_settlement'] = settlement_evidence
+        evidence['cost_data_missing'] = _evidence_gaps(settlement_evidence, gateway, capability_evidence,
+                                                       economics_quote)
     else:
         evidence['billing'] = resolve_billing(subscriptions, build_id=build_id, ready=ready,
                                               spent=spent, external_calls=calls)
         actual_cost = spent if evidence['billing'] == 'settled' else None
+        settlement_evidence = None                 # a legacy request: no cost record (recorded_ai_cost -> None)
     from .skill_units.gate import report as skill_gate_report
     evidence['skill_gates'] = skill_gate_report(engine)       # every gate's mode (OFF included) and result
     from .g_apple import report as apple_gate_report
@@ -1587,6 +1880,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         result_version_id=version_id, artifact_key=artifact_key,
         repair_rounds=result.repair_rounds, evidence_json=evidence,
         actual_provider_cost_usd=actual_cost,
+        ai_cost_usd=recorded_ai_cost(settlement_evidence),   # the owner 2026-11-26: recorded at the source
     )
     return target.value
 
@@ -1626,12 +1920,22 @@ def execute_live_build_job(build_id: str) -> None:
         from .agent_os.recorder import recorder_for
         recorder = recorder_for(_v28_pool, build_id, execution_plan_binding(_v28_pool, build_id),
                                 enforce=os.getenv('OMNI_PLAN_DRIVEN') == '1')
+    from .job_repository import StaleWorker
+    stale = False
     try:
         _run_live_build_job_with_components(build_id, jobs=jobs, workspace=workspace,
                                             components_factory=components_factory, agent_recorder=recorder)
+    except StaleWorker as exc:
+        # S4.2 (re-review of 73ed4b7): the janitor gave this build to another worker; this run stops where it is --
+        # no further paid call, no billing, no transition (each of them is fenced and raised this)
+        stale = True
+        logging.getLogger(__name__).error('STALE_WORKER_STOPPED build=%s: %s', build_id, exc)
     finally:
-        _persist_build_attempts(_v28_pool, jobs, build_id, captured.get('gateway'))
-        if recorder is not None and recorder.run_id is not None:
+        try:
+            _persist_build_attempts(_v28_pool, jobs, build_id, captured.get('gateway'))
+        except StaleWorker:
+            stale = True                      # refused and logged by the ledger itself
+        if recorder is not None and recorder.run_id is not None and not stale:
             try:
                 with _v28_pool.connection() as conn:
                     row = conn.execute('SELECT status, evidence_json FROM build_jobs WHERE id = %s', (build_id,)).fetchone()
@@ -1667,10 +1971,12 @@ def _persist_build_attempts(pool, jobs, build_id: str, gateway, *, required: boo
             request = jobs.get_request(build_id)
         except Exception:
             request = {}
+        fenced = getattr(jobs, 'fenced_epoch', None)
+        epoch = fenced(build_id) if callable(fenced) else None
         persist_attempts(pool, recorder.records, build_id=build_id,
                          tenant_id=request.get('user_id'), project_id=request.get('internal_project_id'),
                          reservation_id=build_id, final_outcome=getattr(status, 'value', None),
-                         require_active_reservation=required)
+                         require_active_reservation=required, epoch=epoch)
     except Exception as exc:
         logging.getLogger(__name__).exception('attempt ledger write failed for %s', build_id)
         if required:
@@ -1802,6 +2108,7 @@ def _run_modification_job(modification_id: str, *, jobs, spec_repo, workspace, s
     project_id = request['project_id']
     source_version_id = request['source_version_id']
     gateway = None
+    change_binding = None
 
     try:
         if preflight is not None:
@@ -1820,6 +2127,7 @@ def _run_modification_job(modification_id: str, *, jobs, spec_repo, workspace, s
             ) from exc
 
         classifier, repairer, evolver, executor, gateway = components_factory()
+        change_binding = bind_founder_change_request(gateway, request)   # the owner 2026-11-26 (founder only)
         # Requirements-aware behavioural acceptance for the change too.
         from .behavior_acceptance import BehaviorAcceptanceExecutor, find_in_chain
         acceptance_target = find_in_chain(executor, BehaviorAcceptanceExecutor)
@@ -1861,7 +2169,8 @@ def _run_modification_job(modification_id: str, *, jobs, spec_repo, workspace, s
             error_code='cancelled_by_user', error_message=str(exc)[:500],
             evidence_json={'billing': billing, 'provider_spend_usd': str(spent),
                            'provider_usage': provider_usage_evidence(gateway),
-                           'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS},
+                           'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
+                           'model_budget_binding': change_binding, 'cost_data_missing': cost_data_missing(gateway)},
         )
         return 'CANCELLED'
     except Exception as exc:
@@ -1872,7 +2181,8 @@ def _run_modification_job(modification_id: str, *, jobs, spec_repo, workspace, s
             error_code=failure_code(exc), error_message=f'{type(exc).__name__}: {exc}'[:2000],
             evidence_json={'billing': billing, 'provider_spend_usd': str(spent),
                            'provider_usage': provider_usage_evidence(gateway),
-                           'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS},
+                           'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
+                           'model_budget_binding': change_binding, 'cost_data_missing': cost_data_missing(gateway)},
         )
         raise
 
@@ -1884,6 +2194,8 @@ def _run_modification_job(modification_id: str, *, jobs, spec_repo, workspace, s
     evidence['provider_spend_usd'] = str(spent)
     evidence['external_model_calls'] = calls
     evidence['provider_spend_basis'] = SPEND_BASIS
+    evidence['model_budget_binding'] = change_binding
+    evidence['cost_data_missing'] = cost_data_missing(gateway)
 
     error_code = error_message = None
     if status == 'FAILED' and outcome.gates is not None:

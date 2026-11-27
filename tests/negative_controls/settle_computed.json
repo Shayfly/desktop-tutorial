@@ -25,6 +25,6 @@
                   "old": "            logging.getLogger(__name__).error('SETTLEMENT_WITHOUT_MEASUREMENT build=%s missing=%s; settled at the '",
                   "new": "            logging.getLogger(__name__).debug('SETTLEMENT_WITHOUT_MEASUREMENT build=%s missing=%s; settled at the '  # NEGATIVE CONTROL"}],
    "targets": ["tests/test_settle_computed_pg.py"],
-   "expect_failed": ["test_no_number_at_all_settles_at_the_reservation_loudly"]}
+   "expect_failed": ["test_an_earlier_call_without_exposure_settles_at_the_reservation_loudly"]}
  ]
 }

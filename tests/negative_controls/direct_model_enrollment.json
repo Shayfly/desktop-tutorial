@@ -183,8 +183,8 @@
       "mutations": [
         {
           "file": "omni_prod/providers/google_image.py",
-          "old": "    if not valid_price or not source.startswith('https://'):",
-          "new": "    if not valid_price:  # negative control"
+          "old": "    return maximum if maximum.is_finite() and maximum > 0 and source.startswith('https://') else None",
+          "new": "    return maximum if maximum.is_finite() and maximum > 0 else None  # negative control"
         }
       ],
       "targets": [

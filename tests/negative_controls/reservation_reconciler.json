@@ -31,7 +31,7 @@
       "mutations": [
         {
           "file": "omni_prod/reservation_reconciler.py",
-          "old": "    if any(outcome == 'unknown' for outcome, _ in rows):",
+          "old": "    if any(outcome == 'unknown' for outcome, *_ in rows):",
           "new": "    if False:  # NEGATIVE CONTROL"
         }
       ],

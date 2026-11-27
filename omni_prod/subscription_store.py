@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from .db import DatabasePool
 from .pricing import PLAN_CATALOG, PlanCode, CostClass, UsageDecision, _COST_CLASS_ESTIMATE_USD, founder_cap_exempt
+from .pricing import founder_no_build_limit
 from .provider_pricing import contribution_evidence
 from .company_loss import BUDGET_CAPPED_SHORTFALL, record_failed_build, record_overrun
 
@@ -36,12 +37,37 @@ def _credit_limited(plan, user_id) -> bool:
     return bool(plan.included_credits) and not founder_cap_exempt(user_id)
 
 
+def _class_free(user_id) -> bool:
+    """The owner 2026-11-26: the plan's cost class does not stop a founder build or change request (a change request is
+    reserved as STANDARD, which Free and Amateur do not include). Production 2026-11-26, read-only: the founder account
+    is on Studio, which includes every class, so this changes nothing today; it keeps a plan change from stopping him.
+    Every other account keeps the check. OMNI_FOUNDER_NO_BUILD_LIMIT=0 restores it for the founder too."""
+    return founder_no_build_limit(user_id)
+
+
 def provider_exposure(cur, build_id: str) -> bool:
     """True when durable attempts contain paid or uncertain provider liability."""
     cur.execute("SELECT EXISTS (SELECT 1 FROM task_attempts WHERE build_id=%s AND kind='provider_call' "
                 "AND (COALESCE(metered_cost_usd,0)>0 OR "
                 "(metered_cost_usd IS NULL AND COALESCE(authorized_cost_usd,0)>0)))", (build_id,))
     return bool(cur.fetchone()[0])
+
+
+def fence_build(cur, build_id: str, epoch: int | None) -> None:
+    """S4.2 (re-review of 73ed4b7): a worker settles or releases a build only in the recovery epoch it claimed it in.
+    The build row is locked first (FOR UPDATE: the order of the attempt ledger and of recovery -- job, then
+    reservation), so the janitor cannot hand the build over between the check and the money. A stale epoch changes
+    nothing and raises StaleWorker. epoch None: not fenced (every caller before S4.2)."""
+    if epoch is None:
+        return
+    cur.execute('SELECT recovery_attempts FROM build_jobs WHERE id=%s FOR UPDATE', (build_id,))
+    row = cur.fetchone()
+    if row is None or int(row[0]) != int(epoch):
+        import logging
+        from .job_repository import StaleWorker
+        logging.getLogger(__name__).warning('STALE_WORKER_REFUSED build=%s epoch=%s: the billing changed nothing (the '
+                                            'build is at epoch %s)', build_id, epoch, row[0] if row else None)
+        raise StaleWorker(f'build {build_id}: billing of epoch {epoch} refused (the build is at {row[0] if row else None})')
 
 
 class PostgresSubscriptionService:
@@ -163,7 +189,8 @@ class PostgresSubscriptionService:
         user_billable = category not in {'system_bug','missing_requirement'}
         charge = credits if user_billable else 0
         reason = 'authorized'; allowed = True
-        if cc not in plan.allowed_cost_classes: allowed, reason = False, 'cost class not included in plan'
+        if cc not in plan.allowed_cost_classes and not _class_free(user_id):
+            allowed, reason = False, 'cost class not included in plan'
         elif _credit_limited(plan, user_id) and used + charge > plan.included_credits: allowed, reason = False, 'monthly credits exhausted'
         elif _capped(plan, user_id) and spend + estimate > plan.paid_provider_budget_usd: allowed, reason = False, 'paid-provider budget exhausted'
         return UsageDecision(
@@ -296,7 +323,7 @@ class PostgresSubscriptionService:
             return prior
 
         allowed, reason = True, 'authorized'
-        if cc not in plan.allowed_cost_classes:
+        if cc not in plan.allowed_cost_classes and not _class_free(user_id):
             allowed, reason = False, 'cost class not included in plan'
         elif _credit_limited(plan, user_id) and used + charge > plan.included_credits:
             allowed, reason = False, 'monthly credits exhausted'
@@ -331,6 +358,7 @@ class PostgresSubscriptionService:
         computed_provider_cost_usd: Decimal | None = None,
         revenue_usd: Decimal | None = None, infra_cost_usd: Decimal = Decimal('0'),
         payment_fee_usd: Decimal = Decimal('0'), support_allocation_usd: Decimal = Decimal('0'),
+        epoch: int | None = None,
     ) -> dict | None:
         """Resolve one durable reservation without promoting estimates to actuals.
 
@@ -342,6 +370,7 @@ class PostgresSubscriptionService:
         with self._pool.connection() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
+                    fence_build(cur, build_id, epoch)
                     cur.execute("SELECT account_id, status, estimated_provider_cost_usd, funding_source FROM credit_reservations WHERE build_id=%s FOR UPDATE", (build_id,))
                     row = cur.fetchone()
                     if not row:
@@ -469,7 +498,7 @@ class PostgresSubscriptionService:
         return {'build_id': build_id, 'action': action, 'metered_usd': str(total), 'reason': reason, 'applied': False}
 
     def release_failed(self, *, build_id: str, actual_provider_cost_usd: Decimal | None = None,
-                       computed_provider_cost_usd: Decimal | None = None) -> dict | None:
+                       computed_provider_cost_usd: Decimal | None = None, epoch: int | None = None) -> dict | None:
         """A FAILED build releases its credits in full (founder 2026-11-02 20:32; DECISIONS DELIVERY-001: "a stage that
         failed is not charged"). Before this, a failed build that had made any model call was settle()d and its credits
         stayed spent -- the owner's account lost 135 credits on three failed builds.
@@ -482,6 +511,7 @@ class PostgresSubscriptionService:
         with self._pool.connection() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
+                    fence_build(cur, build_id, epoch)
                     cur.execute("SELECT account_id, status, credits_reserved, estimated_provider_cost_usd, funding_source, "
                                 "project_id FROM credit_reservations WHERE build_id=%s FOR UPDATE", (build_id,))
                     row = cur.fetchone()
@@ -531,10 +561,11 @@ class PostgresSubscriptionService:
                             'failed_builds_with_cost_this_month': earlier + 1,
                             'loss_recorded': loss is not None}
 
-    def release(self, *, build_id: str) -> None:
+    def release(self, *, build_id: str, epoch: int | None = None) -> None:
         with self._pool.connection() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
+                    fence_build(cur, build_id, epoch)
                     cur.execute("SELECT account_id, status, credits_reserved, estimated_provider_cost_usd, funding_source FROM credit_reservations WHERE build_id=%s FOR UPDATE", (build_id,))
                     row = cur.fetchone()
                     if not row: return
