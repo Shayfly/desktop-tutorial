@@ -160,9 +160,9 @@ function problems(r, expect = {}) {
     const mutations = [
       ['the draft pill is taken out', "h('span', { class: 'pill warn' }, t('sketchDraft'))", "h('span', { class: 'pill warn' }, '')"],
       ['the frame is not sandboxed', "title: t('sketchFrameTitle'), sandbox: '',", "title: t('sketchFrameTitle'),"],
-      ['the card waits for the words before it shows the frame', "if (st.id && v) {", "if (st.id && v && v.state === 'written') {"],
+      ['the card waits for the words before it shows the frame', "if (st.id && v) {\n    nodes.frame", "if (st.id && v && v.state === 'written') {\n    nodes.frame"],
       ['the create call is made on every render', "if (st.id || st.creating || st.error) return;                  // once per offer (a guard, as accessPending)", ''],
-      ['the state says nothing in text', "nodes.state = h('p', { class: 'sketchState', role: 'status', dir: 'auto' }, st.error ? t('sketchError') : st.id ? sketchWordsLine(st) : t('sketchLoading'));", "nodes.state = h('p', { class: 'sketchState', role: 'status', dir: 'auto' }, '');"],
+      ['the state says nothing in text', "function sketchWordsLine(st) {\n  const v = st.view;", "function sketchWordsLine(st) {\n  return '';\n  const v = st.view;"],
     ];
     for (const [what, from, to] of mutations) {
       assert.equal(APP.split(from).length, 2, `the mutation line for "${what}" is in app.js exactly once`);

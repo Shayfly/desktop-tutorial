@@ -144,9 +144,9 @@
    ],
    "expect_failed": [
     "test_a_sketch_changes_nothing_that_decides_a_build",
-    "test_a_sketch_id_of_another_project_is_a_404_like_an_id_that_never_existed",
     "test_another_account_gets_the_unknown_project_answer_on_all_three_routes",
     "test_from_the_reply_to_the_page_takes_seconds_with_no_worker_and_the_page_shows_the_direction",
+    "test_new_words_after_the_free_sketch_say_their_price_and_a_wrong_price_spends_nothing",
     "test_with_the_model_route_on_and_the_queue_down_the_sketch_is_still_there_and_the_money_is_given_back"
    ]
   },
