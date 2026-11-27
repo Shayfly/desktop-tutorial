@@ -33,5 +33,13 @@
                "voice": "בטוח ומדויק: מתארים את העבודה ואת הדרך, בלי סופרלטיבים ובלי שמות לקוחות שלא ניתנו; פנייה ברבים.",
                "sections": ["hero", "services", "about", "process", "faq", "cta", "contact"]}
  },
- "single_weight_display": ["Secular One"]
+ "single_weight_display": ["Secular One"],
+ "visual_thresholds": {
+  "_about": "Visual plan S2 (2026-11-27): the one table of the picture rules visual_qa judges a business page by. They start at warn (not in visual_qa.DEFAULT_ENFORCED); each moves to enforced in its own change after three production builds confirm it. First estimates from eight library renders, not calibrated. Read from the platform at run time, never from a built repository; visual_qa.visual_thresholds() raises on a missing key, an unknown rule or a value that is not a positive number. Warehouse 123 will want this per page type: the table is one place so it can be split.",
+  "measure": {"min_picture_px": 120},
+  "no_picture": {},
+  "small_hero_picture": {"hero_picture_share_min": {"desktop": 0.40, "mobile": 0.35}},
+  "text_on_picture": {"normal": 4.5, "large": 3.0},
+  "long_run_without_picture": {"min_pictures": 3, "max_viewport_heights": {"desktop": 2.5, "mobile": 2.5}}
+ }
 }

@@ -11,7 +11,8 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from omni_prod.autonomous_core import ExecutionReport
-from omni_prod.visual_qa import SCRIPT, VISUAL_FAILURE_ID, VisualQAExecutor, parse
+from omni_prod.visual_qa import (SCRIPT, THRESHOLDS_PATH, VISUAL_FAILURE_ID, VisualQAExecutor, parse,
+                                 threshold_file_text, visual_thresholds)
 
 FIXTURES = Path(__file__).resolve().parent / 'fixtures' / 'visual'
 CHROMIUM = os.environ.get('OMNI_CHROMIUM') or next((p for p in ('/opt/pw-browsers/chromium', '/usr/bin/chromium')
@@ -107,6 +108,8 @@ class RealBrowserTests(unittest.TestCase):
             (Path(d) / '.omni').mkdir()
             (Path(d) / '.omni' / 'project.json').write_text(json.dumps(
                 {'port': port, 'start': [sys.executable, 'app.py'], 'health_path': '/'}))
+            (Path(d) / THRESHOLDS_PATH).parent.mkdir(parents=True, exist_ok=True)      # the platform stages it (visual plan S2)
+            (Path(d) / THRESHOLDS_PATH).write_text(threshold_file_text(visual_thresholds()))
             proc = subprocess.run([sys.executable, '-c', SCRIPT, viewport], cwd=d, capture_output=True, text=True,
                                   timeout=90, env=dict(os.environ, OMNI_CHROMIUM=CHROMIUM))
         report, shot = parse(proc.stdout)
@@ -144,6 +147,8 @@ class RealBrowserTests(unittest.TestCase):
             (Path(d) / '.omni').mkdir()
             (Path(d) / '.omni' / 'project.json').write_text(json.dumps(
                 {'port': port, 'start': [sys.executable, 'app.py'], 'health_path': '/'}))
+            (Path(d) / THRESHOLDS_PATH).parent.mkdir(parents=True, exist_ok=True)      # the platform stages it (visual plan S2)
+            (Path(d) / THRESHOLDS_PATH).write_text(threshold_file_text(visual_thresholds()))
             proc = subprocess.run([sys.executable, '-c', SCRIPT, viewport], cwd=d, capture_output=True, text=True,
                                   timeout=90, env=dict(os.environ, OMNI_CHROMIUM=CHROMIUM))
         report, _ = parse(proc.stdout)
