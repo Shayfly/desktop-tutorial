@@ -14,6 +14,7 @@ write them, and the build died on one sentence: sections.process.lead PRICE_NOT_
   3. (test_route_invented_facts.py) after the one correction, an invented fact loses its sentence, not the build
 
 The real decide(), validator, section library and payload; nothing is scripted here (AGENTS.md rule 2)."""
+import contextlib
 import hashlib
 import json
 import os
@@ -41,10 +42,14 @@ def on():
     return mock.patch.dict(os.environ, {'OMNI_SITE_LIBRARY': 'on'})
 
 
+@contextlib.contextmanager
 def one_page_only():
     """The decision past the one-page check: what the route WOULD do with this brief (the category, the domain, the
-    sections) -- the production build reached exactly this point."""
-    return mock.patch.object(one_page, 'beyond', return_value=[])
+    sections) -- the production build reached exactly this point. A picture per listed item is the default since
+    2026-11-27 (capability_planner.item_pictures_wanted), the same check made on the brief's items: also past it."""
+    with mock.patch.object(one_page, 'beyond', return_value=[]), \
+            mock.patch('omni_prod.capability_planner.item_pictures_wanted', return_value=False):
+        yield
 
 
 def decide(prompt, **kw):
