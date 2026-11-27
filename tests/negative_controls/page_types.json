@@ -1,0 +1,189 @@
+{
+ "pr": "wh123-page-types",
+ "sha256": [
+  "tests/test_page_types.py",
+  "tests/fixtures/page_type_corpus.json"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a shared top score picks the first type instead of saying tie: the customer is never asked",
+   "mutations": [
+    {
+     "file": "omni_prod/output_profile/page_types.py",
+     "old": "    if len(leaders) > 1:\n        return Detection(None, 'tie', scores, matched, leaders)\n",
+     "new": "    if False:\n        return Detection(None, 'tie', scores, matched, leaders)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types.py"
+   ],
+   "expect_failed": [
+    "test_a_shared_top_score_is_a_tie_with_its_candidates"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "one weak cue names a type: a request with a single hint is typed instead of asked",
+   "mutations": [
+    {
+     "file": "omni_prod/output_profile/page_types.py",
+     "old": "    if top < _DATA['min_score']:",
+     "new": "    if top < 1:"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types.py"
+   ],
+   "expect_failed": [
+    "test_every_corpus_row_gets_its_label_from_the_real_detector",
+    "test_one_weak_cue_is_not_enough"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a negated cue still counts: \"בלי תיק עבודות\" types the page a portfolio",
+   "mutations": [
+    {
+     "file": "omni_prod/output_profile/page_types.py",
+     "old": "                spans = [m.span() for m in pat.finditer(t) if not _negated(t, m.start())\n                         and not",
+     "new": "                spans = [m.span() for m in pat.finditer(t) if True\n                         and not"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types.py"
+   ],
+   "expect_failed": [
+    "test_a_negated_cue_does_not_count"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a cue inside a longer cue counts again (\"קפה\" inside \"בית קפה\")",
+   "mutations": [
+    {
+     "file": "omni_prod/output_profile/page_types.py",
+     "old": "\n                         and not any(a <= m.start() and m.end() <= b for a, b in covered)]",
+     "new": "]"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types.py"
+   ],
+   "expect_failed": [
+    "test_a_longer_cue_counts_once_not_with_the_cue_inside_it",
+    "test_every_corpus_row_gets_its_label_from_the_real_detector"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the landing word is a strong cue: \"דף נחיתה לבית קפה\" is no longer a business",
+   "mutations": [
+    {
+     "file": "omni_prod/output_profile/page_types.json",
+     "old": "\"3\": [\"קמפיין\", \"השארת פרטים\"",
+     "new": "\"3\": [\"דף נחיתה\", \"קמפיין\", \"השארת פרטים\""
+    }
+   ],
+   "targets": [
+    "tests/test_page_types.py"
+   ],
+   "expect_failed": [
+    "test_a_business_that_says_landing_page_is_a_business_the_landing_word_is_a_form_not_a_goal",
+    "test_every_corpus_row_gets_its_label_from_the_real_detector"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "no Hebrew prefix is tolerated: \"לעסק\" names no business",
+   "mutations": [
+    {
+     "file": "omni_prod/output_profile/page_types.py",
+     "old": "[הובשלמכ]{0,2}",
+     "new": "[הובשלמכ]{0,0}"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types.py"
+   ],
+   "expect_failed": [
+    "test_a_business_that_says_landing_page_is_a_business_the_landing_word_is_a_form_not_a_goal",
+    "test_a_negated_cue_does_not_count",
+    "test_a_shared_top_score_is_a_tie_with_its_candidates",
+    "test_a_word_inside_another_word_is_not_a_cue_and_a_hebrew_prefix_is",
+    "test_every_corpus_row_gets_its_label_from_the_real_detector"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the gate judges nothing: a page outside its type's table passes",
+   "mutations": [
+    {
+     "file": "omni_prod/output_profile/page_types.py",
+     "old": "for metric, (lo, hi) in table.items() if not lo <= got[metric] <= hi]",
+     "new": "for metric, (lo, hi) in table.items() if False]"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types.py"
+   ],
+   "expect_failed": [
+    "test_a_value_just_outside_a_range_is_found_and_just_inside_is_not",
+    "test_each_type_has_its_own_table_the_same_page_fails_the_others"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a tool (web_app) is given page types",
+   "mutations": [
+    {
+     "file": "omni_prod/output_profile/__init__.py",
+     "old": "page_types=PT.TYPES if kind in PAGE_FAMILIES else (),",
+     "new": "page_types=PT.TYPES,"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types.py"
+   ],
+   "expect_failed": [
+    "test_a_tool_or_an_unsupported_family_has_no_page_type_and_an_unknown_one_raises",
+    "test_every_corpus_row_gets_its_label_from_the_real_detector",
+    "test_the_output_profile_carries_the_types_for_a_page_and_none_for_a_tool"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the data check lets an unknown source through",
+   "mutations": [
+    {
+     "file": "omni_prod/output_profile/page_types.py",
+     "old": "        if t.get('source') not in SOURCES:",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types.py"
+   ],
+   "expect_failed": [
+    "test_the_data_check_refuses_every_malformed_entry"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the detector reads 148AI's own lines of the brief, not only the customer's words",
+   "mutations": [
+    {
+     "file": "omni_prod/output_profile/page_types.py",
+     "old": "    return detect_text(Fx.customer_text(prompt))",
+     "new": "    return detect_text(prompt)"
+    }
+   ],
+   "targets": [
+    "tests/test_page_types.py"
+   ],
+   "expect_failed": [
+    "test_it_reads_the_customers_words_and_never_148ais_wording_of_the_brief"
+   ]
+  }
+ ]
+}
