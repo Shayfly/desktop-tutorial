@@ -128,6 +128,73 @@ jobs:
           PY
           exit $rc
 
+      # 2026-11-27 (run 46005664127): the workflow printed `image=customer_photo`, the build ended READY and no `customer
+      # photo` line ever appeared, because the worker image was built before the option existed (the last [release]
+      # deploy) and its rehearsal ignored REHEARSAL_IMAGE without a word. A requested option now has to be PROVEN
+      # applied by the report the container printed (`options_applied`); a report that does not say so is a red run.
+      - name: Prove the requested options were applied
+        if: always()
+        env:
+          IMAGE: ${{ inputs.image }}
+          ACCOUNT: ${{ inputs.account }}
+          TIME_BUDGET: ${{ inputs.time_budget }}
+        run: |
+          set -uo pipefail
+          if command -v python3 >/dev/null; then PYRUN=(python3); else
+            PYRUN=(docker run --rm -i -e IMAGE -e ACCOUNT -e TIME_BUDGET -e RUNNER_TEMP -v "$RUNNER_TEMP:$RUNNER_TEMP" python:3.11-slim python3); fi
+          "${PYRUN[@]}" - "$RUNNER_TEMP/rehearsal.out" <<'PY'
+          import json, os, sys
+          image, account, budget = (os.environ.get(k, '').strip() for k in ('IMAGE', 'ACCOUNT', 'TIME_BUDGET'))
+          if not (image or account or budget):
+              print('::notice title=rehearsal options::none requested, nothing to prove')
+              sys.exit(0)
+          rep = None
+          try:
+              for line in open(sys.argv[1], encoding='utf-8', errors='replace'):
+                  if line.startswith('REHEARSAL '):
+                      rep = json.loads(line[len('REHEARSAL '):])
+          except OSError as exc:
+              print(f'::error title=rehearsal options::the rehearsal output cannot be read: {exc}')
+              sys.exit(1)
+          asked = f'image={image or "-"} account={account or "-"} time_budget={budget or "-"}'
+          if rep is None:
+              print(f'::error title=rehearsal options::requested {asked} but the container printed no REHEARSAL report')
+              sys.exit(1)
+          applied = rep.get('options_applied')
+          if applied is None:
+              print(f'::error title=rehearsal options::requested {asked} but the report has no options_applied: the worker image '
+                    'runs a rehearsal that does not know these options (it was built before the commit of this workflow; '
+                    'deploy it with a [release] commit) and ignored them')
+              sys.exit(1)
+          bad = []
+          if image and applied.get('image') != image:
+              bad.append(f'image {image!r} (applied {applied.get("image")!r})')
+          if account and applied.get('account') != account:
+              bad.append(f'account {account!r} (applied {applied.get("account")!r})')
+          if budget and ','.join(str(x) for x in applied.get('time_budget') or []) != ','.join(x.strip() for x in budget.split(',')):
+              bad.append(f'time_budget {budget!r} (applied {applied.get("time_budget")!r})')
+          if bad:
+              print('::error title=rehearsal options::not applied: ' + '; '.join(bad))
+              sys.exit(1)
+          if image:
+              photo = rep.get('photo')
+              if not isinstance(photo, dict):
+                  print(f'::error title=customer photo::requested image={image} but the report has no photo section')
+                  sys.exit(1)
+              kind = 'notice' if photo.get('ok') else 'error'
+              print(f"::{kind} title=customer photo::photo_as_file={photo.get('as_file')} hero_kept={photo.get('hero_kept')} "
+                    f"inline_data_uri_in={photo.get('inline_data_uri_in')}")
+              if not photo.get('ok'):
+                  sys.exit(1)
+          if account and not isinstance(rep.get('account'), dict):
+              print('::error title=account::requested a non-founder account but the report has no account section')
+              sys.exit(1)
+          if budget and not isinstance(rep.get('time_budget'), dict):
+              print('::error title=time budget::requested a time budget but the report has no time_budget section')
+              sys.exit(1)
+          print(f'::notice title=rehearsal options::applied {asked}')
+          PY
+
       - uses: actions/upload-artifact@v6
         if: always()
         with:
