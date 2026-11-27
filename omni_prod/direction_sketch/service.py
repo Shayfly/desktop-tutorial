@@ -19,7 +19,7 @@ from . import copy as C
 from . import copy_fp, direction_fp, direction_from_prompt, prompt_of, ready
 from . import store as S
 from .render import render
-from .structure import content
+from .structure import _title, content
 
 _LOG = logging.getLogger(__name__)
 STATES = ('structure', 'pending', 'written', 'failed')
@@ -68,6 +68,8 @@ def _state(row: S.Sketch) -> str:
 def view(store: S.SketchStore, reservations, row: S.Sketch) -> dict:
     """The card's state. Finalises a pending sketch (never settles money: that is the reservation's own path)."""
     d = _direction_of(row)
+    from .. import typography as T
+    pair = T.pair(d.pair)
     if row.copy_state == 'pending' and reservations is not None:
         row = C.finalise(store, reservations, row, d)
     words = row.copy
@@ -81,6 +83,8 @@ def view(store: S.SketchStore, reservations, row: S.Sketch) -> dict:
             'brief_revision': row.brief_revision,
             'direction': {'business': t['business'], 'palette': t['palette'], 'art_direction': t['art_direction'],
                           'pair': t['pair'], 'sections': t['sections'], 'titles': t['titles'],
+                          'fonts': [pair[role]['family'] for role in ('display', 'body')],
+                          'outline': [_title(k, d.titles) for k in d.sections if k != 'hero'],
                           'colours': {k: v for k, v in d.contract['tokens'].items() if k.startswith('--color-')}},
             'words': 'model' if words else 'placeholders', 'placeholders': placeholders,
             'funding': {'none': 'free', 'company_first': 'free', 'owner': 'free', 'customer': 'credits'}[row.funding]

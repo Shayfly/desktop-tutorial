@@ -798,6 +798,14 @@ Object.assign(T.he, {
   authLead: 'שום דבר לא נבנה ושום חיוב לא קורה בלי האישור שלכם.',
   specYours: 'הסיכום שלכם', specTitle: 'זה מה שנבנה', specFacts: 'פרטי העסק, כמו שכתבתם', specDefault: 'בחירה שלנו, אפשר לשנות',
   specPrice: 'מחיר', specNext: 'מה עכשיו',
+  sketchTitle: 'סקיצת כיוון', sketchDraft: 'טיוטה', sketchFrameTitle: 'תצוגה מקדימה של הסקיצה: טיוטה, לא האתר הסופי',
+  sketchColours: 'צבעים', sketchFonts: 'גופנים', sketchSections: 'חלקים בעמוד', sketchLoading: 'מציירים את הסקיצה…',
+  sketchWordsPending: 'הכותרת והמילים הראשונות בדרך. אפשר להמשיך לענות בצ׳אט.',
+  sketchWordsWritten: 'הכותרת והמילים הראשונות נכתבו על ידי מודל, והן עברו בדיקה. הניסוח הסופי נכתב בבנייה.',
+  sketchWordsPlaceholders: 'הכותרת והמילים הראשונות הן מקום שמור. הניסוח הסופי נכתב בבנייה.',
+  sketchWordsLate: 'הניסוח לא הגיע בזמן. הסקיצה נשארת עם מקום שמור למילים.',
+  sketchError: 'הסקיצה לא נטענה. אפשר לנסות שוב.', sketchOld: 'סקיצה קודמת',
+  sketchNote: 'זו סקיצה בלבד: שום דבר לא נבנה ושום חיוב לא קורה. עונים בצ׳אט, למשל "כן, זה הכיוון" או "בכחול כהה".',
   previewDevice: 'לראות כמו במחשב או כמו בטלפון', devDesktop: 'מחשב', devPhone: 'טלפון',
   // the build steps and the checks in the customer's words (the owner's example, screens 07 and 08; inbox 001 §6)
   stepPlanning: 'מתכננים מה לבנות', stepContract: 'מסכמים בדיוק מה ייבנה', stepInfra: 'מכינים את הבסיס',
@@ -831,6 +839,14 @@ Object.assign(T.en, {
   authLead: 'Nothing is built and nothing is charged without your approval.',
   specYours: 'Your summary', specTitle: 'This is what we will build', specFacts: 'Your business details, as you wrote them',
   specDefault: 'our choice, you can change it', specPrice: 'Price', specNext: 'What now',
+  sketchTitle: 'Direction sketch', sketchDraft: 'Draft', sketchFrameTitle: 'Preview of the sketch: a draft, not the final site',
+  sketchColours: 'Colours', sketchFonts: 'Fonts', sketchSections: 'Sections', sketchLoading: 'Drawing the sketch…',
+  sketchWordsPending: 'The headline and first words are on their way. You can keep answering in the chat.',
+  sketchWordsWritten: 'The headline and first words were written by a model and passed a check. The final wording is written at build.',
+  sketchWordsPlaceholders: 'The headline and first words are placeholders. The final wording is written at build.',
+  sketchWordsLate: 'The wording did not arrive in time. The sketch keeps placeholders for the words.',
+  sketchError: 'The sketch did not load. You can try again.', sketchOld: 'Earlier sketch',
+  sketchNote: 'This is a sketch only: nothing is built and nothing is charged. Answer in the chat, for example "yes, that direction" or "in dark blue".',
   previewDevice: 'See it as on a computer or on a phone', devDesktop: 'Computer', devPhone: 'Phone',
   stepPlanning: 'Planning what to build', stepContract: 'Agreeing exactly what gets built', stepInfra: 'Preparing the basics',
   stepAssets: 'Preparing images and an icon', stepGenerate: 'Building your site', stepGates: 'Checking it works and is safe',
@@ -865,6 +881,14 @@ Object.assign(T.ar, {
   authLead: 'لا يُبنى شيء ولا يُخصم شيء من دون موافقتكم.',
   specYours: 'ملخّصكم', specTitle: 'هذا ما سنبنيه', specFacts: 'تفاصيل عملكم، كما كتبتموها', specDefault: 'اختيارنا، يمكن تغييره',
   specPrice: 'السعر', specNext: 'ماذا الآن',
+  sketchTitle: 'رسم الاتجاه', sketchDraft: 'مسودة', sketchFrameTitle: 'معاينة الرسم: مسودة وليس الموقع النهائي',
+  sketchColours: 'الألوان', sketchFonts: 'الخطوط', sketchSections: 'أقسام الصفحة', sketchLoading: 'نرسم الرسم الأولي…',
+  sketchWordsPending: 'العنوان والكلمات الأولى في الطريق. يمكنكم متابعة الإجابة في المحادثة.',
+  sketchWordsWritten: 'كتب نموذج العنوان والكلمات الأولى وتم فحصها. تُكتب الصياغة النهائية عند البناء.',
+  sketchWordsPlaceholders: 'العنوان والكلمات الأولى أماكن محجوزة. تُكتب الصياغة النهائية عند البناء.',
+  sketchWordsLate: 'لم تصل الصياغة في الوقت المناسب. يبقى الرسم بأماكن محجوزة للكلمات.',
+  sketchError: 'لم يُحمَّل الرسم. يمكنكم المحاولة مرة أخرى.', sketchOld: 'رسم سابق',
+  sketchNote: 'هذا رسم أولي فقط: لا يُبنى شيء ولا يُحتسب أي رسم. أجيبوا في المحادثة، مثلاً "نعم، هذا الاتجاه" أو "بالأزرق الداكن".',
   previewDevice: 'المشاهدة كما على الحاسوب أو كما على الهاتف', devDesktop: 'حاسوب', devPhone: 'هاتف',
   stepPlanning: 'نخطّط لما سنبنيه', stepContract: 'نتّفق بالضبط على ما سيُبنى', stepInfra: 'نجهّز الأساس',
   stepAssets: 'نجهّز الصور والأيقونة', stepGenerate: 'نبني موقعكم', stepGates: 'نتحقق من أن كل شيء يعمل وآمن',
@@ -2574,6 +2598,103 @@ function specCard(card) {
         card.price ? h('div', { class: 'inset fire' }, h('h3', {}, t('specPrice')), h('p', {}, card.price)) : null,
         card.next ? h('div', { class: 'inset' }, h('h3', {}, t('specNext')), h('p', {}, card.next)) : null)));
 }
+/* ---------- direction sketch (S6.3): the card ---------- */
+// The server only OFFERS a sketch in a turn (action direction_sketch); this card asks for it once, shows its page in a
+// sandboxed frame at once (structure, colours, fonts, outline: free, no model), polls for the words a bounded number of
+// times and says in text what is still a placeholder. It has no approve button: the customer answers in the chat, and the
+// two approvals of the build stay where they were. Warehouse 124's rules: a card in the conversation with a phone / desktop
+// switch, not a separate screen and not a frame that takes the conversation over.
+const SKETCH_POLL_MS = 2000, SKETCH_POLL_MAX = 60;
+function sketchState(fp) {
+  S.sketches = S.sketches || {};
+  return S.sketches[fp] || (S.sketches[fp] = { fp, id: null, view: null, error: null, polls: 0, creating: false,
+    device: 'phone', frameKey: 0, nodes: null, timer: null });
+}
+function sketchWordsLine(st) {
+  const v = st.view;
+  if (!v) return '';
+  if (v.state === 'pending') return st.polls >= SKETCH_POLL_MAX ? t('sketchWordsLate') : t('sketchWordsPending');
+  if (v.state === 'written') return t('sketchWordsWritten');
+  return t('sketchWordsPlaceholders');
+}
+function sketchSummaryRows(v) {
+  const d = v.direction || {};
+  const colours = ['--color-primary', '--color-bg', '--color-surface', '--color-text'].map(k => (d.colours || {})[k]).filter(Boolean);
+  const swatches = h('span', { class: 'sketchSwatches' }, colours.map(c => {
+    const sw = h('i', { class: 'sw', 'aria-hidden': 'true' });
+    sw.style.setProperty('background', c);
+    return sw;
+  }), h('span', { class: 'sr' }, colours.join(' ')));
+  return [[t('sketchColours'), swatches], [t('sketchFonts'), (d.fonts || []).join(' · ')],
+          [t('sketchSections'), (d.outline || []).join(' · ')]];
+}
+function updateSketchDom(st) {
+  const n = st.nodes;
+  if (!n) return;
+  n.state.textContent = st.error ? t('sketchError') : sketchWordsLine(st);
+  if (st.view && n.frame && n.frame.dataset.key !== String(st.frameKey)) {         // the words arrived: the frame loads again
+    n.frame.dataset.key = String(st.frameKey);
+    n.frame.src = `/api/v28/projects/${pid()}/sketches/${encodeURIComponent(st.id)}/page?v=${st.frameKey}`;
+  }
+  if (n.frame) n.frame.className = `sketchFrame ${st.device}`;
+  for (const [dev, btn] of Object.entries(n.devices || {})) btn.setAttribute('aria-pressed', String(dev === st.device));
+}
+async function pollSketch(st) {
+  st.polls += 1;
+  const project = S.projectId;
+  try {
+    const d = await api(`/api/v28/projects/${pid()}/sketches/${encodeURIComponent(st.id)}`);
+    if (!stillOn(project)) return;
+    if (d.sketch.state !== st.view.state) st.frameKey += 1;
+    st.view = d.sketch;
+  } catch (e) { /* the next poll tries again; the bound below ends it */ }
+  updateSketchDom(st);
+  scheduleSketchPoll(st);
+}
+function scheduleSketchPoll(st) {
+  clearTimeout(st.timer);
+  if (st.id && st.view && st.view.state === 'pending' && st.polls < SKETCH_POLL_MAX) st.timer = setTimeout(() => pollSketch(st), SKETCH_POLL_MS);
+}
+async function ensureSketch(a) {
+  const st = sketchState(a.direction_fp);
+  if (st.id || st.creating || st.error) return;                  // once per offer (a guard, as accessPending)
+  st.creating = true;
+  const project = S.projectId;
+  try {
+    const d = await api(`/api/v28/projects/${pid()}/sketches`, { method: 'POST', body: { brief_revision: a.brief_revision } });
+    if (!stillOn(project)) return;
+    st.id = d.sketch.id; st.view = d.sketch; st.frameKey += 1;
+  } catch (e) { st.error = explain(e); }
+  finally { st.creating = false; }
+  renderChat();
+  scheduleSketchPoll(st);
+}
+function sketchCard(a, current) {
+  const st = sketchState(a.direction_fp);
+  const v = st.view;
+  const kids = [h('header', { class: 'sketchBar' }, h('strong', {}, t('sketchTitle')), h('span', { class: 'pill warn' }, t('sketchDraft')))];
+  if (!current) {                                                // an earlier direction: its line, no frame
+    kids.push(h('p', { class: 'sketchOld hint' }, t('sketchOld')));
+    return h('section', { class: 'sketchCard old', 'aria-label': t('sketchTitle') }, kids);
+  }
+  const nodes = { devices: {} };
+  st.nodes = nodes;
+  if (st.id && v) {
+    nodes.frame = h('iframe', { class: `sketchFrame ${st.device}`, title: t('sketchFrameTitle'), sandbox: '',
+      src: `/api/v28/projects/${pid()}/sketches/${encodeURIComponent(st.id)}/page?v=${st.frameKey}`, 'data-key': String(st.frameKey) });
+    const dev = (id, device, label) => (nodes.devices[device] = h('button', { type: 'button', class: 'secondary', 'aria-pressed': String(st.device === device),
+      onclick: () => { st.device = device; updateSketchDom(st); } }, label));
+    kids.push(h('div', { class: 'sketchTools', role: 'group', 'aria-label': t('previewDevice') },
+      dev('devPhone', 'phone', t('devPhone')), dev('devDesktop', 'desktop', t('devDesktop'))));
+    kids.push(h('div', { class: 'sketchFrameWrap' }, nodes.frame));
+    kids.push(h('dl', { class: 'sketchRows' }, sketchSummaryRows(v).map(([k, val]) => h('div', {}, h('dt', {}, k), h('dd', { dir: 'auto' }, val)))));
+  }
+  nodes.state = h('p', { class: 'sketchState', role: 'status', dir: 'auto' }, st.error ? t('sketchError') : st.id ? sketchWordsLine(st) : t('sketchLoading'));
+  kids.push(nodes.state);
+  if (st.error) kids.push(h('button', { type: 'button', class: 'secondary', onclick: () => { st.error = null; ensureSketch(a); renderChat(); } }, t('tryAgain')));
+  kids.push(h('p', { class: 'sketchNote hint', dir: 'auto' }, t('sketchNote')));
+  return h('section', { class: 'sketchCard', 'aria-label': t('sketchTitle') }, kids);
+}
 function renderChat() {
   const box = $('thread'); if (!box) return;
   const msgs = (S.projectId && S.chat && S.chat.messages) || [];   // a new conversation (no project yet) opens on the welcome
@@ -2592,6 +2713,10 @@ function renderChat() {
       } }, label)))));
   else if (S.chat && S.chat.unavailable) kids.push(h('p', { class: 'msg' }, S.chat.unavailable));
   const lastAssistant = msgs.map(m => m.role).lastIndexOf('assistant');
+  // the actions a message carries; the last assistant message also carries the turn's own, as its buttons do
+  const actionsOf = (m, i) => (i === lastAssistant && !(m.actions && m.actions.length) ? ((S.chat.turn && S.chat.turn.actions) || []) : (m.actions || []));
+  const sketchFps = msgs.flatMap((m, i) => actionsOf(m, i).filter(a => a.type === 'direction_sketch').map(a => a.direction_fp));
+  const currentSketch = sketchFps[sketchFps.length - 1];
   msgs.forEach((m, i) => {
     // review F3 (2026-11-22): the speaker, said to screen readers; an aria-label on a plain div is not read
     const bubble = h('div', { class: `bubble ${m.role}`, dir: 'auto' }, h('span', { class: 'sr' }, `${m.role === 'customer' ? t('you') : t('assistant')}: `), m.content);
@@ -2604,6 +2729,11 @@ function renderChat() {
       bubble.append(h('p', { class: 'hint aiFallback' }, t('aiFallback')));
     if (m.attachments && m.attachments.length) bubble.append(h('div', { class: 'thumbs' }, m.attachments.map(a =>
       h('img', { src: `/api/v28/projects/${pid()}/attachments/${encodeURIComponent(a.id)}`, alt: t('attachedImage'), loading: 'lazy', width: 72, height: 72 }))));
+    for (const a of actionsOf(m, i).filter(x => x.type === 'direction_sketch')) {
+      const current = a.direction_fp === currentSketch;
+      bubble.append(sketchCard(a, current));
+      if (current) ensureSketch(a);
+    }
     if (i === lastAssistant) {
       // CEO 2026-11-08: no questionnaire. Only the buttons the server sent with this turn; never the detector's
       // pending questions as a fallback (Venice asks in words; the server sends none while she leads).
