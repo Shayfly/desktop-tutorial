@@ -1,0 +1,396 @@
+{
+ "pr": "owner-costs",
+ "sha256": [
+  "tests/test_owner_costs_pg.py",
+  "tests/test_missing_price_never_refuses.py",
+  "tests/test_worker_budget_binding.py",
+  "tests/test_owner_rules_and_money_review.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the founder's $2 per-build budget is restored (the owner's build is cut and stops again)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        unlimited = founder_test and owner_unlimited",
+     "new": "        unlimited = False  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py",
+    "tests/test_worker_budget_binding.py"
+   ],
+   "expect_failed": [
+    "test_the_owner_2026_11_26_founder_build_is_bounded_by_the_safety_bound_only"
+   ],
+   "expect_failed_pg": [
+    "test_the_owner_2026_11_26_founder_build_is_bounded_by_the_safety_bound_only",
+    "test_the_owner_build_spends_past_the_old_two_dollar_cap_and_completes",
+    "test_the_report_reads_each_build_back_per_stage_round_model_and_credit"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a second account reads the owner's cost report",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    if not _founder(account.id):\n        raise HTTPException(403, 'This report is for the owner account only.')",
+     "new": "    if False:  # NEGATIVE CONTROL\n        raise HTTPException(403, 'This report is for the owner account only.')"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_route_serves_the_owner_and_refuses_every_other_account"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a stage's cost is dropped from the report (repair calls counted, their cost lost)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/owner_costs.py",
+     "old": "            for bucket in (stages[stage], models[model or '?'], m, st):\n                bucket['known_cost_usd'] += c",
+     "new": "            for bucket in (stages[stage], models[model or '?'], m, st):\n                bucket['known_cost_usd'] += c if stage != 'repair' else 0  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_report_reads_each_build_back_per_stage_round_model_and_credit"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the refusal returns: a configured provider without a price makes the quote unknown (402)",
+   "mutations": [
+    {
+     "file": "omni_prod/build_cost_plan.py",
+     "old": "        if not quote.price_known:\n            price_missing.append(",
+     "new": "        if not quote.price_known:\n            unknown.append('no price')  # NEGATIVE CONTROL\n            price_missing.append("
+    }
+   ],
+   "targets": [
+    "tests/test_missing_price_never_refuses.py"
+   ],
+   "expect_failed": [
+    "test_the_quote_no_longer_refuses_an_unpriced_capability"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "an unknown cost is recorded as 0 (a model without a price meters $0)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/attempt_ledger.py",
+     "old": "    if not getattr(option, 'price_known', True):   # the owner 2026-11-26: a model without a price -> unknown, never 0\n        return None",
+     "new": "    if not getattr(option, 'price_known', True):   # the owner 2026-11-26: a model without a price -> unknown, never 0\n        return Decimal('0')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_model_without_a_price_completes_and_records_an_unknown_cost_with_its_tokens",
+    "test_the_report_names_the_missing_cost_data"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the build evidence drops its missing-cost-data list",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        evidence['cost_data_missing'] = _evidence_gaps(settlement_evidence, gateway, capability_evidence,",
+     "new": "        evidence['cost_data_missing'] = [] and _evidence_gaps(settlement_evidence, gateway, capability_evidence,  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_model_without_a_price_completes_and_records_an_unknown_cost_with_its_tokens"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the report drops its missing-cost-data section",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/owner_costs.py",
+     "old": "        'missing_cost_data': gaps,",
+     "new": "        'missing_cost_data': [],  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_report_names_the_missing_cost_data"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a missing catalog price stops the catalog again (every build fails)",
+   "mutations": [
+    {
+     "file": "omni_prod/model_catalog.py",
+     "old": "        else:\n            input_price, output_price = UNPRICED_STAND_IN",
+     "new": "        else:\n            raise ModelCatalogError(f'{name}: price is required')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_model_catalog_routing.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_price_keeps_the_model_with_an_unknown_cost"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "money review B1: an unpriced call of a customer build settles at $0 (the stand-in is taken out)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        if unpriced_llm_usd:      # money review B1: charged at the stand-in worst case, never at $0 -- and named\n",
+     "new": "        if unpriced_llm_usd:      # money review B1: charged at the stand-in worst case, never at $0 -- and named\n            llm -= Decimal(str(unpriced_llm_usd))  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_rules_and_money_review.py",
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_customer_build_is_charged_the_stand_in_not_zero"
+   ],
+   "expect_failed_pg": [
+    "test_a_customer_build_is_charged_the_stand_in_not_zero",
+    "test_a_model_without_a_price_completes_and_records_an_unknown_cost_with_its_tokens"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "money review S1: a configured fallback route is taken for a price-unknown model ('metered is None')",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "            and price_unknown(getattr(r, 'selection_reason', None))]",
+     "new": "            and True]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_rules_and_money_review.py"
+   ],
+   "expect_failed": [
+    "test_a_configured_route_without_a_catalog_price_settles_at_its_flat_authorization"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "money review S2: the reconciler holds a price-unknown call for ever",
+   "mutations": [
+    {
+     "file": "omni_prod/reservation_reconciler.py",
+     "old": "    if any(outcome == 'ok' and metered is None and not price_unknown(why) for outcome, metered, why, _ in rows):",
+     "new": "    if any(outcome == 'ok' and metered is None for outcome, metered, why, _ in rows):  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_rules_and_money_review.py"
+   ],
+   "expect_failed": [
+    "test_a_price_unknown_call_is_charged_its_stand_in"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "money review S3: BOUND_NEAR is never noted after an authorized call",
+   "mutations": [
+    {
+     "file": "omni_prod/routed_gateway.py",
+     "old": "        if route.endpoint.external:\n            self._note_near_bounds()",
+     "new": "        if False:  # NEGATIVE CONTROL\n            self._note_near_bounds()"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_rules_and_money_review.py"
+   ],
+   "expect_failed": [
+    "test_a_build_that_crosses_80_percent_of_its_calls_is_logged",
+    "test_the_money_value_is_labelled_authorized_not_spend"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the owner 2026-11-26 16:10: OMNI_FOUNDER_ACCOUNT_IDS widens the new rules again",
+   "mutations": [
+    {
+     "file": "omni_prod/pricing.py",
+     "old": "    return bool(account_id) and str(account_id) == OWNER_ACCOUNT_ID",
+     "new": "    return m5_founder_account(account_id)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_rules_and_money_review.py"
+   ],
+   "expect_failed": [
+    "test_the_founder_env_list_does_not_widen_the_new_rules",
+    "test_a_listed_partner_keeps_the_worker_budget_for_change_requests",
+    "test_the_owner_passes_the_caps_a_customer_hits"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the owner 2026-11-26 16:10: his conversation caps return (the per-project and daily gate)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            spend = lambda: (Decimal('0'), Decimal('0'))   # noqa: E731",
+     "new": "            pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_rules_and_money_review.py"
+   ],
+   "expect_failed": [
+    "test_the_owner_passes_the_caps_a_customer_hits"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "money review B1: the stand-in charge is not capped at the reservation",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        if computed is not None and unpriced_llm > 0 and reserved_total not in (None, '', 'None') \\\n",
+     "new": "        if False and computed is not None and unpriced_llm > 0 and reserved_total not in (None, '', 'None') \\\n"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_rules_and_money_review.py"
+   ],
+   "expect_failed": [
+    "test_the_stand_in_is_capped_at_the_reservation"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "the owner's conversation reservation carries the customer caps again",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            caps = dataclasses.replace(caps, project_usd=B.OWNER_INTAKE_SAFETY_USD,",
+     "new": "            caps = dataclasses.replace(caps, project_usd=caps.project_usd,  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_rules_and_money_review.py"
+   ],
+   "expect_failed": [
+    "test_the_owners_reservation_carries_the_safety_bound_not_the_caps"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "migration 048: a reader adds a NULL image estimate as 0 (the report)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/owner_costs.py",
+     "old": "            if value is None:        # migration 048: a NULL estimate is unknown, never added as 0",
+     "new": "            if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_an_unpriced_image_event_stores_no_estimate_and_the_report_does_not_add_it"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "migration 048: an unknown model cost is written as 0, not NULL",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "                ai_cost = CASE WHEN %s THEN NULL ELSE COALESCE(%s, ai_cost) END",
+     "new": "                ai_cost = CASE WHEN %s THEN 0 ELSE COALESCE(%s, ai_cost) END  -- NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_model_without_a_price_completes_and_records_an_unknown_cost_with_its_tokens"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "migration 048: a build that never started gets 0 seconds, not NULL",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "            finished_sql += (\" build_seconds = CASE WHEN started_at IS NULL THEN NULL\"",
+     "new": "            finished_sql += (\" build_seconds = CASE WHEN started_at IS NULL THEN 0\""
+    }
+   ],
+   "targets": [
+    "tests/test_owner_costs_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_build_that_never_started_has_no_duration_not_zero"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "migration 048: an unpriced image event stores the quote's 0 placeholder as its estimate",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_executor.py",
+     "old": "                                   if getattr(assignment.quote, \"price_known\", True) else None),",
+     "new": "                                   if True else None),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_google_image_direct.py"
+   ],
+   "expect_failed": [
+    "test_an_unpriced_image_is_made_and_its_usage_event_has_no_estimate"
+   ]
+  }
+ ]
+}

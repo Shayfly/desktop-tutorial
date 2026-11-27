@@ -1,5 +1,14 @@
 # The fast suite (the owner, 2026-11-15 22:50): files chosen by MEASUREMENT, regenerate with the same method.
-# Re-measured 2026-11-22 on main 9d4e478 by Claude: the 30 s budget failed in CI twice the same day (#493 30,964 ms,
+# Re-measured 2026-11-27 on main a034c58 by Claude: tests/ grew to 580 test files (480 at the last measurement), which
+# trips tests/test_fast_suite.py. Method unchanged (below): of the 580 files, 277 touch the environment, 32 name
+# fastapi|psycopg|boto3|botocore|TestClient and 5 are listed in tests/needs_env.txt (dropped); of the 265 left, each run
+# ALONE: 246 under 2000 ms with exit 0 (19 slower or failing); then the total cap: fastest first, the largest prefix whose
+# ONE pytest process takes under 13 s here, each probe run twice and the slower kept.
+# Result: 122 files; together 826 passed, 11 skipped, 145 subtests passed, 10.95 s (one pytest process; 11.5 s the
+# slower probe); 124 dropped by the cap (they still run in the full suite).
+#
+# Earlier measurement (2026-11-22, main 9d4e478):
+#   Re-measured by Claude: the 30 s budget failed in CI twice the same day (#493 30,964 ms,
 # #496 31,983 ms; main itself 23,060 ms) -- the same 1480 tests, the runner slower; here the 187 files took 16-21 s
 # together, over the 13 s cap. Most of the time is importing modules at collection, not the tests (slowest test
 # 0.4 s). Method unchanged (below): each file alone (all 187 under 2000 ms, exit 0), then the total cap: fastest
@@ -17,69 +26,62 @@
 #   takes under 13 s here (about 20 s on the CI runner, under its 30 s budget with room for its variance).
 # Result: 187 files; together 1476 passed, 600 subtests passed, 11.5 s (one pytest process).
 # A file is added or removed only by re-measuring, never by name.
-# Re-measured by Claude: whenever tests/ grows by 100 test files since this date (480 here), or when
+# Re-measured by Claude: whenever tests/ grows by 100 test files since this date (580 here), or when
 # scripts/test_fast.sh fails its 30 s budget -- whichever comes first.
-tests/test_a_hash_is_not_a_phone.py
+tests/test_a_word_inside_another_word.py
+tests/test_acceptance_coverage.py
 tests/test_amateur_cost_class_lock.py
 tests/test_architect_spec_shape.py
-tests/test_architect_website_no_crud.py
-tests/test_asset_requirements.py
 tests/test_backup_restore.py
 tests/test_build_flow.py
 tests/test_changed_files_sane.py
-tests/test_ci_playwright_install.py
+tests/test_ci_browser_python.py
 tests/test_ci_scope.py
-tests/test_ci_workflow_concurrency.py
 tests/test_ci_yaml_validation.py
 tests/test_classification_corpus.py
 tests/test_company_loss.py
 tests/test_computed_cost_from_usage.py
 tests/test_consistency_gate.py
+tests/test_content_extension_is_not_a_conflict.py
 tests/test_content_truth_rtl_20261109.py
 tests/test_controls_counts.py
-tests/test_default_hero.py
+tests/test_conversation_turn_cap_pg.py
+tests/test_corpus_insert.py
 tests/test_dependency_gate_tests_py.py
 tests/test_design_palettes_price_v0.py
+tests/test_domain_references.py
 tests/test_economics_report.py
 tests/test_entitlements.py
 tests/test_env_example_intake.py
 tests/test_env_example_pricing.py
 tests/test_evidence_json.py
-tests/test_executor.py
+tests/test_executed_skill_evidence.py
 tests/test_expect_text_contains_list.py
 tests/test_failed_build_releases_credits.py
-tests/test_failure_replay.py
 tests/test_feedback_rule.py
-tests/test_financial_journal_guard.py
+tests/test_finding_attribution.py
 tests/test_first_agent_brief_slice.py
-tests/test_first_agent_proposal.py
+tests/test_first_agent_keeps_every_fact.py
 tests/test_first_agent_structure_editor.py
-tests/test_gate_required_facts.py
+tests/test_font_range_in_ci.py
+tests/test_function_region.py
+tests/test_game_kit_in_ci.py
+tests/test_gate_calibration_false_positives.py
 tests/test_history_without_artifact_download.py
 tests/test_i18n_contract.py
-tests/test_image_provider_honours_kill_switch.py
-tests/test_image_subject_after_colon.py
+tests/test_image_failure_words_in_ci.py
 tests/test_infisical_secret_store.py
 tests/test_intake_complexity.py
-tests/test_intake_decision_mutants.py
 tests/test_intake_explicit_intent_regression.py
-tests/test_intake_family_intent.py
-tests/test_intake_model_does_not_answer.py
-tests/test_intake_palette_preservation.py
 tests/test_intake_palette_regression.py
 tests/test_intake_product_family_regression.py
-tests/test_isolation_check.py
-tests/test_j1_j2_existing_engine_integration.py
-tests/test_j3_three_repair_round_policy.py
 tests/test_luna_not_for_code_writing.py
 tests/test_m2_native_logic.py
 tests/test_m495_asset_evidence.py
 tests/test_m495_capability_executor.py
-tests/test_m495_capability_planner.py
 tests/test_m495_capability_registry.py
 tests/test_m495_capability_repository.py
 tests/test_m495_capability_verification.py
-tests/test_m495_golden_acceptance.py
 tests/test_m495_provider_adapters_credentials.py
 tests/test_m495_provider_contracts.py
 tests/test_m495_provider_pricing_economics.py
@@ -89,75 +91,62 @@ tests/test_m495_subscription_settlement.py
 tests/test_m4_modification_engine.py
 tests/test_m5_browser_session.py
 tests/test_m5_migration_numbering.py
-tests/test_m5_planner_target_detection.py
-tests/test_m5_product_architect.py
 tests/test_m5_project_lifecycle.py
-tests/test_m5_ssrf_guard.py
 tests/test_model_gateway_idempotency.py
 tests/test_model_json_parsing.py
 tests/test_model_transient_retry.py
 tests/test_modification_context.py
 tests/test_modification_diff.py
 tests/test_modifier_engine.py
-tests/test_output_profile_router.py
-tests/test_page_outline_reaches_the_generator.py
-tests/test_postdeploy_paid_verify_missing_version.py
+tests/test_no_store_answer_is_read.py
+tests/test_path_ownership.py
+tests/test_phone_chat_in_ci.py
+tests/test_platform_a11y_in_ci.py
+tests/test_platform_for_everyone_in_ci.py
+tests/test_postdeploy_crash_agent_graph.py
+tests/test_postdeploy_crash_resume.py
 tests/test_postdeploy_r2_artifact.py
 tests/test_preview_isolation.py
-tests/test_product_evolution.py
 tests/test_provider_probe.py
 tests/test_qa_budget.py
 tests/test_qa_plan_parity.py
-tests/test_r2_generated_credentials.py
+tests/test_question_widget_needs_a_channel.py
 tests/test_reconciler_releases_failed_builds.py
-tests/test_redaction_fail_closed.py
-tests/test_redaction_single_layer.py
 tests/test_reference_fallback.py
-tests/test_reference_offers.py
-tests/test_reference_store.py
 tests/test_rehearsal_asks_the_release_policy.py
-tests/test_release_blocks_on_failed_acceptance.py
-tests/test_repair_model_unavailable.py
+tests/test_repair_json_schema.py
 tests/test_repair_sees_main_file.py
-tests/test_repair_stop_loss.py
-tests/test_repair_test_edits.py
-tests/test_replicate_exact_output_host.py
+tests/test_replay_runs_daily.py
 tests/test_replicate_refusal_names_host_and_hop.py
-tests/test_replicate_status_logs_stage.py
 tests/test_requirement_ledger.py
 tests/test_reservation_reconciler.py
 tests/test_rtl_time_ranges.py
 tests/test_run1_create_step_body.py
-tests/test_skill_units_a11y.py
+tests/test_shell_133_in_ci.py
 tests/test_skills_registry.py
 tests/test_skills_runtime_and_review.py
-tests/test_spec_language.py
 tests/test_stale_prs.py
 tests/test_status_docs_integrity.py
 tests/test_syntax_message_carries_the_line.py
 tests/test_t3_json_no_silent_trailing.py
 tests/test_t3_rejected_json_durable.py
+tests/test_testimonials_one_rule.py
 tests/test_universal_family_skill_resolution.py
+tests/test_upload_counts.py
 tests/test_v12_core.py
 tests/test_v13_core.py
-tests/test_v14_core.py
 tests/test_v15_acceptance.py
 tests/test_v16_release_gate.py
 tests/test_v17_preflight.py
 tests/test_v19_reliability.py
 tests/test_v20_observability_recovery.py
 tests/test_v22_sandbox_executor.py
-tests/test_v7_readiness_regression.py
 tests/test_v7_semantic_marker_provenance.py
-tests/test_v7_visitor_no_login_boundary.py
 tests/test_venice_provider.py
 tests/test_venice_two_modes.py
 tests/test_verification_group_pointer.py
-tests/test_vertical_palettes.py
-tests/test_vision_probe.py
 tests/test_vision_route_guard.py
 tests/test_website_requirements_regression.py
-tests/test_worker_budget_binding.py
-tests/test_worker_repository_parity.py
+tests/test_windows_fit_the_business.py
+tests/test_workspace_tests_in_ci.py
 tests/test_workspace_version_conflict.py
-tests/test_wp1_gap_detector.py

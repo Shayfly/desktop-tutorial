@@ -55,16 +55,23 @@ def is_terminal(cur, build_id: str) -> bool:
 
 def verdict(cur, build_id: str) -> tuple[str, Decimal, str]:
     """('release'|'release_metered'|'hold', metered_total, reason) from the build's provider-call attempts."""
-    cur.execute("SELECT outcome, metered_cost_usd FROM task_attempts WHERE build_id = %s AND kind = 'provider_call'",
-                (build_id,))
-    rows = cur.fetchall()
-    if any(outcome == 'unknown' for outcome, _ in rows):
+    from .attempt_ledger import price_unknown
+    cur.execute("SELECT outcome, metered_cost_usd, selection_reason, authorized_cost_usd FROM task_attempts "
+                "WHERE build_id = %s AND kind = 'provider_call'", (build_id,))
+    rows = [tuple(r) + (None,) * (4 - len(r)) for r in cur.fetchall()]
+    if any(outcome == 'unknown' for outcome, *_ in rows):
         return 'hold', Decimal('0'), 'a provider call has outcome unknown'
-    if any(outcome == 'ok' and metered is None for outcome, metered in rows):
+    # Money review S2 (2026-11-26): a completed call whose PRICE is known to be missing is not unknown liability --
+    # it is charged its authorized stand-in worst case (the same amount settlement charges) instead of holding for ever.
+    stand_in = [(o, m, why, a) for o, m, why, a in rows if o == 'ok' and m is None and price_unknown(why)]
+    if any(outcome == 'ok' and metered is None and not price_unknown(why) for outcome, metered, why, _ in rows):
         return 'hold', Decimal('0'), 'a completed provider call has no metered cost'
-    total = sum((Decimal(str(m)) for _, m in rows if m is not None), Decimal('0'))
+    total = sum((Decimal(str(m)) for _, m, _, _ in rows if m is not None), Decimal('0'))
+    total += sum((Decimal(str(a or 0)) for *_, a in stand_in), Decimal('0'))
     if total > 0:
-        return 'release_metered', total, f'{len(rows)} finished call(s), metered {total}'
+        return 'release_metered', total, (f'{len(rows)} finished call(s), metered {total}'
+                                          + (f' (of it {len(stand_in)} price-unknown call(s) at the stand-in)'
+                                             if stand_in else ''))
     return 'release', total, f'{len(rows)} finished call(s), nothing metered'
 
 

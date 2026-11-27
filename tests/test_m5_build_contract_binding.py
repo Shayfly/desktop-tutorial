@@ -117,14 +117,22 @@ class ContractSelectionTests(unittest.TestCase):
             contract_version=1,
         )
         repo.save(contract)
-        with self.assertRaises(PermissionError):
-            investor_app._m5_resolve_build_contract(
-                repository=repo,
-                architect=ProductArchitect(),
-                project_id="proj-other",
-                prompt="changed prompt must not matter",
-                requested_contract_id=contract.id,
-            )
+        # S4.5 (2026-11-26): rejected with exactly the refusal an unknown id gets (a PermissionError of its own told the
+        # caller the id exists in another project).
+        refusals = []
+        for requested in (contract.id, "bc_000000000000000000000000"):
+            with self.assertRaises(investor_app.HTTPException) as ctx:
+                investor_app._m5_resolve_build_contract(
+                    repository=repo,
+                    architect=ProductArchitect(),
+                    project_id="proj-other",
+                    prompt="changed prompt must not matter",
+                    requested_contract_id=requested,
+                )
+            refusals.append((ctx.exception.status_code, ctx.exception.detail))
+        self.assertEqual(refusals[0], refusals[1])
+        self.assertEqual(refusals[0][0], 409)
+        self.assertEqual(refusals[0][1]['error'], 'build_contract_invalid')
 
     def test_existing_contract_id_wins_over_changed_prompt(self):
         repo = MemoryBuildContractRepository()

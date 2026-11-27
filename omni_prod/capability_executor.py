@@ -373,7 +373,10 @@ class CapabilityExecutor:
             "capability_key": requirement.key, "provider": assignment.provider,
             "provider_operation": "collect", "pricing_version": assignment.quote.pricing_version,
             "status": "SUCCEEDED",
-            "estimated_cost_usd": assignment.quote.estimated_cost_usd,
+            # migration 048: an unpriced quote has no estimate -- NULL, never its 0 placeholder (pricing_version
+            # keeps the 'unpriced:' marker)
+            "estimated_cost_usd": (assignment.quote.estimated_cost_usd
+                                   if getattr(assignment.quote, "price_known", True) else None),
             "maximum_cost_usd": assignment.quote.maximum_cost_usd,
             "actual_cost_usd": result.actual_cost_usd,
             "usage": dict(result.usage), "evidence": dict(result.evidence),

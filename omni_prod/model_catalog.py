@@ -5,9 +5,11 @@ entry names the environment variable that holds its API key (`api_key_env`);
 keys are never stored inside the catalog. An entry whose key variable is empty
 is kept as NOT_CONFIGURED and is never routed to.
 
-Prices are mandatory: an unknown price is a configuration error, never an
-assumed zero. The router uses them to order candidates and to authorize a
-conservative per-call maximum before any request is sent.
+An unknown price is never an assumed zero. The router uses prices to order
+candidates and to authorize a conservative per-call maximum before any request
+is sent. Since the owner's word of 2026-11-26 a missing price no longer stops
+the catalog (or a build): the entry routes with price_known False, authorized
+at UNPRICED_STAND_IN, and its calls are recorded with tokens and an UNKNOWN cost.
 """
 from __future__ import annotations
 
@@ -24,6 +26,20 @@ from .model_router import ModelOption
 
 _KEY_ENV = re.compile(r'^[A-Z][A-Z0-9_]{2,63}$')
 _NAME = re.compile(r'^[a-z0-9][a-z0-9._-]{0,63}$')
+
+
+def _stand_in() -> tuple[Decimal, Decimal]:
+    """The owner 2026-11-26: the per-million figures a model WITHOUT a known price is ordered and authorized at -- the
+    highest input and output token prices in the source-backed schedule (intelligence.prices), so its worst case is
+    never below any priced model's and cost-first routing tries it after them. Not a price: never metered, never
+    shown as a cost (ModelOption.price_known is False and attempt_ledger.metered_cost returns None)."""
+    from .intelligence.prices import SCHEDULE
+    ins = [r.input_per_million for r in SCHEDULE if r.input_per_million is not None and r.output_per_million is not None]
+    outs = [r.output_per_million for r in SCHEDULE if r.input_per_million is not None and r.output_per_million is not None]
+    return max(ins), max(outs)
+
+
+UNPRICED_STAND_IN = _stand_in()
 
 
 class ModelCatalogError(ValueError):
@@ -62,6 +78,8 @@ class CatalogModel:
             'api_key_env': self.api_key_env, 'status': self.status,
             'lifecycle': self.lifecycle, 'price_source': self.price_source,
             'governance_notes': list(self.governance_notes),
+            # only when unknown, so a fully priced catalog keeps its price_catalog_version (the owner 2026-11-26)
+            **({} if getattr(o, 'price_known', True) else {'price_known': False, 'prices_are': 'authorization stand-in'}),
         }
 
 
@@ -124,11 +142,14 @@ def parse_model_catalog(raw: str, env: Mapping[str, str], *, when=None) -> tuple
         enabled = item.get('enabled') is True if staged_enrollment else bool(item.get('enabled', True))
         if staged_enrollment and enabled and (type(item['quality']) is not int or quality == 0):
             raise ModelCatalogError(f'{name}: enabled enrollment requires an explicit quality score 1..100')
-        for required in ('input_per_million', 'output_per_million'):
-            if required not in item:
-                raise ModelCatalogError(f'{name}: {required} price is required')
-        input_price = _decimal(item['input_per_million'], 'input_per_million', name)
-        output_price = _decimal(item['output_per_million'], 'output_per_million', name)
+        # The owner 2026-11-26: an entry without a price is kept (it was a ModelCatalogError that stopped every build).
+        # Its two numbers become the authorization stand-in -- never a price; the model's calls are metered as unknown.
+        catalog_priced = all(k in item for k in ('input_per_million', 'output_per_million'))
+        if catalog_priced:
+            input_price = _decimal(item['input_per_million'], 'input_per_million', name)
+            output_price = _decimal(item['output_per_million'], 'output_per_million', name)
+        else:
+            input_price, output_price = UNPRICED_STAND_IN
         try:
             max_out = int(item.get('max_output_tokens', 8192))
             latency = int(item.get('latency_ms', 3000))
@@ -148,13 +169,16 @@ def parse_model_catalog(raw: str, env: Mapping[str, str], *, when=None) -> tuple
         extra_body = tuple(sorted((k, json.dumps(v)) for k, v in extra.items()))
         from .intelligence.governance import govern
         gov = govern(model=model, base_url=base_url, input_per_million=input_price,
-                     output_per_million=output_price, when=when)
+                     output_per_million=output_price, when=when, catalog_price_known=catalog_priced)
         input_price, output_price = gov.input_per_million, gov.output_per_million
+        price_known = getattr(gov, 'price_known', True)
+        if not price_known:      # ordering and authorization only: the stand-in, never the untrusted number
+            input_price, output_price = UNPRICED_STAND_IN
         routable = enabled and gov.routable
         key = (env.get(key_env) or '').strip()
         option = ModelOption(provider=provider, model=model, quality=quality, latency_ms=latency,
                              input_per_million=input_price, output_per_million=output_price,
-                             enabled=routable and bool(key))
+                             enabled=routable and bool(key), price_known=price_known)
         endpoint = None
         if key and routable:
             endpoint = ModelEndpoint(name=name, base_url=base_url, model=model, api_key=key,

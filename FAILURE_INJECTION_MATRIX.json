@@ -80,9 +80,9 @@
   },
   {
    "failure": "worker killed mid-build",
-   "expected_handling": "S4.2: the build continues from its last checkpoint -- not implemented; a recovered build starts over, and since 2026-10-14 a build whose lost worker made a paid call ends FAILED provider_liability_unknown instead of being requeued",
-   "proven_by": "",
-   "status": "BLOCKED",
+   "expected_handling": "S4.2: requeued once and continues from its last checkpoint, no stage the checkpoint holds called again; with no usable checkpoint a build whose lost worker made a paid call ends FAILED provider_liability_unknown",
+   "proven_by": "tests/test_crash_resume_pg.py",
+   "status": "PASS",
    "layer": "unit/integration"
   },
   {

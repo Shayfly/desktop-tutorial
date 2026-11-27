@@ -1,0 +1,450 @@
+{
+ "pr": "crash-resume",
+ "sha256": [
+  "tests/test_crash_resume.py",
+  "tests/test_crash_resume_pg.py",
+  "tests/crash_resume_harness.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the worker ignores the checkpoint it was requeued to continue from: the build starts over",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "            result = engine.build(build_prompt, resume=resume)",
+     "new": "            result = engine.build(build_prompt)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_each_continued_build_ends_as_the_uninterrupted_one",
+    "test_resume_verdict_passes_every_continued_build_and_still_fails_the_logged_ledger",
+    "test_the_agent_run_carries_the_lost_workers_finished_tasks",
+    "test_the_continued_worker_never_calls_a_stage_the_checkpoint_covers"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the engine ignores the resume point: the architect is called again",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "        if resume is None:\n            spec = self.architect.create_spec(prompt)",
+     "new": "        if True:  # NEGATIVE CONTROL\n            spec = self.architect.create_spec(prompt)"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_each_checkpoint_continues_to_the_same_result_without_calling_a_covered_stage_again"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the stored bytes' sha256 is not checked",
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "    if actual != sha256:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py",
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_changed_byte_in_any_stored_object_is_refused"
+   ],
+   "expect_failed_pg": [
+    "test_a_changed_byte_in_any_stored_object_is_refused",
+    "test_a_checkpoint_whose_bytes_changed_fails_by_name_and_never_starts_over"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a covered stage is called again: a round checkpoint generates the code again",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "        loop = resume.loop if resume is not None and resume.stage != 'spec' else None",
+     "new": "        loop = None  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_each_checkpoint_continues_to_the_same_result",
+    "test_each_checkpoint_continues_to_the_same_result_without_calling_a_covered_stage_again",
+    "test_the_round_budget_is_the_builds_not_a_new_one"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a lost build with a usable checkpoint is still failed (the janitor never continues)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/maintenance.py",
+     "old": "                    resumed = resumable and not stop and attempts < max_recovery",
+     "new": "                    resumed = False  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_checkpoint_whose_bytes_changed_fails_by_name_and_never_starts_over",
+    "test_a_lost_build_with_a_usable_checkpoint_is_requeued_to_continue_even_after_a_paid_call",
+    "test_each_continued_build_ends_as_the_uninterrupted_one",
+    "test_resume_verdict_passes_every_continued_build_and_still_fails_the_logged_ledger",
+    "test_the_agent_run_carries_the_lost_workers_finished_tasks",
+    "test_the_continued_worker_never_calls_a_stage_the_checkpoint_covers",
+    "test_the_record_names_the_checkpoint_it_continued_from"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the agent recorder re-runs every task instead of carrying the finished ones",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/agent_os/recorder.py",
+     "old": "            if resume is not None:\n                self._carry(resume)\n                return\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n                return\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_agent_run_carries_the_lost_workers_finished_tasks"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the plan's task graph does not carry the checkpoint's stages",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/agent_os/recorder.py",
+     "old": "        if resume is not None:\n            self._carry_plan(resume)\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n            self._carry_plan(resume)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_plan_admits_the_next_repair_round_and_not_the_architect"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the earlier workers' recorded spend does not count against the build's budget",
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "        policy, external_budget_usd=max(policy.external_budget_usd - metered - unanswered, Decimal('0')),",
+     "new": "        policy, external_budget_usd=policy.external_budget_usd,  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_the_earlier_workers_recorded_calls_and_cost_count_against_the_build_budget"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the screen shows the janitor's Hebrew line to every customer",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "h('time', {}, fmt(e.at)), ' ', serverLine(e.message))",
+     "new": "h('time', {}, fmt(e.at)), ' ', e.message)"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_the_build_log_shows_a_janitor_line_in_the_customers_language"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the earlier workers' calls are put into this worker's spend state: the settlement counts them twice",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "    gateway.policy = lowered\n",
+     "new": "    gateway.policy = lowered\n    gateway.state.external_calls += calls  # NEGATIVE CONTROL\n    gateway.state.external_spend_usd += metered\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_stale_worker_is_stopped_and_the_continuing_worker_settles_true",
+    "test_the_record_names_the_checkpoint_it_continued_from"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the unanswered call of the lost worker is left in the carried budget: a continued build can settle above its reservation (review of 1edee7b)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "        policy, external_budget_usd=max(policy.external_budget_usd - metered - unanswered, Decimal('0')),",
+     "new": "        policy, external_budget_usd=max(policy.external_budget_usd - metered, Decimal('0')),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_continued_build_never_settles_above_its_reservation",
+    "test_one_ledger_snapshot_even_when_the_lost_worker_completes_its_call_in_between",
+    "test_the_record_names_the_checkpoint_it_continued_from"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "this worker's own calls are counted as an earlier worker's too",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "columns + ' AND trace_id IS DISTINCT FROM %s', (build_id, worker)",
+     "new": "columns + ' AND (trace_id IS DISTINCT FROM %s OR TRUE)', (build_id, worker)"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_only_the_earlier_workers_come_off_the_budget"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "a checkpoint is written whatever the epoch (the mutation that survived the review)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "\"WHERE id = %s AND status = 'running' AND recovery_attempts = %s \"",
+     "new": "\"WHERE id = %s AND status = 'running' AND %s::int IS NOT NULL \""
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_checkpoint_is_written_only_in_the_writers_epoch"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "a worker of an earlier epoch can end the continuing worker's build",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "WHERE id = %s AND status = %s AND (%s::int IS NULL OR recovery_attempts = %s::int)",
+     "new": "WHERE id = %s AND status = %s AND (%s::int IS NULL OR %s::int IS NOT NULL)"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_worker_of_an_earlier_epoch_cannot_end_the_build"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "a worker of an earlier epoch keeps the build alive (its heartbeat is written)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "\"AND (%s::int IS NULL OR recovery_attempts = %s::int) \"",
+     "new": "\"AND (%s::int IS NULL OR %s::int IS NOT NULL) \""
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_stale_worker_is_stopped_and_the_continuing_worker_settles_true",
+    "test_a_worker_of_an_earlier_epoch_cannot_keep_the_build_alive"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "a stale worker's refused heartbeat says 'not cancelled' and the worker goes on spending",
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "            raise StaleWorker(f'build {build_id}: the heartbeat of epoch {epoch} was refused')\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_stale_worker_is_stopped_and_the_continuing_worker_settles_true",
+    "test_a_worker_of_an_earlier_epoch_cannot_keep_the_build_alive"
+   ],
+   "envs": [
+    "pg"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "a stale worker settles or releases the build (the billing is not fenced)",
+   "mutations": [
+    {
+     "file": "omni_prod/subscription_store.py",
+     "old": "        raise StaleWorker(f'build {build_id}: billing of epoch {epoch} refused (the build is at {row[0] if row else None})')\n",
+     "new": "        return  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_stale_worker_is_stopped_and_the_continuing_worker_settles_true"
+   ],
+   "envs": [
+    "pg"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "a stale worker's attempt rows are written into the ledger",
+   "mutations": [
+    {
+     "file": "omni_prod/attempt_ledger.py",
+     "old": "                        raise StaleWorker(f'build {build_id}: attempt rows of epoch {epoch} refused')\n",
+     "new": "                        pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_stale_worker_is_stopped_and_the_continuing_worker_settles_true"
+   ],
+   "envs": [
+    "pg"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "the settlement's earlier workers and the carried budget come from two ledger reads",
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "    return carry_budget(gateway, spend)\n",
+     "new": "    return carry_budget(gateway, recorded_spend(pool, build_id, worker=worker))  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume_pg.py"
+   ],
+   "expect_failed": [
+    "test_one_ledger_snapshot_even_when_the_lost_worker_completes_its_call_in_between"
+   ],
+   "envs": [
+    "pg"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "a verdict is replayed for any image with the same subject, whatever its bytes",
+   "mutations": [
+    {
+     "file": "omni_prod/build_checkpoint.py",
+     "old": "            if (digest is not None and question.get('sha256') == digest and question.get('subject', '').strip() == subject\n",
+     "new": "            if (question.get('subject', '').strip() == subject  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_other_bytes_under_the_same_subject_are_asked_of_the_model"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "a resumed build takes the current version for the best one (#541: they can differ at a round boundary)",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "            best_repo = repo if best['same_as_current'] else dict(resume.best_repository)",
+     "new": "            best_repo = repo  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_each_checkpoint_continues_to_the_same_result"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "the checkpoint leaves out the best version when it is not the current one",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "            if not out['loop']['best']['same_as_current']:\n                out['best_repository'] = best_repo",
+     "new": "            if False:  # NEGATIVE CONTROL\n                out['best_repository'] = best_repo"
+    }
+   ],
+   "targets": [
+    "tests/test_crash_resume.py"
+   ],
+   "expect_failed": [
+    "test_a_checkpoint_holds_a_best_version_other_than_the_current_one",
+    "test_each_checkpoint_continues_to_the_same_result",
+    "test_each_checkpoint_continues_to_the_same_result_without_calling_a_covered_stage_again",
+    "test_without_the_best_version_the_resume_point_refuses"
+   ]
+  }
+ ]
+}
