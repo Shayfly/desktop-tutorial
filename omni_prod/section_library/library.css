@@ -462,3 +462,13 @@ bdi, .hours-seg { white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* The direction sketch (S6.3): a section that is outlined, not written yet, and the "draft" ribbon. Only a page
+   rendered with page(..., draft=...) carries these classes; purge() removes the rules from every real page. */
+.draft-ribbon { position: sticky; top: 0; z-index: 40; padding: var(--space-8) var(--space-16); text-align: center;
+  font-size: var(--text-14); font-weight: var(--weight-bold); background: var(--color-text); color: var(--color-bg); }
+.skeleton { display: grid; gap: var(--space-16); max-width: 40rem; }
+.skeleton i { display: block; height: var(--space-16); border-radius: var(--radius);
+  background: color-mix(in srgb, var(--color-text) 12%, var(--color-bg)); }
+.skeleton i:nth-child(2) { width: 85%; }
+.skeleton i:nth-child(3) { width: 65%; }

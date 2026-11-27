@@ -593,6 +593,21 @@ SCRIPT = ('<script>document.querySelectorAll("form[data-wa]").forEach(function(f
           'window.addEventListener("scroll",show,{passive:true});}'
           'else if(bar){bar.classList.remove("is-away");}</script>')
 
+# The direction sketch (S6.3): a section that is only outlined -- its real heading and its real background tone, with
+# skeleton lines where the words will be -- and the ribbon that says the page is a draft. Used only by page(draft=...).
+DRAFT_RIBBON = 'סקיצה · טיוטה — לא האתר הסופי'
+
+
+def is_outline(value) -> bool:
+    return isinstance(value, dict) and value.get('outline') is True
+
+
+def outline_block(key: str, tone: str, d: dict) -> str:
+    """An outlined section: the heading it will have and skeleton lines in place of its text (never invented words)."""
+    _need(d, ('title',), key)
+    return _section(key, tone, f'{_head(d, key)}<div class="skeleton" aria-hidden="true"><i></i><i></i><i></i></div>')
+
+
 # order on the page; a section whose key is missing from the content is skipped, never filled with invention. The
 # call-to-action band sits in the middle, after the process, so the action is offered again before the long tail.
 ORDER = (('hero', hero), ('stats', stats), ('services', services), ('pricelist', pricelist), ('gallery', gallery),
@@ -654,13 +669,21 @@ def _schema(c: dict) -> str:
     return f'<script type="application/ld+json">{raw}</script>'
 
 
-def page(content: dict, contract: dict, order: list[str] | None = None, windows=()) -> tuple[str, list[str]]:
+def page(content: dict, contract: dict, order: list[str] | None = None, windows=(),
+         draft: dict | None = None) -> tuple[str, list[str]]:
     """(html, skipped section keys). `contract` is a G-APPLE contract (contract.build). `order` is the customer's own
     outline as section keys (the hero always opens the page); without it, ORDER. `windows` are the approved window ids
     (window_catalog), each one of RENDERED_WINDOWS. A missing required fact, an unknown section key, an unknown art
-    direction or a window the library does not render raises; nothing is filled in silently."""
+    direction or a window the library does not render raises; nothing is filled in silently.
+
+    `draft` (the direction sketch, S6.3): {'ribbon': the draft ribbon's text}. The page then carries the ribbon and a
+    noindex meta, and a section whose content is {'outline': True, 'title': ...} is rendered as an outline block. Without
+    `draft` the page is byte-identical to what it was before the keyword existed (tests/test_direction_sketch.py)."""
     c = content
     _need(c, REQUIRED, 'page')
+    if draft is not None and not (isinstance(draft, dict) and draft.get('ribbon')):
+        raise ValueError("draft needs {'ribbon': text}")
+    outlined = {k for k, v in c.items() if draft is not None and is_outline(v)}
     window_html = windows_markup(windows)
     sequence = ORDER
     if order is not None:
@@ -683,13 +706,14 @@ def page(content: dict, contract: dict, order: list[str] | None = None, windows=
         else:
             skipped.append(key)
     c = dict(c, _merged=('stats',) if merge else (), _layout=layout_for(c))
-    kept, dropped = about_facts(c, rendered) if c.get('about') else ([], [])
+    kept, dropped = about_facts(c, rendered) if c.get('about') and 'about' not in outlined else ([], [])
     skipped += [f'about.facts:{k} (already shown)' for k in dropped]
     # a number the panel already shows is said once; the strip's copy is left out and reported
     skipped += [f'stats:{v} (shown in the hero panel)' for v, _ in c.get('stats') or () if v == c['hero'].get('panel_figure')]
     tone = tones(rendered, direction)
     fns = dict(sequence)
-    special = {'hero': lambda: hero(c, '', direction, merge), 'about': lambda: about(c, tone.get('about', ''), kept)}
+    special = {'hero': lambda: hero(c, '', direction, merge), 'about': lambda: about(c, tone.get('about', ''), kept),
+               **{k: (lambda k=k: outline_block(k, tone.get(k, ''), c[k])) for k in outlined if k in rendered}}
     body = ''.join(special[k]() if k in special else fns[k](c, tone.get(k, '')) for k in rendered)
     if not c['hero'].get('image'):
         # no hero photo: the page's first image is still the first one the browser meets -- it is not deferred
@@ -699,7 +723,8 @@ def page(content: dict, contract: dict, order: list[str] | None = None, windows=
         single = locked['display']['weights'] == [400]
     else:
         single = any(n in contract['tokens'].get('--font-display', '') for n in DIRECTIONS['single_weight_display'])
-    markup = (f'<a class="skip" href="#main">דלגו לתוכן</a>{window_html}{header(c, rendered)}'
+    ribbon = f'<div class="draft-ribbon" role="note">{e(draft["ribbon"])}</div>' if draft is not None else ''
+    markup = (f'{ribbon}<a class="skip" href="#main">דלגו לתוכן</a>{window_html}{header(c, rendered)}'
               f'<main id="main">{body}</main>{footer(c, rendered)}{mobile_bar(c)}{SCRIPT}')
     T.check_headings(markup, script)            # a heading longer than its script's limit raises (warehouse 129)
     classes = {k for m in re.findall(r'class="([^"]*)"', markup) for k in m.split()}
@@ -708,6 +733,7 @@ def page(content: dict, contract: dict, order: list[str] | None = None, windows=
             f'<title>{e(c["title"])}</title><meta name="description" content="{ea(c["description"])}">'
             f'<meta property="og:title" content="{ea(c["title"])}"><meta property="og:description" content="{ea(c["description"])}">'
             f'<meta property="og:type" content="website"><meta property="og:locale" content="{T.script(script)["og_locale"]}">'
+            f'{"<meta name=robots content=noindex>" if draft is not None else ""}'
             f'{font_links(contract)}<style>{contract["css"]}\n{purge(CSS, classes, attrs) if PURGE else CSS}</style>{_schema(c)}')
     doc = (f'<!doctype html><html {T.html_attrs(script)}><head>{head}</head>'
            f'<body data-direction="{direction}" data-148-kit="section-library/{LIBRARY_VERSION}" '
