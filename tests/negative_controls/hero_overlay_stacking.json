@@ -12,7 +12,7 @@
    "targets": ["tests/test_hero_overlay_stacking.py"],
    "expect_failed": ["test_the_stacking_is_photo_then_overlay_then_text"]},
   {"id": "NC3", "what": "the page's bytes changed but LIBRARY_VERSION did not move",
-   "mutations": [{"file": "omni_prod/section_library/__init__.py", "old": "LIBRARY_VERSION = '3'", "new": "LIBRARY_VERSION = '2'"}],
+   "mutations": [{"file": "omni_prod/section_library/__init__.py", "old": "LIBRARY_VERSION = '4'", "new": "LIBRARY_VERSION = '3'"}],
    "targets": ["tests/test_hero_overlay_stacking.py"],
    "expect_failed": ["test_the_library_version_moved_with_the_page_bytes"]}
  ]

@@ -34,7 +34,10 @@ FIXTURES = {'salon': SALON, 'pizza': PIZZA, 'accountant': ACCOUNTANT}
 # visual plan S0 (2026-11-27): LIBRARY_VERSION 2 -> 3 (the hero overlay stacking). The only byte that differs on this
 # page is the body marker data-148-kit="section-library/2" -> "section-library/3" (a difflib of the two pages, run on
 # origin/main bc7077e and on this branch); the demo has no hero photo, so none of the hero CSS reaches it.
-DEMO_SHA = '7cdfdfba698d6364417380af4a012cadc849d8449618f288118026013b508da9'
+# visual plan S1 (2026-11-27): LIBRARY_VERSION 3 -> 4 (the photo-led heroes). Again the only byte that differs is the
+# body marker, "section-library/3" -> "section-library/4" (a difflib of the demo page on the S0 head c983924 and here):
+# the demo has no hero photo, so the new hero rules are purged from its page.
+DEMO_SHA = '3caaac236723037a4dddc8ef0e66a58317ced1a4fac4e1f1a89a379746bbe733'
 
 
 def on(**extra):

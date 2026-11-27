@@ -329,6 +329,43 @@ bdi, .hours-seg { white-space: nowrap; }
 .hero--banner .panel dl div { flex-direction: column; justify-content: start; }
 .hero--banner .panel:not(:has(.panel-figure)) dl { grid-column: 1 / -1; border-inline-start: 0; padding-inline-start: 0; }
 [data-direction="warm"] .hero--banner .panel dl { border-inline-start-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-bg)); }
+/* hero led by its picture (visual plan S1): `photo` -- the picture fills the end half of the first screen to the viewport
+   edge; `cover` -- the picture fills the first screen under a scrim made from the text colour. The facts are a strip
+   under the hero, never printed on the picture. A page without a hero picture never carries these classes. */
+.hero.hero--photo, .hero.hero--cover { padding: 0; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  grid-template-rows: minmax(clamp(28rem, calc(100svh - 9rem), 52rem), auto) auto; }
+.hero-inner { width: min(72rem, 100% - 2 * var(--space-24)); margin-inline: auto; }
+.hero-words { grid-area: 1 / 1; position: relative; z-index: 1; display: flex; align-items: center; padding-block: var(--space-64); }
+.hero--photo .hero-words .hero-inner { width: auto; margin: 0;
+  padding-inline: max(var(--space-24), calc((100vw - 72rem) / 2)) var(--space-48); }
+.hero-picture { grid-area: 1 / 2; position: relative; overflow: hidden; background: var(--color-primary); }
+.hero-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+[data-direction] .hero--photo .hero-words h1, [data-direction] .hero--cover .hero-words h1 { font-size: var(--text-56);
+  line-height: 1.08; letter-spacing: -0.01em; }
+.hero.hero--cover { grid-template-columns: minmax(0, 1fr); }
+.hero--cover .hero-picture { grid-area: 1 / 1; }
+.hero--cover .hero-words { align-items: flex-end; padding-block: var(--space-96) var(--space-64); color: var(--color-bg);
+  background-image: linear-gradient(to top, color-mix(in srgb, var(--color-text) 90%, transparent) 0%,
+    color-mix(in srgb, var(--color-text) 80%, transparent) 60%, color-mix(in srgb, var(--color-text) 20%, transparent) 100%); }
+.hero--cover .hero-words .lead, .hero--cover .hero-words .hero-note, .hero--cover .hero-words .eyebrow { color: var(--color-bg); }
+.hero--cover .hero-words :focus-visible { outline-color: var(--color-bg); }
+/* the two button looks stay the page's own (primary filled, secondary outlined on the light fill); on the scrim the filled one gets a ring */
+.hero--cover .btn-primary { box-shadow: 0 0 0 2px var(--color-bg); }
+.hero-strip { grid-area: 2 / 1 / 3 / -1; background: var(--color-bg); border-block-end: 1px solid var(--color-border); }
+.hero-strip .hero-inner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-16) var(--space-48);
+  padding-block: var(--space-24); }
+.hero-strip dl { flex: 1 1 24rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: var(--space-16) var(--space-32); }
+.hero-strip dl div { display: flex; flex-direction: column; gap: var(--space-4); }
+.hero-strip dt { font-size: var(--text-14); color: var(--color-muted); }
+.hero-strip dd { font-weight: var(--weight-bold); }
+.hero-strip a { color: inherit; }
+.strip-figure { flex: none; }
+.strip-figure .panel-caption { margin-block: var(--space-4) 0; font-size: var(--text-14); color: var(--color-muted); }
+.hero-strip .panel-stats { flex: 1 1 100%; margin-block-end: 0; }
+[data-direction="elegant"] .hero--photo .hero-words .hero-inner, [data-direction="elegant"] .hero--cover .hero-words .hero-inner,
+[data-direction="elegant"] .hero-strip .hero-inner { text-align: center; justify-content: center; }
+[data-direction="elegant"] .hero--photo .hero-copy, [data-direction="elegant"] .hero--cover .hero-copy { margin-inline: auto; }
 /* services as an editorial list: numbered rows on hairlines */
 .svc-list { list-style: none; counter-reset: svc; border-block-start: 1px solid var(--color-border); }
 .svc-list li { counter-increment: svc; display: grid; grid-template-columns: var(--space-64) minmax(0, 1fr) minmax(0, 1.4fr);
@@ -398,6 +435,13 @@ bdi, .hours-seg { white-space: nowrap; }
   .quotes--feature .quote:first-child blockquote { font-size: var(--text-24); }
   .hero h1 { font-size: var(--text-40); }
   [data-direction="bold"] .hero h1 { font-size: var(--text-56); }
+  [data-direction] .hero--photo .hero-words h1, [data-direction] .hero--cover .hero-words h1 { font-size: var(--text-40); }
+  .hero.hero--photo { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; }
+  .hero--photo .hero-picture { grid-area: 1 / 1; aspect-ratio: 5 / 4; }
+  .hero--photo .hero-words { grid-area: 2 / 1; padding-block: var(--space-32) var(--space-48); }
+  .hero--photo .hero-strip { grid-area: 3 / 1; }
+  .hero--photo .hero-words .hero-inner { width: min(72rem, 100% - 2 * var(--space-24)); margin-inline: auto; padding-inline: 0; }
+  .hero.hero--cover { grid-template-rows: minmax(34rem, auto) auto; }
   .title, .band h2 { font-size: var(--text-32); }
   [data-direction="bold"] .title { font-size: var(--text-40); }
   .panel-figure, .stat dd { font-size: var(--text-32); }
@@ -430,6 +474,10 @@ bdi, .hours-seg { white-space: nowrap; }
   .svc-list p { grid-column: 2; }
   .svc-list h3 { font-size: var(--text-20); }
   .hero .wrap { gap: var(--space-32); }
+  [data-direction] .hero--photo .hero-words h1, [data-direction] .hero--cover .hero-words h1 { font-size: var(--text-32); }
+  .hero--cover .hero-words { padding-block: var(--space-64) var(--space-32); }
+  .hero-strip .hero-inner { gap: var(--space-16); }
+  .hero-strip dl { flex-basis: 100%; }
   .panel { padding-block-start: var(--space-32); }
   .panel-art { display: none; }
   .panel dl div { flex-direction: column; gap: var(--space-4); }

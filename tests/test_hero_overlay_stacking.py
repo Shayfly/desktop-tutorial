@@ -30,6 +30,9 @@ def photo_page(direction, palette):
     src = 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()
     content = copy.deepcopy(D.CONTENT)
     content['direction'] = direction
+    # the boxed panel with the picture is the `split` hero; the photo-led heroes (visual plan S1) put the facts in a strip
+    # under the picture, so this overlay is only reachable when the content names `split`
+    content['layout'] = {'hero': 'split'}
     content['hero']['image'] = {'src': src, 'alt': 'תמונה', 'width': 1200, 'height': 900}
     contract = contract_for(palette)
     doc, _ = L.page(content, contract)
@@ -84,7 +87,7 @@ class HeroOverlayStacking(unittest.TestCase):
         self.assertLess(overlay, text)
 
     def test_the_library_version_moved_with_the_page_bytes(self):
-        self.assertEqual(L.LIBRARY_VERSION, '3')
+        self.assertEqual(L.LIBRARY_VERSION, '4')       # S0 moved it to 3, the photo-led heroes (S1) to 4
 
 
 if __name__ == '__main__':

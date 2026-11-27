@@ -126,6 +126,10 @@ def to_library(doc: dict, sheet, *, direction: str, year: str, outline_titles: d
         c['hours'] = ' · '.join(sheet.hours)
     if doc.get('layout'):
         c['layout'] = dict(doc['layout'])
+        if sheet.images.get('hero'):
+            # a hero with a picture is composed by the library, led by the picture (visual plan S1): the model chose
+            # `split` or `banner` without knowing whether the page would have one
+            c['layout'].pop('hero', None)
     h = sec['hero']
     hero = {k: _sub(h[k], sheet) for k in ('eyebrow', 'title', 'lead', 'cta', 'note', 'panel_label') if h.get(k)}
     if h.get('panel_figure'):
