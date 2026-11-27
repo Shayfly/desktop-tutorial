@@ -120,6 +120,33 @@ def _terms(body: str, slug: str) -> list[dict]:
     return out
 
 
+# Section 7's subsections. The first two are required in every file: what applies almost everywhere, and Israel (the
+# jurisdiction of a Hebrew page, JURISDICTION_BY_SCRIPT). The last is a note to the platform, never shown to a customer.
+LEGAL_EVERYWHERE, LEGAL_ISRAEL, LEGAL_PLATFORM = 'Applies almost everywhere', 'Israel', 'What the product does with this'
+
+
+def _legal(body: str, slug: str) -> dict:
+    """Section 7 as the page's questions for a lawyer: every `### group` with its bullets (bold marks removed, the text
+    otherwise as written -- "not verified" stays), and the platform's own rules apart. A file without the two required
+    groups, or with an empty one, fails naming the domain and the group; nothing is filled in."""
+    groups, current = {}, None
+    for line in body.splitlines():
+        if line.startswith('### '):
+            current = line[4:].strip()
+            if current in groups:
+                raise DomainError(f'{slug}: legal group {current!r} appears twice')
+            groups[current] = []
+        elif current is not None and re.match(r'[-*] ', line):
+            item = ' '.join(line[2:].replace('**', '').split())
+            if item:
+                groups[current].append(item)
+    for needed in (LEGAL_EVERYWHERE, LEGAL_ISRAEL):
+        if not groups.get(needed):
+            raise DomainError(f'{slug}: legal group {needed!r} is missing or has no items')
+    rules = groups.pop(LEGAL_PLATFORM, [])
+    return {'groups': [{'heading': h, 'items': items} for h, items in groups.items() if items], 'platform_rules': rules}
+
+
 def parse(text: str, slug: str) -> dict:
     """One domain file -> one record. Raises DomainError naming the domain and the field."""
     first = text.splitlines()[0] if text.strip() else ''
@@ -144,7 +171,9 @@ def parse(text: str, slug: str) -> dict:
     if len(set(refs)) != len(refs):
         raise DomainError(f'{slug}: a reference is listed twice')
     terms = _terms(sections['6. Professional language'], slug)
-    return {'slug': slug, 'name': first[2:].strip(), 'mandatory_facts': facts, 'references': refs, 'terms': terms}
+    legal = _legal(sections['7. Legal'], slug)
+    return {'slug': slug, 'name': first[2:].strip(), 'mandatory_facts': facts, 'references': refs, 'terms': terms,
+            'legal': legal}
 
 
 def build(docs: Path = DOCS) -> dict:
@@ -173,6 +202,16 @@ def domain_for(category: str | None) -> dict | None:
         raise DomainError(f'unknown category {category!r}')
     slug = data['categories'][category]
     return None if slug is None else data['domains'][slug]
+
+
+def domain_by_slug(slug: str | None) -> dict | None:
+    """The domain record of a domain file's slug (a route records the slug). None for None; an unknown slug raises."""
+    if slug is None:
+        return None
+    domains = load()['domains']
+    if slug not in domains:
+        raise DomainError(f'unknown domain {slug!r}')
+    return domains[slug]
 
 
 MAX_TRADE_WORDS = 40
