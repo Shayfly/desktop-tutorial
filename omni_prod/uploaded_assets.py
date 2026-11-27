@@ -142,6 +142,30 @@ class _MainImage:
         self.carried.rebind(r['data'])
 
 
+_FILE_DIGEST = re.compile(r'(- image (\d{1,2}): src="[^"\n]*"[^\n]*; file: [^\n;]+; file sha256=)[0-9a-f]{64}')
+
+
+def served_digests(prompt: str, images) -> str:
+    """One digest per photo in the prompt the engine builds the spec from: the sha256 of the bytes written to assets/
+    and served (img.served_sha256), never the customer's original (2026-11-27, rehearsal 46016272646: the brief line
+    binds the original, the page carries the web rendition, so the spec demanded a digest no served file had and the
+    repair rounds could not converge). Rewrites the binding line and the `file sha256=` of the size line; idempotent,
+    and called again after the page fit, which changes the bytes once more."""
+    by_index = {int(i.index): i for i in images}
+
+    def binding(m):
+        img = by_index.get(int(m[1]))
+        if img is None:
+            return m[0]
+        return m[0][:m.start(3) - m.start(0)] + img.served_sha256 + m[0][m.end(3) - m.start(0):]
+
+    def size_line(m):
+        img = by_index.get(int(m[2]))
+        return m[1] + img.served_sha256 if img is not None else m[0]
+
+    return _FILE_DIGEST.sub(size_line, _IMAGE_BINDING.sub(binding, prompt or ''))
+
+
 # The owner, 2026-11-16 00:18 / 00:49: a photo placed in "the story" must sit INSIDE a story section, not anywhere on
 # the page. Sections are recognised by the same words the reference extractor uses (a2.extract._SECTION_WORDS),
 # read from the section's opening tag (id/class) and its first heading. The hero has no section word: it is first.
@@ -210,30 +234,6 @@ class MainImageExecutor:
         if not problems:
             return report
         return ExecutionReport(False, tuple(report.failures) + tuple(problems), report.build_log)
-
-
-_FILE_DIGEST = re.compile(r'(- image (\d{1,2}): src="[^"\n]*"[^\n]*; file: [^\n;]+; file sha256=)[0-9a-f]{64}')
-
-
-def served_digests(prompt: str, images) -> str:
-    """One digest per photo in the prompt the engine builds the spec from: the sha256 of the bytes written to assets/
-    and served (img.served_sha256), never the customer's original (2026-11-27, rehearsal 46016272646: the brief line
-    binds the original, the page carries the web rendition, so the spec demanded a digest no served file had and the
-    repair rounds could not converge). Rewrites the binding line and the `file sha256=` of the size line; idempotent,
-    and called again after the page fit, which changes the bytes once more."""
-    by_index = {int(i.index): i for i in images}
-
-    def binding(m):
-        img = by_index.get(int(m[1]))
-        if img is None:
-            return m[0]
-        return m[0][:m.start(3) - m.start(0)] + img.served_sha256 + m[0][m.end(3) - m.start(0):]
-
-    def size_line(m):
-        img = by_index.get(int(m[2]))
-        return m[1] + img.served_sha256 if img is not None else m[0]
-
-    return _FILE_DIGEST.sub(size_line, _IMAGE_BINDING.sub(binding, prompt or ''))
 
 
 def install_main_image(engine, *, prompt, pool, store, project_id, account_id):
