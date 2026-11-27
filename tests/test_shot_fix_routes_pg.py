@@ -131,7 +131,8 @@ class Customer:
                              (version_id, build_id))
         return build_id
 
-    def shot(self, build=None, *, project=None, data=PNG, width=390, **kw):
+    def shot(self, build=None, *, project=None, data=None, width=390, **kw):
+        data = PNG if data is None else data   # PNG exists only when the database is present (the module skips otherwise)
         body = {'data_base64': base64.b64encode(data).decode(), 'viewport_width': width, **kw}
         return self.browser.post(f'/api/v28/projects/{project or self.project}/builds/{build or self.build}/shots?lang=he', json=body)
 
