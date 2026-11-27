@@ -2,5 +2,9 @@
  "law_bare.html": {
   "code": "DESIGN_TOO_BASIC",
   "what_is_broken": "the shape of the owner's law-firm build bld_b0eb47a5 (2026-11-19): a hero block and one section, no visual, the consultation action once"
+ },
+ "icons_only.html": {
+  "code": "DESIGN_TOO_BASIC",
+  "what_is_broken": "visual plan S0 (2026-11-27): a business page with four sections and the contact action twice whose only <svg> elements are 24px menu, phone and WhatsApp icons inside a button and links -- no picture. The gate counted the icons as the page's visual (Claude's bug in the gate's definition)."
  }
 }
