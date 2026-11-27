@@ -16,7 +16,7 @@ CSS = (ROOT / 'omni_prod' / 'assets' / 'app.css').read_text(encoding='utf-8')
 CI = (ROOT / '.github' / 'workflows' / 'v24-ci.yml').read_text(encoding='utf-8')
 KEYS = ('sketchTitle', 'sketchDraft', 'sketchFrameTitle', 'sketchColours', 'sketchFonts', 'sketchSections', 'sketchLoading',
         'sketchWordsPending', 'sketchWordsWritten', 'sketchWordsPlaceholders', 'sketchWordsLate', 'sketchError', 'sketchOld',
-        'sketchNote')
+        'sketchNote', 'sketchPay', 'sketchNoCredits', 'sketchPriceChanged')
 
 
 def block(name: str) -> str:
@@ -41,6 +41,27 @@ class TheCardIsBounded(unittest.TestCase):
         self.assertIn('if (current) ensureSketch(a);', chat)
         card = block('sketchCard')
         self.assertLess(card.index('if (!current)'), card.index('iframe'))
+
+
+class ThePriceOfNewWords(unittest.TestCase):
+    def test_the_button_sends_the_price_it_shows_and_nothing_else_is_charged_by_the_card(self):
+        pay = block('payForSketchWords')
+        self.assertIn("body: { brief_revision: a.brief_revision, price_ack: st.view.price.credits }", pay)
+        self.assertIn('if (st.paying || !st.view || !st.view.price) return;', pay)
+        self.assertEqual(APP.count('price_ack:'), 1)
+
+    def test_a_refusal_is_said_in_words(self):
+        pay = block('payForSketchWords')
+        self.assertIn("e.status === 402 ? t('sketchNoCredits')", pay)
+        self.assertIn("'price_changed'", pay)
+
+    def test_the_button_shows_only_while_the_words_are_missing_and_priced(self):
+        update = block('updateSketchDom')
+        self.assertIn("['structure', 'failed'].includes(st.view.state)", update)
+        self.assertIn('n.pay.hidden = !priced;', update)
+
+    def test_the_note_says_what_is_free_and_what_costs_a_credit(self):
+        self.assertIn('שינוי צבע, גופן או סדר חינם; ניסוח חדש עולה קרדיט אחד', APP)
 
 
 class TheFrameIsSandboxed(unittest.TestCase):

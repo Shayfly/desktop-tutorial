@@ -260,3 +260,75 @@ def test_with_the_model_route_on_and_the_queue_down_the_sketch_is_still_there_an
                               (c.account_id,)).fetchall()
         credits = conn.execute('SELECT count(*) FROM credit_reservations WHERE account_id = %s', (c.account_id,)).fetchone()[0]
     assert states == [('RELEASED', 'direction_sketch')] and credits == 0
+
+
+# ---- slice 5: new words for a further sketch cost one credit (the owner, 2026-11-27) -----------------------------------------
+MODEL_ON = {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_VIA_WORKER': '1', 'OMNI_ZERO_COST_MODE': '0',
+            'OMNI_ALLOW_EXTERNAL_FALLBACK': '1', 'OMNI_INTAKE_MODEL_BUDGET_USD': '0.15', 'OMNI_INTAKE_DAILY_BUDGET_USD': '5',
+            'GEMINI_API_KEY': 'test-only-not-a-key'}
+
+
+def _free_sketch_already_written(c: 'Customer') -> None:
+    """The company's free sketch of this project, written (a worker's job; here the rows it leaves, by the real store)."""
+    from omni_prod import direction_sketch as DS
+    from omni_prod.direction_sketch import store as SS
+    from omni_prod.direction_sketch import copy as SC_
+    row = IA._brief_repo().latest(c.project)
+    d = DS.direction_of(row.brief)
+    store = SS.SketchStore(IA._v28_pool)
+    sk, _ = store.create(project_id=c.project, account_id=c.account_id, brief_revision=row.revision, brief_fingerprint=row.fingerprint,
+                         direction_fp='f' * 64, copy_fp='e' * 64, record={'direction': d.to_dict(), 'prompt': DS.prompt_of(row.brief),
+                                                                             'placeholders': []})
+    assert store.claim(sk.id, c.project, c.account_id, 'company_first') == SS.FREE
+    assert store.finish(sk.id, 'written', copy={'schema': '148ai.site_content/1', 'name': 'x', 'tagline': 'x',
+                                                'description': 'x', 'sections': {}})
+
+
+def _credit_rows(c):
+    with IA._v28_pool.connection() as conn:
+        return conn.execute('SELECT status, credits_reserved FROM credit_reservations WHERE account_id = %s ORDER BY created_at',
+                            (c.account_id,)).fetchall()
+
+
+def test_new_words_after_the_free_sketch_say_their_price_and_a_wrong_price_spends_nothing(world):
+    c = Customer('frida')
+    c.say(SALON)
+    _free_sketch_already_written(c)
+    with mock.patch.dict(os.environ, MODEL_ON):
+        made = c.browser.post(f'/api/v28/projects/{c.project}/sketches', json={})
+        assert made.status_code == 200, made.text[:300]
+        body = made.json()
+        assert body['words']['state'] == 'price_required' and body['words']['price'] == {'credits': 1}, body['words']
+        assert body['sketch']['price'] == {'credits': 1} and body['sketch']['state'] == 'structure'
+        page = c.browser.get(f"/api/v28/projects/{c.project}/sketches/{body['sketch']['id']}/page")
+        assert page.status_code == 200 and 'סטודיו נועה' in page.text           # the sketch is delivered, with placeholders
+        wrong = c.browser.post(f'/api/v28/projects/{c.project}/sketches', json={'price_ack': 2})
+        assert wrong.status_code == 409 and wrong.json()['detail'] == {'error': 'price_changed', 'price': {'credits': 1}}
+    assert _credit_rows(c) == []
+
+
+def test_the_acknowledged_price_with_the_queue_down_charges_nothing_in_the_end(world):
+    c = Customer('gina')
+    c.say(SALON)
+    _free_sketch_already_written(c)
+    with mock.patch.dict(os.environ, MODEL_ON):
+        r = c.browser.post(f'/api/v28/projects/{c.project}/sketches', json={'price_ack': 1})
+    assert r.status_code == 200, r.text[:300]
+    assert r.json()['words'] == {'state': 'failed', 'reason': 'queue_unavailable', 'reservation_id': r.json()['words']['reservation_id']}
+    assert [row[0] for row in _credit_rows(c)] == ['RELEASED']                  # held, then given back
+    with IA._v28_pool.connection() as conn:
+        assert conn.execute('SELECT credits_used FROM creator_subscriptions WHERE user_id = %s', (c.account_id,)).fetchone()[0] == 0
+
+
+def test_a_plan_with_no_credit_left_is_a_402_and_holds_nothing(world):
+    c = Customer('hana')
+    c.say(SALON)
+    _free_sketch_already_written(c)
+    with IA._v28_pool.connection() as conn:
+        conn.execute('UPDATE creator_subscriptions SET credits_used = 100000000 WHERE user_id = %s', (c.account_id,))
+        conn.commit()
+    with mock.patch.dict(os.environ, MODEL_ON):
+        r = c.browser.post(f'/api/v28/projects/{c.project}/sketches', json={'price_ack': 1})
+    assert r.status_code == 402 and r.json()['detail']['error'] == 'credits_unavailable', r.text[:300]
+    assert 'credit' in r.json()['detail']['reason']
+    assert _credit_rows(c) == []

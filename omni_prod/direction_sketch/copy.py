@@ -100,44 +100,60 @@ def model_allowed() -> str | None:
     return None
 
 
-def request(store: S.SketchStore, reservations: B.ReservationService, enqueue, sketch: S.Sketch, direction, *,
-            customer_pays: bool = False, venice_profile: dict | None = None, caps: B.Caps | None = None) -> dict:
-    """Reserve and queue the sketch's words, without waiting. {'state': 'pending' | 'failed' | 'refused', 'reason': ...,
-    'reservation_id': ...}. Every refusal is named; the deterministic sketch is always still there."""
-    account_id, project_id = sketch.account_id, sketch.project_id
+def preflight(direction, *, venice_profile: dict | None = None):
+    """(system, user, quote) of the words' call, or a SketchCopyRefused naming why no call may be made: the model's switches,
+    no price, a quote above the owner's $0.10. Nothing is reserved, claimed or charged by this."""
     why_not = model_allowed()
     if why_not:
-        return {'state': 'refused', 'reason': why_not}
-    funding = _funding(account_id, customer_pays=customer_pays)
-    if funding == 'customer':
-        raise SketchCopyRefused('customer-funded sketches are reserved by funding.py, with the customer\'s credits')
+        raise SketchCopyRefused(why_not)
     system, user = prompt(direction)
     try:
         quote = B.quote(system=system, user=user, max_tokens=MAX_TOKENS, task=TASK, venice_profile=venice_profile)
     except B.QuoteUnavailable as exc:
-        return {'state': 'refused', 'reason': f'quote_unavailable: {str(exc)[:120]}'}
+        raise SketchCopyRefused(f'quote_unavailable: {str(exc)[:120]}') from exc
     if quote.amount_usd > SKETCH_MAX_USD:
         # a price or a prompt changed: an error, not a normal refusal (the owner's cap is per call)
         _LOG.error('SKETCH_OVER_CAP quote=%s cap=%s', quote.amount_usd, SKETCH_MAX_USD)
-        return {'state': 'refused', 'reason': 'sketch_over_cap'}
+        raise SketchCopyRefused('sketch_over_cap')
+    return system, user, quote
+
+
+def request(store: S.SketchStore, reservations: B.ReservationService, enqueue, sketch: S.Sketch, direction, *,
+            customer_pays: bool = False, claimed: bool = False, venice_profile: dict | None = None,
+            caps: B.Caps | None = None) -> dict:
+    """Reserve and queue the sketch's words, without waiting. {'state': 'pending' | 'failed' | 'refused', 'reason': ...,
+    'reservation_id': ...}. Every refusal is named; the deterministic sketch is always still there.
+    `claimed`: the caller (funding.py) already took the sketch for the customer's credits in its own transaction."""
+    account_id, project_id = sketch.account_id, sketch.project_id
+    funding = _funding(account_id, customer_pays=customer_pays)
+    if funding == 'customer' and not claimed:
+        raise SketchCopyRefused('customer-funded sketches are claimed by funding.py, with the customer\'s credits')
+    try:
+        system, user, quote = preflight(direction, venice_profile=venice_profile)
+    except SketchCopyRefused as exc:
+        return {'state': 'refused', 'reason': exc.reason}
+    purpose = 'sketch-paid' if funding == 'customer' else 'sketch-free'
     if funding == 'company_first':
         used = store.attempts(project_id, account_id)
         if used >= FREE_ATTEMPTS:
             return {'state': 'refused', 'reason': f'free_attempts_used: {used} of {FREE_ATTEMPTS}'}
-    claimed = store.claim(sketch.id, project_id, account_id, funding)
-    if claimed != S.FREE:
-        return {'state': 'refused', 'reason': {S.BUSY: 'free_sketch_busy', S.USED: 'free_sketch_used'}.get(claimed, claimed)}
-    attempt = store.attempts(project_id, account_id)
+    if not claimed:
+        taken = store.claim(sketch.id, project_id, account_id, funding)
+        if taken != S.FREE:
+            return {'state': 'refused', 'reason': {S.BUSY: 'free_sketch_busy', S.USED: 'free_sketch_used'}.get(taken, taken)}
+    attempt = store.attempts(project_id, account_id, purpose)
     base = caps or B.caps_from_env()
     if funding == 'owner':
         scope_caps = B.Caps(project_usd=B.OWNER_INTAKE_SAFETY_USD,
                             daily_usd=B.OWNER_INTAKE_SAFETY_USD if base.daily_usd is not None else None)
+    elif funding == 'customer':
+        scope_caps = B.Caps(project_usd=SKETCH_PAID_PROJECT_USD, daily_usd=base.daily_usd)
     else:
         scope_caps = B.Caps(project_usd=SKETCH_MAX_USD, daily_usd=base.daily_usd)
     try:
         r = reservations.reserve(
             idempotency_key=f'sketch:{account_id}:{project_id}:{sketch.id}:{attempt}'[:300], account_id=account_id,
-            project_id=project_id, quote_=quote, caps=scope_caps, purpose='sketch-free',
+            project_id=project_id, quote_=quote, caps=scope_caps, purpose=purpose,
             payload={'system': system, 'user': user, 'max_tokens': MAX_TOKENS, 'task': TASK,
                      'prompt_version': PROMPT_VERSION})
     except B.LimitReached as exc:

@@ -805,7 +805,9 @@ Object.assign(T.he, {
   sketchWordsPlaceholders: 'הכותרת והמילים הראשונות הן מקום שמור. הניסוח הסופי נכתב בבנייה.',
   sketchWordsLate: 'הניסוח לא הגיע בזמן. הסקיצה נשארת עם מקום שמור למילים.',
   sketchError: 'הסקיצה לא נטענה. אפשר לנסות שוב.', sketchOld: 'סקיצה קודמת',
-  sketchNote: 'זו סקיצה בלבד: שום דבר לא נבנה ושום חיוב לא קורה. עונים בצ׳אט, למשל "כן, זה הכיוון" או "בכחול כהה".',
+  sketchPay: n => `ניסוח חדש לסקיצה: ${n === 1 ? 'קרדיט אחד' : n + ' קרדיטים'}`,
+  sketchNoCredits: 'אין מספיק קרדיטים בחשבון, ולכן לא חויב כלום.', sketchPriceChanged: 'המחיר השתנה. לא חויב כלום; אפשר לבקש שוב.',
+  sketchNote: 'זו סקיצה בלבד: שום דבר לא נבנה ושום חיוב לא קורה. עונים בצ׳אט, למשל "כן, זה הכיוון" או "בכחול כהה". שינוי צבע, גופן או סדר חינם; ניסוח חדש עולה קרדיט אחד.',
   previewDevice: 'לראות כמו במחשב או כמו בטלפון', devDesktop: 'מחשב', devPhone: 'טלפון',
   // the build steps and the checks in the customer's words (the owner's example, screens 07 and 08; inbox 001 §6)
   stepPlanning: 'מתכננים מה לבנות', stepContract: 'מסכמים בדיוק מה ייבנה', stepInfra: 'מכינים את הבסיס',
@@ -846,7 +848,9 @@ Object.assign(T.en, {
   sketchWordsPlaceholders: 'The headline and first words are placeholders. The final wording is written at build.',
   sketchWordsLate: 'The wording did not arrive in time. The sketch keeps placeholders for the words.',
   sketchError: 'The sketch did not load. You can try again.', sketchOld: 'Earlier sketch',
-  sketchNote: 'This is a sketch only: nothing is built and nothing is charged. Answer in the chat, for example "yes, that direction" or "in dark blue".',
+  sketchPay: n => `New wording for the sketch: ${n === 1 ? 'one credit' : n + ' credits'}`,
+  sketchNoCredits: 'Not enough credits in the account, so nothing was charged.', sketchPriceChanged: 'The price changed. Nothing was charged; you can ask again.',
+  sketchNote: 'This is a sketch only: nothing is built and nothing is charged. Answer in the chat, for example "yes, that direction" or "in dark blue". A change of colour, font or order is free; new wording costs one credit.',
   previewDevice: 'See it as on a computer or on a phone', devDesktop: 'Computer', devPhone: 'Phone',
   stepPlanning: 'Planning what to build', stepContract: 'Agreeing exactly what gets built', stepInfra: 'Preparing the basics',
   stepAssets: 'Preparing images and an icon', stepGenerate: 'Building your site', stepGates: 'Checking it works and is safe',
@@ -888,7 +892,9 @@ Object.assign(T.ar, {
   sketchWordsPlaceholders: 'العنوان والكلمات الأولى أماكن محجوزة. تُكتب الصياغة النهائية عند البناء.',
   sketchWordsLate: 'لم تصل الصياغة في الوقت المناسب. يبقى الرسم بأماكن محجوزة للكلمات.',
   sketchError: 'لم يُحمَّل الرسم. يمكنكم المحاولة مرة أخرى.', sketchOld: 'رسم سابق',
-  sketchNote: 'هذا رسم أولي فقط: لا يُبنى شيء ولا يُحتسب أي رسم. أجيبوا في المحادثة، مثلاً "نعم، هذا الاتجاه" أو "بالأزرق الداكن".',
+  sketchPay: n => `صياغة جديدة للرسم: ${n === 1 ? 'رصيد واحد' : n + ' أرصدة'}`,
+  sketchNoCredits: 'لا يوجد رصيد كافٍ في الحساب، لذلك لم يُحتسب أي رسم.', sketchPriceChanged: 'تغيّر السعر. لم يُحتسب أي رسم؛ يمكنكم الطلب مرة أخرى.',
+  sketchNote: 'هذا رسم أولي فقط: لا يُبنى شيء ولا يُحتسب أي رسم. أجيبوا في المحادثة، مثلاً "نعم، هذا الاتجاه" أو "بالأزرق الداكن". تغيير اللون أو الخط أو الترتيب مجاني؛ الصياغة الجديدة تكلّف رصيدًا واحدًا.',
   previewDevice: 'المشاهدة كما على الحاسوب أو كما على الهاتف', devDesktop: 'حاسوب', devPhone: 'هاتف',
   stepPlanning: 'نخطّط لما سنبنيه', stepContract: 'نتّفق بالضبط على ما سيُبنى', stepInfra: 'نجهّز الأساس',
   stepAssets: 'نجهّز الصور والأيقونة', stepGenerate: 'نبني موقعكم', stepGates: 'نتحقق من أن كل شيء يعمل وآمن',
@@ -2637,6 +2643,12 @@ function updateSketchDom(st) {
     n.frame.src = `/api/v28/projects/${pid()}/sketches/${encodeURIComponent(st.id)}/page?v=${st.frameKey}`;
   }
   if (n.frame) n.frame.className = `sketchFrame ${st.device}`;
+  if (n.pay) {
+    const priced = Boolean(st.view && st.view.price && ['structure', 'failed'].includes(st.view.state));
+    n.pay.hidden = !priced;
+    if (priced) n.pay.textContent = t('sketchPay')(st.view.price.credits);
+  }
+  if (n.payError) { n.payError.textContent = st.payError || ''; n.payError.hidden = !st.payError; }
   for (const [dev, btn] of Object.entries(n.devices || {})) btn.setAttribute('aria-pressed', String(dev === st.device));
 }
 async function pollSketch(st) {
@@ -2669,6 +2681,23 @@ async function ensureSketch(a) {
   renderChat();
   scheduleSketchPoll(st);
 }
+// New words for a further sketch cost one credit (the owner, 2026-11-27: charged only for new wording). The button names the
+// price; the request carries it as price_ack, and the server refuses a price that is not its own (409), or a plan with no
+// credit left (402): nothing is spent in either case. Re-drawing with another colour, font or order is never charged.
+async function payForSketchWords(st, a) {
+  if (st.paying || !st.view || !st.view.price) return;           // one click at a time
+  st.paying = true;
+  const project = S.projectId;
+  try {
+    const d = await api(`/api/v28/projects/${pid()}/sketches`, { method: 'POST', body: { brief_revision: a.brief_revision, price_ack: st.view.price.credits } });
+    if (!stillOn(project)) return;
+    st.view = d.sketch; st.frameKey += 1; st.polls = 0; st.payError = null;
+  } catch (e) {
+    st.payError = e && e.status === 402 ? t('sketchNoCredits') : e && e.status === 409 && e.detail && e.detail.error === 'price_changed' ? t('sketchPriceChanged') : explain(e);
+  } finally { st.paying = false; }
+  updateSketchDom(st);
+  scheduleSketchPoll(st);
+}
 function sketchCard(a, current) {
   const st = sketchState(a.direction_fp);
   const v = st.view;
@@ -2691,6 +2720,12 @@ function sketchCard(a, current) {
   }
   nodes.state = h('p', { class: 'sketchState', role: 'status', dir: 'auto' }, st.error ? t('sketchError') : st.id ? sketchWordsLine(st) : t('sketchLoading'));
   kids.push(nodes.state);
+  if (st.id && v) {                                              // new words, for the price it names (hidden while they are free)
+    nodes.pay = h('button', { type: 'button', class: 'secondary sketchPay', hidden: true, onclick: () => payForSketchWords(st, a) }, '');
+    nodes.payError = h('p', { class: 'sketchPayError hint', role: 'alert', dir: 'auto', hidden: true }, '');
+    kids.push(nodes.pay, nodes.payError);
+    updateSketchDom(st);
+  }
   if (st.error) kids.push(h('button', { type: 'button', class: 'secondary', onclick: () => { st.error = null; ensureSketch(a); renderChat(); } }, t('tryAgain')));
   kids.push(h('p', { class: 'sketchNote hint', dir: 'auto' }, t('sketchNote')));
   return h('section', { class: 'sketchCard', 'aria-label': t('sketchTitle') }, kids);

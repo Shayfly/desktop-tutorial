@@ -1,0 +1,264 @@
+{
+ "pr": "direction-sketch-funding",
+ "sha256": [
+  "tests/test_direction_sketch_funding_pg.py",
+  "omni_prod/direction_sketch/funding.py",
+  "omni_prod/direction_sketch/service.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the price the customer acknowledged is no longer compared with the server's own",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/funding.py",
+     "old": "    if isinstance(price_ack, bool) or price_ack != PRICE_CREDITS:\n        raise PriceChanged(price_ack)",
+     "new": "    if False:\n        raise PriceChanged(price_ack)"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_funding_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_price_ack_on_the_free_sketch_changes_nothing_but_a_wrong_one_is_refused",
+    "test_a_wrong_price_spends_nothing_and_reserves_nothing"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a written sketch never settles its credit",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/funding.py",
+     "old": "        subscriptions.settle(build_id=key, actual_provider_cost_usd=None if r is None else r.actual_usd)",
+     "new": "        pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_funding_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_written_sketch_charges_its_credit_and_the_books_balance",
+    "test_a_retry_after_a_failure_charges_again_under_its_own_key",
+    "test_a_sketch_whose_call_finished_unseen_is_settled_by_the_reconciler"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a failed sketch never gives its credit back",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/funding.py",
+     "old": "    else:\n        subscriptions.release(build_id=key)\n\n\ndef reconcile",
+     "new": "    else:\n        pass  # NEGATIVE CONTROL\n\n\ndef reconcile"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_funding_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_call_that_failed_unseen_gives_the_credit_back",
+    "test_a_failed_call_gives_the_credit_back",
+    "test_a_retry_after_a_failure_charges_again_under_its_own_key",
+    "test_a_sketch_held_with_no_call_reserved_fails_and_the_credit_returns"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the words of an earlier sketch are not reused: a change of colour asks for (and charges) new words",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/service.py",
+     "old": "    prior = store.written_copy(project_id, account_id, cfp)",
+     "new": "    prior = None"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_funding_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_same_words_with_another_colour_is_free_and_never_charged"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the company pays for every further sketch too (the free one is never gone)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/funding.py",
+     "old": "    return bool(reason) and (reason == 'free_sketch_used' or reason.startswith('free_attempts_used'))",
+     "new": "    return False"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_funding_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_call_that_failed_unseen_gives_the_credit_back",
+    "test_a_failed_call_gives_the_credit_back",
+    "test_a_retry_after_a_failure_charges_again_under_its_own_key",
+    "test_a_sketch_whose_call_finished_unseen_is_settled_by_the_reconciler",
+    "test_a_written_sketch_charges_its_credit_and_the_books_balance",
+    "test_new_words_say_their_price_and_charge_nothing_until_it_is_acknowledged",
+    "test_the_acknowledged_price_holds_a_credit_and_queues_the_words",
+    "test_the_plan_refusing_the_credit_reserves_nothing_and_says_why"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the plan's refusal no longer stops the sketch from being claimed and queued",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/funding.py",
+     "old": "                if not decision.allowed:\n                    raise _Refused(decision.reason)",
+     "new": "                if False:\n                    raise _Refused(decision.reason)"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_funding_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_plan_refusing_the_credit_reserves_nothing_and_says_why"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a sketch held with no call reserved is left pending by the reconciler",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/funding.py",
+     "old": "            store.finish(sid, 'failed', reason='crash before the words were reserved')",
+     "new": "            pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_funding_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_sketch_held_with_no_call_reserved_fails_and_the_credit_returns",
+    "test_the_janitor_runs_it"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the owner's own account is offered a price",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/service.py",
+     "old": "    if row.copy_state not in ('none', 'failed') or owner_account(row.account_id):",
+     "new": "    if row.copy_state not in ('none', 'failed'):"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_funding_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_failed_sketch_of_the_owner_is_never_priced_however_many_calls_failed"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the janitor no longer closes the customers' pending sketches",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/maintenance.py",
+     "old": "            closed = sketch_funding.reconcile(SketchStore(pool), ReservationService(pool), subscriptions, pool)",
+     "new": "            closed = []"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_funding_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_janitor_runs_it"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a retry reuses the first credit key (a released reservation is resolved for good)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/funding.py",
+     "old": "    return sketch_id if not keys else f'{sketch_id}:{len(keys)}'",
+     "new": "    return sketch_id"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_funding_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_retry_after_a_failure_charges_again_under_its_own_key"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the credit is settled without the call's real cost",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/funding.py",
+     "old": "        subscriptions.settle(build_id=key, actual_provider_cost_usd=None if r is None else r.actual_usd)",
+     "new": "        subscriptions.settle(build_id=key, actual_provider_cost_usd=None)"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_funding_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_written_sketch_charges_its_credit_and_the_books_balance"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "a double click holds two credits (the claim no longer decides)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/funding.py",
+     "old": "                            \"AND copy_state IN ('none', 'failed') RETURNING id\",",
+     "new": "                            \"AND copy_state IN ('none', 'failed', 'pending') RETURNING id\","
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_funding_pg.py"
+   ],
+   "expect_failed": [
+    "test_two_clicks_charge_once"
+   ]
+  }
+ ]
+}

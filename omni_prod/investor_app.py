@@ -2343,6 +2343,9 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
 # means the document runs no script, has no origin and cannot read the session or call the API.
 class V28SketchCreate(BaseModel):
     brief_revision: int | None = Field(default=None, ge=1)
+    # the price in credits the customer was shown for NEW words of a further sketch (the spend approval: a mismatch spends
+    # nothing, 409 price_changed); absent, nothing is ever charged
+    price_ack: int | None = Field(default=None, ge=0, le=1000)
 
 
 _SKETCH_PAGE_HEADERS = {
@@ -2380,6 +2383,7 @@ def _sketch_missing() -> HTTPException:
 def v28_sketch_create(project_id: str, req: V28SketchCreate, request: Request) -> dict:
     """Make (or return) the sketch of the project's latest brief: its structure at once, its words reserved and queued
     without waiting. Recomputes everything from the latest brief; nothing comes from the client but a revision to check."""
+    from .direction_sketch import funding as SF
     from .direction_sketch import service as SK
     from .direction_sketch.store import SketchStoreMissing
     account, key = _owner(project_id, request)
@@ -2400,10 +2404,16 @@ def v28_sketch_create(project_id: str, req: V28SketchCreate, request: Request) -
         sketch, words = SK.create(store, reservations, enqueue, row, account_id=account.id, project_id=project_id,
                                   has_version=bool(context.get('latest_version_id')),
                                   has_open_build=str((context.get('latest_build') or {}).get('status') or '').lower()
-                                  in ('queued', 'running'), venice_profile=profile)
-        return {'sketch': SK.view(store, reservations, sketch), 'words': words}
+                                  in ('queued', 'running'), venice_profile=profile, price_ack=req.price_ack,
+                                  subscriptions=_v28.subscriptions, pool=_v28_pool)
+        return {'sketch': SK.view(store, reservations, sketch, subscriptions=_v28.subscriptions, pool=_v28_pool),
+                'words': words}
     except SK.NotReady as exc:
         raise HTTPException(409, detail={'error': 'not_ready', 'reason': exc.reason}) from exc
+    except SF.PriceChanged as exc:
+        raise HTTPException(409, detail={'error': 'price_changed', 'price': SF.price()}) from exc
+    except SF.CreditsRefused as exc:
+        raise HTTPException(402, detail={'error': 'credits_unavailable', 'reason': exc.reason}) from exc
     except SketchStoreMissing as exc:
         raise _sketch_missing() from exc
 
@@ -2426,7 +2436,7 @@ def v28_sketch_get(project_id: str, sketch_id: str, request: Request) -> dict:
     """The sketch's state (a pending sketch is finalised from its reservation, once)."""
     from .direction_sketch import service as SK
     store, row = _sketch_of(project_id, sketch_id, request)
-    return {'sketch': SK.view(store, _sketch_reservations()[0], row)}
+    return {'sketch': SK.view(store, _sketch_reservations()[0], row, subscriptions=_v28.subscriptions, pool=_v28_pool)}
 
 
 @app.get('/api/v28/projects/{project_id}/sketches/{sketch_id}/page')

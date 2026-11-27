@@ -116,7 +116,7 @@
    "mutations": [
     {
      "file": "omni_prod/direction_sketch/copy.py",
-     "old": "project_id=project_id, quote_=quote, caps=scope_caps, purpose='sketch-free',",
+     "old": "project_id=project_id, quote_=quote, caps=scope_caps, purpose=purpose,",
      "new": "project_id=project_id, quote_=quote, caps=scope_caps, purpose='project',"
     }
    ],

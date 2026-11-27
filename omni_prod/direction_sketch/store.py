@@ -182,6 +182,15 @@ class SketchStore:
                     return cur.fetchone() is not None
         return self._run(run)
 
+    def free_taken(self, project_id: str, account_id: str) -> bool:
+        """The company's free sketch of this project is pending or written (the partial unique index's own predicate)."""
+        def run():
+            with self.pool.connection() as conn, conn.cursor() as cur:
+                cur.execute("SELECT EXISTS (SELECT 1 FROM direction_sketches WHERE project_id = %s AND account_id = %s "
+                            "AND funding = 'company_first' AND copy_state IN ('pending', 'written'))", (project_id, account_id))
+                return bool(cur.fetchone()[0])
+        return self._run(run)
+
     def attempts(self, project_id: str, account_id: str, purpose: str = 'sketch-free') -> int:
         """How many model calls this project's sketches reserved on a scope (any state): the bound of the free sketch's
         retries. Counted from the reservations themselves, so a retry that failed still counts."""

@@ -31,8 +31,14 @@ def row(state, copy):
                     created_at=datetime.datetime(2026, 11, 27, 10, 0, 0))
 
 
+class NoDatabase:
+    """The two questions view() asks the store about the price: no free sketch taken, no attempt made."""
+    def free_taken(self, project_id, account_id): return False
+    def attempts(self, project_id, account_id, purpose='sketch-free'): return 0
+
+
 out = {'direction_fp': DS.direction_fp(d), 'brief_revision': 1}
 for name, state, copy in (('pending', 'pending', None), ('written', 'written', WORDS), ('failed', 'failed', None)):
     r = row(state, copy)
-    out[name] = {'view': SK.view(None, None, r), 'page': SK.page(None, r)}
+    out[name] = {'view': SK.view(NoDatabase(), None, r), 'page': SK.page(None, r)}
 print(json.dumps(out, ensure_ascii=False))
