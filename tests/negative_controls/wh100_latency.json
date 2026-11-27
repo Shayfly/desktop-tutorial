@@ -1,0 +1,45 @@
+{
+ "pr": "wh100-latency",
+ "sha256": ["tests/test_wh100_latency.py"],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "The store opens a raw Neon connection on every call again.",
+   "mutations": [
+    {
+     "file": "live_core/postgres_store.py",
+     "old": "        with self._get_pool().connection() as conn:",
+     "new": "        with psycopg.connect(self.database_url, autocommit=True, row_factory=dict_row) as conn:"
+    }
+   ],
+   "targets": ["tests/test_wh100_latency.py"],
+   "expect_failed": ["test_many_store_calls_open_one_pool_and_never_a_raw_connection"]
+  },
+  {
+   "id": "NC2",
+   "what": "The current-version asset is served no-cache again.",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    return _IMMUTABLE if request.query_params.get('v')==_ASSET_VERSION else _REVALIDATE",
+     "new": "    return _REVALIDATE"
+    }
+   ],
+   "targets": ["tests/test_wh100_latency.py"],
+   "expect_failed": ["test_current_version_is_immutable"]
+  },
+  {
+   "id": "NC3",
+   "what": "Any ?v= value is treated as immutable, so a stale or forged hash is cached forever.",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    return _IMMUTABLE if request.query_params.get('v')==_ASSET_VERSION else _REVALIDATE",
+     "new": "    return _IMMUTABLE if request.query_params.get('v') else _REVALIDATE"
+    }
+   ],
+   "targets": ["tests/test_wh100_latency.py"],
+   "expect_failed": ["test_unversioned_or_stale_hash_still_revalidates"]
+  }
+ ]
+}
