@@ -2124,6 +2124,19 @@ class V28ConversationMessage(BaseModel):
     approve_spec: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
 
 
+def _field_max_chars(model, field: str) -> int:
+    """The max_length a request model declares for a text field: one number, read where the server enforces it."""
+    bounds = [m.max_length for m in model.model_fields[field].metadata if getattr(m, 'max_length', None)]
+    if len(bounds) != 1:
+        raise RuntimeError(f'{model.__name__}.{field} must declare exactly one max_length')
+    return int(bounds[0])
+
+
+# The longest single message the conversation accepts (the owner, 2026-11-27): the customer's screen counts against this
+# number, from the conversation view (`limits.message_chars`), so the counter and the refusal cannot drift apart.
+CONVERSATION_MESSAGE_MAX_CHARS = _field_max_chars(V28ConversationMessage, 'message')
+
+
 class V28SpecApproval(BaseModel):
     """Gate 1 (owner 2026-10-26): the customer approves the spec shown to them, by its fingerprint."""
     brief_fingerprint: str = Field(pattern=r'^[0-9a-f]{64}$')
@@ -2245,6 +2258,7 @@ def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
         'turn': turn.to_dict(lang) if turn is not None else None,
         'messages': page['messages'],
         'history': {'has_older': page['has_older'], 'before': page['before']},
+        'limits': {'message_chars': CONVERSATION_MESSAGE_MAX_CHARS},   # the screen's counter reads this
         'discovery': _discovery_view(row, lang) if row else None,
         'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
         # what will actually answer the next message (never 'model' just because a switch is on)
