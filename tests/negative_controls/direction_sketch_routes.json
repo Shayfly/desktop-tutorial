@@ -128,7 +128,7 @@
   },
   {
    "id": "NC7",
-   "what": "the three routes lose their gate (any caller reads any project's sketch)",
+   "what": "the three routes lose their gate and trust a made-up account (the owner is locked out too: the failure is secure, and the tests see it)",
    "envs": [
     "pg"
    ],
@@ -144,7 +144,6 @@
    ],
    "expect_failed": [
     "test_a_sketch_changes_nothing_that_decides_a_build",
-    "test_a_sketch_id_of_another_project_is_a_404_like_an_id_that_never_existed",
     "test_another_account_gets_the_unknown_project_answer_on_all_three_routes",
     "test_from_the_reply_to_the_page_takes_seconds_with_no_worker_and_the_page_shows_the_direction",
     "test_new_words_after_the_free_sketch_say_their_price_and_a_wrong_price_spends_nothing",
@@ -228,6 +227,26 @@
    "expect_failed": [
     "test_every_gate_is_called_by_its_endpoint[GET /api/v28/projects/{project_id}/sketches/{sketch_id}/page]",
     "test_every_gate_is_called_by_its_endpoint[GET /api/v28/projects/{project_id}/sketches/{sketch_id}]"
+   ]
+  },
+  {
+   "id": "NC12",
+   "envs": [
+    "pg"
+   ],
+   "what": "the sketch is looked up by its id alone: another account (and another project) reads it -- the leak a gate exists to stop",
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/store.py",
+     "old": "                cur.execute(f'SELECT {_COLS} FROM direction_sketches WHERE id = %s AND project_id = %s '\n                            'AND account_id = %s', (sketch_id, project_id, account_id))",
+     "new": "                cur.execute(f'SELECT {_COLS} FROM direction_sketches WHERE id = %s AND (project_id = %s OR true) '\n                            'AND (account_id = %s OR true)', (sketch_id, project_id, account_id))"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_routes_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_sketch_id_of_another_project_is_a_404_like_an_id_that_never_existed"
    ]
   }
  ]
