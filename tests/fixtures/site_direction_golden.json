@@ -1,5 +1,5 @@
 {
- "captured_from": "origin/main a034c58, before the extraction",
+ "captured_from": "origin/main bc7077e (with #551 colour_roles), before the extraction",
  "routes": {
   "icon_image": {
    "canon_hash": null,
@@ -56,7 +56,7 @@
    "outline_titles": {},
    "palette": null,
    "palette_category": null,
-   "reason": "no_design_contract: the Design line has no four-colour palette (primary, accent, background, text); and the Design line names no primary colour to complete",
+   "reason": "no_design_contract: the approved brief has no Design line; and there is no Design line to complete",
    "route": "legacy",
    "script": null,
    "windows": []
@@ -165,7 +165,7 @@
    "canon_hash": "672a8c3a258f8952",
    "category": "lawyers",
    "category_found": "named",
-   "contract": "da2456d2885abe96",
+   "contract": "5670faf85092bf33",
    "contract_source": "brief-primary+category",
    "direction": "formal",
    "domain": "lawyer",
@@ -234,7 +234,7 @@
    "canon_hash": "50951742646e5c11",
    "category": null,
    "category_found": "nearest",
-   "contract": "105efbc428d5ddfd",
+   "contract": "bc94a42ec55f0f6c",
    "contract_source": "brief-primary+category",
    "direction": "warm",
    "domain": null,
@@ -271,7 +271,7 @@
    "canon_hash": "ae755c4277ba63af",
    "category": "hair_salons",
    "category_found": "named",
-   "contract": "504c248d92f48de9",
+   "contract": "d5ff319998015f58",
    "contract_source": "brief-primary+category",
    "direction": "elegant",
    "domain": "hair-salon",
@@ -338,7 +338,7 @@
    "canon_hash": "174954aeece1fd3e",
    "category": "lawyers",
    "category_found": "named",
-   "contract": "da2456d2885abe96",
+   "contract": "5670faf85092bf33",
    "contract_source": "brief-primary+category",
    "direction": "formal",
    "domain": "lawyer",
@@ -384,5 +384,5 @@
    "windows": []
   }
  },
- "sha256": "f92ed91830e480ebc72611e2d12f6c2c7060abe5465b7114b744a98cb55e9bc0"
+ "sha256": "676395ca3aa83f190e64c4d98306a6722144d26a59fd97af3a6a9ffecb903b67"
 }

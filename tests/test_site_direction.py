@@ -5,7 +5,7 @@ sketch would have needed a copy of it, and a copy drifts (the sketch would show 
 Now decide() calls direction(). Two things are proved on the real functions:
 
 * decide() answers exactly what it answered before the extraction: `tests/fixtures/site_direction_golden.json` holds
-  `decide().to_dict()` of every case below, captured on origin/main (a034c58) BEFORE the change, with its sha256;
+  `decide().to_dict()` of every case below, captured on origin/main (bc7077e, with #551's colour_roles) BEFORE the change, with its sha256;
 * direction() agrees with the Route decide() returns, field by field, and names the same reason when it fails."""
 import hashlib
 import json
@@ -41,7 +41,11 @@ def cases() -> dict[str, str]:
         'outline_hero_not_first': PROMPT.replace('1. פתיח:', '1. תחומי עיסוק:', 1).replace('2. תחומי התמחות:', '2. פתיח:', 1),
         'outline_without_basis': PROMPT.replace('4. איך זה עובד:', '4. המלצות:', 1),
         'name_not_declared': PROMPT.replace('"כהן ושות׳ – דיני עבודה"', 'כהן ושות׳ – דיני עבודה'),
-        'no_design_contract': PROMPT.replace("primary colour #1e3a5f; palette #1e3a5f, #ffffff; ", ''),
+        # a brief with no Design line locks nothing to complete (a described colour no longer lands here: colour_roles, #551)
+        'no_design_contract': PROMPT.replace(
+            "Design: style formal; primary colour #1e3a5f; palette #1e3a5f, #ffffff; requested colour description "
+            "'כחול כהה, לבן'; font 'Heebo', system-ui, sans-serif (load it from Google Fonts with a system "
+            "fallback); define these as CSS custom properties.\n", ''),
         'phone_not_one': _with_request('טלפון נוסף: 04-8123456.'),
         'icon_image': _with_request('אני רוצה גם לוגו למשרד.'),
         'several_pictures': _with_request('אני רוצה 3 תמונות של המשרד.'),

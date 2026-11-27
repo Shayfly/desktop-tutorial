@@ -95,17 +95,20 @@ class TheFlag(unittest.TestCase):
 
 class EveryReasonNamesItself(unittest.TestCase):
     def test_the_nine_conditions_in_order(self):
-        def reason(text=SALON, *, sketch='on', library='on', **kw):
+        def reason(text=SALON, *, sketch='on', library='on', design_line=True, **kw):
             with mock.patch.dict(os.environ, {'OMNI_DIRECTION_SKETCH': sketch, 'OMNI_SITE_LIBRARY': library,
                                               'OMNI_SITE_LIBRARY_ACCOUNTS': 'usr_somebody_else',
                                               'OMNI_DIRECTION_SKETCH_ACCOUNTS': ACCOUNT}):
-                return ready(text, **kw).reason
+                if design_line:
+                    return ready(text, **kw).reason
+                # a request whose brief carries no Design line (a brief always does; the build prompt of an older one might
+                # not): the real prompt_of, with that one line taken out, as tests/test_site_content_route.py does
+                real = DS.prompt_of
+                with mock.patch.object(DS, 'prompt_of', lambda b: re.sub(r'(?m)^Design: .*\n?', '', real(b))):
+                    return ready(text, **kw).reason
         english = 'I want a website for my law firm Cohen and Co. Phone 03-5551234.'
         stores = D.start(SALON)
         stores.fields['login'] = {'value': 'simple', 'source': 'answer', 'question_id': 'login', 'confidence': 'stated'}
-        colour_word = D.start(SALON)
-        colour_word.fields['color'] = {'value': 'כהה', 'source': 'answer', 'question_id': 'color',
-                                       'confidence': 'stated'}
         got = {
             'flag_off': reason(sketch='off'),
             'account_not_listed': reason(sketch='accounts', account_id='usr_stranger'),
@@ -117,7 +120,7 @@ class EveryReasonNamesItself(unittest.TestCase):
             'no_name': reason('אני רוצה אתר למשרד רואי חשבון'),
             'no_subject': reason('אתר לחנות הקטנה שלי "אבי"'),
             'not_content_site': reason(stores),
-            'no_design_contract': reason(colour_word),
+            'no_design_contract': reason(SALON, design_line=False),
         }
         want = {k: k.split(' ')[0] for k in got}
         want['no_design_contract'] = 'no_design_contract'
@@ -125,14 +128,20 @@ class EveryReasonNamesItself(unittest.TestCase):
             with self.subTest(case=case):
                 self.assertTrue(said == want[case] or (said or '').startswith(want[case] + ':'), said)
 
-    def test_a_colour_that_names_no_colour_is_never_a_sketch_in_the_wrong_colours(self):
-        brief = D.start(SALON)
-        brief.fields['color'] = {'value': 'כהה', 'source': 'answer', 'question_id': 'color', 'confidence': 'stated'}
-        with on():
-            r = ready(brief)
-        self.assertFalse(r.ok)
-        self.assertTrue(r.reason.startswith('no_design_contract'), r.reason)
-        self.assertIsNone(r.direction)
+    def test_a_described_colour_is_the_builds_colour_too(self):
+        # #551 (colour_roles): a colour description with no colour name no longer sends the site to the old path; the library
+        # completes it. The sketch is ready, and its direction is exactly the one the build takes for the same brief approved.
+        for word in ('כהה', 'כחול כהה', 'שחור וזהב'):
+            with self.subTest(word=word):
+                brief = D.start(SALON)
+                brief.fields['color'] = {'value': word, 'source': 'answer', 'question_id': 'color', 'confidence': 'stated'}
+                with on():
+                    r = ready(brief)
+                    route = SC.decide(D.build_prompt(approved(brief))[0], {'user_id': ACCOUNT}, year='2026')
+                self.assertTrue(r.ok, r.reason)
+                self.assertEqual(route.route, SC.ROUTE, route.reason)
+                self.assertEqual(r.direction.contract['fingerprint'], route.contract_fp)
+                self.assertEqual(r.direction.contract['tokens']['--color-primary'], route.contract['tokens']['--color-primary'])
 
     def test_a_customer_who_answered_the_colour_question_has_a_subject(self):
         brief = D.start('אתר לחנות הקטנה שלי "אבי". טלפון 03-5551234')
