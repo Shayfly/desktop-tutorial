@@ -300,6 +300,48 @@ class TheScreenGetsTheWords(unittest.TestCase):
                 self.assertIn(part, app, (lang, part))
 
 
+class TheRealAdmissionAnswerCarriesTheWords(unittest.TestCase):
+    """2026-11-27: tests/customer_flow_browser.cjs failed in CI on a 409 it had hand-written ({item: 'sign-in (roles)'}, no
+    `words`) -- a body the real server never sends. The producer-side walk above (every `Finding(` has an entry) cannot see
+    that: it proves the table is complete, not that every answer which carries findings to a customer went through
+    FW.attach, nor that a test of the screen feeds it what the server really sends. These two do."""
+
+    def test_the_real_gate_refuses_a_request_with_words_on_every_finding_in_the_409_and_in_the_blocker(self):
+        import json
+        import subprocess
+        import sys
+        try:
+            import fastapi  # noqa: F401
+        except ModuleNotFoundError:
+            self.skipTest('needs fastapi (CI)')
+        out = subprocess.run([sys.executable, str(ROOT / 'tests' / 'customer_flow_409_fixture.py')], cwd=ROOT,
+                             capture_output=True, text=True, check=True, timeout=120).stdout
+        got = json.loads(out)
+        for where, findings in (('409 detail', got['detail']['findings']), ('blocker', got['blocker']['findings'])):
+            self.assertTrue(findings, where)
+            for f in findings:
+                self.assertEqual(sorted(f.get('words') or {}), sorted(FW.LANGS), (where, f['item']))
+                for lang in FW.LANGS:
+                    self.assertTrue(all(f['words'][lang][k] for k in ('what', 'why', 'next')), (where, f['item'], lang))
+        by_item = {f['item']: f for f in got['detail']['findings']}
+        # the finding of the failing flow: sign-in with roles is worded in Hebrew as the sign-in entry, by the table's own key
+        self.assertIn('התחברות והרשאות', by_item['sign-in (roles)']['words']['he']['what'])
+        self.assertIn('יומן', by_item['integration: calendar']['words']['he']['what'])
+
+    def test_a_browser_test_never_hand_writes_a_finding_the_server_would_send(self):
+        hand_written = re.compile(r"findings\s*:\s*\[\s*\{[^}]*\bitem\s*:")
+        offenders = [p.name for p in sorted((ROOT / 'tests').glob('*.cjs'))
+                     if hand_written.search(p.read_text(encoding='utf-8'))]
+        self.assertEqual(offenders, [], 'a finding in a mocked answer must come from the real functions '
+                                        '(tests/customer_flow_409_fixture.py, tests/feasibility_words_fixture.py)')
+
+    def test_the_customer_flow_browser_test_takes_its_409_from_the_real_gate(self):
+        text = (ROOT / 'tests' / 'customer_flow_browser.cjs').read_text(encoding='utf-8')
+        self.assertIn('customer_flow_409_fixture.py', text)
+        self.assertIn('body:JSON.stringify({detail:GATE.detail})', text)
+        self.assertIn('blockers:blockedBuild?[GATE.blocker]:[]', text)
+
+
 class TheBrowserTestIsRunInCi(unittest.TestCase):
     def test_it_is_syntax_checked_and_run_beside_the_other_browser_suites(self):
         ci = (ROOT / '.github' / 'workflows' / 'v24-ci.yml').read_text(encoding='utf-8')

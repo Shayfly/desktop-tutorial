@@ -4,7 +4,10 @@
   "tests/test_feasibility_words.py",
   "omni_prod/planning/feasibility_words.py",
   "omni_prod/conversation/supervisor.py",
-  "tests/feasibility_words_browser.cjs"
+  "tests/feasibility_words_browser.cjs",
+  "tests/customer_flow_409_fixture.py",
+  "tests/customer_flow_browser.cjs",
+  "omni_prod/investor_app.py"
  ],
  "controls": [
   {
@@ -41,7 +44,8 @@
    "expect_failed": [
     "test_a_blocked_build_is_said_in_each_language_with_its_next_action",
     "test_an_entry_with_no_next_step_is_refused",
-    "test_the_answer_to_can_you_add_x_is_in_the_customers_language_in_all_three"
+    "test_the_answer_to_can_you_add_x_is_in_the_customers_language_in_all_three",
+    "test_the_real_gate_refuses_a_request_with_words_on_every_finding_in_the_409_and_in_the_blocker"
    ]
   },
   {
@@ -166,7 +170,8 @@
     "tests/test_feasibility_words.py"
    ],
    "expect_failed": [
-    "test_the_blocker_the_workspace_reads_carries_the_words_too"
+    "test_the_blocker_the_workspace_reads_carries_the_words_too",
+    "test_the_real_gate_refuses_a_request_with_words_on_every_finding_in_the_409_and_in_the_blocker"
    ]
   },
   {
@@ -202,6 +207,60 @@
    ],
    "expect_failed": [
     "test_the_words_file_is_customer_text_and_holds_no_platform_word"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the plan tab's blocker (build-contracts) drops the words of its findings: the screen would say the general sentence for sign-in",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "'findings': detail.get('findings') or [], 'problems': detail.get('problems') or []})",
+     "new": "'findings': [{k: v for k, v in f.items() if k != 'words'} for f in detail.get('findings') or []], 'problems': detail.get('problems') or []})  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_the_real_gate_refuses_a_request_with_words_on_every_finding_in_the_409_and_in_the_blocker"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the table is looked up by a key the gate's sign-in finding does not match ('sign-in (roles)' is not found): the customer would get the general sentence",
+   "mutations": [
+    {
+     "file": "omni_prod/planning/feasibility_words.py",
+     "old": "_SIGN_IN = re.compile(r'^sign-in \\((?:simple|roles)\\)$')",
+     "new": "_SIGN_IN = re.compile(r'^sign-in \\((?:simple)\\)$')  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_every_item_the_code_can_produce_has_words_in_every_language",
+    "test_the_real_gate_on_real_contracts_finds_nothing_it_cannot_word",
+    "test_the_real_gate_refuses_a_request_with_words_on_every_finding_in_the_409_and_in_the_blocker"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the customer-flow browser test goes back to a hand-written blocker finding with no words (the bug of 2026-11-27)",
+   "mutations": [
+    {
+     "file": "tests/customer_flow_browser.cjs",
+     "old": "blockers:blockedBuild?[GATE.blocker]:[]",
+     "new": "blockers:blockedBuild?[{code:'capability_not_feasible',findings:[{item:'sign-in (roles)',outcome:'BLOCKED'}]}]:[]"
+    }
+   ],
+   "targets": [
+    "tests/test_feasibility_words.py"
+   ],
+   "expect_failed": [
+    "test_a_browser_test_never_hand_writes_a_finding_the_server_would_send",
+    "test_the_customer_flow_browser_test_takes_its_409_from_the_real_gate"
    ]
   }
  ]
