@@ -96,6 +96,21 @@ class EveryFailureIsExplained(unittest.TestCase):
                 missing = sorted(codes - set(ui_messages(lang)))
                 self.assertEqual(missing, [], f'{lang}: a failed build would show the customer a bare code')
 
+    def test_every_code_a_failed_build_can_carry_also_has_an_arabic_message(self):
+        # warehouse 70: the customer-facing text is in Hebrew, Arabic and English; the first test above covers two
+        codes = worker_failed_codes() | set(OTHER_FAILED_CODES)
+        missing = sorted(codes - set(ui_messages('ar')))
+        self.assertEqual(missing, [], 'ar: a failed build would show the customer a bare code')
+
+    def test_no_failure_message_names_the_platform_or_the_queue(self):
+        # warehouse 70: the customer is told what happened to the build, never the machinery (the word "server",
+        # the queue, Redis, the worker). Read from the shipped app.js, in all three languages.
+        banned = re.compile(r'שרת|server|redis|worker|queue|docker|sandbox|خادم|سيرفر|الخادم', re.IGNORECASE)
+        for lang in ('he', 'en', 'ar'):
+            for code, text in ui_messages(lang).items():
+                with self.subTest(lang=lang, code=code):
+                    self.assertIsNone(banned.search(text), f'{lang}/{code} names the machinery: {text}')
+
     def test_the_bad_output_message_does_not_blame_load_or_quota(self):
         he, en = ui_messages('he')['model_bad_output'], ui_messages('en')['model_bad_output']
         self.assertIn('בפורמט', he)
