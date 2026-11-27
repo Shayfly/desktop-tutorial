@@ -12,8 +12,8 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/__init__.py",
-     "old": "        contract, source = render_contract(prompt, colours, fonts=T.contract_fonts(pair) if pair else None)\n",
-     "new": "        contract, source = render_contract(prompt, colours)\n"
+     "old": "        contract, source = render_contract(prompt, colours, variants=VP.variants_for(palette),\n                                           fonts=T.contract_fonts(pair) if pair else None)\n",
+     "new": "        contract, source = render_contract(prompt, colours, variants=VP.variants_for(palette))\n"
     }
    ],
    "targets": [

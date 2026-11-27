@@ -24,7 +24,8 @@ from omni_prod.site_content import render as R
 ROOT = Path(__file__).resolve().parent.parent
 PROMPT = json.loads((ROOT / 'tests' / 'fixtures' / 'site_content_bld_b0eb47a5.json').read_text(encoding='utf-8'))['prompt']
 OWNER = {'user_id': 'usr_owner_test'}
-BLUSH = VP.palette_for('hair_salons')[1]          # the barber's palette: pink on a pink page
+BLUSH_NAME, BLUSH = VP.palette_for('hair_salons')   # the barber's palette: pink on a pink page
+BLUSH_VARIANTS = VP.variants_for(BLUSH_NAME)
 
 
 def design_line(said: str) -> str:
@@ -45,7 +46,7 @@ def decide(said: str):
 
 
 def barber(said: str):
-    contract, source = R.render_contract(prompt_with(said), BLUSH)
+    contract, source = R.render_contract(prompt_with(said), BLUSH, variants=BLUSH_VARIANTS)
     return contract['tokens'], source, contract
 
 
@@ -56,15 +57,25 @@ class ADescriptionIsNotALegacyBuild(unittest.TestCase):
                 route = decide(said)
                 self.assertEqual(route.route, 'section_library', route.reason)
 
-    def test_dark_picks_the_dark_variant_and_light_the_palettes_own(self):
+    def test_dark_and_light_pick_the_palettes_declared_variants(self):
         for said in ('כהה', 'dark'):
             tokens, source, _ = barber(said)
             self.assertEqual(source, 'category+dark')
+            dark = BLUSH_VARIANTS['dark']
+            self.assertEqual((tokens['--color-bg'], tokens['--color-text'], tokens['--color-primary']),
+                             (dark['background'], dark['ink'], dark['primary']))
             self.assertLess(C.luminance(tokens['--color-bg']), 0.02, tokens)
             self.assertGreaterEqual(C.contrast(tokens['--color-text'], tokens['--color-bg']), 7.0)
         for said in ('בהיר', 'light'):
             tokens, source, _ = barber(said)
-            self.assertEqual((source, tokens['--color-bg']), ('category+light', BLUSH['background']))
+            light = BLUSH_VARIANTS['light']
+            self.assertEqual((source, tokens['--color-bg'], tokens['--color-primary']),
+                             ('category+light', light['background'], light['primary']))
+
+    def test_a_description_word_without_declared_variants_raises_never_a_mix(self):
+        for said in ('כהה', 'light'):
+            with self.assertRaisesRegex(ValueError, 'no declared'):
+                R.render_contract(prompt_with(said), BLUSH)
 
     def test_the_real_production_phrases_never_fall_to_the_legacy_path(self):
         said_in_production = ['חום, שמנת, ירוק', 'צבעים בהשראת בוב מארלי', 'כחול, כתום', 'כחול כהה, לבן',
@@ -125,7 +136,7 @@ class ANamedPairFillsBothRoles(unittest.TestCase):
             palette = {r: VP.load()['palettes'][name][r] for r in VP.ROLES}
             for said in phrases:
                 with self.subTest(palette=name, said=said):
-                    contract, _ = R.render_contract(prompt_with(said), palette)
+                    contract, _ = R.render_contract(prompt_with(said), palette, variants=VP.variants_for(name))
                     self.assertFalse([k for k, v in contract['contrast'].items() if v < 3.0], contract['contrast'])
 
 
