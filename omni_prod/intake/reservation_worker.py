@@ -27,7 +27,7 @@ INTAKE_QUEUE = 'omni-intake'
 
 
 
-RESERVED_TASKS = ('conversation', 'conversation_complex')
+RESERVED_TASKS = ('conversation', 'conversation_complex', 'direction_sketch')   # the last: S6.3
 
 
 def _reserved_task(payload: dict, quote: dict) -> str:
