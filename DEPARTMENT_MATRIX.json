@@ -46,9 +46,8 @@
     "product_evolution_agent": "IMPLEMENTED"
    },
    "skills": {
-    "IMPLEMENTED": 1,
+    "IMPLEMENTED": 2,
     "NOT_IMPLEMENTED": 5,
-    "REAL_SERVER_VERIFIED": 1,
     "UNIT_TESTED": 4
    },
    "missing_roles": [
@@ -263,10 +262,10 @@
     "backup_recovery_agent": "REAL_SERVER_VERIFIED"
    },
    "skills": {
-    "IMPLEMENTED": 17,
+    "IMPLEMENTED": 16,
     "NOT_IMPLEMENTED": 6,
     "REAL_SERVER_VERIFIED": 9,
-    "UNIT_TESTED": 1
+    "UNIT_TESTED": 2
    },
    "missing_roles": [],
    "missing_adapters": [],
@@ -325,11 +324,11 @@
     "system_test_orchestrator": "UNIT_TESTED"
    },
    "skills": {
-    "IMPLEMENTED": 16,
+    "IMPLEMENTED": 15,
     "INTEGRATION_TESTED": 3,
     "NOT_IMPLEMENTED": 25,
     "REAL_SERVER_VERIFIED": 2,
-    "UNIT_TESTED": 8
+    "UNIT_TESTED": 9
    },
    "missing_roles": [],
    "missing_adapters": [
@@ -506,9 +505,8 @@
     "support_agent": "NOT_IMPLEMENTED"
    },
    "skills": {
-    "IMPLEMENTED": 5,
+    "IMPLEMENTED": 6,
     "NOT_IMPLEMENTED": 3,
-    "REAL_SERVER_VERIFIED": 1,
     "UNIT_TESTED": 5
    },
    "missing_roles": [],

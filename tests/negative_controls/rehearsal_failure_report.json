@@ -1,0 +1,78 @@
+{
+ "pr": "rehearsal-failure-report",
+ "sha256": [
+  "tests/test_rehearsal_failure_report.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "Restore the original annotation line that reads t['failing'] from every repair trace entry (run 45869754310: KeyError 'failing').",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "lines.append(note('repair rounds', '\\n'.join(trace_line(t) for t in report['trace'])))",
+     "new": "lines.append(note('repair rounds', '\\n'.join(f\"round {t['round']}: failing {t['failing']} changed {t['changed']} :: {t['first_failure'][-500:]}\" for t in report['trace'])))"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_failure_report.py"
+   ],
+   "expect_failed": [
+    "test_annotations_do_not_crash_on_a_trace_of_every_kind",
+    "test_an_unknown_kind_fails_loudly_with_its_name",
+    "test_the_lines_carry_the_id_the_code_the_failing_ids_the_route_and_the_cost"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "Skip a trace entry of an unknown kind in silence instead of failing with its name.",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "'\\n'.join(trace_line(t) for t in report['trace'])",
+     "new": "'\\n'.join(trace_line(t) for t in report['trace'] if sum(k in t for k in TRACE_KINDS) == 1)"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_failure_report.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_kind_fails_loudly_with_its_name"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "Print only the failing ids of each round, without their messages.",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "f\"{f['id']}: {f['message']}\" for f in r['failures']",
+     "new": "f\"{f['id']}\" for f in r['failures']"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_failure_report.py"
+   ],
+   "expect_failed": [
+    "test_the_lines_carry_the_id_the_code_the_failing_ids_the_route_and_the_cost"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "Leave the error_code out of the failed-build line.",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "error_code={report.get('error_code')} ",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_failure_report.py"
+   ],
+   "expect_failed": [
+    "test_the_lines_carry_the_id_the_code_the_failing_ids_the_route_and_the_cost"
+   ]
+  }
+ ]
+}

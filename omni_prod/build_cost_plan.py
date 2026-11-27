@@ -16,6 +16,12 @@ Rules:
 * An unknown required quote is never invented: ``CostQuoteUnknown`` blocks the
   build before any reservation. It subclasses PermissionError so existing API
   handlers map it to 402 like other authorization failures.
+* The owner 2026-11-26 ("missing data is not binding ... but tell me"): a
+  provider that IS configured but has NO price no longer blocks. Its quote is
+  ``unpriced:`` (0 placeholders, never a price), it runs, and it is named in
+  ``price_missing`` / the components' ``cost_data_missing``: unknown, never 0.
+  ``CostQuoteUnknown`` stays only for what cannot run at all -- a required
+  capability with no provider, a kind with no provisioner.
 * The full total is reserved once, durably, before anything is enqueued.
   No later, separate reservation exists for image/media.
 """
@@ -46,6 +52,8 @@ class BuildCostInputs:
     capability_quotes: tuple[tuple[str, str, ProviderQuote], ...]   # (requirement_id, key, quote)
     skipped_optional: tuple[str, ...]
     infrastructure: tuple[tuple[str, Decimal, Decimal, str], ...]    # (kind, est, max, basis)
+    # The owner 2026-11-26: configured but unpriced -- runs, its cost is unknown (one dict per item, by name).
+    price_missing: tuple[dict, ...] = ()
 
     @property
     def capability_maximum_usd(self) -> Decimal:
@@ -73,6 +81,7 @@ def collect_build_cost_inputs(
     unknown: list[str] = []
     priced: list[tuple[str, str, ProviderQuote]] = []
     skipped: list[str] = []
+    price_missing: list[dict] = []
     for requirement in contract.capability_plan.requirements:
         if requirement.key in native:
             continue
@@ -87,6 +96,11 @@ def collect_build_cost_inputs(
         if quote.capability_key != requirement.key:
             raise ValueError("capability quote does not match its requirement")
         priced.append((requirement.id, requirement.key, quote))
+        if not quote.price_known:
+            price_missing.append({'kind': 'capability', 'name': requirement.key, 'requirement_id': requirement.id,
+                                  'provider': quote.provider, 'units': str(quote.units), 'gap': 'price_missing',
+                                  'why': 'the provider is configured without a price: it runs and its cost is '
+                                         'recorded as unknown'})
 
     infra: list[tuple[str, Decimal, Decimal, str]] = []
     quoted_kinds = set()
@@ -94,6 +108,11 @@ def collect_build_cost_inputs(
         kind = getattr(quote.kind, "value", quote.kind)
         quoted_kinds.add(kind)
         maximum = getattr(quote, "provisioning_maximum_usd", None)
+        if maximum is None and getattr(quote, "price_known", True) is False:
+            # a configured provisioner without a price: provisioned, its cost recorded as unknown (the owner 2026-11-26)
+            price_missing.append({'kind': 'infrastructure', 'name': kind, 'gap': 'price_missing',
+                                  'why': f'provisioning has no price ({quote.basis}): its cost is recorded as unknown'})
+            continue
         if maximum is None:
             unknown.append(f"infrastructure {kind} provisioning cost is unknown ({quote.basis})")
             continue
@@ -109,7 +128,7 @@ def collect_build_cost_inputs(
                 unknown.append(f"infrastructure {requirement.kind} has no quote")
     if unknown:
         raise CostQuoteUnknown(unknown)
-    return BuildCostInputs(tuple(priced), tuple(skipped), tuple(infra))
+    return BuildCostInputs(tuple(priced), tuple(skipped), tuple(infra), tuple(price_missing))
 
 
 def build_economics_quote(
@@ -139,8 +158,9 @@ def build_economics_quote(
         "capability_authorization_usd": str(inputs.capability_maximum_usd),
         "capabilities": [
             {"requirement_id": rid, "capability_key": key, "provider": q.provider,
-             "estimated_cost_usd": str(q.estimated_cost_usd), "maximum_cost_usd": str(q.maximum_cost_usd),
-             "pricing_version": q.pricing_version}
+             "estimated_cost_usd": str(q.estimated_cost_usd) if q.price_known else None,
+             "maximum_cost_usd": str(q.maximum_cost_usd) if q.price_known else None,
+             "pricing_version": q.pricing_version, **({} if q.price_known else {"price_known": False})}
             for rid, key, q in inputs.capability_quotes
         ],
         "skipped_optional_capabilities": list(inputs.skipped_optional),
@@ -154,6 +174,8 @@ def build_economics_quote(
         "reservation_usd": str(quote.total_authorized_variable_usd),
         "rule": "one durable reservation of the full conservative total before any paid external effect",
     }
+    if inputs.price_missing:     # the owner 2026-11-26: named, never a number (the reservation holds none for them)
+        components["cost_data_missing"] = [dict(item) for item in inputs.price_missing]
     return quote, components
 
 

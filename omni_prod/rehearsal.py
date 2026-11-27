@@ -16,6 +16,7 @@ pipeline be exercised and iterated on directly.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 
@@ -59,7 +60,9 @@ def run(prompt: str) -> dict:
     from .worker_tasks import spend_snapshot
     started = time.monotonic()
     engine, gateway = _live_components()
-    report: dict = {'prompt': prompt}
+    # A rehearsal opens no build row, so it has no bld_ id: the id is the Actions run that carries it (GITHUB_RUN_ID,
+    # when the runner passes it on), never an invented one.
+    report: dict = {'prompt': prompt, 'build_id': 'rehearsal-' + os.environ.get('GITHUB_RUN_ID', 'no-run-id')}
     # The content-document route, in the worker's order: right after the components, before any install that wraps
     # the architect (worker_tasks._run_live_build_job). The rehearsal has no account: OMNI_SITE_LIBRARY=on exercises it.
     # The worker fails a customer's build on any error here (an unknown OMNI_SITE_LIBRARY value, an empty account
@@ -133,7 +136,8 @@ def run(prompt: str) -> dict:
             raise RuntimeError(f'the content route could not be decided, so the build did not start: {site_error}')
         result = engine.build(prompt)
     except Exception as exc:
-        report.update(outcome='exception', error=f'{type(exc).__name__}: {exc}'[:1500])
+        from .worker_tasks import failure_code
+        report.update(outcome='exception', error=f'{type(exc).__name__}: {exc}'[:1500], error_code=failure_code(exc))
         result = None
     if result is not None:
         quality = assess_repository(spec=result.spec, repository=result.repository)
@@ -154,6 +158,17 @@ def run(prompt: str) -> dict:
             browser_check=getattr(getattr(engine, 'executor', None), 'last_probe', None),
             behavior_acceptance=__import__('omni_prod.worker_tasks', fromlist=['x']).behavior_evidence(engine),
         )
+        try:        # the customer's error_code and message for this build, from the worker's own gate order
+            from types import SimpleNamespace
+            from .security_testing import hostile_repository_scan
+            from .worker_tasks import evaluate_release_gates
+            _, code, message = evaluate_release_gates(
+                result=result, quality=quality, security=hostile_repository_scan(result.repository),
+                rights=SimpleNamespace(publish_allowed=True))
+            report.update(error_code=code, release_gate_message=message)
+        except Exception as exc:
+            report['error_code_error'] = f'{type(exc).__name__}: {exc}'[:300]
+        report['round_failures'] = round_failures(engine)
     report['release_policy'] = release_policy(engine, gateway, result)
     from .skill_units.gate import report as skill_gate_report
     report['skill_gates'] = skill_gate_report(engine)
@@ -221,6 +236,78 @@ def cost_projection(gateway) -> dict:
     return {'tokens': {'input': tin, 'output': tout, 'by_model': by_model}, 'same_tokens_cost_usd': prices}
 
 
+ROUND_FAILURES_MAX_ROUNDS, ROUND_FAILURES_MAX_PER_ROUND, ROUND_FAILURE_MESSAGE_CHARS = 9, 10, 300
+
+
+def round_failures(engine) -> list[dict]:
+    """Every verified round's failing acceptance ids WITH their messages (the engine keeps them for the taxonomy as
+    (round, observed failures)). Bounded, and the bound is said: a round with more failures names how many it cut.
+    Run 45869754310 reported `failures=14` and not one of the 14 ids or messages."""
+    out = []
+    for rnd, observed in (getattr(engine, '_taxonomy_rounds', None) or [])[:ROUND_FAILURES_MAX_ROUNDS]:
+        kept = [{'id': f.acceptance_id, 'message': (f.message or '')[:ROUND_FAILURE_MESSAGE_CHARS]}
+                for f in observed[:ROUND_FAILURES_MAX_PER_ROUND]]
+        out.append({'round': rnd, 'failures': kept, 'not_shown': max(0, len(observed) - len(kept))})
+    return out
+
+
+# The kinds of entry AutonomousProductEngine writes to its repair trace (autonomous_core._build), each named by the key
+# that only that kind carries. A new kind in the core must be named here: an unknown entry raises (never skipped).
+TRACE_KINDS = ('failing', 'repair_declined', 'repair_model_unavailable', 'escalated')
+
+
+def trace_kind(entry: dict) -> str:
+    kinds = [k for k in TRACE_KINDS if k in entry]
+    if len(kinds) != 1:
+        raise ValueError(f'unknown repair trace entry (expected exactly one of {list(TRACE_KINDS)}), keys '
+                         f'{sorted(entry)}: {json.dumps(entry, ensure_ascii=False, default=str)[:300]}')
+    return kinds[0]
+
+
+def trace_line(entry: dict) -> str:
+    kind = trace_kind(entry)
+    head = f"round {entry.get('round')}"
+    if kind == 'failing':
+        extras = ''.join(f" {k}={json.dumps(entry[k], ensure_ascii=False)}"
+                         for k in ('second_chance', 'plan_restored', 'discarded', 'stopped') if k in entry)
+        return (f"{head}: failing {entry['failing']} changed {entry.get('changed')}{extras} :: "
+                f"{str(entry.get('first_failure', ''))[-500:]}")
+    if kind == 'repair_declined':
+        return (f"{head}: repair declined ({entry['repair_declined']}, paid_call={entry.get('paid_call')}) :: "
+                f"{str(entry.get('detail', ''))[:400]}")
+    if kind == 'repair_model_unavailable':
+        return f"{head}: no model route answered the repair :: {str(entry['repair_model_unavailable'])[:400]}"
+    return f"{head}: escalated, the same test value was fixed twice :: {json.dumps(entry['escalated'], ensure_ascii=False, default=str)[:400]}"
+
+
+def failure_lines(report: dict) -> list[str]:
+    """What a failed rehearsal must say to be diagnosed from the log alone: the build, its error_code and message,
+    every round's failing ids with their messages, the content route, and what the build cost (calls, models)."""
+    def err(title, body):
+        return f"::error title={title}::" + str(body)[:3400].replace('%', '%25').replace('\r', '').replace('\n', '%0A')
+    route = report.get('site_route') or {}
+    usage = route.get('content_usage')
+    models = ', '.join(f'{m}: {v[2]} calls {v[0]} in/{v[1]} out tokens'
+                       for m, v in ((report.get('tokens') or {}).get('by_model') or {}).items()) or 'none recorded'
+    head = [f"build_id={report.get('build_id')} outcome={report.get('outcome')} error_code={report.get('error_code')} "
+            f"stop_reason={report.get('stop_reason')}",
+            f"message: {report.get('error') or report.get('release_gate_message') or 'none'}"]
+    if report.get('error_code_error'):
+        head.append(f"error_code could not be derived: {report['error_code_error']}")
+    head.append(f"content route: route={route.get('route')} reason={route.get('reason')}"
+                + (f" error={report['site_route_error']}" if report.get('site_route_error') else '')
+                + (f" content_usage={json.dumps(usage, ensure_ascii=False)}" if usage else ''))
+    head.append(f"metered cost: spend_usd={report.get('authorized_spend_usd')} calls={report.get('model_calls')} "
+                f"models: {models}")
+    lines = [err('failed build', '\n'.join(head))]
+    rounds = report.get('round_failures') or []
+    if rounds:
+        lines.append(err('failing per round', '\n'.join(
+            f"round {r['round']}: " + '; '.join(f"{f['id']}: {f['message']}" for f in r['failures'])
+            + (f" (+{r['not_shown']} not shown)" if r.get('not_shown') else '') for r in rounds)))
+    return lines
+
+
 def annotations(report: dict) -> list[str]:
     """GitHub notice lines (at most 10 per step are kept by GitHub)."""
     def note(title, body):
@@ -280,11 +367,11 @@ def annotations(report: dict) -> list[str]:
     if report.get('browser_check') is not None:
         lines.append(note('browser check', json.dumps(report['browser_check'], ensure_ascii=False)))
     if report.get('trace'):
-        lines.append(note('repair rounds', '\n'.join(
-            f"round {t['round']}: failing {t['failing']} changed {t['changed']} :: {t['first_failure'][-500:]}"
-            for t in report['trace'])))
+        lines.append(note('repair rounds', '\n'.join(trace_line(t) for t in report['trace'])))
     for i, f in enumerate((report.get('failures') or [])[:5]):
         lines.append(note(f"failure {i + 1} {f['id']}", f['message'] + '\n' + f['evidence']))
+    if 'build_id' in report and not ready(report):       # first: GitHub keeps only the first 10 of a step
+        lines = failure_lines(report) + lines
     return lines
 
 

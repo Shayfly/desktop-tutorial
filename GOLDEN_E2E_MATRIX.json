@@ -53,11 +53,11 @@
   },
   {
    "scenario": "Golden 5 — Crash recovery",
-   "status": "FAIL",
+   "status": "NOT_RUN",
    "evidence": [],
    "commits": [],
    "at": [],
-   "note": "S4.2 (the build continues from its last checkpoint) is not implemented: a recovered build starts over, and since 2026-10-14 (e5e11e5) a build whose lost worker made a paid call ends FAILED provider_liability_unknown instead of being requeued. crash-verify checks S4.2 (postdeploy_checks.resume_verdict); no crash-verify run has been green since 2026-10-09"
+   "note": "S4.2 (the build continues from its last checkpoint) is implemented (omni_prod/build_checkpoint, tests/test_crash_resume_pg.py) and has not run on the real server: crash-verify (postdeploy-checks stage=crash, postdeploy_checks.resume_verdict) runs after the release. No crash-verify run has been green since 2026-10-09; those runs started over"
   },
   {
    "scenario": "Golden 6 — Provider failure",
