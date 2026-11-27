@@ -1,0 +1,261 @@
+{
+ "pr": "rehearsal-photo",
+ "sha256": [
+  "tests/test_rehearsal_photo.py",
+  "omni_prod/rehearsal_photo.py",
+  "omni_prod/rehearsal.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "base64 in the page still counts as a file",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal_photo.py",
+     "old": "as_file = bool(rows) and not inline and all(",
+     "new": "as_file = bool(rows) and all("
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_base64_in_the_page_is_not_a_file"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a dropped hero counts as kept",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal_photo.py",
+     "old": "hero_kept = bool(hero) and all(r['placement'] == 'ok' for r in hero)",
+     "new": "hero_kept = bool(hero)"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_a_dropped_hero_is_not_kept",
+    "test_a_build_that_drops_the_hero_fails_the_rehearsal_even_if_everything_else_is_ready"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the carried file is not checked",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal_photo.py",
+     "old": "all(r['file_carried'] and r['referenced_as_file']",
+     "new": "all(r['referenced_as_file']"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_file_is_not_carried",
+    "test_the_file_as_text_is_not_the_image"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a photo that is not ok does not fail the rehearsal",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "    if 'photo' in report and not (report['photo'] or {}).get('ok'):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_a_build_that_drops_the_hero_fails_the_rehearsal_even_if_everything_else_is_ready"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the account may be a founder",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal_photo.py",
+     "old": "    if m5_founder_account(NON_FOUNDER_ID):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_the_account_is_not_in_the_founder_list"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a founder account passes as non-founder",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "    if 'account' in report and report['account'].get('founder'):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_a_non_founder_run_that_turns_out_founder_fails"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the build time budget is not installed",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "        install_build_control(engine, gateway, control)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_the_rehearsal_has_the_workers_budget_and_reports_a_build_that_stays_inside_it",
+    "test_a_build_that_passes_its_stop_time_ends_itself_and_is_named_build_timeout"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a time budget may exceed the worker's own",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "    if repair > BUILD_REPAIR_UNTIL_SECONDS or stop > BUILD_STOP_AT_SECONDS:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_parse"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "an image without the brief is accepted (a raw request has no photo)",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "        if len(argv) < 2 or not argv[1].strip():",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_an_image_without_the_brief_is_refused"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a photo that cannot be installed still builds",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "        if photo_error is not None:         # likewise",
+     "new": "        if False:         # likewise"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_a_request_with_no_photo_in_it_does_not_build"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the workflow does not pass the image on",
+   "mutations": [
+    {
+     "file": ".github/workflows/golden-rehearsal.yml",
+     "old": "REHEARSAL_IMAGE=${IMAGE:-}",
+     "new": "REHEARSAL_IMAGE="
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_inputs_and_the_command"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the fixture photo is not put on the brief",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "        brief.assets['image'] = dict(photo.meta)",
+     "new": "        pass"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_a_build_that_keeps_the_photo_reports_file_and_hero",
+    "test_a_dropped_hero_is_not_kept",
+    "test_a_marker_left_in_the_page_is_not_a_file",
+    "test_a_missing_file_is_not_carried",
+    "test_all_three_are_read",
+    "test_an_svg_icon_inline_is_not_a_photo",
+    "test_base64_in_the_page_is_not_a_file",
+    "test_the_brief_places_the_fixture_photo_in_the_hero_with_the_customers_words",
+    "test_the_contract_the_worker_builds_from_keeps_the_binding",
+    "test_the_file_as_text_is_not_the_image",
+    "test_the_page_names_a_file_and_the_report_says_file_and_hero_kept"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the workflow variables are not read by main()",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "(argv[i] if len(argv) > i else env.get(name, ''))",
+     "new": "(argv[i] if len(argv) > i else '')"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_the_workflows_variables_are_read_when_no_argument_says_otherwise"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the non-founder installs are skipped",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "                'agentic_repair': _install_agentic_repair(engine, who),",
+     "new": "                'agentic_repair': None,"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_photo.py"
+   ],
+   "expect_failed": [
+    "test_the_workers_own_decisions_are_read_for_that_account"
+   ]
+  }
+ ]
+}
