@@ -28,10 +28,14 @@ const PAGE_HEADERS = {
   'content-type': 'text/html; charset=utf-8', 'cache-control': 'private, no-store', 'x-frame-options': 'SAMEORIGIN',
   'content-security-policy': "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; frame-ancestors 'self'; sandbox",
 };
+const LONG_MS = 10000, SHORT_MS = 6000;
+const WATCHDOG_MS = 4 * 60 * 1000;      // the whole file: past it the job fails loudly here, not by the runner's step timeout
 const FONT_CSS = "@font-face{font-family:'David Libre';src:url(https://fonts.gstatic.com/s/davidlibre/test.woff2) format('woff2')}";
 
 async function run(browser, width, app, options = {}) {
   const page = await browser.newPage({ viewport: { width, height: 900 } });
+  const wait = options.mutated ? SHORT_MS : LONG_MS;                       // the bound of every wait of this run
+  page.setDefaultTimeout(wait);
   const seen = { created: 0, polls: 0, pages: 0, hosts: new Set(), consoleErrors: [] };
   let answered = 0, replyAt = null;
   page.on('console', m => { if (m.type() === 'error') seen.consoleErrors.push(m.text()); });
@@ -69,12 +73,19 @@ async function run(browser, width, app, options = {}) {
   });
   await page.goto('http://platform.test/fixture');
   await page.waitForFunction(() => typeof S === 'object' && S.signedIn && S.chat);
-  const out = { width, seen, problems: [] };
+  const out = { width, seen, problems: [], cards: 0, pill: '', sandbox: null, title: null, stateBefore: '', placeholderBefore: '',
+    buttons: 0, boxes: [], approveButtons: 0, specCards: 0, cardButtons: 0, over: 0, hosts: [] };
+  const finish = async () => { out.hosts = [...seen.hosts].sort(); await page.close(); return out; };
   const bad = msg => out.problems.push(msg);
   const frameLocator = page.frameLocator('iframe.sketchFrame');
-  try { await page.waitForSelector('iframe.sketchFrame', { timeout: 15000 }); } catch (e) { bad('no frame in the card'); }
+  try { await page.waitForSelector('iframe.sketchFrame', { timeout: wait }); } catch (e) { bad('no frame in the card'); }
+  if (options.mutated && out.problems.length) return finish();                // it failed: nothing more to wait for
+  if (options.mutated) {                                                     // a create call that loops is seen at once
+    await page.waitForTimeout(1200);
+    if (seen.created > 1) { bad(`the sketch was created ${seen.created} times, not once`); return finish(); }
+  }
   if (out.problems.length === 0) {
-    try { await frameLocator.locator('.draft-ribbon').waitFor({ timeout: 15000 }); out.firstPaintSeconds = (Date.now() - replyAt) / 1000; } catch (e) { bad('the frame did not load its draft page'); }
+    try { await frameLocator.locator('.draft-ribbon').waitFor({ timeout: wait }); out.firstPaintSeconds = (Date.now() - replyAt) / 1000; } catch (e) { bad('the frame did not load its draft page'); }
   }
   out.cards = await page.locator('.sketchCard').count();
   out.pill = (await page.locator('.sketchCard .pill').first().innerText().catch(() => '')).trim();
@@ -84,8 +95,8 @@ async function run(browser, width, app, options = {}) {
   out.placeholderBefore = await frameLocator.locator('body').innerText().catch(() => '');
   out.firstSrc = await page.locator('iframe.sketchFrame').first().getAttribute('src').catch(() => null);
   if (!options.neverWritten) {
-    try { await page.waitForFunction(() => /נכתבו/.test((document.querySelector('.sketchState') || {}).textContent || ''), null, { timeout: 15000 }); } catch (e) { bad('the words never reached the card'); }
-    try { await frameLocator.getByText('תספורת שמתאימה לכם').first().waitFor({ timeout: 15000 }); } catch (e) { bad('the frame did not load again with the words'); }
+    try { await page.waitForFunction(() => /נכתבו/.test((document.querySelector('.sketchState') || {}).textContent || ''), null, { timeout: wait }); } catch (e) { bad('the words never reached the card'); }
+    try { await frameLocator.getByText('תספורת שמתאימה לכם').first().waitFor({ timeout: wait }); } catch (e) { bad('the frame did not load again with the words'); }
     out.stateAfter = (await page.locator('.sketchState').first().innerText().catch(() => '')).trim();
     out.srcAfter = await page.locator('iframe.sketchFrame').first().getAttribute('src').catch(() => null);
   }
@@ -104,9 +115,7 @@ async function run(browser, width, app, options = {}) {
   out.specCards = await page.locator('.specCard').count();
   out.cardButtons = await page.locator('.sketchCard button', { hasText: /אישור|מאשר|בנו|approve/i }).count();
   out.over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  out.hosts = [...seen.hosts].sort();
-  await page.close();
-  return out;
+  return finish();
 }
 
 function problems(r, expect = {}) {
@@ -137,6 +146,7 @@ function problems(r, expect = {}) {
   return p;
 }
 
+const watchdog = setTimeout(() => { console.error(`::error title=direction sketch card::the test ran past ${WATCHDOG_MS / 1000} s: something waits without end`); process.exit(2); }, WATCHDOG_MS);
 (async () => {
   const browser = await chromium.launch({ headless: true, ...browserOptions });
   const failures = [];
@@ -167,12 +177,13 @@ function problems(r, expect = {}) {
     for (const [what, from, to] of mutations) {
       assert.equal(APP.split(from).length, 2, `the mutation line for "${what}" is in app.js exactly once`);
       let broke;
-      try { broke = problems(await run(browser, 390, APP.replace(from, to))); } catch (e) { broke = [`threw: ${e.message.slice(0, 80)}`]; }
+      try { broke = problems(await run(browser, 390, APP.replace(from, to), { mutated: true })); } catch (e) { broke = [`threw: ${e.message.slice(0, 80)}`]; }
       if (!broke.length) failures.push(`with "${what}" the test still passes: it proves nothing`);
       else console.log(`::notice title=direction sketch card::fails when ${what}, as it must (${broke[0].slice(0, 90)})`);
     }
   } finally {
     await browser.close();
+    clearTimeout(watchdog);
   }
   if (failures.length) { for (const f of failures) console.error(`::error title=direction sketch card::${f}`); process.exit(1); }
 })().catch(e => { console.error(e); process.exit(1); });

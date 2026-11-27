@@ -2398,7 +2398,7 @@ def v28_sketch_create(project_id: str, req: V28SketchCreate, request: Request) -
     if reservations is not None:
         from .intake import conversation_agent as agent
         from .providers import venice_gateway as VG
-        profile = agent.venice_profile() if VG.selected() else None
+        profile = agent.profile_for_sketch() if VG.selected() else None
     store = _sketch_store()
     try:
         sketch, words = SK.create(store, reservations, enqueue, row, account_id=account.id, project_id=project_id,

@@ -60,8 +60,14 @@ class ThePriceOfNewWords(unittest.TestCase):
         self.assertIn("['structure', 'failed'].includes(st.view.state)", update)
         self.assertIn('n.pay.hidden = !priced;', update)
 
+    def test_the_hebrew_text_says_the_customers_word_for_a_credit_never_the_platforms(self):
+        # the owner's dictionary (omni_prod/customer_words.py, warehouse 132): a customer hears "an amount from your balance"
+        start = APP.index('sketchTitle:')
+        he = APP[start:APP.index('\n', APP.index('sketchNote:', start))]        # the Hebrew lines of the card
+        self.assertNotIn('קרדיט', he)
+
     def test_the_note_says_what_is_free_and_what_costs_a_credit(self):
-        self.assertIn('שינוי צבע, גופן או סדר חינם; ניסוח חדש עולה קרדיט אחד', APP)
+        self.assertIn('שינוי צבע, גופן או סדר חינם; ניסוח חדש עולה יחידה אחת מהיתרה שלכם', APP)
 
 
 class TheFrameIsSandboxed(unittest.TestCase):

@@ -131,5 +131,19 @@ class TheTurn(unittest.TestCase):
         self.assertTrue(t.interpretation['sketch']['not_ready'].startswith('offer_failed: ValueError'))
 
 
+class TheModelProfile(unittest.TestCase):
+    def test_only_the_sketch_route_reads_the_conversation_agents_profile_for_the_sketch(self):
+        from pathlib import Path
+        import omni_prod
+        root = Path(omni_prod.__file__).resolve().parent
+        readers = sorted(str(f.relative_to(root)) for f in root.rglob('*.py')
+                         if 'profile_for_sketch()' in f.read_text(encoding='utf-8', errors='replace'))
+        self.assertEqual(readers, ['intake/conversation_agent.py', 'investor_app.py'])
+
+    def test_it_is_the_conversation_agents_profile_and_no_other(self):
+        from omni_prod.intake import conversation_agent as agent
+        self.assertEqual(agent.profile_for_sketch(), agent.venice_profile())
+
+
 if __name__ == '__main__':
     unittest.main()
