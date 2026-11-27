@@ -85,13 +85,14 @@ def prompt_of(brief) -> str:
     return discovery.build_prompt(brief)[0][-PROMPT_BOUND:]
 
 
-def direction_of(brief) -> SketchDirection:
-    """The direction the build would take for this (draft) brief, from `site_content.direction`. Raises ValueError
-    with the reason when the build would not take the library route (ready() turns that into `not_ready`)."""
+def direction_from_prompt(prompt: str) -> SketchDirection:
+    """The direction the build would take for this request text, from `site_content.direction`. Raises ValueError with
+    the reason when the build would not take the library route (ready() turns that into `not_ready`). A stored sketch is
+    drawn again from the prompt it recorded, by this function."""
     from .. import site_content as SC
     from .. import section_library as L
     from ..site_content.schema import offered_sections
-    d = SC.direction(prompt_of(brief), lang='he', phone_optional=True)
+    d = SC.direction(prompt, lang='he', phone_optional=True)
     if d.reason:
         raise ValueError(d.reason)
     business = d.business
@@ -104,6 +105,11 @@ def direction_of(brief) -> SketchDirection:
         art_direction=d.entry['direction'], colours=d.colours, pair=d.pair['id'], script=d.script, contract=d.contract,
         sections=ordered, titles=dict(d.titles), layout=layout, phone_given=bool(d.sheet.phone), voice=d.entry['voice'],
         domain_words=tuple(d.domain_kw.get('domain_words') or ()), sheet=d.sheet)
+
+
+def direction_of(brief) -> SketchDirection:
+    """The direction the build would take for this (draft) brief."""
+    return direction_from_prompt(prompt_of(brief))
 
 
 def ready(brief, *, account_id: str | None, has_version: bool, has_open_build: bool) -> Ready:

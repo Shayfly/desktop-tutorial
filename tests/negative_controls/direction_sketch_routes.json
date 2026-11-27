@@ -1,0 +1,218 @@
+{
+ "pr": "direction-sketch-routes",
+ "sha256": [
+  "tests/test_direction_sketch_routes_pg.py",
+  "tests/test_direction_sketch_offer.py",
+  "omni_prod/direction_sketch/service.py",
+  "omni_prod/direction_sketch/offer.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the sketch page loses the sandbox (its document could run script and read the session)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "font-src https://fonts.gstatic.com; img-src data:; frame-ancestors 'self'; sandbox\"),",
+     "new": "font-src https://fonts.gstatic.com; img-src data:; frame-ancestors 'self'\"),"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_routes_pg.py"
+   ],
+   "expect_failed": [
+    "test_from_the_reply_to_the_page_takes_seconds_with_no_worker_and_the_page_shows_the_direction"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the page may be framed by any site (the middleware's DENY is a default, so the page route says its own)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    'X-Frame-Options': 'SAMEORIGIN', 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex',",
+     "new": "    'X-Frame-Options': 'ALLOWALL', 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex',"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_routes_pg.py"
+   ],
+   "expect_failed": [
+    "test_from_the_reply_to_the_page_takes_seconds_with_no_worker_and_the_page_shows_the_direction"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the create route no longer asks whether the project was already built",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "                                  has_version=bool(context.get('latest_version_id')),",
+     "new": "                                  has_version=False,"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_routes_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_project_that_already_has_a_version_gets_no_sketch_and_no_offer"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the offer is made on every turn, not once per direction",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/offer.py",
+     "old": "    if fp in offered_before(messages() if callable(messages) else messages):",
+     "new": "    if False and fp in offered_before(messages() if callable(messages) else messages):"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_routes_pg.py",
+    "tests/test_direction_sketch_offer.py"
+   ],
+   "expect_failed": [
+    "test_a_first_request_is_offered_a_sketch_once_and_a_new_direction_is_offered_again",
+    "test_the_same_direction_is_offered_once"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "an exception in the offer propagates into the conversation turn",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        except Exception as exc:               # never into the turn",
+     "new": "        except KeyboardInterrupt as exc:       # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_offer.py"
+   ],
+   "expect_failed": [
+    "test_an_exception_in_the_offer_never_reaches_the_turn"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a stale brief revision is no longer refused by the create route",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    if req.brief_revision is not None and req.brief_revision != row.revision:\n        raise HTTPException(409, detail={'error': 'brief_stale', 'message': 'The request changed; review the latest one.'})\n    context = _project_context(key)(project_id)",
+     "new": "    context = _project_context(key)(project_id)"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_routes_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_stale_revision_is_refused_and_nothing_from_the_client_decides_the_direction"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the three routes lose their gate (any caller reads any project's sketch)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    from .direction_sketch.store import SketchStoreMissing\n    account, _key = _owner(project_id, request)\n    store = _sketch_store()",
+     "new": "    from .direction_sketch.store import SketchStoreMissing\n    account, _key = type('Anyone', (), {'id': 'usr_anyone'})(), None\n    store = _sketch_store()"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_routes_pg.py",
+    "tests/test_tenant_isolation_registry.py::test_every_gate_is_called_by_its_endpoint"
+   ],
+   "expect_failed": [
+    "test_a_sketch_changes_nothing_that_decides_a_build",
+    "test_a_sketch_id_of_another_project_is_a_404_like_an_id_that_never_existed",
+    "test_another_account_gets_the_unknown_project_answer_on_all_three_routes",
+    "test_every_gate_is_called_by_its_endpoint[GET /api/v28/projects/{project_id}/sketches/{sketch_id}/page]",
+    "test_every_gate_is_called_by_its_endpoint[GET /api/v28/projects/{project_id}/sketches/{sketch_id}]",
+    "test_from_the_reply_to_the_page_takes_seconds_with_no_worker_and_the_page_shows_the_direction",
+    "test_with_the_model_route_on_and_the_queue_down_the_sketch_is_still_there_and_the_money_is_given_back"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the sketch's state is read without finalising a pending call (the words never arrive)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/service.py",
+     "old": "    if row.copy_state == 'pending' and reservations is not None:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_change_of_colour_after_the_words_reuses_them_and_costs_nothing",
+    "test_a_pending_sketch_is_finalised_when_its_state_is_read_and_its_page_carries_the_words"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "new colours ask the model for new words again (the words are not reused)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/service.py",
+     "old": "    prior = store.written_copy(project_id, account_id, cfp)",
+     "new": "    prior = None"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_change_of_colour_after_the_words_reuses_them_and_costs_nothing"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the customer's view carries the reservation id",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/direction_sketch/service.py",
+     "old": "    return {'id': row.id, 'draft': True,",
+     "new": "    return {'id': row.id, 'reservation': row.reservation_id, 'draft': True,"
+    }
+   ],
+   "targets": [
+    "tests/test_direction_sketch_money_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_customers_view_names_no_amount_no_reservation_and_no_prompt"
+   ]
+  }
+ ]
+}

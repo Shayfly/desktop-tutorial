@@ -502,5 +502,62 @@ class TheStoreIsPerTenant(PG):
                      "'a', 1, 'f', 'd', 'c', 'company_first', 'none', 1, '{}')")
 
 
+class TheCardsState(PG):
+    """service.view and service.page: what the routes answer, on the real store and the real reservations."""
+
+    def made(self):
+        from omni_prod.direction_sketch import service as SK
+        brief = D.start(SALON)
+        row = type('BriefRow', (), {'brief': brief, 'revision': 1, 'fingerprint': brief.fingerprint()})()
+        sketch, words = SK.create(self.store, self.svc, self.queue.append, row, account_id=self.account,
+                                  project_id=self.project, has_version=False, has_open_build=False)
+        return SK, sketch, words
+
+    def test_a_pending_sketch_is_finalised_when_its_state_is_read_and_its_page_carries_the_words(self):
+        SK, sketch, words = self.made()
+        self.assertEqual(words['state'], 'pending', words)
+        self.assertEqual(SK.view(self.store, self.svc, sketch)['state'], 'pending')
+        self.run_worker()
+        seen = SK.view(self.store, self.svc, self.store.get(sketch.id, self.project, self.account))
+        self.assertEqual((seen['state'], seen['words'], seen['funding']), ('written', 'model', 'free'))
+        html = SK.page(self.store, self.store.get(sketch.id, self.project, self.account))
+        self.assertIn(GOOD['sections']['hero']['title'], html)
+        self.assertNotIn('כאן תופיע שורת הפתיחה', html)
+        self.assertIn('draft-ribbon', html)
+
+    def test_the_customers_view_names_no_amount_no_reservation_and_no_prompt(self):
+        SK, sketch, _ = self.made()
+        self.run_worker()
+        seen = SK.view(self.store, self.svc, self.store.get(sketch.id, self.project, self.account))
+        text = repr(seen).lower()
+        for hidden in ('usd', 'quote', 'irs_', 'reservation', 'prompt', 'approved project brief', self.account.lower()):
+            self.assertNotIn(hidden, text, hidden)
+
+    def test_the_same_request_is_the_same_sketch_and_reserves_once(self):
+        SK, first, _ = self.made()
+        _, second, again = self.made()
+        self.assertEqual(first.id, second.id)
+        self.assertEqual(self.sql("SELECT count(*) FROM intake_reservations WHERE account_id = %s AND quote->>'task' = 'direction_sketch'",
+                                  (self.account,))[0][0], 1)
+        self.assertEqual(len(self.queue), 1)
+
+    def test_a_change_of_colour_after_the_words_reuses_them_and_costs_nothing(self):
+        SK, first, _ = self.made()
+        self.run_worker()
+        SK.view(self.store, self.svc, self.store.get(first.id, self.project, self.account))     # finalised: written
+        brief = D.start(SALON)
+        brief.fields['color'] = {'value': 'כחול', 'source': 'answer', 'question_id': 'color', 'confidence': 'stated'}
+        row = type('BriefRow', (), {'brief': brief, 'revision': 2, 'fingerprint': brief.fingerprint()})()
+        second, words = SK.create(self.store, self.svc, self.queue.append, row, account_id=self.account,
+                                  project_id=self.project, has_version=False, has_open_build=False)
+        self.assertNotEqual(first.id, second.id)
+        self.assertEqual((second.funding, second.copy_state, second.copy_from, words['state']), ('none', 'written', first.id, 'written'))
+        self.assertEqual(self.queue, [])                                                   # no second call
+        self.assertEqual(self.sql("SELECT count(*) FROM intake_reservations WHERE account_id = %s", (self.account,))[0][0], 1)
+        html = SK.page(self.store, second)
+        self.assertIn(GOOD['sections']['hero']['title'], html)                              # the same words, the new colour
+        self.assertEqual(SK.view(self.store, self.svc, second)['funding'], 'free')
+
+
 if __name__ == '__main__':
     unittest.main()
