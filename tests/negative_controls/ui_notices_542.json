@@ -1,0 +1,216 @@
+{
+ "pr": "ui-notices-542",
+ "sha256": [
+  "tests/test_ui_notices_542.py",
+  "omni_prod/assets/app.js",
+  "omni_prod/investor_app.py",
+  "omni_prod/assets/index.html"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the view stops carrying the limit: the counter has nothing server-side to read",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "        'limits': {'message_chars': CONVERSATION_MESSAGE_MAX_CHARS},   # the screen's counter reads this\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_ui_notices_542.py"
+   ],
+   "expect_failed": [
+    "test_the_view_carries_the_limit_the_model_refuses_at"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the counter speaks from the first character instead of the last tenth",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "length >= Math.floor(max * CHAT_COUNT_WARN_FROM) ? { state: 'near'",
+     "new": "length >= 0 ? { state: 'near'"
+    }
+   ],
+   "targets": [
+    "tests/test_ui_notices_542.py"
+   ],
+   "expect_failed": [
+    "test_silent_until_the_last_tenth_then_counts_down_then_stops"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a guessed limit replaces the box when the view has none",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "fromView > 0 ? fromView : Number($('chatInput').getAttribute('maxlength'));",
+     "new": "fromView > 0 ? fromView : 8000;"
+    }
+   ],
+   "targets": [
+    "tests/test_ui_notices_542.py"
+   ],
+   "expect_failed": [
+    "test_the_limit_comes_from_the_view_then_from_the_box_never_a_constant"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the button asks for the same page again: the cursor is dropped",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "/messages?before=${encodeURIComponent(hist.before)}&limit=100",
+     "new": "/messages?limit=100"
+    }
+   ],
+   "targets": [
+    "tests/test_ui_notices_542.py"
+   ],
+   "expect_failed": [
+    "test_following_the_button_reaches_every_message_once",
+    "test_the_button_is_drawn_only_with_an_older_page_and_is_wired"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a gap between pages is bridged: loaded older messages kept after the latest page moved on",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "view.history.before <= S.olderBound;",
+     "new": "true;"
+    }
+   ],
+   "targets": [
+    "tests/test_ui_notices_542.py"
+   ],
+   "expect_failed": [
+    "test_older_messages_survive_the_next_answer_when_the_pages_touch"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "an unmeasured total is shown as zero",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": ": t('tokensNotMeasured');",
+     "new": ": '0 / 0';"
+    }
+   ],
+   "targets": [
+    "tests/test_ui_notices_542.py"
+   ],
+   "expect_failed": [
+    "test_a_total_the_platform_could_not_measure_is_said_not_shown_as_zero"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the evidence panel drops the usage line",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "      ...contentUsageRows(ev),\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_ui_notices_542.py"
+   ],
+   "expect_failed": [
+    "test_the_evidence_panel_shows_the_line"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the button is drawn but not wired",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "onclick: loadEarlier },",
+     "new": "onclick: () => {} },"
+    }
+   ],
+   "targets": [
+    "tests/test_ui_notices_542.py"
+   ],
+   "expect_failed": [
+    "test_the_button_is_drawn_only_with_an_older_page_and_is_wired"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the platform word appears in a customer text (Hebrew counter)",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "נשארו ${n} תווים בהודעה הזאת",
+     "new": "נשארו ${n} תווים בשרת"
+    }
+   ],
+   "targets": [
+    "tests/test_ui_notices_542.py"
+   ],
+   "expect_failed": [
+    "test_the_text_is_in_all_three_languages_and_never_says_server"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "characters are counted as UTF-16 units, not as the server counts them",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "[...input.value].length",
+     "new": "input.value.length"
+    }
+   ],
+   "targets": [
+    "tests/test_ui_notices_542.py"
+   ],
+   "expect_failed": [
+    "test_the_counter_is_driven_by_every_write_to_the_box"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "a page that brings nothing new no longer ends the walk",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "const stuck = !fresh.length && page.before === hist.before;",
+     "new": "const stuck = false;"
+    }
+   ],
+   "targets": [
+    "tests/test_ui_notices_542.py"
+   ],
+   "expect_failed": [
+    "test_a_page_that_brings_nothing_new_ends_the_walk"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the box in the page is raised past the server limit",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/index.html",
+     "old": "<textarea id=\"chatInput\" rows=\"1\" maxlength=\"8000\">",
+     "new": "<textarea id=\"chatInput\" rows=\"1\" maxlength=\"16000\">"
+    }
+   ],
+   "targets": [
+    "tests/test_ui_notices_542.py"
+   ],
+   "expect_failed": [
+    "test_the_box_in_the_page_has_the_same_number"
+   ]
+  }
+ ]
+}

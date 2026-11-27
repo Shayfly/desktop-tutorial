@@ -144,6 +144,10 @@ const T = {
     newChat:'שיחה חדשה · פרויקט חדש', searchProjects:'חיפוש פרויקטים', canBuildTitle:'מה אפשר לבנות היום', noMatches:'לא נמצאו פרויקטים',
     hideSidebar:'הסתרת הסרגל', showSidebar:'הצגת הסרגל', previewToggle:'תצוגה', expandPreview:'הגדלת התצוגה', shrinkPreview:'הקטנת התצוגה',
     hidePreview:'סגירת התצוגה', resizePreview:'גרירה לשינוי רוחב התצוגה', send:'שליחה',
+    charsLeft:n=>`נשארו ${n} תווים בהודעה הזאת`,
+    charsAtLimit:n=>`ההודעה הגיעה למקסימום של ${n} תווים, ולא ייכנס בה עוד טקסט. אפשר לשלוח את ההמשך בהודעה נוספת.`,
+    loadEarlier:'טעינת הודעות קודמות', loadingEarlier:'טוענים הודעות קודמות…',
+    tokensNotMeasured:'לא נמדד במלואו',
     chatPlaceholder:'כתבו מה תרצו לבנות או לשנות…', you:'אתם', assistant:'148AI', language:'שפה', docTitle:'148AI · סביבת יצירה',
     chatHelloTitle:'מה נבנה היום?', chatHello:'ספרו במילים שלכם מה אתם צריכים — אני אשאל רק מה שחשוב, אציע תוכנית ועלות, ושום דבר לא ייבנה בלי האישור שלכם.',
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
@@ -291,6 +295,10 @@ const T = {
     newChat:'New chat · new project', searchProjects:'Search projects', canBuildTitle:'What can be built today', noMatches:'No projects found',
     hideSidebar:'Hide sidebar', showSidebar:'Show sidebar', previewToggle:'Preview', expandPreview:'Enlarge preview', shrinkPreview:'Restore preview size',
     hidePreview:'Close preview', resizePreview:'Drag to resize the preview', send:'Send',
+    charsLeft:n=>`${n} characters left in this message`,
+    charsAtLimit:n=>`This message is at its limit of ${n} characters, and no more text will fit. You can send the rest in another message.`,
+    loadEarlier:'Load earlier messages', loadingEarlier:'Loading earlier messages…',
+    tokensNotMeasured:'Not fully measured',
     chatPlaceholder:'Describe what you want to build or change…', you:'You', assistant:'148AI', language:'Language', docTitle:'148AI · Creator workspace',
     aiFallback:'This reply was built from fixed rules, without an AI model.',
     chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
@@ -595,6 +603,11 @@ const T = {
     hidePreview: "إغلاق المعاينة",
     resizePreview: "السحب لتغيير عرض المعاينة",
     send: "إرسال",
+    charsLeft: n=>`تبقّى ${n} حرفًا في هذه الرسالة`,
+    charsAtLimit: n=>`وصلت الرسالة إلى حدها الأقصى (${n} حرفًا) ولن يتّسع لمزيد من النص. يمكنكم إرسال الباقي في رسالة أخرى.`,
+    loadEarlier: "تحميل الرسائل السابقة",
+    loadingEarlier: "جارٍ تحميل الرسائل السابقة…",
+    tokensNotMeasured: "لم يُقَس بالكامل",
     chatPlaceholder: "اكتبوا ما تريدون بناءه أو تغييره…",
     you: "أنتم",
     assistant: "148AI",
@@ -970,7 +983,7 @@ function applyLang() {
     if (!pick.options.length) pick.append(...Object.entries(LANGS).map(([code, l]) => h('option', { value: code, lang: code, dir: l.dir }, l.name)));
     pick.value = S.lang;
   }
-  $('chatInput').placeholder = t('chatPlaceholder');
+  $('chatInput').placeholder = t('chatPlaceholder'); updateChatCount();
   applyTextSize();
   $('publishNote').textContent = t('publishNotConfigured');
   document.title = t('docTitle');
@@ -984,7 +997,7 @@ function signOutLocal() {
   S.signedIn = false; S.me = null;
   S.projects = []; projectBuildStates.clear(); projectDrafts.clear(); projectStateRequests.clear();
   S.lastShownProject = null;
-  $('chatInput').value = ''; $('followup').value = ''; $('sbSearch').value = '';
+  $('chatInput').value = ''; updateChatCount(); $('followup').value = ''; $('sbSearch').value = '';
   if ($('workspaceDialog').open) $('workspaceDialog').close();
   $('sbSettings').open = false;
   closeSidebarMobile();
@@ -1228,7 +1241,7 @@ async function selectProject(id) {
   }
   S.projectId = id || ''; localStorage.setItem('148ai_project', S.projectId);
   S.plan = null; S.build = null; S.buildAdmissionError = ''; S.preview = null; S.previewId = null; S.mod = null; S.versions = []; S.newBuildOpen = false;
-  S.disc = null; S.editQ = null; S.editDraft = null; S.chatRetry = null; S.answerRetry = null; S.chat = null; S.arch = null; S.tasks = null; S.tab = null;
+  S.disc = null; S.editQ = null; S.editDraft = null; S.chatRetry = null; S.answerRetry = null; S.chat = null; S.olderLoaded = []; S.olderHistory = null; S.olderBound = null; S.arch = null; S.tasks = null; S.tab = null;
   if (S.projectId !== S.lastShownProject) { $('chatInput').value = projectDrafts.get(S.projectId) || ''; autoGrow(); $('followup').value = ''; $('composerMsg').textContent = ''; }
   S.lastShownProject = S.projectId;
   $('planPanel').hidden = true; $('progressPanel').hidden = true;
@@ -2280,6 +2293,17 @@ function gateMark(v) {
 // Gate names are labels like every other one (2026-10-30: the raw keys were printed). An unknown key keeps its
 // name, so a new gate is never hidden.
 function gateLabel(k) { return ((t('gateNames') || {})[k]) || k; }
+// The build evidence's content calls (site_route.content_usage, #542): the tokens the content writing really used, as the
+// platform measured them. A total the platform could not measure for every call is said so, never shown as 0. The cost
+// is not shown: it is internal economics and the customer's view of the evidence does not carry it.
+function contentUsageRows(ev) {
+  const u = ev && ev.site_route && ev.site_route.content_usage;
+  if (!u || typeof u !== 'object') return [];
+  const n = v => Number.isInteger(v) && v >= 0;
+  const text = n(u.input_tokens) && n(u.output_tokens)
+    ? `${u.input_tokens.toLocaleString('en-US')} / ${u.output_tokens.toLocaleString('en-US')}` : t('tokensNotMeasured');
+  return [h('dt', {}, t('tokens')), h('dd', { id: 'contentUsage' }, text)];
+}
 function renderEvidence() {
   const panel = $('evidencePanel'); const ev = S.build && S.build.evidence;
   if (!ev || !isTerminal(S.build.status)) { panel.hidden = true; return; }
@@ -2294,6 +2318,7 @@ function renderEvidence() {
       row(t('gates'), gateText),
       row(t('repairs')(S.build.repair_rounds ?? '—'), ''),
       row('billing', ev.billing || '—'),
+      ...contentUsageRows(ev),
       row(t('warnings'), warnings.join(', ') || t('none'))),
     h('pre', {}, JSON.stringify({ build_contract: ev.build_contract, infrastructure: ev.infrastructure, capabilities: ev.capabilities }, null, 2)));
 }
@@ -2343,7 +2368,8 @@ function applyConversation(view) {
   const moved = (view.plan_id || null) !== ((S.chat && S.chat.plan_id) || null)
     || ((view.turn && view.turn.actions) || []).some(a => a.type === 'approve_build');
   if (moved && planWaitsOnApproval(S.plan)) S.plan = null;
-  S.chat = view;
+  S.chat = keepLoadedOlder(view);
+  updateChatCount();
   if (view.discovery) S.disc = view.discovery;
   S.arch = view.plan || null;
   renderChat(); renderDiscovery(); renderArch(); renderTabs();
@@ -2539,6 +2565,9 @@ function renderChat() {
   const box = $('thread'); if (!box) return;
   const msgs = (S.projectId && S.chat && S.chat.messages) || [];   // a new conversation (no project yet) opens on the welcome
   const kids = [];
+  if (S.projectId && S.chat && S.chat.history && S.chat.history.has_older && S.chat.history.before != null)
+    kids.push(h('button', { type: 'button', class: 'secondary loadEarlier', id: 'loadEarlier', disabled: olderBusy, onclick: loadEarlier },
+      olderBusy ? t('loadingEarlier') : t('loadEarlier')));
   if(S.chat && S.chat.interpreter) kids.push(h('p',{class:'chatMode hint'},
     S.chat.interpreter==='model-via-worker'?t('aiMode'):t('guidedMode')));
   if (!msgs.length) kids.push(h('div', { class: 'welcomeChat' }, h('h2', {}, t('chatHelloTitle')), h('p', {}, t('chatHello')),
@@ -2584,8 +2613,10 @@ function renderChat() {
   if (S.mod && S.mod.status) kids.push(h('button', { type: 'button', class: 'statusline ghost', onclick: () => openTab('change') },
     S.mod.status === 'READY_FOR_REVIEW' ? t('modReview') : S.mod.status === 'ACCEPTED' ? t('modAccepted') : t('modQueued')));
   const atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+  const heightBefore = box.scrollHeight, topBefore = box.scrollTop;
   box.replaceChildren(...kids);
-  if (atEnd || msgs.length < 3 || S.forceScroll) { box.scrollTop = box.scrollHeight; S.forceScroll = false; }
+  if (S.keepScroll && !olderBusy) { S.keepScroll = false; box.scrollTop = topBefore + (box.scrollHeight - heightBefore); }   // older messages open above; the reader stays where they were
+  else if (atEnd || msgs.length < 3 || S.forceScroll) { box.scrollTop = box.scrollHeight; S.forceScroll = false; }
 }
 function renderArch() {
   const panel = $('archPanel'); const a = S.arch;
@@ -2766,7 +2797,62 @@ function syncViewport() {
 if (window.visualViewport) { window.visualViewport.addEventListener('resize', syncViewport); window.visualViewport.addEventListener('scroll', syncViewport); }
 window.addEventListener('orientationchange', () => setTimeout(syncViewport, 120));
 syncViewport();
-function autoGrow() { const el = $('chatInput'); el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 192)}px`; }
+function autoGrow() { const el = $('chatInput'); el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 192)}px`; updateChatCount(); }
+// The character counter (the owner, 2026-11-27; #542 raised the requests the platform takes and said nothing). The limit
+// is the one the conversation view carries (limits.message_chars = V28ConversationMessage.message max_length); with no
+// number from the view the box's own maxlength is used, and with neither the counter stays hidden (never a guessed
+// limit). It is silent until the message is within the last tenth of the limit.
+const CHAT_COUNT_WARN_FROM = 0.9;
+function chatCountState(length, max) {
+  if (!Number.isInteger(max) || max < 1 || !Number.isInteger(length) || length < 0) return { state: 'hidden', left: null };
+  if (length >= max) return { state: 'limit', left: 0 };
+  return length >= Math.floor(max * CHAT_COUNT_WARN_FROM) ? { state: 'near', left: max - length } : { state: 'ok', left: max - length };
+}
+function chatLimit() {
+  const fromView = S.chat && S.chat.limits && Number(S.chat.limits.message_chars);
+  return Number.isInteger(fromView) && fromView > 0 ? fromView : Number($('chatInput').getAttribute('maxlength'));
+}
+function updateChatCount() {
+  const box = $('chatCount'), input = $('chatInput'); if (!box || !input) return;
+  const max = chatLimit();
+  if (Number.isInteger(max) && max > 0) input.maxLength = max;
+  const c = chatCountState([...input.value].length, max);       // code points, as the server counts characters
+  box.hidden = c.state === 'hidden' || c.state === 'ok';
+  box.classList.toggle('limit', c.state === 'limit');
+  box.textContent = c.state === 'limit' ? t('charsAtLimit')(max.toLocaleString('en-US'))
+    : c.state === 'near' ? t('charsLeft')(c.left.toLocaleString('en-US')) : '';
+}
+// "Load earlier messages": the conversation view carries the latest page and the cursor to the one before it
+// (history.has_older / history.before -> GET .../conversation/messages?before=). A page read here stays when a later
+// answer brings the latest page again, as long as the two pages touch.
+let olderBusy = false;
+function keepLoadedOlder(view) {
+  const older = S.olderLoaded || [];
+  const first = ((view && view.messages) || []).find(m => m.id != null);
+  const touches = view && view.history && view.history.before != null && view.history.before <= S.olderBound;
+  if (!older.length || !first || !touches) { S.olderLoaded = []; S.olderHistory = null; S.olderBound = null; return view; }
+  return { ...view, messages: [...older.filter(m => m.id < first.id), ...view.messages], history: S.olderHistory };
+}
+async function loadEarlier() {
+  const project = S.projectId, hist = S.chat && S.chat.history;
+  if (olderBusy || !project || !hist || !hist.has_older || hist.before == null) return;
+  olderBusy = true; renderChat(); $('composerMsg').textContent = '';
+  try {
+    const page = await api(`${convPath()}/messages?before=${encodeURIComponent(hist.before)}&limit=100&lang=${S.lang}`);
+    if (!stillOn(project)) return;
+    if (!page || !Array.isArray(page.messages) || typeof page.has_older !== 'boolean') throw new Error('invalid history page');
+    if (!S.olderLoaded || !S.olderLoaded.length) S.olderBound = hist.before;
+    const have = new Set(S.chat.messages.filter(m => m.id != null).map(m => m.id));
+    const fresh = page.messages.filter(m => !have.has(m.id));
+    // a page that brings nothing new and points to the same cursor is the end (a loop must have a bound)
+    const stuck = !fresh.length && page.before === hist.before;
+    S.olderLoaded = [...fresh, ...(S.olderLoaded || [])];
+    S.olderHistory = { has_older: page.has_older && !stuck, before: stuck ? null : page.before };
+    S.chat = { ...S.chat, messages: [...fresh, ...S.chat.messages], history: S.olderHistory };
+    S.keepScroll = true;
+  } catch (e) { if (stillOn(project)) $('composerMsg').textContent = explain(e); }
+  finally { olderBusy = false; if (stillOn(project)) renderChat(); }
+}
 function wireWorkspace() {
   const ws = $('workspaceView');
   try { const w = Number(localStorage.getItem('148ai_stage_w')); if (w) setStageWidth(w); } catch { /* default width */ }

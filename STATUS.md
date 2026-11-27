@@ -1,3 +1,18 @@
+# 2026-11-27 — The customer's screen says what #542 changed (Claude Code; branch `claude/practical-hopper-oi3qj2-ui-notices`, NOT pushed to a PR, NOT live)
+
+- **Implemented and verified locally:** a character counter under the request box, "load earlier messages" on the paging
+  route (`GET .../conversation/messages?before=`), and the content-writing tokens line in the build evidence
+  (`site_route.content_usage`, input / output). Texts in Hebrew, Arabic and English in `omni_prod/assets/app.js`.
+- **The limit is 8,000 characters per message, not 16,000:** the brief for this change said "about 16,000"; the code says
+  `V28ConversationMessage.message` max_length 8000 (the box's `maxlength` too). The 48,000 of #542 is the whole request a
+  brief starts from, carried from up to 20 earlier messages (`discovery.REQUEST_MAX_CHARS`), not one message. The counter
+  reads the number from the conversation view (`limits.message_chars`, read from the model that refuses), then from the
+  box; with neither it is hidden. It speaks only in the last tenth (from 7,200).
+- **Not shown:** the cost of the content calls (internal economics, stripped from the customer's view); the per-turn
+  `notices` that the server already stores (request cut) are still not drawn on the screen -- not part of this change.
+- **Evidence:** `tests/test_ui_notices_542.py` 20 passed; controls `ui_notices_542` 12/12 PASS. Browser rendering was not
+  looked at in a real browser (the functions run under node with the browser seams stubbed).
+
 # 2026-11-26 — Rate limits on the account routes, shared by every instance (Claude Code; local commits on `claude/practical-hopper-oi3qj2-rate-limits`, NOT pushed, NOT live)
 
 - **Implemented and verified locally:** `omni_prod/rate_limits.py`, one middleware (innermost) and one PostgreSQL table
