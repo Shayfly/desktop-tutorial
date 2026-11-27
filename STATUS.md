@@ -1,3 +1,41 @@
+# 2026-11-27 — Warehouse 129: the section library speaks Arabic (its own words, direction, fonts, spacing), and an Arabic brief still does not reach the route (Claude Code; branch `claude/practical-hopper-oi3qj2-wh129`, pushed, NO PR)
+
+- **What remained of 129:** the first slice (faa4899) built the script registry (direction, date, number, currency, heading limits,
+  fonts per script), but the section library "writes its own words in Hebrew only" and refused every other script, so acceptance 1
+  ("an Arabic brief gives an RTL page with an Arabic font from the library, the date and currency in the right format") held for the
+  registry and not for a page. Spacing (ריווח) was not built.
+- **Root cause:** the library's own words (links, labels, the form, the cookie window, the footer, the message the form hands to
+  WhatsApp) were literals inside its functions, and its CSS tracks headings at -0.01em to -0.03em and sets them at 1.05 to 1.3, which is
+  fine for Hebrew and breaks the joins of Arabic and clips its marks.
+- **Implemented:** `omni_prod/section_library/words.json`, the library's words one table per script (Hebrew, Arabic), the same keys for
+  every script (a missing key fails when the library is imported; nothing falls back to Hebrew); `page()` sets the script of the render
+  from the contract's locked pair; a script the table lacks (Latin, the unsupported ones) is refused, as before. `scripts.json` gains
+  `spacing` per supported script (Hebrew, Latin: the library's own CSS; Arabic: an override with letter-spacing 0, word-spacing 0.05em,
+  body line 1.85, headings 1.4), checked on import (a connected script with a letter-spacing, or on the library's CSS, fails);
+  `typography.spacing_css(name)` is what a page of that script adds. `renderer_version` now covers `words.json`.
+- **Hebrew is unchanged:** four Hebrew variants (the demo page, with the cookie window, as a draft, with a team and topics) hash
+  identically before and after (sha256 `5fef8ccf...`, `898448d9...`, `853da0b6...`, `e7580384...`); the Hebrew table is pinned to the
+  text the library always wrote; the flag-off pipeline digest is unchanged (`fd3a45bf...`).
+- **Evidence (this machine, 2026-11-27):** `tests/test_script_layer_129.py` 24 passed (the Arabic page: `lang="ar" dir="rtl"`, the Arabic
+  pair's fonts, not one Hebrew letter on the page, every one of the library's skill units passes on it, an Arabic heading longer than 60
+  characters raises, a Latin page is refused); in Chromium at 390px the Arabic h1 computes `letter-spacing: normal`, line 44.8px on 32px
+  (1.4), body 1.85, direction rtl, no horizontal overflow, body `Almarai` and headings `Baloo Bhaijaan 2`; the Hebrew h1 computes
+  `-0.64px` and 1.08 with `Assistant` and `Rubik` (no family is shared). Controls `script_layer_129` 11/11 PASS. Also green: `typography`
+  (29), the section library and its conformance, the cookie banner, the direction sketch, page types, the route's real chain
+  (`test_site_content_engine` 6, in its own network namespace), `test_fast_suite`, `test_negative_controls_apply`. Specs of the files
+  this branch changed: library_cookie_banner 6/6, site_content 44/44, direction_sketch_core 11/11, rtl_time_ranges 8/8, wh123 page types
+  10/10 and 5/5 PASS; section_library (NC3 NC4 NC6 NC7 NC8 NC9 NC13) and typography_126_129 (NC1 NC16) fail the same controls on pristine
+  main on this machine (a clean worktree: identical sets), so they are not caused by this branch.
+- **Not met, said:** (1) an Arabic BRIEF still goes to the legacy path (`not_hebrew`): the content route's validators (an invented
+  number, a claim no fact supports, an always-open hours claim, contact words, numbers written as words) and its prompts are written
+  for Hebrew, so a route opened to Arabic would pass copy the gates cannot judge. Whether to write Arabic ones, and who checks the
+  Arabic, is a decision for the owner and the architect. So acceptance 1 holds for the library's page, the fonts, the direction and
+  the formats, not for a built Arabic site. (2) The Arabic words are plain interface Arabic written for this library and have not been
+  read by a native speaker. (3) A page writes no date or amount of its own (the customer's prices pass as written), so
+  `format_date` and `format_money` are used by nothing on a page yet. (4) Search intent and corpus (129) are not built. (5) Cyrillic,
+  Greek, CJK, Indic and Thai stay declared and unsupported: each needs fonts read from the source, a words table and formats.
+  (6) Not run in production; GitHub CI on the exact SHA not run.
+
 # 2026-11-27 — A requested rehearsal option that the worker ignored is now a red run (Claude Code; branch `claude/practical-hopper-oi3qj2-wh117-loud`, pushed, NO PR)
 
 - **Root cause (run 46005664127, job 140528059099):** the workflow printed `image=customer_photo account=none` and the build
