@@ -722,6 +722,10 @@ def _install_agentic_repair(engine, request) -> bool:
         # the content route repairs the content document, never the HTML; an agent editing the page would be undone
         logging.getLogger(__name__).info('AGENTIC_REPAIR_OFF the content route (site_content) repairs content only')
         return False
+    if getattr(engine, 'game_state', None) is not None:
+        # a game is repaired by rewriting its DEFINITION (game_kit/builder.GameRepairer); an agent editing the page would be undone
+        logging.getLogger(__name__).info('AGENTIC_REPAIR_OFF a game (canvas_game_v1) is repaired through its definition')
+        return False
     if mode in ('0', 'off', 'false', ''):
         return False
     if mode != 'all':
@@ -1885,6 +1889,32 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
     return target.value
 
 
+def game_engine_for(jobs, build_id: str, engine, gateway):
+    """The builder of the build's output profile (omni_prod/output_profile). A game (`canvas_game_v1`, S12.1) is built by the
+    same AutonomousProductEngine with the game agents (omni_prod/game_kit/builder.py); every other build keeps `engine`
+    exactly as it was. A game build for an account the output rollout (OMNI_OUTPUT_GAME) does not allow RAISES: the
+    conversation refuses such a request first, so reaching the worker means something skipped it, and it is not built."""
+    from .game_kit.builder import art_mode, game_engine, is_game_build
+    request = jobs.get_request(build_id)
+    if not is_game_build(request):
+        return engine
+    from .feature_flags import output_rollout
+    if not output_rollout('game', request.get('user_id')):
+        raise PermissionError('this build is a game and the output rollout (OMNI_OUTPUT_GAME) does not allow this account')
+    source = None
+    if art_mode() == 'provider':
+        from .game_kit.art import ProviderImageSource
+        from .providers.image_provider import PostgresSubmissionJournal, build_image_provider
+        from .investor_app import _v28_pool
+        provider = build_image_provider(os.environ, journal=PostgresSubmissionJournal(_v28_pool))
+        source = ProviderImageSource(provider, build_id=build_id) if provider is not None else None
+    from .attempt_ledger import RecordingExecutor
+    recorder = getattr(gateway, 'recorder', None)
+    return game_engine(gateway, build_id=build_id, art_source=source,
+                       executor_wrapper=(lambda ex: RecordingExecutor(ex, recorder)) if recorder is not None else None,
+                       max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS', '6')))
+
+
 def execute_live_build_job(build_id: str) -> None:
     from .investor_app import _v28, _v28_pool, _live_components
     from .job_repository import PostgresBuildRepository
@@ -1910,6 +1940,7 @@ def execute_live_build_job(build_id: str) -> None:
 
     def components_factory():
         engine, gateway = _live_components()
+        engine = game_engine_for(jobs, build_id, engine, gateway)     # the builder of the build's output profile
         captured['gateway'] = gateway
         return engine, gateway
 
