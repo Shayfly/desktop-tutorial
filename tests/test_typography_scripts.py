@@ -5,8 +5,8 @@ its sha256 asserted here as in test_site_content_render.py) -- the platform's re
 gate's install. That every pair really loads in a browser is tests/test_font_pairs_load.py.
 
 What is NOT met here, said rather than implied: an Arabic brief does not reach the content route (site_content.decide
-says 'not_hebrew', and the section library writes its own words in Hebrew), so 129.1 holds for the script layer, not
-for a built Arabic page."""
+says 'not_hebrew': its validators judge Hebrew), so 129.1 holds for the script layer and for the section library's Arabic
+page (tests/test_script_layer_129.py), not for a built Arabic site."""
 import copy
 import datetime
 import hashlib
@@ -296,8 +296,8 @@ class ThePage(unittest.TestCase):
         with self.assertRaises(T.HeadingTooLong):
             T.check_headings('<h1>' + 'ب' * 61 + '</h1>', 'arabic')
 
-    def test_a_page_for_another_script_is_refused_not_rendered_with_hebrew_around_it(self):
-        contract = demo_contract(T.contract_fonts(T.pair('ar-amiri-plex')))
+    def test_a_page_for_a_script_the_library_has_no_words_for_is_refused_not_rendered_with_hebrew_around_it(self):
+        contract = demo_contract(T.contract_fonts(T.pair('la-baskerville-lato')))
         with self.assertRaises(T.UnsupportedScript):
             page(copy.deepcopy(D.CONTENT), contract)
 

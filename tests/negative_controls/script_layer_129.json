@@ -1,0 +1,203 @@
+{
+ "pr": "script-layer-129",
+ "sha256": [
+  "tests/test_script_layer_129.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a words table that misses a key passes the import check",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "        if set(table) != keys or not all(isinstance(v, str) and v for v in table.values()):\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129.py"
+   ],
+   "expect_failed": [
+    "test_a_table_that_misses_a_key_or_names_an_unknown_script_fails_the_import_check"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the Arabic table carries a Hebrew word",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/words.json",
+     "old": "\"skip\": \"انتقلوا إلى المحتوى\"",
+     "new": "\"skip\": \"דלגו לתוכן\""
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129.py"
+   ],
+   "expect_failed": [
+    "test_no_script_table_carries_the_letters_of_another",
+    "test_not_one_hebrew_letter_is_left_on_the_page"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "an Arabic page comes out left to right",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/scripts.json",
+     "old": "\"direction\": \"rtl\",\n   \"lang\": \"ar\"",
+     "new": "\"direction\": \"ltr\",\n   \"lang\": \"ar\""
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129.py"
+   ],
+   "expect_failed": [
+    "test_it_is_right_to_left_arabic_with_the_pairs_fonts",
+    "test_the_arabic_page_is_computed_right_to_left_with_the_arabic_fonts_first"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "an Arabic page loads a Hebrew pair's fonts",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    if locked is not None:\n        return T.font_link(locked)\n",
+     "new": "    if locked is not None:\n        return T.font_link(T.pairs('hebrew')[0])\n"
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129.py"
+   ],
+   "expect_failed": [
+    "test_it_is_right_to_left_arabic_with_the_pairs_fonts"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a script whose letters connect may carry letter-spacing",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    if sp['connected'] and sp['letter_spacing'] != '0':\n        raise ScriptError(f'script {name!r}: its letters connect, so letter_spacing is 0, not {sp[\"letter_spacing\"]!r}')\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129.py"
+   ],
+   "expect_failed": [
+    "test_a_connected_script_with_letter_spacing_fails"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "an Arabic page gets no spacing override",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "    if sp['mode'] == 'library':\n        return ''\n    return (f'body{{",
+     "new": "    if True:\n        return ''\n    return (f'body{{"
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129.py"
+   ],
+   "expect_failed": [
+    "test_the_spacing_override_is_there_once_and_comes_after_the_librarys_css",
+    "test_an_arabic_heading_has_no_letter_spacing_and_a_taller_line_than_a_hebrew_one"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the override tracks Arabic headings tighter than normal",
+   "mutations": [
+    {
+     "file": "omni_prod/typography/__init__.py",
+     "old": "letter-spacing:{sp[\"letter_spacing\"]}!important",
+     "new": "letter-spacing:-0.01em!important"
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129.py"
+   ],
+   "expect_failed": [
+    "test_the_spacing_override_is_there_once_and_comes_after_the_librarys_css",
+    "test_an_arabic_heading_has_no_letter_spacing_and_a_taller_line_than_a_hebrew_one"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a script the library has no words for is rendered anyway",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    if p['script'] not in WORDS:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129.py"
+   ],
+   "expect_failed": [
+    "test_a_latin_page_is_refused_not_rendered_with_hebrew_around_it"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a Hebrew page gets the Arabic override",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "{T.spacing_css(script)}</style>",
+     "new": "{T.spacing_css('arabic')}</style>"
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129.py"
+   ],
+   "expect_failed": [
+    "test_a_hebrew_page_has_no_override_and_no_arabic_word",
+    "test_an_arabic_heading_has_no_letter_spacing_and_a_taller_line_than_a_hebrew_one"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "an Arabic member's initials skip the Hebrew titles, not the Arabic ones",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "if w not in TITLES[_SCRIPT.get()]",
+     "new": "if w not in TITLES['hebrew']"
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129.py"
+   ],
+   "expect_failed": [
+    "test_a_member_without_a_photo_gets_initials_without_the_title"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "an Arabic page is rendered with the Hebrew words",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    token = _SCRIPT.set(script)\n",
+     "new": "    token = _SCRIPT.set('hebrew')\n"
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129.py"
+   ],
+   "expect_failed": [
+    "test_not_one_hebrew_letter_is_left_on_the_page",
+    "test_the_librarys_own_words_are_arabic",
+    "test_every_skill_unit_that_judges_a_page_passes_on_it",
+    "test_a_member_without_a_photo_gets_initials_without_the_title"
+   ]
+  }
+ ]
+}
