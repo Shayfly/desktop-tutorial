@@ -98,7 +98,12 @@ class TheDecisionTable(unittest.TestCase):
             'image_place_gallery': with_brief_line(gallery),
             'icon_image': with_request('אני רוצה גם לוגו למשרד.'),
             'several_pictures': with_request('אני רוצה 3 תמונות של המשרד.'),
-            'no_design_contract: ': PROMPT.replace("primary colour #1e3a5f; palette #1e3a5f, #ffffff; ", ''),
+            # a brief with no Design line at all locks nothing to complete; a Design line whose colour answer has no hex
+            # (a description) no longer lands here: colour_roles completes it (tests/test_colour_roles.py)
+            'no_design_contract: ': PROMPT.replace(
+                "Design: style formal; primary colour #1e3a5f; palette #1e3a5f, #ffffff; requested colour description "
+                "'כחול כהה, לבן'; font 'Heebo', system-ui, sans-serif (load it from Google Fonts with a system "
+                "fallback); define these as CSS custom properties.\n", ''),
             'phone_not_one': with_request('טלפון נוסף: 04-8123456.'),
             'whatsapp_number_unknown': with_request('נייד: 054-6612345.').replace('וואטסאפ: 050-5551234', 'נייד'),
             'address_not_one': with_request('סניף נוסף: רחוב הרצל 12, חיפה.'),

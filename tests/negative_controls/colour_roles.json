@@ -1,0 +1,102 @@
+{
+ "pr": "colour-roles",
+ "sha256": [
+  "tests/test_colour_roles.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a description word (כהה / dark / בהיר / light) picks nothing: the dark variant is never chosen",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/colour_roles.py",
+     "old": "    word = words_of(description_of(clause))\n",
+     "new": "    word = None\n"
+    }
+   ],
+   "targets": [
+    "tests/test_colour_roles.py"
+   ],
+   "expect_failed": [
+    "test_dark_picks_the_dark_variant_and_light_the_palettes_own"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a named pair changes only the primary colour: a near-black colour is never the page (black on pink)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/colour_roles.py",
+     "old": "    if len(stated) >= 2:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_colour_roles.py"
+   ],
+   "expect_failed": [
+    "test_black_and_gold_on_a_barber_is_a_black_page_with_a_gold_primary",
+    "test_the_order_of_a_pair_does_not_swap_the_page",
+    "test_a_white_or_cream_colour_is_the_page"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the second stated colour does not take the accent role",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/colour_roles.py",
+     "old": "    accent = rest[1] if len(rest) > 1 else palette['accent']\n",
+     "new": "    accent = palette['accent']\n"
+    }
+   ],
+   "targets": [
+    "tests/test_colour_roles.py"
+   ],
+   "expect_failed": [
+    "test_two_colours_with_no_page_colour_are_primary_and_accent"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a colour name that holds the word (כחול כהה = navy) is read as the dark mode",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/colour_roles.py",
+     "old": "    rest = re.sub(r'(?<!\\w)(?:וב|ו|ב)?(?:' + names + r')(?!\\w)', ' ', description or '', flags=re.I)\n",
+     "new": "    rest = description or ''\n"
+    }
+   ],
+   "targets": [
+    "tests/test_colour_roles.py"
+   ],
+   "expect_failed": [
+    "test_a_colour_name_that_holds_the_word_is_a_colour_not_a_mode"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the fallback of render_contract ignores the roles: only the Design line's hex primary is kept (the old path), a description has none and raises",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/render.py",
+     "old": "        r = colour_roles.roles(m['colours'], palette)\n",
+     "new": "        if not colour_roles.stated_hexes(m['colours']):\n            raise C.ContractError(f'{first}; and the Design line names no primary colour to complete') from first\n        r = colour_roles.roles(m['colours'], palette)\n        r = {**r, 'background': palette['background'], 'ink': palette['ink']}\n"
+    }
+   ],
+   "targets": [
+    "tests/test_colour_roles.py"
+   ],
+   "expect_failed": [
+    "test_every_description_word_takes_the_route",
+    "test_dark_picks_the_dark_variant_and_light_the_palettes_own",
+    "test_the_real_production_phrases_never_fall_to_the_legacy_path",
+    "test_words_nothing_knows_leave_the_category_palette_and_say_so",
+    "test_black_and_gold_on_a_barber_is_a_black_page_with_a_gold_primary",
+    "test_the_order_of_a_pair_does_not_swap_the_page",
+    "test_a_white_or_cream_colour_is_the_page",
+    "test_every_palette_and_phrase_makes_a_readable_contract"
+   ]
+  }
+ ]
+}
