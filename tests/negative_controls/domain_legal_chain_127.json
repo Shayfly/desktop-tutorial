@@ -1,0 +1,43 @@
+{
+ "pr": "domain-legal-chain-127",
+ "sha256": [
+  "tests/test_domain_legal_chain_127.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the chain does not fail a business with a domain and no legal page",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        if legal:                                   # the legal page is not a mode: a business with a domain has one\n",
+     "new": "        if False and legal:   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_chain_127.py"
+   ],
+   "expect_failed": [
+    "test_a_repository_that_loses_the_legal_page_fails_the_chain"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the fixed server of a real build does not serve the legal page",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/render.py",
+     "old": ", \"/legal.html\": \"legal.html\"}",
+     "new": "}"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_chain_127.py"
+   ],
+   "expect_failed": [
+    "test_the_build_writes_the_legal_page_links_it_and_says_where_it_came_from",
+    "test_a_repository_that_loses_the_legal_page_fails_the_chain"
+   ]
+  }
+ ]
+}

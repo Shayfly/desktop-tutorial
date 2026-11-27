@@ -270,7 +270,7 @@ class TheRepositoryRunsItsOwnTests(unittest.TestCase):
             run = subprocess.run([sys.executable, '-m', 'pytest', '-q', '-p', 'no:cacheprovider', 'tests'], cwd=tmp,
                                  capture_output=True, text=True, timeout=120)
         self.assertEqual(run.returncode, 0, run.stdout[-2000:] + run.stderr[-2000:])
-        self.assertIn('5 passed', run.stdout)
+        self.assertIn('6 passed', run.stdout)
 
 
 if __name__ == '__main__':
