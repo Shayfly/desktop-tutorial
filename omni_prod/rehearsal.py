@@ -486,6 +486,12 @@ def annotations(report: dict) -> list[str]:
 def run_extras(engine, control, result, report: dict) -> dict:
     """What the three optional upgrades measured, read from the finished build (warehouse 115, 117, 118)."""
     out: dict = {}
+    # What THIS code understood of the options it was asked for. A worker image built before the options existed has
+    # no such key, which is how the workflow's check step tells "ignored" from "asked for nothing" (run 46005664127).
+    asked = options()
+    out['options_applied'] = {'image': asked.photo.name if asked.photo is not None else '',
+                              'account': 'non_founder' if asked.account_id else '',
+                              'time_budget': list(asked.time_budget) if asked.time_budget else []}
     if control is not None and report.get('time_budget'):
         tb = dict(report['time_budget'])
         elapsed = round(control.elapsed())
