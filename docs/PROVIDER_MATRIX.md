@@ -44,6 +44,7 @@ Summary: 26 entries · credential {'CREDENTIAL_PRESENT': 16, 'CREDENTIAL_UNKNOWN
 | conversation | 85 | 70 | — |
 | conversation_complex | 85 | 70 | — |
 | direction_sketch | 85 | 70 | — |
+| screenshot_fix | 85 | 70 | — |
 | intake_extraction | 70 | 70 | — |
 | architecture | 85 | 70 | — |
 | codegen | 85 | 85 | — |

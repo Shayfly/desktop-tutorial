@@ -135,6 +135,7 @@
     "conversation",
     "conversation_complex",
     "direction_sketch",
+    "screenshot_fix",
     "intake_extraction",
     "architecture",
     "codegen",
@@ -235,6 +236,7 @@
     "conversation",
     "conversation_complex",
     "direction_sketch",
+    "screenshot_fix",
     "intake_extraction",
     "architecture",
     "repair",
@@ -333,6 +335,7 @@
     "conversation",
     "conversation_complex",
     "direction_sketch",
+    "screenshot_fix",
     "intake_extraction",
     "architecture",
     "repair",
@@ -433,6 +436,7 @@
     "conversation",
     "conversation_complex",
     "direction_sketch",
+    "screenshot_fix",
     "intake_extraction",
     "architecture",
     "review"
@@ -530,6 +534,7 @@
     "conversation",
     "conversation_complex",
     "direction_sketch",
+    "screenshot_fix",
     "intake_extraction",
     "architecture",
     "codegen",
@@ -631,6 +636,7 @@
     "conversation",
     "conversation_complex",
     "direction_sketch",
+    "screenshot_fix",
     "intake_extraction",
     "architecture",
     "codegen",
@@ -2284,6 +2290,17 @@
    "prefer_models": [
     "anthropic-claude-sonnet-5-5"
    ]
+  },
+  {
+   "task": "screenshot_fix",
+   "description": "the exact component a customer's screenshot points at, as edit blocks",
+   "preferred_floor": 85,
+   "mandatory_floor": 70,
+   "allow_models": [],
+   "deny_models": [],
+   "independent_of": [],
+   "deterministic_first": false,
+   "prefer_models": []
   },
   {
    "task": "intake_extraction",

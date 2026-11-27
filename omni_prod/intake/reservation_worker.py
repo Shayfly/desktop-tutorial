@@ -27,7 +27,7 @@ INTAKE_QUEUE = 'omni-intake'
 
 
 
-RESERVED_TASKS = ('conversation', 'conversation_complex', 'direction_sketch')   # the last: S6.3
+RESERVED_TASKS = ('conversation', 'conversation_complex', 'direction_sketch', 'screenshot_fix')   # S6.3; warehouse 124
 
 
 def _reserved_task(payload: dict, quote: dict) -> str:
@@ -142,6 +142,20 @@ def meter(gateway, quote: dict, *, call_id: str, before=None) -> dict:
     return {**info, 'cost_state': B.CONFIRMED, 'actual_usd': total}
 
 
+class _ImageCall:
+    """The gateway of a screenshot reservation (warehouse 124): the same gateway, whose one complete_json call also carries the image
+    the reservation was quoted for. Everything else (the attempt ledger the meter reads, the policy) is the gateway's own."""
+
+    def __init__(self, gateway, images):
+        self._gateway, self._images = gateway, images
+
+    def __getattr__(self, name):
+        return getattr(self._gateway, name)
+
+    def complete_json(self, **kwargs):
+        return self._gateway.complete_json(**kwargs, images=self._images)
+
+
 def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = None, gateway_factory=None,
                         lease_seconds: int = 90, max_age_seconds: int = 120) -> dict:
     svc = B.ReservationService(pool)
@@ -171,6 +185,12 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
         return {'ok': False, 'error': 'lease lost before execution'}
     raw, error = None, None
     mark = ledger_mark(gateway)
+    if payload.get('images_b64'):       # warehouse 124: only the screenshot task carries images, and only what it was quoted for
+        import base64
+        if task != 'screenshot_fix' or len(payload['images_b64']) != 1:
+            svc.release(r.id, reason='images on a task that was not quoted for them')
+            return {'ok': False, 'error': 'images not quoted', 'state': B.RELEASED}
+        gateway = _ImageCall(gateway, (base64.b64decode(payload['images_b64'][0]),))
     try:   # no database transaction is open here
         raw = gateway.complete_json(system=payload['system'], user=payload['user'],
                                     max_tokens=int(payload['max_tokens']),

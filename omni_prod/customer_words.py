@@ -82,12 +82,15 @@ CUSTOMER_TEXT = ('omni_prod/intake/venice.py', 'omni_prod/intake/approval_flow.p
                  'omni_prod/build_readiness.py', 'omni_prod/build_announcement.py', 'omni_prod/assets/app.js',
                  'omni_prod/gate_words.py',        # every blocking finding, in the customer's words (warehouse 132)
                  'omni_prod/conversation/spec_card.py',
+                 'omni_prod/shot_fix.py',            # warehouse 124: what the customer reads about their screenshot
                  'omni_prod/intake/media_reading.py')   # warehouse 128: its sentences are conversation replies
 # The conversation-and-approval route: here the count is zero, not a ratchet (the owner, 2026-11-22: "this is the heart").
 CONVERSATION = ('omni_prod/intake/venice.py', 'omni_prod/intake/approval_flow.py', 'omni_prod/intake/interpreter.py',
                 'omni_prod/conversation/supervisor.py', 'omni_prod/discovery.py', 'omni_prod/window_catalog.py',
                 # 2026-11-23: the spec card writes the words of the approval screen itself (the owner's example)
                 'omni_prod/conversation/spec_card.py',
+                # warehouse 124: the replies of a screenshot round are stored as conversation messages
+                'omni_prod/shot_fix.py',
                 # warehouse 128: the supervisor sends media_reading._TEXT as conversation replies (review 2026-11-24)
                 'omni_prod/intake/media_reading.py')
 # A string that is not shown to the customer although it holds a platform word, with the reason.

@@ -1,0 +1,177 @@
+{
+ "pr": "wh124-shot-fix-pg",
+ "sha256": [
+  "omni_prod/intake/budget.py",
+  "omni_prod/intake/reservation_worker.py",
+  "omni_prod/investor_app.py",
+  "omni_prod/shot_fix.py",
+  "tests/test_shot_fix_pg.py",
+  "tests/test_shot_fix_routes_pg.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "an image round is reserved as a turn of the conversation",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "caps=self.caps, purpose=PURPOSE,",
+     "new": "caps=self.caps, purpose='project',"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix_pg.py"
+   ],
+   "expect_failed": [
+    "test_image_rounds_never_spend_the_conversations_cost_cap",
+    "test_the_round_is_reserved_under_its_own_scope_and_the_line_names_the_reservation",
+    "test_three_image_rounds_leave_the_conversations_turn_counter_where_it_was"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the worker calls the model without the image",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/intake/reservation_worker.py",
+     "old": "        return self._gateway.complete_json(**kwargs, images=self._images)\n",
+     "new": "        return self._gateway.complete_json(**kwargs)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_image_reaches_the_model_reduced_with_the_width_and_the_build_id"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a model with no evidence that it reads images is priced for one",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "            if not accepts_images(model):\n                continue",
+     "new": "            if False:\n                continue"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_model_with_no_evidence_that_it_reads_images_is_never_priced"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "an image is quoted on the conversation agent's Venice profile",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/intake/budget.py",
+     "old": "    if routed_only:\n        VG = _RoutedOnly",
+     "new": "    if False:\n        VG = _RoutedOnly"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix_pg.py"
+   ],
+   "expect_failed": [
+    "test_the_conversation_agents_venice_profile_is_never_the_quote_of_an_image"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a fix of another version is applied",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    if record is None or record.get('version_id') != version_id:\n        raise HTTPException(409, detail={'error': 'shot_fix_not_found',",
+     "new": "    if record is None:\n        raise HTTPException(409, detail={'error': 'shot_fix_not_found',"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix_routes_pg.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_fix_or_a_fix_of_another_version_applies_nothing"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the build's status shows none of its screenshots",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "            \"screenshots\": _build_screenshots(project_id, build_id),\n",
+     "new": "            \"screenshots\": [],\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix_routes_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_screenshot_is_stored_whole_even_when_no_model_is_connected_and_the_build_shows_it"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the apply ignores the stored fix and stores the browser's own text",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    if req.shot_fix:\n        followup = _shot_fix_followup(project_id, version_id, req.shot_fix)\n    elif",
+     "new": "    if False:\n        followup = _shot_fix_followup(project_id, version_id, req.shot_fix)\n    elif"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix_routes_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_fix_is_one_action_and_the_click_stores_exactly_those_edits",
+    "test_an_unknown_fix_or_a_fix_of_another_version_applies_nothing",
+    "test_another_account_gets_the_unknown_answers_and_cannot_apply_a_fix_it_did_not_make"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a retried upload makes a second round",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    if req.request_key and store.find_reply(project_id, req.request_key):\n        return _conversation_view(project_id, lang or 'he')              # a retried upload: no second round\n",
+     "new": "    if False:\n        return _conversation_view(project_id, lang or 'he')\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix_routes_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_retried_upload_is_one_round"
+   ]
+  }
+ ]
+}

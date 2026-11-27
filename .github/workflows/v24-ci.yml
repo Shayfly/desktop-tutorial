@@ -327,6 +327,7 @@ jobs:
           node --check tests/phone_chat_browser.cjs
           node --check tests/image_failure_words_browser.cjs
           node --check tests/workspace_guards_browser.cjs
+          node --check tests/shot_fix_browser.cjs
           node --check tests/workspace_sidebar_local.cjs
       # axe-core: the WCAG engine of the platform accessibility check (the owner, 2026-11-22: accessible to everyone)
       - run: npm install --no-save --package-lock=false playwright@1.62.1 axe-core@4.10.3
@@ -409,6 +410,10 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: python -m pip install -r requirements-production.txt
+      # warehouse 124: the build card (the sketch card's component), the screenshot upload and the fix, in Hebrew, Arabic and English; its
+      # fixture runs the real round (omni_prod/shot_fix.py: Pillow, from requirements-production.txt); seven mutations of app.js must each fail it
+      - run: node tests/shot_fix_browser.cjs
+        timeout-minutes: 4
       - name: Sidebar against the development API, and its mutations
         timeout-minutes: 9
         run: |

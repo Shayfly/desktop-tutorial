@@ -887,3 +887,9 @@ body.signed-out .topbar .brand b{background:none;color:var(--v-yellow);padding:0
 .sketchNote,.sketchOld{margin:6px 14px 12px}
 .sketchCard button.secondary{margin:8px 14px 0}
 @media(max-width:700px){.sketchRows>div{grid-template-columns:minmax(0,1fr);gap:2px}.sketchFrame{height:min(62vh,32rem)}}
+/* the build card (warehouse 124) is the same card: the id of the build, and the row that takes the customer's screenshot */
+.buildCard .buildId{overflow-wrap:anywhere;font-size:.85em}
+.shotRow{display:grid;gap:6px;padding:10px 14px 0}
+.shotRow label{font-weight:650;color:var(--v-ink)}
+.shotRow input[type=file]{min-height:44px;max-width:100%}
+.shotRow .shotWidth{margin:0}
