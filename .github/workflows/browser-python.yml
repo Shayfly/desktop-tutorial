@@ -52,7 +52,7 @@ jobs:
         run: >-
           python -m pytest -q -rs --junitxml=browser.xml tests/test_section_library.py
           tests/test_section_library_conformance.py tests/test_site_content_engine.py tests/test_library_cookie_banner.py
-          tests/test_font_pairs_load.py tests/test_font_pair_on_the_real_chain.py
+          tests/test_font_pairs_load.py tests/test_font_pair_on_the_real_chain.py tests/test_hero_overlay_stacking.py
       - name: No test may be skipped
         if: always()
         run: |
@@ -96,6 +96,9 @@ jobs:
           # 2026-11-26: test_visual_qa now takes a free port per page (_free_port), so the spec runs on the step's 2 workers again
           # (NC_JOBS=1 made this step slower; #545's run timed out at the 13-minute step limit).
           NC_SCOPE=declared python scripts/run_negative_controls.py repair_converge_offscreen; d=$?
+          # 2026-11-27 (#558): NC1 of hero_overlay_stacking reads a rendered pixel, so it needs Chromium (envs browser).
+          NC_SCOPE=declared python scripts/run_negative_controls.py hero_overlay_stacking; e=$?
+          d=$(( d | e ))
           c=$(( c | d ))
           b=$(( b | c ))
           exit $(( a | b ))
