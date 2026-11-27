@@ -52,6 +52,24 @@ class ProviderQuote:
             raise ValueError("unit_name must not be empty")
         if self.units < 0:
             raise ValueError("units must be >= 0")
+        if not self.price_known and (self.estimated_cost_usd != 0 or self.maximum_cost_usd != 0):
+            raise ValueError("an unpriced quote carries no number: its costs must be 0 placeholders")
+
+    @property
+    def price_known(self) -> bool:
+        """False for a provider configured WITHOUT a price (the owner 2026-11-26: it still runs). Its 0 cost fields are
+        placeholders the storage requires (provider_usage_events NOT NULL), never a price: every reader that sums
+        costs skips an unpriced quote or event and names it as missing cost data instead (unpriced())."""
+        return not unpriced(self.pricing_version)
+
+
+# The pricing_version of a quote, and of the usage event it produces, when the provider has no price configured.
+UNPRICED_PREFIX = 'unpriced:'
+
+
+def unpriced(pricing_version) -> bool:
+    """A usage event or quote whose cost is UNKNOWN (no price configured) -- never read its 0 placeholders as a cost."""
+    return str(pricing_version or '').startswith(UNPRICED_PREFIX)
 
 
 @dataclass(frozen=True)

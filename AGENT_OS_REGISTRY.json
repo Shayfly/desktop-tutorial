@@ -148,7 +148,7 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/creator_plan.py",
+   "why": "real-server evidence is stale; code changed since: omni_prod/build_cost_plan.py, omni_prod/creator_plan.py",
    "evidence": [],
    "stale_evidence": [
     "postdeploy-checks run 37961193099"
@@ -1625,9 +1625,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/build_cost_plan.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -3806,13 +3807,16 @@
    "primary_agent": "qa_agent",
    "verifier_agent": "quality_gate_agent",
    "implementation_location": [
-    "omni_prod.maintenance:recover_lost_running"
+    "omni_prod.maintenance:recover_lost_running",
+    "omni_prod.build_checkpoint:load"
    ],
-   "gap": "build restarts from the beginning",
+   "gap": "S4.2: a worker killed at four points on real PostgreSQL; no real-server crash-verify run yet",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "code exists; no evidence",
-   "evidence": [],
+   "status": "UNIT_TESTED",
+   "why": "unit tests only",
+   "evidence": [
+    "tests/test_crash_resume_pg.py"
+   ],
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -4854,9 +4858,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/build_cost_plan.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -5232,13 +5237,16 @@
    "primary_agent": "infrastructure_agent",
    "verifier_agent": "sre_reliability_agent",
    "implementation_location": [
-    "omni_prod.maintenance:recover_lost_running"
+    "omni_prod.maintenance:recover_lost_running",
+    "omni_prod.build_checkpoint:CheckpointWriter"
    ],
-   "gap": "restart from the beginning, once; since e5e11e5 a lost build with a paid call is failed, not requeued",
+   "gap": "S4.2: a lost build with a usable checkpoint is requeued once and continues from it; without one, a paid call ends it FAILED provider_liability_unknown as before; no real-server crash-verify run yet",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "code exists; no evidence",
-   "evidence": [],
+   "status": "UNIT_TESTED",
+   "why": "unit tests only",
+   "evidence": [
+    "tests/test_crash_resume_pg.py"
+   ],
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -7669,9 +7677,9 @@
   "skills": {
    "NOT_IMPLEMENTED": 264,
    "IMPLEMENTED": 95,
-   "UNIT_TESTED": 30,
+   "UNIT_TESTED": 32,
    "INTEGRATION_TESTED": 6,
-   "REAL_SERVER_VERIFIED": 23,
+   "REAL_SERVER_VERIFIED": 21,
    "LIVE": 0,
    "BLOCKED": 9
   }

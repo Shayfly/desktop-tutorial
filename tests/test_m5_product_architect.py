@@ -4,6 +4,7 @@ from pathlib import Path
 from omni_prod.product_spec import ProductSpec
 from omni_prod.build_contract import BuildContract, BuildContractStatus
 from omni_prod.build_contract_repository import MemoryBuildContractRepository
+from omni_prod.build_contract_repository import BuildContractNotFound
 from omni_prod.product_architect import ProductArchitect
 
 
@@ -141,8 +142,12 @@ class ProductArchitectTests(unittest.TestCase):
         contract = ProductArchitect().compile("Build a SaaS CRM for customers", project_id="owner-project", contract_version=1)
         repo = MemoryBuildContractRepository()
         repo.save(contract)
-        with self.assertRaises(PermissionError):
-            repo.get(contract.id, project_id="different-project")
+        # S4.5 (2026-11-26): another project's contract is refused exactly like an id that names nothing; a
+        # PermissionError of its own told the caller that the id exists in another project.
+        for contract_id in (contract.id, "bc_000000000000000000000000"):
+            with self.assertRaises(BuildContractNotFound):
+                repo.get(contract_id, project_id="different-project")
+        self.assertEqual(repo.get(contract.id, project_id="owner-project").id, contract.id)
 
 
 class BuildContractSchemaContractTests(unittest.TestCase):

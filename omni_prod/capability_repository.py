@@ -331,8 +331,9 @@ class MemoryCapabilityRepository:
                 event_key=key, build_id=str(row.get("build_id", "")),
                 requirement_id=str(row.get("requirement_id", "")), provider=str(row.get("provider", "")),
                 pricing_version=str(row.get("pricing_version", "")),
-                estimated_cost_usd=Decimal(str(row.get("estimated_cost_usd", 0))),
-                maximum_cost_usd=Decimal(str(row.get("maximum_cost_usd", row.get("estimated_cost_usd", 0)))),
+                estimated_cost_usd=(None if row.get("estimated_cost_usd", 0) is None
+                                    else Decimal(str(row.get("estimated_cost_usd", 0)))),
+                maximum_cost_usd=Decimal(str(row.get("maximum_cost_usd", row.get("estimated_cost_usd") or 0))),
                 actual_cost_usd=(None if row.get("actual_cost_usd") is None else Decimal(str(row["actual_cost_usd"]))),
                 usage=dict(row.get("usage", {})), evidence=dict(row.get("evidence", {})),
             )
@@ -489,7 +490,7 @@ class PostgresCapabilityRepository:
             result.append({
                 'event_key': row[0], 'build_id': build_id, 'requirement_id': row[1],
                 'provider': row[2], 'pricing_version': row[3],
-                'estimated_cost_usd': Decimal(str(row[4])),
+                'estimated_cost_usd': None if row[4] is None else Decimal(str(row[4])),   # 048: unknown
                 'maximum_cost_usd': Decimal(str(row[5])),
                 'actual_cost_usd': (None if row[6] is None else Decimal(str(row[6]))),
                 'usage': usage, 'evidence': evidence,
@@ -735,11 +736,14 @@ class PostgresCapabilityRepository:
         event_key = str(event.get("event_key", "")).strip()
         if not event_key:
             raise ValueError("usage event_key must not be empty")
-        estimated = Decimal(str(event.get("estimated_cost_usd", 0)))
-        maximum = Decimal(str(event.get("maximum_cost_usd", estimated)))
+        # migration 048 (the owner 2026-11-26): an unpriced event has NO estimate (NULL), never 0
+        raw_estimate = event.get("estimated_cost_usd", 0)
+        estimated = None if raw_estimate is None else Decimal(str(raw_estimate))
+        maximum = Decimal(str(event.get("maximum_cost_usd", estimated if estimated is not None else 0)))
         actual_raw = event.get("actual_cost_usd")
         actual = None if actual_raw is None else Decimal(str(actual_raw))
-        if estimated < 0 or maximum < estimated or (actual is not None and actual < 0):
+        if (estimated is not None and (estimated < 0 or maximum < estimated)) or maximum < 0 \
+                or (actual is not None and actual < 0):
             raise ValueError("invalid provider cost evidence")
         with self.pool.connection() as conn:
             with conn.transaction():

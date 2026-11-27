@@ -27,6 +27,14 @@ Two gaps found during Golden E2E #1 (2026-10-07/08):
    back in the queue once (recovery_attempts) and failed with `worker_lost`
    after that. Reservations are released for anything that ends.
 
+   S4.2 (plan v3; the owner chose to continue, 2026-11-26): a lost BUILD with a
+   usable checkpoint (omni_prod/build_checkpoint) is put back in the queue to
+   continue from it, also when its lost worker made a paid call -- the call that
+   was in flight is what the attempt ledger shows, and nothing is computed about
+   it. A build with no usable checkpoint keeps the behaviour of before:
+   provider_liability_unknown after a paid call, otherwise requeued to start
+   over. The janitor writes its decision to evidence_json.recovery.
+
 Each step is independent and logged; one failing step never stops the loop.
 """
 from __future__ import annotations
@@ -130,19 +138,60 @@ _END = {
                      "error_message = %s WHERE id = %s AND status = 'RUNNING'"),
 }
 _REQUEUE = {
+    # S4.2: the build's requeue writes the janitor's decision (evidence_json.recovery) in the same statement
     'build': ("UPDATE build_jobs SET status = 'queued', phase = 'RECOVERING', heartbeat_at = NULL, "
-              "recovery_attempts = recovery_attempts + 1 WHERE id = %s AND status = 'running' "
-              "AND heartbeat_at < now() - make_interval(mins => %s)"),
+              "recovery_attempts = recovery_attempts + 1, evidence_json = jsonb_set(COALESCE(evidence_json, "
+              "'{}'::jsonb), '{recovery}', %s::jsonb || jsonb_build_object('at', now()), true) "
+              "WHERE id = %s AND status = 'running' AND heartbeat_at < now() - make_interval(mins => %s)"),
     'modification': ("UPDATE modification_requests SET status = 'QUEUED', heartbeat_at = NULL, "
                      "recovery_attempts = recovery_attempts + 1 WHERE id = %s AND status = 'RUNNING' "
                      "AND heartbeat_at < now() - make_interval(mins => %s)"),
 }
 
+# What the customer reads when a build goes back in the queue (build_events, kind 'info'; the janitor writes the Hebrew
+# line, as every line of the build log). The build screen shows the line in the customer's language: assets/app.js
+# T.<lang>.logResumed / logRestarted repeat these texts, kept equal by tests/test_crash_resume.py.
+RECOVERY_LINES = {
+    'resumed': {
+        'he': 'הבנייה נקטעה באמצע. ממשיכים מהנקודה האחרונה שנשמרה, בלי להתחיל מחדש.',
+        'en': 'The build was cut off part-way. We are continuing from the last saved point, without starting over.',
+        'ar': 'انقطع البناء في منتصفه. نتابع من آخر نقطة محفوظة، دون البدء من جديد.',
+    },
+    'restarted': {
+        'he': 'הבנייה נתקעה אצלנו באמצע. מתחילים מחדש מהתחלה.',
+        'en': 'The build got stuck on our side. Starting again from the beginning.',
+        'ar': 'توقف البناء لدينا في المنتصف. نبدأ من جديد من البداية.',
+    },
+}
+
+
+def _recovery_record(conn, item: str, decision: str, attempts: int, checkpoint, why: str) -> str:
+    """The janitor's decision for a lost build, for evidence_json.recovery: continue from the checkpoint ('resume') or
+    start over ('restart', with why it could not continue), and what the attempt ledger shows at that moment -- the
+    call that was in flight is a row without an answer, counted as such and nothing more (the owner, 2026-11-26)."""
+    from .build_checkpoint import label
+    from .evidence_json import dumps_evidence
+    calls, unanswered = conn.execute(
+        "SELECT count(*), count(*) FILTER (WHERE outcome = 'unknown') FROM task_attempts "
+        "WHERE build_id = %s AND kind = 'provider_call'", (item,)).fetchone()
+    record = {'decision': decision, 'recovery_attempt': attempts + 1, 'lost_worker_epoch': attempts,
+              'ledger': {'provider_calls': int(calls), 'without_an_answer': int(unanswered)}}
+    if decision == 'resume':
+        record['from_checkpoint'] = {'checkpoint': label(checkpoint), 'stage': checkpoint.get('stage'),
+                                     'round': checkpoint.get('round'), 'written_at': checkpoint.get('written_at'),
+                                     'written_by_worker': checkpoint.get('worker'),
+                                     'repository_sha256': (checkpoint.get('snapshot') or {}).get('sha256'),
+                                     'spec_sha256': (checkpoint.get('spec') or {}).get('sha256')}
+    else:
+        record['why_not_resumed'] = why
+    return dumps_evidence(record)
+
 
 def recover_lost_running(pool, *, subscriptions, enqueue, busy_ids=lambda: (), minutes: int = LOST_RUNNING_MINUTES,
                          max_recovery: int = MAX_RECOVERY) -> dict:
-    """Crash recovery for builds and changes whose worker disappeared."""
-    out = {'recovered': [], 'cancelled': [], 'failed': []}
+    """Crash recovery for builds and changes whose worker disappeared. `resumed` lists the builds requeued to continue
+    from their checkpoint (they are in `recovered` too)."""
+    out = {'recovered': [], 'cancelled': [], 'failed': [], 'resumed': []}
     busy = set(busy_ids())
     for kind in ('build', 'modification'):
         with pool.connection() as conn:
@@ -162,10 +211,25 @@ def recover_lost_running(pool, *, subscriptions, enqueue, busy_ids=lambda: (), m
                     if current is None:
                         continue
                     stop, attempts = current
+                    resumable, why, checkpoint = False, 'a change has no checkpoint', None
+                    if kind == 'build':
+                        from .build_checkpoint import usable
+                        checkpoint = conn.execute("SELECT evidence_json->'checkpoint' FROM build_jobs WHERE id = %s",
+                                                  (item,)).fetchone()[0]
+                        resumable, why = usable(checkpoint)
                     from .subscription_store import provider_exposure
                     with conn.cursor() as cur:
                         exposed = provider_exposure(cur, item)
-                    if exposed:
+                    resumed = resumable and not stop and attempts < max_recovery
+                    if resumed:
+                        # S4.2, the owner's (א): continue from the last checkpoint, paid calls or not; the call that
+                        # was in flight is what the ledger shows (no exposure is computed for it)
+                        done = conn.execute(_REQUEUE[kind], (_recovery_record(conn, item, 'resume', attempts,
+                                                                              checkpoint, ''),
+                                                             item, int(minutes))).rowcount == 1
+                        bucket, message = 'recovered', RECOVERY_LINES['resumed']['he']
+                    elif exposed:
+                        # no usable checkpoint (`why`): the behaviour before S4.2, by name
                         done = _end(conn, kind, item, 'failed', 'provider_liability_unknown',
                                     'worker lost after provider activity; reservation held for reconciliation')
                         bucket, message = 'failed', 'העבודה נעצרה. חשיפת הספק נשמרת עד בירור החיוב.'
@@ -174,8 +238,10 @@ def recover_lost_running(pool, *, subscriptions, enqueue, busy_ids=lambda: (), m
                                     'stopped on request; its worker had stopped responding')
                         bucket, message = 'cancelled', 'הבנייה נעצרה לבקשתך.'
                     elif attempts < max_recovery:
-                        done = conn.execute(_REQUEUE[kind], (item, int(minutes))).rowcount == 1
-                        bucket, message = 'recovered', 'השרת שעבד על זה הפסיק להגיב. מתחיל מחדש מהתחלה.'
+                        params = (item, int(minutes)) if kind != 'build' else (
+                            _recovery_record(conn, item, 'restart', attempts, checkpoint, why), item, int(minutes))
+                        done = conn.execute(_REQUEUE[kind], params).rowcount == 1
+                        bucket, message = 'recovered', RECOVERY_LINES['restarted']['he']
                     else:
                         done = _end(conn, kind, item, 'failed', 'worker_lost',
                                     f'the worker stopped responding for more than {minutes} minutes twice; '
@@ -187,6 +253,8 @@ def recover_lost_running(pool, *, subscriptions, enqueue, busy_ids=lambda: (), m
             if not done:
                 continue
             out[bucket].append(item)
+            if resumed:
+                out['resumed'].append(item)
             if bucket == 'recovered':
                 enqueue(BUILD_JOB if kind == 'build' else MODIFICATION_JOB, item)
             else:

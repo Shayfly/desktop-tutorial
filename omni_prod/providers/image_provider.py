@@ -138,13 +138,17 @@ class ImageProviderConfig:
             output_hosts=_output_hosts(_clean(env, "OMNI_IMAGE_PROVIDER_OUTPUT_HOSTS")),
         )
 
+    @property
+    def price_known(self) -> bool:
+        """A per-image maximum with a named source. The owner 2026-11-26: without one the provider still runs; its
+        cost is recorded as unknown (an 'unpriced:' quote), never as 0 and never as a refusal."""
+        return self.maximum_usd_per_image is not None and bool(self.price_source)
+
     def status(self) -> tuple[str, str]:
         missing = [name for name, value in (
             ("OMNI_IMAGE_PROVIDER_BASE_URL", self.base_url),
             ("OMNI_IMAGE_PROVIDER_API_KEY_REF", self.api_key_ref),
             ("OMNI_IMAGE_PROVIDER_MODEL", self.model),
-            ("OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE", self.maximum_usd_per_image),
-            ("OMNI_IMAGE_PROVIDER_PRICE_SOURCE", self.price_source),
         ) if not value]
         if missing:
             return "NOT_CONFIGURED", "missing " + ", ".join(missing)
@@ -154,6 +158,11 @@ class ImageProviderConfig:
             return "BLOCKED", "OMNI_IMAGE_PROVIDER_API_KEY_REF must be an env:/vault: reference, not a key"
         if not self.base_url.startswith("https://"):
             return "BLOCKED", "OMNI_IMAGE_PROVIDER_BASE_URL must be https"
+        if not self.price_known:
+            unset = [name for name, value in (("OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE", self.maximum_usd_per_image),
+                                              ("OMNI_IMAGE_PROVIDER_PRICE_SOURCE", self.price_source)) if not value]
+            return "PARTIAL", ("configured without a price (missing " + ", ".join(unset) + "): images are made and "
+                               "their cost is recorded as unknown; LIVE only after a verified artifact")
         estimated = self.estimated_usd_per_image if self.estimated_usd_per_image is not None else self.maximum_usd_per_image
         if estimated > self.maximum_usd_per_image:
             return "BLOCKED", "estimated price exceeds maximum price"
@@ -165,6 +174,8 @@ def computed_from_usage(config: "ImageProviderConfig", *, outputs: int, status) 
     times the versioned per-output price -- for a model billed per output only. It is not actual_cost_usd (the
     provider reports no per-prediction cost), it is labelled computed_from_usage and carries its price version."""
     unit = config.estimated_usd_per_image
+    if not config.price_known:      # no price with a source: nothing is computed (the cost stays unknown, never guessed)
+        return {}
     if (config.billing_unit != "output" or unit is None or unit != config.maximum_usd_per_image
             or status != "succeeded" or outputs <= 0):
         return {}
@@ -361,6 +372,13 @@ class PredictionImageProvider:
         if requirement.key != CAPABILITY_KEY:
             raise LookupError(f"capability {requirement.key} is not supported by {self.name}")
         units = Decimal(requirement.quantity)
+        if not self.config.price_known:     # the owner 2026-11-26: runs; the cost is unknown (no number, not 0)
+            from ..provider_contracts import UNPRICED_PREFIX
+            return ProviderQuote(
+                provider=self.name, capability_key=requirement.key, estimated_cost_usd=Decimal("0"),
+                maximum_cost_usd=Decimal("0"), pricing_version=f"{UNPRICED_PREFIX}operator-config:no-price",
+                unit_name="image", units=units,
+            )
         maximum = self.config.maximum_usd_per_image
         estimated = self.config.estimated_usd_per_image if self.config.estimated_usd_per_image is not None else maximum
         return ProviderQuote(

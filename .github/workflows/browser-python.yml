@@ -22,7 +22,7 @@ permissions:
 jobs:
   browser-python:
     runs-on: ubuntu-latest
-    timeout-minutes: 27
+    timeout-minutes: 34
     steps:
       - uses: actions/checkout@v4
         with:
@@ -73,7 +73,11 @@ jobs:
         if: always()
         # 2026-11-21 (run 44954125388): 24 controls since the library merge; 21 ran and passed in 6 minutes and the
         # step was cut at its limit. Measured there: about 16 s a control with 2 workers, so 24 need about 6.5 minutes.
-        timeout-minutes: 13
+        # 2026-11-27 (run 45982884969, #549): every control passed and the step was cut at 13 minutes. Measured there:
+        # all 41 controls PASS in about 13.5 minutes (section_library alone about 11 minutes, 24/24; then
+        # library_cookie_banner 9/9, typography 4/4, repair_converge_offscreen 4/4), so the limit is 20 (the job's 27
+        # became 34: 9 + 4 + 20 + 1). No control and no NC_JOBS value changed.
+        timeout-minutes: 20
         env:
           NC_ENV: browser
           NC_JOBS: "2"
@@ -89,7 +93,9 @@ jobs:
           # RUN there. envs browser now: they run here, inside this step's 13 min, on ONE worker: tests/test_visual_qa.py
           # starts its pages on fixed ports (18731-18739), so two controls of this spec at once refuse each other's page
           # (run 45860673027: ERR_CONNECTION_REFUSED at 127.0.0.1:18733, an extra failure under NC6).
-          NC_JOBS=1 NC_SCOPE=declared python scripts/run_negative_controls.py repair_converge_offscreen; d=$?
+          # 2026-11-26: test_visual_qa now takes a free port per page (_free_port), so the spec runs on the step's 2 workers again
+          # (NC_JOBS=1 made this step slower; #545's run timed out at the 13-minute step limit).
+          NC_SCOPE=declared python scripts/run_negative_controls.py repair_converge_offscreen; d=$?
           c=$(( c | d ))
           b=$(( b | c ))
           exit $(( a | b ))
