@@ -17,7 +17,7 @@ DATA = Path(__file__).with_name('vertical_palettes.json')
 ROLES = ('primary', 'accent', 'background', 'ink')
 _HEX = re.compile(r'#[0-9a-f]{6}')
 # a Hebrew word may carry up to two one-letter prefixes (ה, ו, ב, ש, ל, מ, כ): "והאטליז", "במספרה"
-_PRE = r'(?:(?<=^)|(?<=[^\w֐-׿]))[הובשלמכ]{0,2}'
+_PRE = r'(?:(?<=^)|(?<=[^\w֐-׿]))(?:[הובשלמכ]|[لبوف]){0,2}'   # Arabic: ل ب و ف (warehouse 122: "لصالون الحلاقة")
 _END = r'(?![\w֐-׿])'
 
 
