@@ -145,10 +145,27 @@ class PostgresStore:
         self.database_url = database_url
         self._schema_ready = False
         self._schema_lock = RLock()
+        self._pool = None
+        self._pool_lock = RLock()
+
+    def _get_pool(self):
+        # WH-100: one pool per store (per warm function instance) instead of a TCP+TLS+auth handshake to Neon on every
+        # store call; a request makes several calls (session, then the work). Lazy, so import and boot open nothing.
+        if self._pool is None:
+            with self._pool_lock:
+                if self._pool is None:
+                    from psycopg_pool import ConnectionPool
+                    self._pool = ConnectionPool(
+                        conninfo=self.database_url, min_size=1, max_size=4, timeout=10.0, open=True,
+                        kwargs={"autocommit": True, "row_factory": dict_row, "connect_timeout": 5},
+                        # A function frozen between requests holds sockets Neon may have closed: test on checkout.
+                        check=ConnectionPool.check_connection,
+                    )
+        return self._pool
 
     @contextmanager
     def _connection(self):
-        with psycopg.connect(self.database_url, autocommit=True, row_factory=dict_row) as conn:
+        with self._get_pool().connection() as conn:
             self._ensure_schema(conn)
             yield conn
 

@@ -18,6 +18,11 @@ EXPECTED_VERSIONS = tuple(sorted(EXPECTED_VERSIONS + (47,)))   # in file order, 
 if REQUIRED_MIGRATION < 47:
     REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME = 47, '047_rate_limits'
 
+# 049 (direction sketches, S6.3, 2026-11-27), again on lines of its own; the newest migration is the one required.
+EXPECTED_VERSIONS = tuple(sorted(EXPECTED_VERSIONS + (49,)))
+if REQUIRED_MIGRATION < 49:
+    REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME = 49, '049_direction_sketches'
+
 # 050 (media infrastructure, 2026-11-27: asset_rights and media_render_jobs) is added on lines of its own, as 047 was. 049
 # is the direction-sketches migration of another branch; 050 does not depend on it.
 EXPECTED_VERSIONS = tuple(sorted(EXPECTED_VERSIONS + (50,)))

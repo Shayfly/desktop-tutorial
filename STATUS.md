@@ -19,6 +19,21 @@
 - **Evidence:** `tests/test_media_store.py` 16 passed; `tests/test_media_infra_pg.py` 27 passed on a throw-away PostgreSQL 16
   (every repository migration applied through the real runner, the rollback applied and 050 applied again); controls
   `media_infra` 7/7 plain and 21/21 with `NC_ENV=pg`. `omni_prod.pipeline_identity` digest equal to main's.
+# 2026-11-27 — A requested rehearsal option that the worker ignored is now a red run (Claude Code; branch `claude/practical-hopper-oi3qj2-wh117-loud`, pushed, NO PR)
+
+- **Root cause (run 46005664127, job 140528059099):** the workflow printed `image=customer_photo account=none` and the build
+  ended READY, but no `customer photo` line appeared and the page said "לא נמסר צילום" (acceptance A2). The worker image
+  was built by the last `[release]` deploy (#551, 11:46 UTC), before #556 existed; #556's own deploy run (13:16) was a push
+  without `[release]`. That image's `rehearsal.py` has no options, read `argv` of length 2 and ignored `REHEARSAL_IMAGE`
+  without a word. Not a wrongly gated report: the code that prints it was not in the container.
+- **Fix:** the report says what it applied (`options_applied`), and the new workflow step "Prove the requested options were
+  applied" (`if: always()`) reads the printed report: a requested option with no `options_applied`, a mismatch, a missing
+  `photo` / `account` / `time_budget` section or a photo that is not ok is `::error` and a red job; a requested image always
+  prints `::notice title=customer photo::photo_as_file=... hero_kept=...`.
+- **Evidence:** `tests/test_rehearsal_options_proven.py` 12 passed (runs the step's own Python on the report run
+  46005664127 printed); controls `rehearsal_options_proven` 8/8.
+- **Open:** the worker image still has to be rebuilt (a `[release]` commit or a manual dispatch of deploy-worker) before a
+  rehearsal with `image` can show the photo; until then the new step turns the run red instead of passing.
 
 # 2026-11-27 — The golden rehearsal carries a customer photo, runs as a non-founder, reports the time budget (Claude Code; branch `claude/practical-hopper-oi3qj2-wh117`, pushed, NO PR, NOT dispatched)
 
@@ -5026,3 +5041,16 @@ Follow-up after the manual check: migration 045 was merged in #474. The [worker 
 - **CI: negative controls in four shards (2026-11-26, author claude).** On #537 (run 45829940347) shard 2 of 3 took 14 min 45 s of the step's 18 (13:31:32 to 13:46:17), and controls keep being added. `NC_SHARD` is now i/4. The runner has no time weights (`work` counts the controls that run in v24-ci), so the balance is by count: 1,372 controls, 457-458 per shard before, 343 each after (specs 57/50/51/51). Expected shard 2 time is about 11 minutes (an estimate: 14 min 45 s x 343/457). Evidence: `tests/test_negative_controls_parallel.py` and `tests/test_ci_workflow_concurrency.py` pass; `scripts/run_negative_controls.py nc_shards` 10/10 (NC6 drops shard 4). Not verified: CI on the new head.
 
 **Not verified:** CI on the new head, and the full suite (run by the main session). The duration of a sharded run on GitHub is an estimate (about 3.5 to 7 minutes per shard, from the two runs above) until the first run.
+
+
+## 2026-11-27 — S6.3: a direction sketch within 60 seconds, slices 0 to 5 (Claude Code, branch only, migration 049 NOT applied)
+
+The owner's decisions (inbox/003, PR #550): the first sketch of a project is on the company, at most $0.10; a further sketch is charged only for new wording and costs one credit; the card follows warehouse item 124. Slices 0-1 are PR #553 (head `f72c2dd` after main's #551); slices 2-5 are on `claude/practical-hopper-oi3qj2-s63-slices2-5`, no PR.
+
+**Implemented and verified locally (commands in the commit messages; PostgreSQL 16 started here, throw-away databases):**
+- **Slice 2, the words, reserved and recorded.** `infra/postgres/049_direction_sketches.sql` and its down file (tested up, down, up on a throw-away database), reserved task `direction_sketch`, one scope per project `sketch-free:{account}:{project}` capped at $0.10 in all and $0.10 per call, one free sketch per project by a partial unique index, three attempts, the owner's account outside that rule, the cost report's own stage. `tests/test_direction_sketch_money_pg.py` 28 passed; controls `direction_sketch_money` 14 of 14.
+- **Slice 3, the routes and the offer.** Three routes behind `_owner()`, the offer once per direction, the page with its own CSP (`sandbox`, no scripts). The tenant matrix runs them with two real accounts: 789 passed. `tests/test_direction_sketch_routes_pg.py` 12 passed (no worker: the page is served in seconds); controls `direction_sketch_routes` 10 of 10.
+- **Slice 4, the card.** `tests/direction_sketch_browser.cjs` in Chromium on the real app.js and the real page: painted 0.1 s after the (mocked) reply; both font hosts; the page's script blocked by the sandbox; no sideways scroll at 320/390/1440; 5 mutations of app.js fail it. Controls `direction_sketch_card` 9 of 9.
+- **Slice 5, a further sketch.** `price_ack`, one credit held with the claim in one transaction, settled with the call's real cost or given back, a reconciler in the janitor. `tests/test_direction_sketch_funding_pg.py` 19 passed; controls `direction_sketch_funding` 12 of 12.
+
+**Not verified / not done:** the 60 seconds on a live server (the browser test's server is a mock; the latency of the words' own model call is an estimate from the conversation's calls, 5 to 8 s); migration 049 is NOT applied to production (the owner's approval is asked first); CI on the new heads; the full suite (run by the main session); a rehearsal on the worker; the dark and light variants of every palette (slice 6, warehouse 125).

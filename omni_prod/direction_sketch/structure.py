@@ -16,7 +16,7 @@ HERO_CTA = 'ליצירת קשר'
 DESCRIPTION = 'סקיצת כיוון לאתר {name}'
 # The library's own menu word for a section the customer did not title (the generic ones of site_content.OUTLINE_MAP).
 SECTION_WORDS = {'services': 'שירותים', 'about': 'עלינו', 'process': 'איך זה עובד', 'faq': 'שאלות נפוצות',
-                 'contact': 'צור קשר', 'cta': 'צרו קשר', 'testimonials': 'המלצות', 'pricelist': 'מחירון'}
+                 'contact': 'צור קשר', 'cta': 'קריאה לפעולה', 'testimonials': 'המלצות', 'pricelist': 'מחירון'}
 NAV_KEYS = ('services', 'pricelist', 'about', 'process', 'testimonials', 'faq', 'contact')
 
 

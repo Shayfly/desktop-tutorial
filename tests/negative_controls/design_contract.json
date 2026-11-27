@@ -1,0 +1,119 @@
+{
+ "pr": "design-contract-125",
+ "sha256": [
+  "tests/test_design_contract.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a customer's dark is the old 90% mix of the primary toward black again, not the palette's declared dark variant",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/colour_roles.py",
+     "old": "        background, ink = base['background'], base['ink']\n",
+     "new": "        background, ink = (C._mix(palette['primary'], '#000000', 0.9), DARK_INK) if word == 'dark' else (base['background'], base['ink'])\n"
+    }
+   ],
+   "targets": [
+    "tests/test_design_contract.py"
+   ],
+   "expect_failed": [
+    "test_dark_and_light_are_the_declared_variant_not_a_mix_of_the_primary",
+    "test_a_stated_colour_still_wins_over_the_variants_primary",
+    "test_the_content_route_passes_the_category_palettes_variants"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "loading no longer refuses a palette or variant below WCAG AA",
+   "mutations": [
+    {
+     "file": "omni_prod/vertical_palettes.py",
+     "old": "        if low:\n            raise PaletteError(f'palette {name!r} is below WCAG AA",
+     "new": "        if False:\n            raise PaletteError(f'palette {name!r} is below WCAG AA"
+    }
+   ],
+   "targets": [
+    "tests/test_design_contract.py"
+   ],
+   "expect_failed": [
+    "test_loading_refuses_a_missing_variant_and_a_variant_below_aa"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "loading no longer requires a declared variant: a palette with no dark variant loads",
+   "mutations": [
+    {
+     "file": "omni_prod/vertical_palettes.py",
+     "old": "            if not isinstance(v, dict):\n                raise PaletteError(f'palette {name!r}: no declared {variant} variant')\n",
+     "new": "            if not isinstance(v, dict):\n                continue\n"
+    }
+   ],
+   "targets": [
+    "tests/test_design_contract.py"
+   ],
+   "expect_failed": [
+    "test_loading_refuses_a_missing_variant_and_a_variant_below_aa"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the declared dark variant of a palette is below AA (ink too close to the page): the per-palette contrast test sees it",
+   "mutations": [
+    {
+     "file": "omni_prod/vertical_palettes.py",
+     "old": "        low = contrast_findings(name, p)\n",
+     "new": "        low = {}\n"
+    },
+    {
+     "file": "omni_prod/vertical_palettes.json",
+     "old": "\"dark\": {\"primary\": \"#c0806b\"",
+     "new": "\"dark\": {\"primary\": \"#4a2a22\""
+    }
+   ],
+   "targets": [
+    "tests/test_design_contract.py"
+   ],
+   "expect_failed": [
+    "test_loading_refuses_a_missing_variant_and_a_variant_below_aa",
+    "test_the_palette_and_both_variants_meet_the_contrast_rules",
+    "test_the_contract_builds_every_variant_and_corrects_none_of_it"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the declared bold direction's hero size is not what library.css sets",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/directions.json",
+     "old": "\"bold\":    {\"font_scale\": {\"hero\": 72,",
+     "new": "\"bold\":    {\"font_scale\": {\"hero\": 56,"
+    }
+   ],
+   "targets": [
+    "tests/test_design_contract.py"
+   ],
+   "expect_failed": [
+    "test_the_declared_scale_and_rhythm_are_what_library_css_sets"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the content route does not pass the palette's variants to the contract: a customer's dark raises instead of taking the declared variant",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "colours, variants=VP.variants_for(palette),\n                                           fonts=",
+     "new": "colours,\n                                           fonts="
+    }
+   ],
+   "targets": [
+    "tests/test_design_contract.py"
+   ],
+   "expect_failed": [
+    "test_the_content_route_passes_the_category_palettes_variants"
+   ]
+  }
+ ]
+}

@@ -1214,14 +1214,22 @@ for _n in ('app.js','visual-edit.js','app.css'):
     _HTML=_HTML.replace(f'/assets/{_n}"', f'/assets/{_n}?v={_ASSET_VERSION}"')
 _REVALIDATE={'Cache-Control':'no-cache'}
 
+# WH-100: the page references each asset as /assets/<name>?v=<hash of the three files>, so a request that carries the
+# current hash can never be stale: it is served immutable and the CDN/browser stop calling the Python function (and its
+# cold start) for every asset on every page load. A request without the hash, or with an old one, keeps no-cache.
+_IMMUTABLE={'Cache-Control':'public, max-age=31536000, immutable'}
+
+def _asset_cache_headers(request:Request)->dict:
+    return _IMMUTABLE if request.query_params.get('v')==_ASSET_VERSION else _REVALIDATE
+
 @app.get('/assets/app.css')
-def asset_css(): return Response((_ASSET_DIR/'app.css').read_text(encoding='utf-8'),media_type='text/css',headers=_REVALIDATE)
+def asset_css(request:Request): return Response((_ASSET_DIR/'app.css').read_text(encoding='utf-8'),media_type='text/css',headers=_asset_cache_headers(request))
 
 @app.get('/assets/app.js')
-def asset_js(): return Response((_ASSET_DIR/'app.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_REVALIDATE)
+def asset_js(request:Request): return Response((_ASSET_DIR/'app.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_asset_cache_headers(request))
 
 @app.get('/assets/visual-edit.js')
-def asset_visual_edit_js(): return Response((_ASSET_DIR/'visual-edit.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_REVALIDATE)
+def asset_visual_edit_js(request:Request): return Response((_ASSET_DIR/'visual-edit.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_asset_cache_headers(request))
 
 @app.get('/manifest.webmanifest')
 def pwa_manifest(): return Response((_ASSET_DIR/'manifest.webmanifest').read_text(encoding='utf-8'),media_type='application/manifest+json',headers={'Cache-Control':'public,max-age=3600'})
@@ -2335,6 +2343,116 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
     except ValueError as exc:
         raise HTTPException(422, detail={'error': 'invalid_answer', 'message': str(exc)}) from exc
     return _conversation_view(project_id, turn.language, turn)
+
+
+# ---- direction sketches (S6.3): the card in the conversation. Three routes, each starting with _owner(): a sketch id of
+# another project or account is the same 404 as an id that never existed. The page route sends its own headers: the app's
+# CSP has no inline styles, the library's page carries its own, and `sandbox` (no allow-scripts, no allow-same-origin)
+# means the document runs no script, has no origin and cannot read the session or call the API.
+class V28SketchCreate(BaseModel):
+    brief_revision: int | None = Field(default=None, ge=1)
+    # the price in credits the customer was shown for NEW words of a further sketch (the spend approval: a mismatch spends
+    # nothing, 409 price_changed); absent, nothing is ever charged
+    price_ack: int | None = Field(default=None, ge=0, le=1000)
+
+
+_SKETCH_PAGE_HEADERS = {
+    'Content-Security-Policy': ("default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; "
+                                "font-src https://fonts.gstatic.com; img-src data:; frame-ancestors 'self'; sandbox"),
+    'X-Frame-Options': 'SAMEORIGIN', 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex',
+    'Cross-Origin-Resource-Policy': 'same-origin', 'X-Content-Type-Options': 'nosniff'}
+
+
+def _sketch_store():
+    from .direction_sketch.store import SketchStore
+    if _v28_pool is None:
+        raise HTTPException(503, detail={'error': 'durable_backend_required'})
+    return SketchStore(_v28_pool)
+
+
+def _sketch_reservations():
+    """(ReservationService, enqueue) when the intake worker route is configured, else (None, None): the sketch is then
+    drawn without words (reason model_route_unavailable), never with a model call that has no reservation."""
+    redis_url = os.getenv('OMNI_REDIS_URL', '').strip()
+    if os.getenv('OMNI_INTAKE_MODEL') == '1' and os.getenv('OMNI_INTAKE_VIA_WORKER') == '1' \
+            and _v28_pool is not None and redis_url:
+        from .intake.budget import ReservationService
+        from .intake.worker_route import rq_enqueue
+        return ReservationService(_v28_pool), rq_enqueue(redis_url)
+    return None, None
+
+
+def _sketch_missing() -> HTTPException:
+    return HTTPException(503, detail={'error': 'sketches_not_ready', 'missing_migration': '049_direction_sketches',
+                                      'message': 'Direction sketches are not installed on this server yet.'})
+
+
+@app.post('/api/v28/projects/{project_id}/sketches')
+def v28_sketch_create(project_id: str, req: V28SketchCreate, request: Request) -> dict:
+    """Make (or return) the sketch of the project's latest brief: its structure at once, its words reserved and queued
+    without waiting. Recomputes everything from the latest brief; nothing comes from the client but a revision to check."""
+    from .direction_sketch import funding as SF
+    from .direction_sketch import service as SK
+    from .direction_sketch.store import SketchStoreMissing
+    account, key = _owner(project_id, request)
+    row = _brief_repo().latest(project_id)
+    if row is None:
+        raise HTTPException(409, detail={'error': 'not_ready', 'reason': 'no_brief'})
+    if req.brief_revision is not None and req.brief_revision != row.revision:
+        raise HTTPException(409, detail={'error': 'brief_stale', 'message': 'The request changed; review the latest one.'})
+    context = _project_context(key)(project_id)
+    reservations, enqueue = _sketch_reservations()
+    profile = None
+    if reservations is not None:
+        from .intake import conversation_agent as agent
+        from .providers import venice_gateway as VG
+        profile = agent.profile_for_sketch() if VG.selected() else None
+    store = _sketch_store()
+    try:
+        sketch, words = SK.create(store, reservations, enqueue, row, account_id=account.id, project_id=project_id,
+                                  has_version=bool(context.get('latest_version_id')),
+                                  has_open_build=str((context.get('latest_build') or {}).get('status') or '').lower()
+                                  in ('queued', 'running'), venice_profile=profile, price_ack=req.price_ack,
+                                  subscriptions=_v28.subscriptions, pool=_v28_pool)
+        return {'sketch': SK.view(store, reservations, sketch, subscriptions=_v28.subscriptions, pool=_v28_pool),
+                'words': words}
+    except SK.NotReady as exc:
+        raise HTTPException(409, detail={'error': 'not_ready', 'reason': exc.reason}) from exc
+    except SF.PriceChanged as exc:
+        raise HTTPException(409, detail={'error': 'price_changed', 'price': SF.price()}) from exc
+    except SF.CreditsRefused as exc:
+        raise HTTPException(402, detail={'error': 'credits_unavailable', 'reason': exc.reason}) from exc
+    except SketchStoreMissing as exc:
+        raise _sketch_missing() from exc
+
+
+def _sketch_of(project_id: str, sketch_id: str, request: Request):
+    from .direction_sketch.store import SketchStoreMissing
+    account, _key = _owner(project_id, request)
+    store = _sketch_store()
+    try:
+        row = store.get(sketch_id, project_id, account.id) if re.fullmatch(r'skt_[0-9a-f]{24}', sketch_id) else None
+    except SketchStoreMissing as exc:
+        raise _sketch_missing() from exc
+    if row is None:
+        raise HTTPException(404, detail={'error': 'sketch_not_found'})
+    return store, row
+
+
+@app.get('/api/v28/projects/{project_id}/sketches/{sketch_id}')
+def v28_sketch_get(project_id: str, sketch_id: str, request: Request) -> dict:
+    """The sketch's state (a pending sketch is finalised from its reservation, once)."""
+    from .direction_sketch import service as SK
+    store, row = _sketch_of(project_id, sketch_id, request)
+    return {'sketch': SK.view(store, _sketch_reservations()[0], row, subscriptions=_v28.subscriptions, pool=_v28_pool)}
+
+
+@app.get('/api/v28/projects/{project_id}/sketches/{sketch_id}/page')
+def v28_sketch_page(project_id: str, sketch_id: str, request: Request):
+    """The sketch's HTML, for the card's sandboxed frame."""
+    from .direction_sketch import service as SK
+    store, row = _sketch_of(project_id, sketch_id, request)
+    return Response(content=SK.page(store, row), media_type='text/html; charset=utf-8', headers=_SKETCH_PAGE_HEADERS)
 
 
 @app.post('/api/v28/projects/{project_id}/spec-approval')
