@@ -1,0 +1,500 @@
+{
+ "pr": "game2d",
+ "sha256": [
+  "tests/test_game_art.py",
+  "tests/test_game_profile_routing.py",
+  "tests/test_game_build_pg.py",
+  "omni_prod/game_kit/art.py",
+  "omni_prod/game_kit/builder.py",
+  "omni_prod/game_kit/schema.py",
+  "omni_prod/game_kit/runtime.js"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a version 2 file with a broken art block is accepted (the art check removed)",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/schema.py",
+     "old": "            _art(problems, defn['art'])\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py"
+   ],
+   "expect_failed": [
+    "test_art_names_only_files_of_the_roles_under_assets"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "art may name another role's file",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/schema.py",
+     "old": "            if not m or m.group(1) != role:\n",
+     "new": "            if not m:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py"
+   ],
+   "expect_failed": [
+    "test_art_names_only_files_of_the_roles_under_assets"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "an opaque sprite is accepted (it would draw as a box)",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/art.py",
+     "old": "        if role in SPRITE_ROLES and role != 'ground' and not has_alpha:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py"
+   ],
+   "expect_failed": [
+    "test_a_good_image_replaces_the_fallback_and_a_bad_one_is_dropped_with_its_reason",
+    "test_what_passes_and_what_is_dropped_and_why"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a provider error fails the build instead of being dropped",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/art.py",
+     "old": "            except Exception as exc:       # noqa: BLE001 -- art never fails a build; the reason is recorded, not hidden\n",
+     "new": "            except KeyError as exc:       # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py"
+   ],
+   "expect_failed": [
+    "test_a_provider_that_errors_never_fails_the_build_and_the_game_plays_procedurally",
+    "test_a_provider_that_never_finishes_is_given_up_on_after_max_polls",
+    "test_with_the_spend_switch_closed_the_real_provider_refuses_and_the_game_still_plays"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the fallback art is not deterministic",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/art.py",
+     "old": "    return random.Random(int(hashlib.sha256(f'{seed}:{role}'.encode()).hexdigest()[:16], 16))\n",
+     "new": "    return random.Random()  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py"
+   ],
+   "expect_failed": [
+    "test_the_same_definition_gives_the_same_bytes_and_another_seed_another_look"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a page edited by hand passes the executor",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/builder.py",
+     "old": "        if _core(repository.get(PAGE_FILE) or '') != _core(page):\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py"
+   ],
+   "expect_failed": [
+    "test_a_platform_addition_to_the_page_is_fine_but_a_changed_game_is_not"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a probe that could not run is not a failure",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/builder.py",
+     "old": "        except Exception as exc:       # noqa: BLE001 -- a probe that could not run is a failed probe, never a pass\n",
+     "new": "        except KeyError as exc:       # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py"
+   ],
+   "expect_failed": [
+    "test_the_probes_findings_become_failures_and_a_probe_that_cannot_run_is_a_failure_not_a_pass"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "with no browser on the machine the game passes unplayed",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/builder.py",
+     "old": "                return failed('A1', 'NOT_RUN: this machine has no browser to play the game in; a game that was not played is not ready')\n",
+     "new": "                return ExecutionReport(True, (), 'skipped', 0)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py"
+   ],
+   "expect_failed": [
+    "test_without_a_browser_on_this_machine_the_game_is_not_ready"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a touch-control finding is reported as the wrong criterion",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/builder.py",
+     "old": "'A2' if f['kind'] in _A2_KINDS else 'A1'",
+     "new": "'A1'"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py"
+   ],
+   "expect_failed": [
+    "test_the_probes_findings_become_failures_and_a_probe_that_cannot_run_is_a_failure_not_a_pass"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "what the model is told leaves out a tile the schema allows",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/builder.py",
+     "old": "using only the tiles . # o E ^ P F",
+     "new": "using only the tiles . # o E ^ P"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py"
+   ],
+   "expect_failed": [
+    "test_what_the_model_is_told_matches_what_the_schema_checks"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the rollout `owner` lets every account through",
+   "mutations": [
+    {
+     "file": "omni_prod/feature_flags.py",
+     "old": "        return m5_founder_account(account_id)\n",
+     "new": "        return True  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_profile_routing.py"
+   ],
+   "expect_failed": [
+    "test_a_type_with_no_rollout_defined_raises_and_sites_and_apps_are_always_through",
+    "test_flag_owner_another_account_is_still_refused_and_the_owner_is_not",
+    "test_owner_lets_only_the_owners_account_through_and_all_lets_everyone",
+    "test_with_the_flag_on_for_the_owner_the_owner_gets_the_profile_and_another_account_the_refusal"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the router ignores the rollout",
+   "mutations": [
+    {
+     "file": "omni_prod/output_profile/__init__.py",
+     "old": "        if family in ROLLOUT_REFUSALS and not output_rollout(family, account_id):\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_profile_routing.py"
+   ],
+   "expect_failed": [
+    "test_flag_off_the_owner_and_everyone_are_refused_exactly_as_before",
+    "test_flag_owner_another_account_is_still_refused_and_the_owner_is_not",
+    "test_with_the_flag_off_the_refusal_is_the_one_every_customer_got_before_and_no_model_was_asked",
+    "test_with_the_flag_on_for_the_owner_the_owner_gets_the_profile_and_another_account_the_refusal"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the conversation does not tell the router whose request it is",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        routing = route(family, account_id)      # a family",
+     "new": "        routing = route(family)      # NEGATIVE CONTROL a family"
+    }
+   ],
+   "targets": [
+    "tests/test_game_profile_routing.py"
+   ],
+   "expect_failed": [
+    "test_flag_owner_another_account_is_still_refused_and_the_owner_is_not",
+    "test_the_contract_the_conversation_compiles_says_game_and_that_is_what_the_worker_reads"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the game profile names the web builder",
+   "mutations": [
+    {
+     "file": "omni_prod/output_profile/__init__.py",
+     "old": "type=kind, builder=BUILDER_CANVAS_GAME_V1 if game else BUILDER_WEB_V1,",
+     "new": "type=kind, builder=BUILDER_WEB_V1,"
+    }
+   ],
+   "targets": [
+    "tests/test_game_profile_routing.py"
+   ],
+   "expect_failed": [
+    "test_game_is_executable_and_has_its_own_profile_and_the_truth_check_still_holds",
+    "test_with_the_flag_on_for_the_owner_the_owner_gets_the_profile_and_another_account_the_refusal"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "a mistyped rollout value is read as off",
+   "mutations": [
+    {
+     "file": "omni_prod/feature_flags.py",
+     "old": "    if mode not in OUTPUT_ROLLOUTS:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_profile_routing.py"
+   ],
+   "expect_failed": [
+    "test_any_other_value_raises_it_is_never_read_as_off_or_all"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "a game with art is served from a file address (the canvas is tainted, the game cannot be read)",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/probe.py",
+     "old": "        if files:\n            import functools",
+     "new": "        if False:\n            import functools"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py"
+   ],
+   "expect_failed": [
+    "test_the_probe_plays_a_game_with_art_and_passes_it"
+   ],
+   "envs": [
+    "game"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "the sprites of the runtime are never drawn",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/runtime.js",
+     "old": "    var im = ART[role]; if (!im) return false;\n",
+     "new": "    var im = null; if (!im) return false;\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py"
+   ],
+   "expect_failed": [
+    "test_every_kind_is_played_with_its_art_and_every_role_it_draws_is_drawn_from_an_image"
+   ],
+   "envs": [
+    "game"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "the probe does not write the game's image files",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/probe.py",
+     "old": "            target.write_bytes(data)\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py",
+    "tests/test_game_build_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_game_is_written_validated_played_and_released",
+    "test_a_game_the_probe_cannot_win_is_repaired_with_the_probes_findings_and_then_played_again",
+    "test_an_invalid_definition_gets_one_corrective_call_that_names_every_problem",
+    "test_the_probe_plays_a_game_with_art_and_passes_it",
+    "test_with_the_release_policy_enforcing_a_game_that_passed_its_probe_is_still_refused"
+   ],
+   "envs": [
+    "game"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "the favicon the browser asks for is a console error of the game",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/probe.py",
+     "old": "                    if self.path == '/favicon.ico':\n",
+     "new": "                    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_art.py",
+    "tests/test_game_build_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_game_is_written_validated_played_and_released",
+    "test_a_game_the_probe_cannot_win_is_repaired_with_the_probes_findings_and_then_played_again",
+    "test_an_invalid_definition_gets_one_corrective_call_that_names_every_problem",
+    "test_the_probe_plays_a_game_with_art_and_passes_it",
+    "test_with_the_release_policy_enforcing_a_game_that_passed_its_probe_is_still_refused"
+   ],
+   "envs": [
+    "game"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "the worker never gives a game its engine",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/builder.py",
+     "old": "    return ((request or {}).get('build_contract') or {}).get('product_family') == 'game'\n",
+     "new": "    return False  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_build_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_definition_invalid_twice_fails_the_build_before_anything_is_played",
+    "test_a_game_is_refused_by_the_worker_for_an_account_the_rollout_does_not_allow",
+    "test_a_game_is_written_validated_played_and_released",
+    "test_a_game_that_is_never_playable_never_shows_as_ready",
+    "test_a_game_the_probe_cannot_win_is_repaired_with_the_probes_findings_and_then_played_again",
+    "test_an_invalid_definition_gets_one_corrective_call_that_names_every_problem",
+    "test_with_the_release_policy_enforcing_a_game_that_passed_its_probe_is_still_refused"
+   ],
+   "envs": [
+    "game"
+   ]
+  },
+  {
+   "id": "NC21",
+   "what": "the worker builds a game for an account the rollout does not allow",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "    if not output_rollout('game', request.get('user_id')):\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_build_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_game_is_refused_by_the_worker_for_an_account_the_rollout_does_not_allow"
+   ],
+   "envs": [
+    "game"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "an agent that edits files repairs a game instead of its definition",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "    if getattr(engine, 'game_state', None) is not None:\n        # a game is repaired",
+     "new": "    if False:\n        # a game is repaired"
+    }
+   ],
+   "targets": [
+    "tests/test_game_build_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_game_the_probe_cannot_win_is_repaired_with_the_probes_findings_and_then_played_again"
+   ],
+   "envs": [
+    "game"
+   ]
+  },
+  {
+   "id": "NC23",
+   "what": "a definition that is invalid twice is not reported as such",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/builder.py",
+     "old": "        except InvalidGame as second:\n",
+     "new": "        except KeyError as second:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_build_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_definition_invalid_twice_fails_the_build_before_anything_is_played"
+   ],
+   "envs": [
+    "game"
+   ]
+  },
+  {
+   "id": "NC24",
+   "what": "a game that failed its probe is reported as passed",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/builder.py",
+     "old": "        if result['ok']:\n",
+     "new": "        if True:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_game_build_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_game_that_is_never_playable_never_shows_as_ready",
+    "test_a_game_the_probe_cannot_win_is_repaired_with_the_probes_findings_and_then_played_again"
+   ],
+   "envs": [
+    "game"
+   ]
+  },
+  {
+   "id": "NC25",
+   "what": "the images are not carried with the build",
+   "mutations": [
+    {
+     "file": "omni_prod/game_kit/builder.py",
+     "old": "    carried = {path: envelope(data, mime) for path, (data, mime) in images.items()}",
+     "new": "    carried = {}"
+    }
+   ],
+   "targets": [
+    "tests/test_game_build_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_game_is_written_validated_played_and_released",
+    "test_a_game_the_probe_cannot_win_is_repaired_with_the_probes_findings_and_then_played_again",
+    "test_an_invalid_definition_gets_one_corrective_call_that_names_every_problem",
+    "test_with_the_release_policy_enforcing_a_game_that_passed_its_probe_is_still_refused"
+   ],
+   "envs": [
+    "game"
+   ]
+  }
+ ]
+}
