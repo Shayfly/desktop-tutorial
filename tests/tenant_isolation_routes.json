@@ -7,6 +7,7 @@
   "legacy_ws": "a legacy websocket; no deployment exists to authorize",
   "capability_url": "the unguessable link is the access",
   "account": "the caller's own account only; takes no identifier of another customer",
+  "owner": "the owner's account only (pricing.m5_founder_account): another signed-in account gets 403, no session 401; takes no identifier",
   "public": "no authentication and no customer data"
  },
  "identifiers": {
@@ -53,6 +54,7 @@
   "founder_public_launch_approved": "a yes/no flag",
   "game": "a yes/no flag",
   "include_archived": "a yes/no flag",
+  "days": "a number (the report's window in days)",
   "kind": "a choice from a fixed list",
   "limit": "a number (brief_revision and revision count the caller's own brief)",
   "max_priorities": "a number (brief_revision and revision count the caller's own brief)",
@@ -196,6 +198,8 @@
   "POST /api/v28/auth/account-deletion": {"kind": "account", "gate": "account"},
   "GET /api/v28/me": {"kind": "account", "gate": "account"},
   "GET /api/v28/me/subscription": {"kind": "account", "gate": "subscription"},
+  "GET /api/v28/owner/costs": {"kind": "owner", "gate": "_founder", "note": "#547: the build cost report; aggregates only, no account id, e-mail, prompt or project id"},
+  "GET /owner/costs": {"kind": "owner", "gate": "_founder", "note": "#547: the same report as an HTML page"},
   "POST /api/v28/admin/subscription": {"kind": "admin", "world": "v28", "gate": "OMNI_BILLING_ADMIN_KEY", "ids": ["account_id"], "body": {"user_id": "{account_id}", "plan": "business"}, "owner": "admin", "note": "only the billing admin key may name an account; a customer token never can"},
   "POST /api/v28/projects": {"kind": "account", "gate": "create_project"},
   "GET /api/v28/projects": {"kind": "account", "gate": "list_projects"},

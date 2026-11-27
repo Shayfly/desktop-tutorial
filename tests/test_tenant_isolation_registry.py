@@ -47,7 +47,7 @@ REGISTRY = json.loads((ROOT / 'tests' / 'tenant_isolation_routes.json').read_tex
 ROUTES = REGISTRY['routes']
 ID_LIKE = re.compile(r'(^|_)(id|ids|key|token|fingerprint)$')
 SCOPED = {'tenant', 'admin', 'legacy_refused', 'legacy_ws', 'capability_url'}
-SESSION_KINDS = {'tenant', 'account'}
+SESSION_KINDS = {'tenant', 'account', 'owner'}
 # The session checks of each generation: a route that is not public reaches one of them (or live_core's dependency).
 SESSION_CHECKS = {'_v26_bearer', '_v27_bearer', '_v28_bearer', '_signed_in', 'extract_session_token', '_runtime_bearer'}
 # Gates that are not a call inside the endpoint: allowed for these kinds only, each checked by its own rule below.
@@ -207,7 +207,7 @@ def test_each_kind_is_only_what_it_claims_to_be(key):
             f'{key}: capability_url is only the live_core preview handle (an unguessable link)'
     if kind == 'legacy_ws':
         assert key.startswith('WS /runtime/') and isinstance(route, APIWebSocketRoute), f'{key}: not a legacy websocket'
-    if kind in ('public', 'account'):
+    if kind in ('public', 'account', 'owner'):
         assert not ROUTES[key].get('ids'), f'{key}: a {kind} route has no identifier'
 
 

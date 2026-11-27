@@ -852,6 +852,23 @@ def test_the_history_cursor_pages_only_the_callers_own_messages(world):
     assert refused.status_code == 403 and a.marker not in refused.text, (refused.status_code, refused.text[:200])
 
 
+@pytest.mark.parametrize('path', ('/api/v28/owner/costs', '/owner/costs'))
+def test_the_owner_cost_report_is_for_the_owner_account_only(world, path, monkeypatch):
+    """#547: the founder account gets the report (aggregates: nothing that names a customer); another signed-in account
+    gets 403 and nothing of the report; no session 401 (the anonymous and forged-token probes cover that too)."""
+    a, b, anon = world['A'], world['B'], world['anonymous']
+    monkeypatch.setenv('OMNI_FOUNDER_ACCOUNT_IDS', a.account['id'])
+    mine = a.browser.get(path)
+    assert mine.status_code == 200, (mine.status_code, mine.text[:200])
+    for owner in (a, b):
+        _assert_no_trace(owner, mine, f'{path} (owner report)')
+    refused = b.browser.get(path)
+    assert refused.status_code == 403, (refused.status_code, refused.text[:200])
+    assert refused.content != mine.content
+    anon.cookies.clear()
+    assert anon.get(path).status_code == 401
+
+
 def test_signing_in_does_not_tell_whether_an_account_exists(world):
     """A's email with a wrong password is answered exactly like an email nobody registered (v28, v26, v27, live), and
     a password reset for A's email like one for an unknown email."""
@@ -908,7 +925,7 @@ def test_an_anonymous_caller_gets_only_the_unauthenticated_answer(world, key):
     PASSED['anonymous probes'] += 1
 
 
-FORGED_ROUTES = sorted(k for k, e in REGISTRY['routes'].items() if e['kind'] in ('tenant', 'account'))
+FORGED_ROUTES = sorted(k for k, e in REGISTRY['routes'].items() if e['kind'] in ('tenant', 'account', 'owner'))
 
 
 def _forged(token: str, how: str) -> str:
