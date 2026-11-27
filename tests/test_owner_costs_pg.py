@@ -131,6 +131,12 @@ class OwnerCostsOnTheRealPath(unittest.TestCase):
                              "quoted_usd, quote, state, cost_state, failure_reason, provider) VALUES "
                              "(%s, %s, %s, %s, 'production', 0.01, '{}'::jsonb, 'UNKNOWN', 'UNKNOWN', 'lost', 'venice')",
                              (f'ir_{uuid.uuid4().hex}', uuid.uuid4().hex, user, public))
+                # S6.3: the words of a direction sketch, a reservation whose quote names its task; its own stage
+                conn.execute("INSERT INTO intake_reservations (id, idempotency_key, account_id, project_id, lane, "
+                             "quoted_usd, quote, state, cost_state, actual_usd, provider, model) VALUES "
+                             "(%s, %s, %s, %s, 'production', 0.01, '{\"task\": \"direction_sketch\"}'::jsonb, 'SETTLED', "
+                             "'CONFIRMED', 0.0003, 'venice', 'gemini-3-5-flash-lite')",
+                             (f'ir_{uuid.uuid4().hex}', uuid.uuid4().hex, user, public))
                 conn.commit()
         with cls.pool.connection() as conn:
             with conn.transaction():
@@ -309,7 +315,7 @@ class OwnerCostsOnTheRealPath(unittest.TestCase):
         builds = {b['build_id']: b for b in r['builds']}
         owner = builds[self.runs['owner'][0]]
         spent = sum((Decimal(str(x[3])) for x in self.attempts(self.runs['owner'][0])), Decimal('0'))
-        conversation = Decimal('0.0042')
+        conversation = Decimal('0.0042') + Decimal('0.0003')            # + the sketch's words (S6.3)
         self.assertTrue(owner['owner_build'])
         self.assertEqual(Decimal(owner['provider_cost_known_usd']), spent + conversation)
         per_call = spent / 4
@@ -320,6 +326,10 @@ class OwnerCostsOnTheRealPath(unittest.TestCase):
         self.assertEqual(sum(v['calls'] for v in owner['repair_rounds_cost'].values()), 2)
         self.assertEqual(owner['stages']['intake_conversation']['calls'], 2)
         self.assertEqual(owner['stages']['intake_conversation']['calls_without_cost'], 1)
+        # S6.3: the sketch's words are their own stage, split from the conversation and counted once in the build's cost
+        self.assertEqual((owner['stages']['direction_sketch']['calls'], owner['stages']['direction_sketch']['known_cost_usd']),
+                         (1, '0.000300'))
+        self.assertEqual(r['per_stage']['direction_sketch']['known_cost_usd'], '0.000300')
         self.assertFalse(owner['cost_complete'])                       # the lost conversation call is unknown
         self.assertEqual(owner['models']['writer-1']['calls'], 4)
         self.assertEqual(owner['models']['writer-1']['output_tokens'], 4 * 200_000)

@@ -273,16 +273,25 @@ def _res(row) -> Reservation:
                        None if actual is None else Decimal(actual), why, token, prov, model, result, q or {})
 
 
-def scopes_for(account_id: str, project_id: str, lane: str, campaign_id: str | None, caps: Caps
-               ) -> list[tuple[str, str, Decimal]]:
+# The project scope's name: 'project' (the conversation's own), and the direction sketch's two (S6.3): the company's
+# first sketch of a project (capped at $0.10 in all) and a further one the customer pays for. Any other value raises.
+PURPOSES = ('project', 'sketch-free', 'sketch-paid')
+
+
+def scopes_for(account_id: str, project_id: str, lane: str, campaign_id: str | None, caps: Caps,
+               purpose: str = 'project') -> list[tuple[str, str, Decimal]]:
     """(scope, kind, cap) sorted by scope -- the global lock order."""
+    if purpose not in PURPOSES:
+        raise ValueError(f'unknown scope purpose {purpose!r}; the budget has {PURPOSES}')
+    if purpose != 'project' and lane != PRODUCTION:
+        raise ValueError('a sketch scope exists on the production lane only')
     for v in (account_id, project_id) + ((campaign_id,) if campaign_id else ()):
         if not isinstance(v, str) or not v or ':' in v or len(v) > 128:
             raise ValueError('ids must be non-empty, <=128 chars and contain no ":"')
     if lane == PRODUCTION:
         if campaign_id is not None or caps.daily_usd is None:
             raise ValueError('production lane needs a daily cap and no campaign')
-        out = [(DAILY_SCOPE, 'daily', caps.daily_usd), (f'project:{account_id}:{project_id}', 'project', caps.project_usd)]
+        out = [(DAILY_SCOPE, 'daily', caps.daily_usd), (f'{purpose}:{account_id}:{project_id}', 'project', caps.project_usd)]
     elif lane == CAMPAIGN:
         if not campaign_id or caps.campaign_usd is None:
             raise ValueError('campaign lane needs a campaign id and cap')
@@ -408,12 +417,13 @@ class ReservationService:
 
     # -- RESERVE -----------------------------------------------------------
     def reserve(self, *, idempotency_key: str, account_id: str, project_id: str, quote_: Quote, caps: Caps,
-                payload: dict, lane: str = PRODUCTION, campaign_id: str | None = None) -> Reservation:
+                payload: dict, lane: str = PRODUCTION, campaign_id: str | None = None,
+                purpose: str = 'project') -> Reservation:
         if not isinstance(quote_.amount_usd, Decimal) or quote_.amount_usd <= 0:
             raise QuoteUnavailable('reservation needs a positive quote')
         if not idempotency_key or len(idempotency_key) > 300:
             raise ValueError('idempotency key required')
-        scopes = scopes_for(account_id, project_id, lane, campaign_id, caps)
+        scopes = scopes_for(account_id, project_id, lane, campaign_id, caps, purpose)
         with self.pool.connection() as conn:               # anchors exist before any lock is taken
             with conn.transaction(), conn.cursor() as cur:
                 for scope, kind, _ in scopes:

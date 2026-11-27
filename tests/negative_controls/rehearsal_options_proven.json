@@ -1,0 +1,147 @@
+{
+ "pr": "rehearsal-options-proven",
+ "sha256": [
+  "tests/test_rehearsal_options_proven.py",
+  ".github/workflows/golden-rehearsal.yml",
+  "omni_prod/rehearsal.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a report with no options_applied (an old worker image) passes",
+   "mutations": [
+    {
+     "file": ".github/workflows/golden-rehearsal.yml",
+     "old": "          if applied is None:\n",
+     "new": "          if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_options_proven.py"
+   ],
+   "expect_failed": [
+    "test_an_image_the_worker_ignored_is_red_and_says_why"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a requested image with no photo section passes",
+   "mutations": [
+    {
+     "file": ".github/workflows/golden-rehearsal.yml",
+     "old": "              if not isinstance(photo, dict):\n",
+     "new": "              if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_options_proven.py"
+   ],
+   "expect_failed": [
+    "test_an_applied_image_without_a_photo_section_is_red"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a photo that is not ok passes",
+   "mutations": [
+    {
+     "file": ".github/workflows/golden-rehearsal.yml",
+     "old": "              if not photo.get('ok'):\n                  sys.exit(1)\n",
+     "new": "              pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_options_proven.py"
+   ],
+   "expect_failed": [
+    "test_a_photo_that_is_not_ok_is_red"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a missing report passes",
+   "mutations": [
+    {
+     "file": ".github/workflows/golden-rehearsal.yml",
+     "old": "          if rep is None:\n              print(f'::error title=rehearsal options::requested",
+     "new": "          if False:\n              print(f'::error title=rehearsal options::requested"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_options_proven.py"
+   ],
+   "expect_failed": [
+    "test_no_report_at_all_is_red"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "an image that is not the requested one passes",
+   "mutations": [
+    {
+     "file": ".github/workflows/golden-rehearsal.yml",
+     "old": "          if image and applied.get('image') != image:\n",
+     "new": "          if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_options_proven.py"
+   ],
+   "expect_failed": [
+    "test_another_image_than_the_one_requested_is_red"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the check step does not run after a failed rehearsal",
+   "mutations": [
+    {
+     "file": ".github/workflows/golden-rehearsal.yml",
+     "old": "      - name: Prove the requested options were applied\n        if: always()\n",
+     "new": "      - name: Prove the requested options were applied\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_options_proven.py"
+   ],
+   "expect_failed": [
+    "test_the_step_runs_after_the_rehearsal_even_when_it_failed"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the account and the time budget are not proven",
+   "mutations": [
+    {
+     "file": ".github/workflows/golden-rehearsal.yml",
+     "old": "          if account and not isinstance(rep.get('account'), dict):\n",
+     "new": "          if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_options_proven.py"
+   ],
+   "expect_failed": [
+    "test_the_account_and_the_time_budget_are_proven_too"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the report does not say what it applied",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "    out['options_applied'] = {'image':",
+     "new": "    out['options_not_applied'] = {'image':"
+    }
+   ],
+   "targets": [
+    "tests/test_rehearsal_options_proven.py"
+   ],
+   "expect_failed": [
+    "test_nothing_asked_nothing_applied",
+    "test_what_was_asked_is_what_the_report_says"
+   ]
+  }
+ ]
+}
