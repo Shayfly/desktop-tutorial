@@ -1,3 +1,25 @@
+# 2026-11-27 — Media infrastructure, no provider (Claude Code; branch `claude/practical-hopper-oi3qj2-media-infra`, pushed, NO PR, migration 050 NOT applied anywhere)
+
+- **Owner decision (inbox/005, answer 6):** warehouse 137 is released for the INFRASTRUCTURE only: large-asset storage, tenant
+  isolation, a rights record and a render queue. No provider, no spend, no song or clip is built.
+- **Implemented and verified locally (additive only, 0 deleted lines):** `omni_prod/media_store.py` (`TenantMediaStore` on the
+  existing `S3ArtifactStore`; keys `tenants/<account>/projects/<project>/media/<sha256>.<ext>`; a foreign, missing or
+  malformed reference is the same `MediaNotFound`; signed links at most 300 s), `omni_prod/asset_rights.py` (an append-only
+  row per generated asset: provider, model, terms URL, day read, commercial use, owner = customer; delivery needs a row that
+  allows commercial use and terms read within 90 days), `omni_prod/media_queue.py` (`media_render_jobs` under a lease, bounded
+  attempts, a total budget from the first start) and `queueing.MEDIA_QUEUE`. Migration `infra/postgres/050_media_infra.sql`
+  with `rollback/050_media_infra.down.sql`; `schema_manifest` and the Neon bootstrap list 050.
+- **Not done, said:** no HTTP route serves a media file (S13.2's route and its two-account matrix row are a follow-up: the
+  store is the door, nothing calls it yet); no worker process polls `media_render_jobs` and no handler exists (no provider);
+  the base64-envelope-by-reference of S13.1 and the `rights_media_source` gate/`provenance` hookup are not wired; no
+  freshness path "provider terms" in `critical-path-freshness.yml` (`AssetRightsStore.stale_terms()` is what it will read);
+  ffmpeg, G7, the audit chain and marks (S13.5, 7, 8, 9) are untouched. 050 was NOT applied to production: the owner applies it.
+  Migration number: 049 is taken by the direction-sketches branches, so this is 050; the manifest lines are separate, so the
+  two merge in either order.
+- **Evidence:** `tests/test_media_store.py` 16 passed; `tests/test_media_infra_pg.py` 27 passed on a throw-away PostgreSQL 16
+  (every repository migration applied through the real runner, the rollback applied and 050 applied again); controls
+  `media_infra` 7/7 plain and 21/21 with `NC_ENV=pg`. `omni_prod.pipeline_identity` digest equal to main's.
+
 # 2026-11-27 — The golden rehearsal carries a customer photo, runs as a non-founder, reports the time budget (Claude Code; branch `claude/practical-hopper-oi3qj2-wh117`, pushed, NO PR, NOT dispatched)
 
 - **Root cause (warehouse 117, 71, 115, 118):** the rehearsal took text only, so a build with a customer photo could be
