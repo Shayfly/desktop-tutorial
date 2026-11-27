@@ -156,6 +156,93 @@ def _account(request) -> str | None:
     return str(value) if value else None
 
 
+@dataclass(frozen=True)
+class Direction:
+    """The design direction of one request: what the build and the direction sketch (S6.3) both read, so a sketch shows
+    the direction the build takes. `reason` is the first precondition that failed (the build then leaves the library
+    route, by name) or None; the fields past the failed step stay empty. It reads no flag, no account and no window:
+    those are the route's own preconditions (decide())."""
+    reason: str | None = None
+    category: str | None = None
+    domain_kw: dict = field(default_factory=dict)      # category, category_found, palette_category, domain, ...
+    palette: str | None = None
+    entry: dict | None = None
+    colours: dict | None = None
+    script: str | None = None
+    sheet: object = None
+    business: str | None = None
+    pair: dict | None = None
+    contract: dict | None = None
+    contract_source: str | None = None
+    order: list | None = None
+    titles: dict = field(default_factory=dict)
+
+
+def direction(prompt: str, *, lang: str = 'he', phone_optional: bool = False) -> Direction:
+    """Category, palette, art direction, font pair, design contract and section order of a request, with the checks in
+    the order decide() has always made them. One function for the build and the sketch (S6.3 slice 0): no copy.
+
+    `phone_optional` is for the sketch alone (a sketch is drawn before the customer gave the phone): a request with NO
+    phone at all is not a problem then (two phones still are). decide(), the build, never passes it."""
+    from . import facts as Fx
+    request_text = Fx.request_text(prompt)
+    from .. import vertical_palettes as VP
+    from ..section_library import DIRECTIONS
+    # The business is only a category the brief NAMES; the palette may come from a near one or the neutral one
+    # (VP.identify). bld_3938e570 (2026-11-25): a smoke shop with no signal took the neutral palette's category
+    # ('lawyers') as its business -- the lawyer domain, its facts and trade words, and the lawyer palette's required
+    # process and FAQ sections -- and the build died on an invented fee in sections.process.lead.
+    who = VP.identify(request_text)
+    category, palette_category = who['category'], who['palette_category']
+    from ..domain_registry import domain_for, trade_words
+    domain = domain_for(category)
+    domain_kw = dict(category=category, category_found=who['found'], palette_category=palette_category,
+                     domain=domain['slug'] if domain else None,
+                     domain_facts=[f['fact'] for f in domain['mandatory_facts'] if f['when'] is None] if domain else [],
+                     domain_words=trade_words(domain))
+    palette, colours = VP.palette_for(palette_category)
+    if palette not in DIRECTIONS['palettes']:
+        return Direction(f'palette_not_in_library: {palette}', category, domain_kw)
+    entry = DIRECTIONS['palettes'][palette] if category else unnamed_entry(DIRECTIONS['palettes'][palette])
+    # Warehouse 126/129: the page's script follows the customer's language, and its fonts are a pair from the library
+    # -- the category's art direction allows two pairs, the business (its name, or the name the customer quoted)
+    # picks one -- locked into the design contract in place of the Design line's one font (Heebo by default).
+    from .. import typography as T
+    script = T.script_for_language(lang)
+    sheet = Fx.fact_sheet(prompt)
+    business = sheet.name or next(iter(sheet.name_candidates), None)
+    # the pair's key is the palette's category: fonts are design, like the colours (the same pair as before this split)
+    pair = (T.pair_for(script, category=palette_category, tone=entry['direction'], business=business)
+            if business else None)
+    from ..g_apple.contract import ContractError
+    from .render import render_contract
+    part = dict(category=category, domain_kw=domain_kw, palette=palette, entry=entry, colours=colours, script=script,
+                sheet=sheet, business=business, pair=pair)
+    try:
+        contract, source = render_contract(prompt, colours, fonts=T.contract_fonts(pair) if pair else None)
+    except ContractError as exc:
+        return Direction(f'no_design_contract: {exc}'[:200], **part)
+    part.update(contract=contract, contract_source=source)
+    problems = list(sheet.problems)
+    if phone_optional and 'phone_not_one' in problems and not Fx.F.build_canon(prompt).values('phone'):
+        problems.remove('phone_not_one')
+    if problems:
+        return Direction(problems[0], **part)
+    if not sheet.name and not sheet.name_candidates:
+        return Direction('name_not_declared', **part)      # the model never chooses the business name
+    if pair is None:                                       # unreachable: a business key exists past the line above
+        raise RuntimeError('the content route reached its end without a font pair')
+    order, titles, why = map_outline(sheet.outline)
+    if why:
+        return Direction(why, **part)
+    from .schema import offered_sections
+    try:
+        offered_sections(sheet, entry, order, titles)
+    except ValueError as exc:
+        return Direction(f'outline_without_basis: {exc}'[:200], **part)
+    return Direction(None, order=order, titles=titles, **part)
+
+
 def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str | None = None) -> Route:
     """The route of one build, with its reason. Every precondition that fails names itself."""
     m = mode()
@@ -204,60 +291,17 @@ def decide(prompt: str, request=None, *, plan_governed: bool = False, year: str 
     asked = beyond(Fx.customer_text(prompt))
     if asked:
         return Route(LEGACY, ('beyond_one_page: ' + '; '.join(f'{kind} "{words}"' for kind, words in asked))[:200])
-    from .. import vertical_palettes as VP
-    from ..section_library import DIRECTIONS
-    # The business is only a category the brief NAMES; the palette may come from a near one or the neutral one
-    # (VP.identify). bld_3938e570 (2026-11-25): a smoke shop with no signal took the neutral palette's category
-    # ('lawyers') as its business -- the lawyer domain, its facts and trade words, and the lawyer palette's required
-    # process and FAQ sections -- and the build died on an invented fee in sections.process.lead.
-    who = VP.identify(request_text)
-    category, palette_category = who['category'], who['palette_category']
-    from ..domain_registry import domain_for, trade_words
-    domain = domain_for(category)
-    domain_kw = dict(category=category, category_found=who['found'], palette_category=palette_category,
-                     domain=domain['slug'] if domain else None,
-                     domain_facts=[f['fact'] for f in domain['mandatory_facts'] if f['when'] is None] if domain else [],
-                     domain_words=trade_words(domain))
-    palette, colours = VP.palette_for(palette_category)
-    if palette not in DIRECTIONS['palettes']:
-        return Route(LEGACY, f'palette_not_in_library: {palette}')
-    entry = DIRECTIONS['palettes'][palette] if category else unnamed_entry(DIRECTIONS['palettes'][palette])
-    # Warehouse 126/129: the page's script follows the customer's language, and its fonts are a pair from the library
-    # -- the category's art direction allows two pairs, the business (its name, or the name the customer quoted)
-    # picks one -- locked into the design contract in place of the Design line's one font (Heebo by default).
-    from .. import typography as T
-    script = T.script_for_language(lang)
-    sheet = Fx.fact_sheet(prompt)
-    business = sheet.name or next(iter(sheet.name_candidates), None)
-    # the pair's key is the palette's category: fonts are design, like the colours (the same pair as before this split)
-    pair = (T.pair_for(script, category=palette_category, tone=entry['direction'], business=business)
-            if business else None)
-    from ..g_apple.contract import ContractError
-    from .render import render_contract
-    try:
-        contract, source = render_contract(prompt, colours, fonts=T.contract_fonts(pair) if pair else None)
-    except ContractError as exc:
-        return Route(LEGACY, f'no_design_contract: {exc}'[:200])
-    if sheet.problems:
-        return Route(LEGACY, sheet.problems[0])
-    if not sheet.name and not sheet.name_candidates:
-        return Route(LEGACY, 'name_not_declared')          # the model never chooses the business name
-    if pair is None:                                       # unreachable: a business key exists past the line above
-        raise RuntimeError('the content route reached its end without a font pair')
-    order, titles, why = map_outline(sheet.outline)
-    if why:
-        return Route(LEGACY, why)
-    from .schema import offered_sections
-    try:
-        offered_sections(sheet, entry, order, titles)
-    except ValueError as exc:
-        return Route(LEGACY, f'outline_without_basis: {exc}'[:200])
-    return Route(ROUTE, 'all preconditions hold', prompt=prompt, palette=palette, palette_entry=entry,
-                 direction=entry['direction'], voice=entry['voice'], contract=contract,
-                 contract_fp=contract['fingerprint'], contract_source=source, canon_hash=sheet.canon_hash,
-                 order=order, outline_titles=titles, title=sheet.name or 'אתר תדמית',
-                 year=year or str(datetime.date.today().year), windows=tuple(approved), script=script,
-                 font_pair=pair['id'], **domain_kw)
+    d = direction(prompt, lang=lang)
+    if d.reason:
+        return Route(LEGACY, d.reason)
+    script = d.script
+    return Route(ROUTE, 'all preconditions hold', prompt=prompt, palette=d.palette, palette_entry=d.entry,
+                 direction=d.entry['direction'], voice=d.entry['voice'], contract=d.contract,
+                 contract_fp=d.contract['fingerprint'], contract_source=d.contract_source,
+                 canon_hash=d.sheet.canon_hash, order=d.order, outline_titles=d.titles,
+                 title=d.sheet.name or 'אתר תדמית', year=year or str(datetime.date.today().year),
+                 windows=tuple(approved), script=script,
+                 font_pair=d.pair['id'], **d.domain_kw)
 
 
 def install(engine, *, prompt: str, gateway, request=None, plan_governed: bool = False, year: str | None = None) -> Route:
