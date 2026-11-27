@@ -34,8 +34,18 @@ _GAME_TERMS = ('game', '3d', 'unreal', 'unity', 'godot', 'משחק', 'תלת')
 
 
 _CONTENT_SITE = 'Product kind: CONTENT-ONLY website'
-_NO_PICTURES = re.compile(r'(?:בלי|ללא|אין)\s+(?:אף\s+)?(?:תמונות|תמונה|צילומים)|no (?:images|pictures|photos)|without '
-                          r'(?:images|pictures|photos)', re.I)
+# The customer's refusal of pictures, in Hebrew, English and Arabic ("בלי תמונות", "without pictures", "بدون صور").
+_NO_PICTURES = re.compile(
+    r'(?:בלי|ללא|אין)\s+(?:אף\s+)?(?:תמונות|תמונה|צילומים)(?!\s+(?:מלאי|סטוק))'     # not "בלי תמונות מלאי" (no STOCK photos)
+    r'|no (?:images|pictures|photos)|without (?:images|pictures|photos)'
+    r'|(?<![\wء-ي])(?:بدون|بلا|دون|من\s+غير|لا)\s+(?:أي\s+|اي\s+)?(?:صور|صورة|الصور)(?![\wء-ي])', re.I)
+
+
+def pictures_declined(text: str) -> bool:
+    """Did the customer say no pictures? Read in the customer's own words (the request and the brief lines that quote
+    them), by the one pattern default_hero uses."""
+    from .site_content.facts import customer_text
+    return bool(_NO_PICTURES.search(customer_text(text)))
 
 
 def default_hero(prompt: str) -> bool:
