@@ -197,6 +197,7 @@ class WiringReadiness(unittest.TestCase):
     def test_the_panel_facts_come_before_the_hero_photo_in_the_markup(self):
         # the truth gate reads the first 45,000 characters; an inlined photo must not push the facts past them
         self.c['hero']['image'] = {'src': 'data:image/webp;base64,' + 'A' * 60_000, 'alt': 'המשרד'}
+        self.c['layout'] = {'hero': 'split'}        # the boxed panel; the photo-led heroes are tests/test_hero_photo_led.py's
         doc, _ = L.page(self.c, self.contract)
         body = doc[doc.index('<body'):]            # the head's structured data carries the facts too; the page is the body
         self.assertLess(body.index('דרך מנחם בגין 132'), body.index('data:image/webp'))
