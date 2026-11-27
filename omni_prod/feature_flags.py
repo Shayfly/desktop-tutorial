@@ -15,3 +15,27 @@ def _on(name: str) -> bool:
 
 
 SITE_AUTH_V2: bool = _on('OMNI_SITE_AUTH_V2')
+
+
+# ---- output rollout (the owner, 2026-11-27; plan S9.2) ---------------------------------------------------------------
+# One question per output type: may THIS account have it? OMNI_OUTPUT_<TYPE> = off | owner | all. A type whose profile
+# exists but whose rollout excludes the account gets today's "not yet" sentence from the A0 router
+# (omni_prod/output_profile). Sites and web apps are always `all` unless the variable says otherwise: their behaviour is
+# byte for byte what it was. Any other value raises -- a mistyped rollout is never read as `off` or as `all`
+# (CLAUDE.md section 3).
+OUTPUT_ROLLOUTS = ('off', 'owner', 'all')
+_OUTPUT_DEFAULT = {'website': 'all', 'web_app': 'all', 'game': 'off'}
+
+
+def output_rollout(kind: str, account_id=None) -> bool:
+    if kind not in _OUTPUT_DEFAULT:
+        raise ValueError(f'no output rollout is defined for {kind!r}; defined: {sorted(_OUTPUT_DEFAULT)}')
+    mode = (os.getenv(f'OMNI_OUTPUT_{kind.upper()}') or _OUTPUT_DEFAULT[kind]).strip().lower()
+    if mode not in OUTPUT_ROLLOUTS:
+        raise ValueError(f'OMNI_OUTPUT_{kind.upper()} must be one of {list(OUTPUT_ROLLOUTS)}, not {mode!r}')
+    if mode == 'all':
+        return True
+    if mode == 'owner':
+        from .pricing import m5_founder_account       # the owner's own account (OMNI_FOUNDER_ACCOUNT_IDS); no one else
+        return m5_founder_account(account_id)
+    return False

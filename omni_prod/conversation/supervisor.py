@@ -1296,7 +1296,7 @@ class ConversationSupervisor:
             logging.getLogger(__name__).warning('REQUEST_CUT project=%s %s', project_id, self.request_cut)
         return whole
 
-    def _route_output(self, row, message, lang) -> Turn | None:
+    def _route_output(self, row, message, lang, account_id=None) -> Turn | None:
         """A0 (warehouse 69, released 2026-11-15): the output type is decided before the interpreter, the model and
         the brief. A type without an output profile is refused in the customer's words -- "not yet; this, yes" --
         with no default chosen, no question asked, no brief saved and no model called. The exit is the keyboard:
@@ -1310,7 +1310,7 @@ class ConversationSupervisor:
         family = classify_family(message) if row is None else requested_family(message)
         if family is None:
             return None
-        routing = route(family)                  # a family the registry does not know raises here, never defaults
+        routing = route(family, account_id)      # a family the registry does not know raises here, never defaults
         if routing.supported:
             return None
         turn = Turn('requirements', lang, routing.not_yet(lang), row, [])
@@ -1339,7 +1339,7 @@ class ConversationSupervisor:
                     typed, image_defaulted = {asked.id: asked.recommended}, asked.recommended
                 if typed:
                     answers, message = typed, ''
-        refused = self._route_output(row, message, lang)    # A0 (warehouse 69): the output type, before any model
+        refused = self._route_output(row, message, lang, account_id)    # A0 (warehouse 69): the output type, before any model
         if refused is not None:
             return refused
         cls, lane = (self._classify(project_id, row, message) if message else (None, None))

@@ -49,12 +49,12 @@ class RegistryTruth(unittest.TestCase):
         # a profile for a family the engine cannot build, moved out of the unsupported set: only the first check sees
         # it (NC2 of 2026-11-15 caught the earlier version of this case, which the other two checks also stopped)
         with self.assertRaises(RuntimeError):
-            check_truth({**PROFILES, 'game': PROFILES['website']}, {k: v for k, v in UNSUPPORTED.items() if k != 'game'},
+            check_truth({**PROFILES, 'media': PROFILES['website']}, {k: v for k, v in UNSUPPORTED.items() if k != 'media'},
                         EXECUTABLE, FAMILIES)
         with self.assertRaises(RuntimeError):          # an executable family without a profile
             check_truth({k: v for k, v in PROFILES.items() if k != 'website'}, UNSUPPORTED, EXECUTABLE, FAMILIES)
         with self.assertRaises(RuntimeError):          # a family declared nowhere
-            check_truth(PROFILES, {k: v for k, v in UNSUPPORTED.items() if k != 'game'}, EXECUTABLE, FAMILIES)
+            check_truth(PROFILES, {k: v for k, v in UNSUPPORTED.items() if k != 'media'}, EXECUTABLE, FAMILIES)
 
     def test_a_profile_declares_what_the_engine_enforces(self):
         from omni_prod import pricing
