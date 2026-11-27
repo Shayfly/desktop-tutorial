@@ -60,6 +60,14 @@ def venice_profile() -> dict:
     return {'models': VENICE_MODELS, 'ceiling': tuple(Decimal(x) for x in VENICE_CEILING_USD_PER_M), 'select': 'order'}
 
 
+def profile_for_sketch() -> dict:
+    """The profile of a direction sketch's words (S6.3): the conversation agent's own model list and price ceiling, so the
+    sketch takes no new model or provider decision (the design's section 5.4; the owner's answers of 2026-11-27 leave the
+    models as they are). One named accessor: tests/test_conversation_agent_sonnet.py still lets only the conversation read
+    venice_profile() itself, and tests/test_direction_sketch_offer.py lets only the sketch route read this one."""
+    return venice_profile()
+
+
 # The owner, 2026-11-19: measure cheap Venice models for the conversation agent before choosing one ("a model inside
 # Venice that is free or very cheap and good at understanding the customer"). REHEARSAL ONLY: production quotes with
 # venice_profile() above, and a change of the agent's model stays the owner's decision. One model per candidate, its

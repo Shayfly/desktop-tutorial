@@ -229,6 +229,17 @@ def _seed_v28(client, customer: Customer) -> None:
                           json={'kind': 'image', 'data_base64': base64.b64encode(_png()).decode()}))
     customer.ids['attachment_id'] = att['id']
     customer.ids['attachment_sha256'] = att['sha256']
+    # S6.3: a direction sketch of this customer's project (the words reserved by the model are not needed here: its page is)
+    from omni_prod import direction_sketch as DS
+    from omni_prod import discovery as D
+    from omni_prod.direction_sketch.store import SketchStore
+    prompt = D.build_prompt(D.start('אני רוצה אתר תדמית למספרה שלי בחיפה, קוראים לה "סטודיו נועה". טלפון 04-5551234'))[0]
+    drawn = DS.direction_from_prompt(prompt)
+    sketch, _ = SketchStore(IA._v28_pool).create(
+        project_id=pid, account_id=customer.account['id'], brief_revision=1, brief_fingerprint='f' * 16,
+        direction_fp=DS.direction_fp(drawn), copy_fp=DS.copy_fp(drawn),
+        record={'direction': drawn.to_dict(), 'prompt': prompt, 'placeholders': []})
+    customer.ids['sketch_id'] = sketch.id
 
     spec = ProductSpec.from_dict({
         'title': f'Bakery {customer.marker}', 'summary': 'A bakery page', 'stack': ['python'],
@@ -344,7 +355,8 @@ _SHAPES = {
     'first_version_id': lambda gen: f'v_{uuid.uuid4().hex[:16]}',
     'build_id': lambda gen: str(uuid.uuid4()) if gen == 'live' else f'bld_{uuid.uuid4().hex}',
     'preview_id': lambda gen: f'prv_{uuid.uuid4().hex}', 'modification_id': lambda gen: f'mod_{uuid.uuid4().hex}',
-    'attachment_id': lambda gen: f'att_{uuid.uuid4().hex}', 'build_contract_id': lambda gen: 'bc_' + uuid.uuid4().hex[:24],
+    'attachment_id': lambda gen: f'att_{uuid.uuid4().hex}', 'sketch_id': lambda gen: 'skt_' + uuid.uuid4().hex[:24],
+    'build_contract_id': lambda gen: 'bc_' + uuid.uuid4().hex[:24],
     'session_id': lambda gen: 'ses_' + secrets.token_urlsafe(18), 'draft_fingerprint': lambda gen: secrets.token_hex(32),
     'evidence_id': lambda gen: f'evidence-{secrets.randbelow(10 ** 6):06d}', 'account_id': lambda gen: 'usr_' + secrets.token_urlsafe(12),
     'deployment_id': lambda gen: f'dep_{uuid.uuid4().hex[:12]}',

@@ -863,3 +863,27 @@ body.signed-out .topbar .brand b{background:none;color:var(--v-yellow);padding:0
   .ctx.open #ctxMinimize::after{content:attr(aria-label);font-size:15px;font-weight:600;padding-inline:12px}
   .ctx.open .panel{box-shadow:none}
 }
+
+/* direction sketch (S6.3): the card in the conversation -- a draft pill, a phone / desktop switch, the draft page in a
+   sandboxed frame, the direction in words and the state of the words in text (never by colour only) */
+.sketchCard{background:var(--v-card);border:1px solid var(--v-line);border-radius:12px;box-shadow:var(--v-shadow);overflow:hidden;
+  margin-block-start:12px;max-width:100%;white-space:normal}
+.sketchBar{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--v-bar);
+  border-block-end:1px solid var(--v-line);padding:11px 14px}
+.sketchTools{display:flex;gap:8px;padding:10px 14px 0}
+.sketchTools button{min-height:44px;min-width:44px;padding-inline:14px}
+.sketchTools button[aria-pressed="true"]{background:var(--v-ink);color:var(--v-card);border-color:var(--v-ink)}
+.sketchFrameWrap{display:flex;justify-content:center;background:var(--v-bar);margin:10px 14px 0;border:1px solid var(--v-line);border-radius:12px;overflow:hidden}
+.sketchFrame{border:0;background:#fff;height:min(70vh,38rem);display:block}
+.sketchFrame.desktop{width:100%}
+.sketchFrame.phone{width:390px;max-width:100%}
+.sketchRows{margin:0;padding:6px 14px}
+.sketchRows>div{display:grid;grid-template-columns:minmax(5rem,8rem) minmax(0,1fr);gap:12px;padding:8px 0;border-block-end:1px solid var(--v-line)}
+.sketchRows dt{font-weight:700;color:var(--v-ink)}
+.sketchRows dd{margin:0;color:var(--v-muted);overflow-wrap:anywhere}
+.sketchSwatches{display:inline-flex;gap:6px;align-items:center}
+.sketchSwatches .sw{display:inline-block;width:1.5rem;height:1.5rem;border-radius:50%;border:1px solid var(--v-line)}
+.sketchState{margin:8px 14px 0;font-weight:650;color:var(--v-ink)}
+.sketchNote,.sketchOld{margin:6px 14px 12px}
+.sketchCard button.secondary{margin:8px 14px 0}
+@media(max-width:700px){.sketchRows>div{grid-template-columns:minmax(0,1fr);gap:2px}.sketchFrame{height:min(62vh,32rem)}}
