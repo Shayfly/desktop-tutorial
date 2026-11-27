@@ -86,6 +86,7 @@ class OnePageCannotHoldIt(unittest.TestCase):
 
     def test_each_kind_on_the_route_names_itself(self):
         # a picture per item is read (picture_per_item) and stays on the library route (visual plan S3)
+        self.assertIn('picture_per_item', [k for k, _ in one_page.beyond('ליד כל שירות תשימו תמונה.')])
         self.assertEqual(decide(with_request('ליד כל שירות תשימו תמונה.')).route, 'section_library')
         for text, kind in (('עמוד נפרד לכל תחום התמחות.', 'separate_pages'),
                            ('ושאוכל לעדכן את השאלות הנפוצות בעצמי.', 'owner_edits_later')):

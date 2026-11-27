@@ -26,7 +26,7 @@
    "expect_failed": [
     "test_each_listed_item_gets_a_picture_with_no_word_from_the_customer",
     "test_no_stock_photos_is_not_no_pictures",
-    "test_a_defaulted_item_picture_is_not_dropped_by_a_route_that_cannot_place_it",
+    "test_a_defaulted_item_picture_stays_on_the_library_route_which_places_it",
     "test_every_item_picture_is_one_request_to_the_model_with_its_proportions_and_a_computed_cost",
     "test_ten_item_pictures_and_the_main_one_stay_far_under_the_build_cap"
    ]
@@ -46,7 +46,7 @@
    ],
    "expect_failed": [
     "test_a_customer_who_says_no_pictures_gets_none_in_three_languages",
-    "test_a_defaulted_item_picture_is_not_dropped_by_a_route_that_cannot_place_it"
+    "test_a_defaulted_item_picture_stays_on_the_library_route_which_places_it"
    ]
   },
   {
@@ -84,7 +84,7 @@
     "test_each_listed_item_gets_a_picture_with_no_word_from_the_customer",
     "test_every_item_picture_is_one_request_to_the_model_with_its_proportions_and_a_computed_cost",
     "test_ten_item_pictures_and_the_main_one_stay_far_under_the_build_cap",
-    "test_a_defaulted_item_picture_is_not_dropped_by_a_route_that_cannot_place_it"
+    "test_a_defaulted_item_picture_stays_on_the_library_route_which_places_it"
    ]
   },
   {
@@ -192,19 +192,19 @@
   },
   {
    "id": "NC10",
-   "what": "the content route keeps a defaulted item picture it cannot place (paid for, not shown)",
+   "what": "the content route sends a defaulted item picture to the legacy path again (item_pictures_default) instead of placing it",
    "mutations": [
     {
      "file": "omni_prod/site_content/__init__.py",
-     "old": "    if item_pictures_wanted(prompt) and item_pictures(prompt)['generated']:",
-     "new": "    if False:"
+     "old": "    asked = [(kind, words) for kind, words in beyond(Fx.customer_text(prompt)) if kind != 'picture_per_item']",
+     "new": "    from ..capability_planner import item_pictures, item_pictures_wanted\n    if item_pictures_wanted(prompt) and item_pictures(prompt)['generated']:\n        return Route(LEGACY, 'item_pictures_default')\n    asked = [(kind, words) for kind, words in beyond(Fx.customer_text(prompt)) if kind != 'picture_per_item']"
     }
    ],
    "targets": [
     "tests/test_item_pictures_default.py"
    ],
    "expect_failed": [
-    "test_a_defaulted_item_picture_is_not_dropped_by_a_route_that_cannot_place_it"
+    "test_a_defaulted_item_picture_stays_on_the_library_route_which_places_it"
    ]
   }
  ]

@@ -131,6 +131,8 @@ class TheRoute(unittest.TestCase):
         with on():
             route = SC.decide(LISTED, OWNER, year='2026')
             self.assertEqual((route.route, route.reason), ('section_library', 'all preconditions hold'))
+            self.assertTrue(CP.item_pictures_wanted(LISTED))       # and the picture is still planned, paid for and placed
+            self.assertFalse(CP.item_pictures_wanted(with_request('בלי תמונות', LISTED)))
             self.assertEqual(SC.decide(with_request('בלי תמונות', LISTED), OWNER, year='2026').route, 'section_library')
             self.assertEqual(SC.decide(PROMPT, OWNER, year='2026').route, 'section_library')
 
