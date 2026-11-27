@@ -23,6 +23,7 @@ from pathlib import Path
 from .. import section_library as L
 from .. import typography as T
 from ..g_apple import contract as C
+from . import colour_roles
 
 HERE = Path(__file__).resolve().parent
 _LIBRARY_FILES = ('__init__.py', 'library.css', 'directions.json')
@@ -54,29 +55,31 @@ RENDERER_VERSION = renderer_version()
 
 
 # ---- the render contract -------------------------------------------------------------------------------------------
-_DESIGN_PRIMARY = re.compile(r'Design: style (?P<style>[\w-]+); primary colour (?P<primary>#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3})'
-                             r'\b(?P<rest>[^\n]*?); font (?P<font>[^;()\n]{1,200}?) \(')
+_DESIGN_LINE = re.compile(r'Design: style (?P<style>[\w-]+); (?P<colours>[^\n]*?); font (?P<font>[^;()\n]{1,200}?) \(')
 
 
 def render_contract(prompt: str, palette: dict, fonts: dict | None = None) -> tuple[dict, str]:
     """(contract, source). The brief's own contract when its Design line locks one (source 'brief': the G-APPLE gate
     holds the same object). A brief whose customer stated fewer than four colours locks none (the gate says NOT_RUN):
-    the page then takes the customer's primary colour and completes the palette from the business category's catalogue
-    palette (source 'brief-primary+category'); the other stated colours have no role the brief names, so none is
-    guessed for them (said in the evidence). A Design line with no primary colour at all raises ContractError.
-    `fonts` is the route's font pair (warehouse 126, typography.contract_fonts), locked into either contract."""
+    the page then takes the roles of the colours the customer stated (colour_roles.roles) and completes the palette
+    from the business category's catalogue palette: a stated pair fills primary and accent (a near-black or near-white
+    one is the page), a description word ("כהה", "dark", "בהיר", "light") picks the palette's dark or light variant, and
+    a colour answer in which nothing is known leaves the category's palette (source 'brief-primary+category' when the
+    customer stated a colour, 'category+dark', 'category+light' or 'category' when only words). A Design line that is
+    not there at all raises ContractError. `fonts` is the route's font pair (warehouse 126, typography.contract_fonts),
+    locked into either contract."""
     try:
         return C.build(prompt, fonts), 'brief'
     except C.ContractError as first:
         block = (prompt or '').rsplit('--- Approved project brief', 1)
-        m = _DESIGN_PRIMARY.search(block[1] if len(block) == 2 else '')
+        m = _DESIGN_LINE.search(block[1] if len(block) == 2 else '')
         if not m:
-            raise C.ContractError(f'{first}; and the Design line names no primary colour to complete') from first
-        line = (f"\n--- Approved project brief\nDesign: style {m['style']}; primary colour {m['primary']}; palette "
-                f"{m['primary']}, {palette['accent']}, {palette['background']}, {palette['ink']} (primary, accent, "
-                f"background, text: the customer's primary, the category's other roles); font {m['font']} (load it "
-                'from Google Fonts with a system fallback)')
-        return C.build(line, fonts), 'brief-primary+category'
+            raise C.ContractError(f'{first}; and there is no Design line to complete') from first
+        r = colour_roles.roles(m['colours'], palette)
+        line = (f"\n--- Approved project brief\nDesign: style {m['style']}; primary colour {r['primary']}; palette "
+                f"{r['primary']}, {r['accent']}, {r['background']}, {r['ink']} (primary, accent, background, text: "
+                f"{r['basis']}); font {m['font']} (load it from Google Fonts with a system fallback)")
+        return C.build(line, fonts), r['source']
 
 
 # ---- the document as the library's content --------------------------------------------------------------------------
