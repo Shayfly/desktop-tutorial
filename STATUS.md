@@ -1,3 +1,19 @@
+# 2026-11-27 — A requested rehearsal option that the worker ignored is now a red run (Claude Code; branch `claude/practical-hopper-oi3qj2-wh117-loud`, pushed, NO PR)
+
+- **Root cause (run 46005664127, job 140528059099):** the workflow printed `image=customer_photo account=none` and the build
+  ended READY, but no `customer photo` line appeared and the page said "לא נמסר צילום" (acceptance A2). The worker image
+  was built by the last `[release]` deploy (#551, 11:46 UTC), before #556 existed; #556's own deploy run (13:16) was a push
+  without `[release]`. That image's `rehearsal.py` has no options, read `argv` of length 2 and ignored `REHEARSAL_IMAGE`
+  without a word. Not a wrongly gated report: the code that prints it was not in the container.
+- **Fix:** the report says what it applied (`options_applied`), and the new workflow step "Prove the requested options were
+  applied" (`if: always()`) reads the printed report: a requested option with no `options_applied`, a mismatch, a missing
+  `photo` / `account` / `time_budget` section or a photo that is not ok is `::error` and a red job; a requested image always
+  prints `::notice title=customer photo::photo_as_file=... hero_kept=...`.
+- **Evidence:** `tests/test_rehearsal_options_proven.py` 12 passed (runs the step's own Python on the report run
+  46005664127 printed); controls `rehearsal_options_proven` 8/8.
+- **Open:** the worker image still has to be rebuilt (a `[release]` commit or a manual dispatch of deploy-worker) before a
+  rehearsal with `image` can show the photo; until then the new step turns the run red instead of passing.
+
 # 2026-11-27 — The golden rehearsal carries a customer photo, runs as a non-founder, reports the time budget (Claude Code; branch `claude/practical-hopper-oi3qj2-wh117`, pushed, NO PR, NOT dispatched)
 
 - **Root cause (warehouse 117, 71, 115, 118):** the rehearsal took text only, so a build with a customer photo could be
