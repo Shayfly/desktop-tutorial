@@ -24,6 +24,18 @@ on:
         description: "The content route for this rehearsal: empty = as the worker is deployed (a rehearsal has no account, so 'accounts' means the existing path); on = through the new engine; off = the existing path"
         required: false
         default: ""
+      image:
+        description: "Optional (warehouse 117/118): a committed fixture photo goes through a customer's path as the hero. Empty = text only; customer_photo = tests/fixtures/rehearsal/customer_photo.jpg. Needs the brief: empty answers become '{}'. The report says whether the photo reached the page as a file (not base64) and whether the hero was kept; either one no is a red run."
+        required: false
+        default: ""
+      account:
+        description: "Optional (warehouse 71): empty = no account, as before; non_founder = the worker's founder-only features (agentic repair, design critic, image match) decide for a non-founder account, and the report says what each decided"
+        required: false
+        default: ""
+      time_budget:
+        description: "Optional (warehouse 115): empty = the worker's own build time budget (repair stops at 780 s, the build stops itself at 1020 s). 'repair,stop' in seconds, e.g. 120,600, only SHORTENS it, so a short run reaches the self-stop; the report names how the build ended"
+        required: false
+        default: ""
   push:
     branches: [milestone/pre-staging-2026-10-05]
     paths: [.github/workflows/golden-rehearsal.yml]
@@ -46,6 +58,9 @@ jobs:
           ANSWERS: ${{ inputs.answers }}
           MODELS: ${{ inputs.models }}
           SITE_LIBRARY: ${{ inputs.site_library }}
+          IMAGE: ${{ inputs.image }}
+          ACCOUNT: ${{ inputs.account }}
+          TIME_BUDGET: ${{ inputs.time_budget }}
         run: |
           # GitHub runs this with `bash -e`: a failed rehearsal (exit 1) must not stop the step before its output and
           # taxonomy are written (run 39309736314 lost both). Errors are handled explicitly; the exit code is kept.
@@ -58,6 +73,13 @@ jobs:
             on|off) route_env=(-e "OMNI_SITE_LIBRARY=$SITE_LIBRARY"); echo "::notice title=rehearsal route::OMNI_SITE_LIBRARY=$SITE_LIBRARY" ;;
             *) echo "::error title=rehearsal route::site_library must be empty, on or off, not '$SITE_LIBRARY'"; exit 1 ;;
           esac
+          # 2026-11-27 (warehouse 117/71/115/118): the optional photo, account and time budget reach omni_prod.rehearsal as
+          # REHEARSAL_* variables; main() reads them and raises on any value it does not know. An image goes through the
+          # customer's path, which starts from the approved brief: with no answers the brief is empty ('{}'), never the
+          # raw request (main() refuses an image without it).
+          route_env+=(-e "REHEARSAL_IMAGE=${IMAGE:-}" -e "REHEARSAL_ACCOUNT=${ACCOUNT:-}" -e "REHEARSAL_TIME_BUDGET=${TIME_BUDGET:-}")
+          if [ -n "${IMAGE:-}" ] && [ -z "${ANSWERS:-}" ]; then ANSWERS="{}"; fi
+          echo "::notice title=rehearsal options::image=${IMAGE:-none} account=${ACCOUNT:-none} time_budget=${TIME_BUDGET:-worker default}"
           docker compose run --rm --no-deps -T "${route_env[@]}" -e OMNI_EXTERNAL_BUDGET_USD=0.50 -e OMNI_EXTERNAL_CALLS_PER_BUILD=40 -e OMNI_MODEL_ONLY="$MODELS" -e PROMPT="$PROMPT" -e ANSWERS="$ANSWERS" worker \
             python -c 'import os, sys; from omni_prod.rehearsal import main; sys.exit(main([os.environ["PROMPT"], os.environ.get("ANSWERS", "")]))' 2>&1 \
             | sed -E 's/(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{16,}/[redacted]/g' > "$RUNNER_TEMP/rehearsal.out"
