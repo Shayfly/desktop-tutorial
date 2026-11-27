@@ -663,8 +663,7 @@ def layout_for(c: dict) -> dict:
     given = c.get('layout') or {}
     bad = {k: v for k, v in given.items() if k not in LAYOUTS or v not in LAYOUTS[k] + (PHOTO_HERO if k == 'hero' else ())}
     if bad:
-        raise ValueError(f'unknown layout {bad!r}; the library has {LAYOUTS!r} and, for a page with a hero picture, '
-                         f'the hero {PHOTO_HERO!r}')
+        raise ValueError(f'unknown layout {bad!r}; the library has {LAYOUTS!r}')       # and the hero's PHOTO_HERO
     photo = bool((c.get('hero') or {}).get('image'))
     if given.get('hero') in PHOTO_HERO and not photo:
         raise ValueError(f"hero layout {given['hero']!r} is led by the hero picture and this page has none")
