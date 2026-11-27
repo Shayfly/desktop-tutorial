@@ -106,6 +106,8 @@ jobs:
                    tests/test_build_state_machine.py \
                    tests/test_conversation_turn_cap_pg.py \
                    tests/test_rate_limits_pg.py \
+                   tests/test_direction_sketch_money_pg.py \
+                   tests/test_direction_sketch_funding_pg.py \
                    tests/test_owner_costs_pg.py \
                    tests/test_contract_scope_lineage_pg.py \
                    tests/test_media_reading_128_pg.py \
@@ -114,6 +116,7 @@ jobs:
                    tests/test_intelligence_plane.py tests/test_janitor_redispatch.py tests/test_m4d2_live_fastapi_redis.py \
                    tests/test_m4d2_live_postgres.py \
                    tests/test_tenant_isolation_pg.py \
+                   tests/test_direction_sketch_routes_pg.py \
                    tests/test_maintenance_live_postgres.py tests/test_preview_access.py tests/test_release_policy.py; do
             n=$(basename "$f" .py)
             if python -m pytest -q -rs -p no:cacheprovider --junitxml="pg112-$n.xml" "$f"; then

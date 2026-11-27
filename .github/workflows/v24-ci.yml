@@ -322,6 +322,7 @@ jobs:
           node --check tests/platform_for_everyone_browser.cjs
           node --check tests/shell_133_browser.cjs
           node --check tests/spec_card_browser.cjs
+          node --check tests/direction_sketch_browser.cjs
           node --check tests/ui_languages_browser.cjs
           node --check tests/phone_chat_browser.cjs
           node --check tests/image_failure_words_browser.cjs
@@ -384,6 +385,10 @@ jobs:
       # gate 1's spec as the card "זה מה שנבנה" (the owner's example): each business detail once; fails without the card
       - run: node tests/spec_card_browser.cjs
         timeout-minutes: 3
+      # the direction sketch's card (S6.3): the draft pill, the sandboxed frame painted within 60 s with no worker, the words as
+      # text, both font hosts, the switch by keyboard; five mutations of app.js must each make it fail
+      - run: node tests/direction_sketch_browser.cjs
+        timeout-minutes: 5
       # every platform language whole: no key falls back, no text in another script, the picker switches
       - run: node tests/ui_languages_browser.cjs
         timeout-minutes: 3

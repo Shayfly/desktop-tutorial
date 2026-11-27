@@ -888,6 +888,7 @@ class ConversationSupervisor:
                            {'type': 'edit_requirements', 'brief_revision': turn.brief_row.revision}):
                 if not any(a['type'] == action['type'] for a in turn.actions):
                     turn.actions.append(action)
+        self._offer_sketch(turn, project_id, account_id, ctx)
         self._label_carries_its_question(turn, lang)
         turn.reply = self._not_repeated(project_id, turn, T)
         paid = turn.reservation_id is not None
@@ -920,6 +921,25 @@ class ConversationSupervisor:
                                cost_usd=turn.cost_usd, request_key=request_key,
                                cost_state=turn.cost_state if paid else None, reservation_id=turn.reservation_id)
         return turn
+
+    def _offer_sketch(self, turn, project_id: str, account_id: str, ctx: dict) -> None:
+        """S6.3: when a direction sketch is ready and its direction is new, the reply carries the action `direction_sketch`.
+        This only OFFERS: it renders nothing, calls no model and writes nothing but the reason in the stored message, and
+        a failure of any kind leaves the turn exactly as it was (the card's own route does the rest)."""
+        if turn.brief_row is None:
+            return
+        try:
+            from ..direction_sketch import offer as O
+            build = ctx.get('latest_build') or {}
+            found = O.offer(turn.brief_row, account_id=account_id, has_version=bool(ctx.get('latest_version_id')),
+                            has_open_build=str(build.get('status') or '').lower() in ('queued', 'running'),
+                            messages=lambda: self.store.messages_for(project_id, limit=200))
+            if found['action'] is not None:
+                turn.actions.append(found['action'])
+            if found['record']:
+                turn.interpretation = {**(turn.interpretation or {}), 'sketch': found['record']}
+        except Exception as exc:               # never into the turn
+            logging.getLogger(__name__).error('SKETCH_OFFER_FAILED %s: %s', type(exc).__name__, str(exc)[:200])
 
     # ------------------------------------------------------------- gate 1 -> plan -> verifier -> gate 2
     def approve_spec(self, *, project_id: str, account_id: str, brief_fingerprint: str, request_key: str | None = None,

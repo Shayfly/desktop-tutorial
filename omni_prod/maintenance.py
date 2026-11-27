@@ -300,6 +300,18 @@ def run_once(*, pool, preview_repo, jobs, subscriptions, stop_preview, runtime_h
             out['reservations'] = resolved
         except Exception as exc:
             out['errors'].append(f'reservations: {type(exc).__name__}: {exc}')
+        # S6.3: a customer's direction sketch a crash left pending -- finalised from its call, its credit settled or given back
+        try:
+            from .direction_sketch import funding as sketch_funding
+            from .direction_sketch.store import SketchStore, SketchStoreMissing
+            from .intake.budget import ReservationService
+            closed = sketch_funding.reconcile(SketchStore(pool), ReservationService(pool), subscriptions, pool)
+            if closed:
+                out['sketches'] = closed
+        except SketchStoreMissing:
+            pass                                        # migration 049 is not applied here yet: nothing to close
+        except Exception as exc:
+            out['errors'].append(f'sketches: {type(exc).__name__}: {exc}')
     if queued_ids is not None and enqueue is not None:
         try:
             out['redispatched'] = redispatch_lost(pool, queued_ids=queued_ids, enqueue=enqueue)
