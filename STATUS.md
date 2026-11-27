@@ -1,3 +1,47 @@
+# 2026-11-27 — Warehouse 127, acceptance 6: every business with a domain gets a legal page, and the build fails without it (Claude Code; branch `claude/practical-hopper-oi3qj2-wh127`, pushed, NO PR)
+
+- **What remained of 127:** slices 1-4 (#500: the schema, the category -> domain map and the domain in the evidence, the trade's
+  words, the mandatory facts first in the conversation agent's checklist) and acceptance 5 (the weekly reference check) were
+  built. Acceptance 6 was the one left: "a legal page per domain, derived from its legal section" (DECISIONS 13, 2026-11-22:
+  only what the platform knows, "this is not legal advice" in plain language, the section 7 questions as questions for the
+  customer's lawyer and copyable, nothing invented). It was held until 118 is proven in production; the owner's release of the
+  whole warehouse on 2026-11-27 (inbox/004) is the authority for building it now.
+- **Root cause of the gap:** a site had no legal page at all, and nothing noticed. A domain's section 7 was prose for people.
+- **Implemented:** `omni_prod/domain_registry.py` parses section 7 into groups of questions (and the platform's own rules apart);
+  a file without `Applies almost everywhere` or `Israel`, or with an empty group, fails naming the domain and the group.
+  `omni_prod/site_content/legal.py` writes `public/legal.html` and `content/legal.json` from that and from what the rendered home
+  page does (it reads `data-wa` and the cookie window off the page); `section_library.legal_page` renders it with the page's own
+  head, fonts and contract; the footer links to it only when the content names one (a page without one is byte-identical).
+  The fixed server serves `/legal.html`; the fixed test checks page and link go together; `SiteParityExecutor` fails the build
+  (`gate-SITE_LEGAL`, in every mode) when a business with a domain has no page, no line `זה לא ייעוץ משפטי`, a missing question,
+  no link, or data of another domain; the part ledger claims the files; the review's page fallback leaves the legal page out
+  (the customer's facts belong to the home page); the renderer version covers the legal text; the evidence records
+  `legal: {page, domain, groups, questions, collects, accessibility_checks}` or `{page: null, why: ...}`.
+- **The page says only what the platform knows:** what the site collects (a form that hands its text to WhatsApp, a cookie
+  window, the server's technical log), who is responsible and that a company number was not given, what was checked for
+  accessibility (the five G3 units, by name, asserted to exist) and what was NOT checked, and the questions.
+- **Evidence (this machine, 2026-11-27):** `tests/test_domain_legal_127.py` 35 passed, `tests/test_domain_legal_chain_127.py`
+  2 passed (the real engine and the real production verification chain: the law-firm brief builds ready with the page, every
+  skill gate passes on it, parity passes; without the page the chain fails on `accept-site-content`, and without page, data and
+  link on `gate-SITE_LEGAL`); every skill unit passes on the page of three domains, and the page of each of the 30 domains
+  carries every question of its two groups. Controls: `domain_legal_127` 15/15 PASS, `domain_legal_chain_127` 2/2 PASS. The
+  specs that mutate the files this branch changed (part_ledger, route_honesty, site_content, library_cookie_banner,
+  item_maxima, rtl_time_ranges, testimonials_one_rule, red_evidence, image_weight, repair_converge_offscreen,
+  content_corrections, content_followups, direction_sketch_core, domain_registry_127, colour_roles) all PASS. Two specs fail
+  the same controls on this machine on pristine main (section_library NC3 NC4 NC6 NC7 NC8 NC9 NC13; typography_126_129 NC1
+  NC16): not caused by this branch (main run in a clean worktree: identical sets).
+- **Flag-off identity:** the digest is unchanged (`fd3a45bf...` on main and on the branch); `tests.test_site_auth_v2.SourceIdentity`
+  14 tests OK. No identity entry is needed.
+- **Not done, said:** (1) the lawyer questions are shown as the domain file wrote them, in English inside a left-to-right
+  block, with Hebrew around them; a Hebrew translation of the 30 files' groups is a content job that needs a person who can
+  check legal Hebrew (not guessed here). (2) "The owner can edit the page" (DECISIONS 13): the text is data in
+  `content/legal.json` (`editable: true`) and the page a plain file, but no editing path for it was built. (3) The page is
+  written for a Hebrew page (Israel); another script raises `LegalNotBuilt`. (4) A business whose category has no domain
+  file (alcohol, catering, digital marketing, furniture and interior, jewelry, moving, vets) gets no legal page, and the
+  evidence says so. (5) Acceptance 5's "replace a dead reference" stays a person's act (the weekly check names it).
+  (6) The work order's "a sample page for each of the 30 domains" is not built: a sample site needs content per domain
+  (a paid model call each, or thirty hand-written documents). (7) Not run in production; GitHub CI on the exact SHA not run.
+
 # 2026-11-27 — A requested rehearsal option that the worker ignored is now a red run (Claude Code; branch `claude/practical-hopper-oi3qj2-wh117-loud`, pushed, NO PR)
 
 - **Root cause (run 46005664127, job 140528059099):** the workflow printed `image=customer_photo account=none` and the build
