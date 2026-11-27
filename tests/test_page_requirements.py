@@ -354,6 +354,24 @@ class TheConversation(unittest.TestCase):
         self.assertEqual(asked.count('delivery'), 1)
         self.assertEqual(sorted(d.page_asked(self.brief())), ['delivery', 'kashrut'])
 
+    def test_a_required_field_marked_as_asked_was_put_to_the_customer_not_swallowed_by_the_name_or_colour_question(self):
+        """Found by the controls of ask-colours, ask-name and agent-subject on this change: a required field is not a
+        catalogue card, so `turn.questions` stayed empty and the in-words name / colour question replaced the reply that
+        carried it -- after the detector had marked the field asked. It was never asked again and the approval opened
+        without it. A field counts as asked only in a turn whose reply says it."""
+        for request in ('אני רוצה אתר לאטליז בחיפה, טלפון 04-8123456, רחוב הרצל 12 חיפה',            # no business name
+                        'אתר תדמית למורה פרטית למתמטיקה "נועה ברק". טלפון 054-7712345. רחוב הרצל 30, רחובות.'):  # unknown business
+            with self.subTest(request[:20]):
+                s = ConversationSupervisor(briefs=MemoryBriefs(), store=MemoryConversationStore())
+                t, shown = s.turn(project_id='p', account_id='a', lang='he', message=request), {}
+                for _ in range(10):
+                    q = (t.gaps or {}).get('question') or {}
+                    if q.get('field') in d.page_asked(s.briefs.latest('p').brief):
+                        shown[q['field']] = q['text'] in t.reply
+                    t = s.turn(project_id='p', account_id='a', lang='he', message='תחליטו אתם על השאר')
+                self.assertIn('hours', shown)
+                self.assertEqual({k: v for k, v in shown.items() if not v}, {})
+
     def test_a_brief_that_never_met_the_conversation_is_byte_identical(self):
         self.assertNotIn('Page details', d.requirements_text(d.start(BUTCHER)))
 

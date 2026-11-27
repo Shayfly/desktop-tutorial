@@ -1649,9 +1649,13 @@ class ConversationSupervisor:
         # never over a model failure: "the model refused / is busy" is the truth of this turn (found by
         # tests/test_venice_refusal_is_not_spend.py on this change)
         model_failed = turn.reply in (T['model_refused'], T['model_unavailable'])
+        # warehouse 122: a required page field is a gap question that is not a card (it is not in d.BY_ID), so
+        # `turn.questions` is empty while its text is in the reply; the name / colour question must not replace that reply
+        # (not when the model failed: that reply is already the failure message, and model_failed below guards it)
+        page_gap = gap_q is not None and gap_q.field not in d.BY_ID and not model_failed
         if no_name and name_choice and not res.conflicts and not model_failed:
             turn.questions = []      # review SF3: the choice exists only in this message -- asked now, the rest after
-        if no_name and not res.conflicts and not turn.blocked and not turn.questions and not model_failed:
+        if no_name and not page_gap and not res.conflicts and not turn.blocked and not turn.questions and not model_failed:
             said = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
             # two different names the customer wrote are asked back as a choice, quoting both (agent.name_question)
             question = (agent.NAME_WHICH_QUESTION[lang if lang in agent.NAME_WHICH_QUESTION else 'en'].format(
@@ -1659,7 +1663,7 @@ class ConversationSupervisor:
             turn.reply = ((said or '') + ' ' + question).strip()
             turn.asked_in_words = [agent.NAME_ID]
             return turn
-        if no_colour and not model_failed and not res.conflicts and not turn.blocked and not turn.questions:
+        if no_colour and not page_gap and not model_failed and not res.conflicts and not turn.blocked and not turn.questions:
             words = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
             turn.reply = ((words or '') + ' ' + agent.COLOUR_QUESTION['he' if lang == 'he' else 'en']).strip()
             turn.asked_in_words = [agent.COLOUR_ID]

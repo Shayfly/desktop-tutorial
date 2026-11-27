@@ -232,6 +232,40 @@
    "expect_failed": [
     "test_dont_know_leaves_the_field_off_with_no_default_and_it_is_not_asked_again"
    ]
+  },
+  {
+   "id": "NC13",
+   "what": "the name question replaces a reply that carries a required page field already marked as asked (the field is lost)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "if no_name and not page_gap and not res.conflicts",
+     "new": "if no_name and not res.conflicts"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_a_required_field_marked_as_asked_was_put_to_the_customer_not_swallowed_by_the_name_or_colour_question"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the colour question replaces a reply that carries a required page field already marked as asked (the field is lost)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "if no_colour and not page_gap and not model_failed",
+     "new": "if no_colour and not model_failed"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_a_required_field_marked_as_asked_was_put_to_the_customer_not_swallowed_by_the_name_or_colour_question"
+   ]
   }
  ]
 }
