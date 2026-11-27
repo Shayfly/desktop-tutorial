@@ -63,6 +63,7 @@ from .storage import S3ArtifactStore
 from .job_repository import PostgresBuildRepository
 from .build_contract import BuildContractStatus
 from .build_contract_repository import MemoryBuildContractRepository, PostgresBuildContractRepository
+from .build_contract_repository import BuildContractNotFound
 from .idempotency import request_fingerprint, validate_key
 from .creator_plan import build_plan_preview
 from .browser_session import SessionTokenError, browser_session_readiness, cookie_settings, extract_session_token
@@ -126,6 +127,11 @@ _LEGACY_PATCH=re.compile(r'^/api/v2[5-8]/projects/[^/]+/patch$')
 
 def _legacy_refused()->bool:
     if os.getenv('OMNI_ENV','development').strip().lower() in ('staging','production'):
+        return True
+    # S4.5 review of 0384bbb: Vercel production runs without OMNI_ENV, so the refusal followed the S3 workspace alone and
+    # an incomplete S3 configuration opened the unscoped in-process demo store. Any Vercel deployment refuses; only local
+    # development (VERCEL_ENV unset or 'development') keeps these paths, and an unknown value refuses (fails closed).
+    if os.getenv('VERCEL_ENV','').strip().lower() not in ('','development'):
         return True
     return _async_build_mode()
 
@@ -264,15 +270,23 @@ def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_comp
             minimum_margin=minimum_margin if minimum_margin is not None else Decimal('0.60'),
             internal_qa=funding == 'internal_qa')
 
+    unlimited = False
     if founder:   # CEO 2026-11-08: founder test builds, paid by us, measured; never a customer price
-        from .pricing import m5_founder_build_budget
-        provider_budget, budget_basis = m5_founder_build_budget(), 'founder_test'
+        from .pricing import FOUNDER_SAFETY_BUILD_USD, founder_no_build_limit_enabled, m5_founder_build_budget
+        unlimited = founder_no_build_limit_enabled()
+        if unlimited:   # the owner 2026-11-26: no money limit on his builds; the safety bound only (pricing.py)
+            provider_budget, budget_basis = FOUNDER_SAFETY_BUILD_USD, 'founder_safety_bound'
+        else:
+            provider_budget, budget_basis = m5_founder_build_budget(), 'founder_test'
     quote, components = _quote(provider_budget)
     if cost_class is not None:
         components = {**components, 'cost_class': getattr(cost_class, 'value', str(cost_class)),
                       'llm_class_cap_usd': str(class_cap), 'llm_budget_basis': budget_basis}
     if founder:
         components = {**components, 'founder_test': True}
+    if unlimited:
+        from .pricing import founder_safety_bounds
+        components = {**components, 'founder_no_build_limit': True, 'safety_bounds': founder_safety_bounds()}
     if funding == 'internal_qa' or exempt or founder:
         # Internal QA builds have no customer revenue by definition; they are
         # authorized against the internal QA caps (omni_prod.qa_budget) instead
@@ -364,7 +378,10 @@ def _m5_resolve_build_contract(*, repository, architect, project_id: str, prompt
     if requested_contract_id:
         try:
             contract = repository.get(requested_contract_id, project_id=project_id)
-        except ValueError as exc:
+        except (ValueError, BuildContractNotFound) as exc:
+            # S4.5 (2026-11-26): an id that names no contract of THIS project (unknown, or another project's) is the
+            # same refusal as a stored plan that no longer verifies -- it used to be a 500 (unknown) and a 403 that
+            # confirmed the id existed elsewhere (another project's).
             # A stored contract that no longer verifies (e.g. saved before the
             # 2026-10-08 title-normalisation fix) is never built; the client
             # asks for a fresh plan instead of getting an HTTP 500.
@@ -712,7 +729,8 @@ def agent_team(target:str='web',mobile:bool=False,game:bool=False)->dict:
     return plan_team(target=target,has_ui=True,has_mobile=mobile,has_game=game).to_dict()
 
 @app.post('/api/billing/classify')
-def billing_classify(req:ChangeRequest)->dict:
+def billing_classify(req:ChangeRequest,request:Request)->dict:
+    _signed_in(request)
     d=classify_charge(category=req.category,estimated_compute_units=req.estimated_compute_units)
     return {'billable':d.billable,'credits':d.credits,'reason':d.reason.value}
 
@@ -739,10 +757,12 @@ def demo_build(req:PromptRequest)->dict:
 
 @app.get('/api/projects/{project_id}/history')
 def project_history(project_id:str)->dict:
+    _reject_demo_store()
     return {'project_id':project_id,'versions':[{'id':v.id,'parent_id':v.parent_id,'created_at':v.created_at,'message':v.message,'checksum':v.checksum,'file_count':len(v.files)} for v in _workspace.history(project_id)]}
 
 @app.get('/api/projects/{project_id}/versions/{version_id}/download')
 def download_version(project_id:str,version_id:str):
+    _reject_demo_store()
     from .repository_assets import zip_bytes
     try: version=_workspace.get(project_id=project_id,version_id=version_id)
     except KeyError as exc: raise HTTPException(404,'version not found') from exc
@@ -756,6 +776,7 @@ def download_version(project_id:str,version_id:str):
 
 @app.get('/api/projects/{project_id}/memory')
 def project_memory(project_id:str)->dict:
+    _reject_demo_store()
     return {'project_id':project_id,'context':_memory.context(project_id),'entries':[x.__dict__ for x in _memory.list(project_id)]}
 
 
@@ -917,6 +938,24 @@ def _clear_session_cookie(response: Response) -> None:
     response.delete_cookie(settings['key'], path=settings['path'], secure=settings['secure'],
                            httponly=True, samesite=settings['samesite'])
 
+def _signed_in(request: Request, platform=None):
+    """S4.5 (2026-11-26): a route that is not public checks the caller's session itself -- the cookie the web app sends,
+    or a Bearer token -- against the account store of its generation (v28 unless one is given). production_auth runs
+    only with OMNI_ENV=production, which Vercel production does not set, and it accepts a Bearer token only while the
+    web app signs in with the cookie: no route may rely on it."""
+    try:
+        return (platform or _v28).account(_v26_bearer(request))
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+
+def _reject_demo_store() -> None:
+    """S4.5 (2026-11-26): the in-process demo store (_workspace, _memory, _unified) is written only by the demo, live and
+    v25 builds, which a durable deployment refuses; there its readers are refused too, for every caller, instead of
+    answering anyone -- signed in or not -- from a store that never holds a customer project."""
+    if _legacy_refused():
+        raise HTTPException(410, {'error': 'legacy_path_disabled',
+                                  'message': 'This legacy demo path is not part of the verified pipeline and is disabled here.'})
+
 @app.post('/api/v26/auth/register')
 def v26_register(req:V26AuthRequest)->dict:
     try: return _v26.register(email=req.email,password=req.password)
@@ -1010,7 +1049,8 @@ def v26_live_build(project_id:str,req:V26BuildRequest,request:Request)->dict:
             'truth':'This route uses a configured local/self-hosted model and sandbox. If those services are absent it fails closed with 503.'}
 
 @app.get('/api/v26/capabilities')
-def v26_capabilities()->dict:
+def v26_capabilities(request:Request)->dict:
+    _signed_in(request, _v26)
     return {'release':'V26 Universal Pro','creator_security':['signup/login','PBKDF2 password hashing','signed session tokens','owner-scoped project IDs','cross-user denial'],
             'creation':['web','android-source','ios-source','godot','unity','unreal','repository versioning','patch/restore/export/deploy'],
             'creative':['image','icon','audio','music','voice','video','3D model','PBR texture'],
@@ -1065,7 +1105,8 @@ async def v26_runtime_ws(websocket:WebSocket,deployment_id:str,token:str=''):
 
 
 @app.get('/api/v25/parity')
-def v25_parity()->dict:
+def v25_parity(request:Request)->dict:
+    _signed_in(request)
     return {
         'baseline':'Omni Creator V10 validation behavior',
         'release':'V25 Unified Core',
@@ -1082,6 +1123,7 @@ def v25_build(req:PromptRequest)->dict:
 
 @app.get('/api/v25/projects/{project_id}/export')
 def v25_export(project_id:str,version_id:str|None=None):
+    _reject_demo_store()
     try: payload=_unified.export_zip(project_id=project_id,version_id=version_id)
     except KeyError as exc: raise HTTPException(404,'project/version not found') from exc
     return Response(payload,media_type='application/zip',headers={'Content-Disposition':f'attachment; filename="{project_id}.zip"'})
@@ -1295,28 +1337,34 @@ def v27_brain_plan(req:V27BuildRequest,request:Request)->dict:
     return _v27.brain.decide(req.prompt,target_markets=tuple(req.target_markets)).to_dict()
 
 @app.get('/api/v27/rights/jurisdictions')
-def v27_jurisdictions()->dict:
+def v27_jurisdictions(request:Request)->dict:
+    _signed_in(request, _v27)
     return {'profiles':{k:v.to_dict() for k,v in JURISDICTIONS.items()},'truth':'Profiles are a maintained risk-policy baseline, not exhaustive legal advice.'}
 
 @app.get('/api/v27/company-os')
-def v27_company_os()->dict:
+def v27_company_os(request:Request)->dict:
+    _signed_in(request, _v27)
     return _v27.company_operating_system()
 
 @app.get('/api/v27/company-os/departments/{department_id}')
-def v27_company_department(department_id:str)->dict:
+def v27_company_department(department_id:str,request:Request)->dict:
+    _signed_in(request, _v27)
     try:return _v27.company_os.department(department_id)
     except KeyError as exc: raise HTTPException(404,'department not found') from exc
 
 @app.post('/api/v27/company-os/triage')
-def v27_company_triage(req:V27CompanyTriageRequest)->dict:
+def v27_company_triage(req:V27CompanyTriageRequest,request:Request)->dict:
+    _signed_in(request, _v27)
     return {'tasks':_v27.company_os.triage([x.model_dump() for x in req.signals])}
 
 @app.post('/api/v27/company-os/ceo-brief')
-def v27_company_ceo_brief(req:V27CEOBriefRequest)->dict:
+def v27_company_ceo_brief(req:V27CEOBriefRequest,request:Request)->dict:
+    _signed_in(request, _v27)
     return _v27.company_os.ceo_brief(signals=[x.model_dump() for x in req.signals],metrics=req.metrics,max_priorities=req.max_priorities)
 
 @app.post('/api/v27/company-os/release-council/evaluate')
-def v27_release_council_evaluate(req:V27ReleaseCouncilRequest)->dict:
+def v27_release_council_evaluate(req:V27ReleaseCouncilRequest,request:Request)->dict:
+    _signed_in(request, _v27)
     return _v27.company_os.evaluate_release(req.gates,founder_public_launch_approved=req.founder_public_launch_approved)
 
 @app.post('/api/v27/projects/{project_id}/live-build')
@@ -1521,6 +1569,8 @@ def v28_request_email_verification(request: Request) -> dict:
         account = _v28.account(token)
         _m5_identity_service().request_email_verification(account.id)
         return {'accepted': True}
+    except HTTPException:
+        raise                  # S4.5: a missing session is 401 (it was caught below and said as 400 "401: ...")
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
     except Exception as exc:
@@ -1595,6 +1645,41 @@ def v28_me(request: Request) -> dict:
         return payload
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
+
+def _owner_cost_report(request: Request, days: int, scope: str) -> dict:
+    """The owner, 2026-11-26: what builds cost us. The founder account only (pricing.m5_founder_account): any other
+    signed-in account gets 403 before anything is read, no session gets 401. No account id, e-mail, prompt or project
+    id leaves (omni_prod.owner_costs)."""
+    try:
+        account = _v28.account(_v28_bearer(request))
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+    if not _founder(account.id):
+        raise HTTPException(403, 'This report is for the owner account only.')
+    if _v28_pool is None:
+        raise HTTPException(503, 'The cost report reads the durable database (PostgreSQL), which is not configured here.')
+    from .owner_costs import cost_report
+    from .pricing import _FOUNDER_DEFAULT
+    ids = {x.strip() for x in os.getenv('OMNI_FOUNDER_ACCOUNT_IDS', _FOUNDER_DEFAULT).split(',') if x.strip()}
+    try:
+        return cost_report(_v28_pool, days=days, scope=scope, founder_ids=ids)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.get('/api/v28/owner/costs')
+def v28_owner_costs(request: Request, days: int = 14, scope: str = 'all'):
+    from fastapi.encoders import jsonable_encoder
+    return JSONResponse(jsonable_encoder(_owner_cost_report(request, days, scope)),
+                        headers={'Cache-Control': 'private, no-store'})
+
+
+@app.get('/owner/costs', response_class=HTMLResponse)
+def owner_costs_page(request: Request, days: int = 14, scope: str = 'all'):
+    from .owner_costs import render_html
+    return HTMLResponse(render_html(_owner_cost_report(request, days, scope)),
+                        headers={'Cache-Control': 'private, no-store'})
+
 
 @app.get('/api/v28/me/subscription')
 def v28_subscription(request: Request) -> dict:
@@ -1831,6 +1916,7 @@ def v28_original_alternative(project_id: str, req: V27OriginalizeRequest, reques
 
 @app.post('/api/v28/projects/{project_id}/branding')
 def v28_branding(project_id: str, req: V28BrandingRequest, request: Request) -> dict:
+    _signed_in(request)        # S4.5: a bad token is 401, not the plan refusal's 402
     try:
         return _v28.set_project_branding(token=_v28_bearer(request), project_id=project_id, visible=req.visible, white_label_name=req.white_label_name)
     except PermissionError as exc:
@@ -1838,6 +1924,7 @@ def v28_branding(project_id: str, req: V28BrandingRequest, request: Request) -> 
 
 @app.post('/api/v28/projects/{project_id}/usage/quote')
 def v28_usage_quote(project_id: str, req: V28UsageQuoteRequest, request: Request) -> dict:
+    _signed_in(request)        # S4.5: a bad token is 401, not the quote refusal's 400
     try:
         d = _v28.authorize_live_usage(token=_v28_bearer(request), project_id=project_id, cost_class=req.cost_class, credits=req.credits,
             category=req.category, estimated_cost_usd=req.estimated_provider_cost_usd)
@@ -3787,7 +3874,8 @@ def v28_build_capability_truth(project_id: str, build_id: str, request: Request)
     }
 
 @app.get('/api/v28/m5/status')
-def v28_m5_status() -> dict:
+def v28_m5_status(request: Request) -> dict:
+    _signed_in(request)
     return _m5_status_payload()
 
 

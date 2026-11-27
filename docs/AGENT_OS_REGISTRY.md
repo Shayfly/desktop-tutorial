@@ -5,7 +5,7 @@
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
 Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 29, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 2, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 95, UNIT_TESTED 30, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 23, LIVE 0, BLOCKED 9
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 95, UNIT_TESTED 32, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 21, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -16,7 +16,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 95, UNIT_TESTED 30, INTEGRATION
 | Requirements Agent (`requirements_agent`) | management | **IMPLEMENTED** | requirements_traceability | real-server evidence is stale; code changed since: omni_prod/discovery.py, omni_prod/product_architect.py |  |
 | Intake Agent (`intake_agent`) | management | **UNIT_TESTED** | requirements_agent | unit tests only — tests/test_conversation_os.py |  |
 | Chief Architect (`chief_architect`) | software | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_conversation_os.py |  |
-| Product Planner (`product_planner`) | management | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/creator_plan.py |  |
+| Product Planner (`product_planner`) | management | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/build_cost_plan.py, omni_prod/creator_plan.py |  |
 | Architecture Agent (`architecture_agent`) | software | **IMPLEMENTED** | code_review_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | UX/UI Design Agent (`ux_ui_design_agent`) | software | **IMPLEMENTED** | browser_rehearsal_agent | model instruction only; no platform check verifies the result |  |
 | Frontend Agent (`frontend_agent`) | software | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
@@ -94,7 +94,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 95, UNIT_TESTED 30, INTEGRATION
 | `task_dependency_generation` | Planning | **UNIT_TESTED** | product_planner | unit tests only |  |
 | `critical_path_detection` | Planning | **NOT_IMPLEMENTED** | product_planner | no implementation | not implemented |
 | `effort_estimation` | Planning | **NOT_IMPLEMENTED** | product_planner | no implementation | not implemented |
-| `cost_estimation` | Planning | **REAL_SERVER_VERIFIED** | product_planner | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `cost_estimation` | Planning | **IMPLEMENTED** | product_planner | real-server evidence is stale; code changed since: omni_prod/build_cost_plan.py |  |
 | `capability_closure` | Planning | **UNIT_TESTED** | product_planner | unit tests only | web/SaaS families only |
 | `agent_assignment` | Planning | **UNIT_TESTED** | product_planner | unit tests only |  |
 | `parallelization_planning` | Planning | **NOT_IMPLEMENTED** | product_planner | no implementation | not implemented |
@@ -243,7 +243,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 95, UNIT_TESTED 30, INTEGRATION
 | `cost_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only |  |
 | `provider_failure_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only | simulated providers |
 | `restart_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
-| `resume_test` | QA | **IMPLEMENTED** | qa_agent | code exists; no evidence | build restarts from the beginning |
+| `resume_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only | S4.2: a worker killed at four points on real PostgreSQL; no real-server crash-verify run yet |
 | `cancellation_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
 | `behavioral_acceptance_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py |  |
 | `requirement_traceability_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py | acceptance IDs -> steps |
@@ -305,7 +305,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 95, UNIT_TESTED 30, INTEGRATION
 | `provider_fallback_selection` | Provider Routing | **UNIT_TESTED** | provider_router_agent | unit tests only |  |
 | `provider_retry` | Provider Routing | **UNIT_TESTED** | provider_router_agent | unit tests only |  |
 | `model_selection` | Provider Routing | **IMPLEMENTED** | provider_router_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
-| `build_quote` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `build_quote` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/build_cost_plan.py |  |
 | `credit_reservation` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/subscription_store.py |  |
 | `agent_budget_assignment` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only |  |
 | `provider_budget_assignment` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
@@ -327,7 +327,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 95, UNIT_TESTED 30, INTEGRATION
 | `runtime_validation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `resource_allocation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `queue_job_submit` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/queueing.py |  |
-| `job_resume` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | code exists; no evidence | restart from the beginning, once; since e5e11e5 a lost build with a paid call is failed, not requeued |
+| `job_resume` | Infrastructure | **UNIT_TESTED** | infrastructure_agent | unit tests only | S4.2: a lost build with a usable checkpoint is requeued once and continues from it; without one, a paid call ends it FAILED provider_liability_unknown as before; no real-server crash-verify run yet |
 | `job_cancel` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/build_control.py, omni_prod/job_repository.py |  |
 | `job_timeout` | Infrastructure | **UNIT_TESTED** | infrastructure_agent | unit tests only |  |
 | `stale_job_recovery` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | code exists; no evidence |  |

@@ -304,11 +304,21 @@ class IdempotencyAndResumeTests(unittest.TestCase):
 class ConfigurationTruthTests(unittest.TestCase):
     def test_not_configured_without_credentials_or_price(self):
         for missing in ("OMNI_IMAGE_PROVIDER_BASE_URL", "OMNI_IMAGE_PROVIDER_API_KEY_REF",
-                        "OMNI_IMAGE_PROVIDER_MODEL", "OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE"):
+                        "OMNI_IMAGE_PROVIDER_MODEL"):
             env = {k: v for k, v in ENV.items() if k != missing}
             readiness = image_provider_readiness(env)
             self.assertEqual(readiness["status"], "NOT_CONFIGURED", missing)
             self.assertIn(missing, readiness["reason"])
+        # The owner 2026-11-26: a missing price no longer makes the provider NOT_CONFIGURED (which refused every build
+        # that needed an image). It is configured, says it has no price, and its quote carries no number.
+        for missing in ("OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE", "OMNI_IMAGE_PROVIDER_PRICE_SOURCE"):
+            env = {k: v for k, v in ENV.items() if k != missing}
+            readiness = image_provider_readiness(env)
+            self.assertEqual(readiness["status"], "PARTIAL", missing)
+            self.assertIn(missing, readiness["reason"])
+            self.assertIn("without a price", readiness["reason"])
+            self.assertFalse(_provider(env=env).quote(REQ).price_known)
+        self.assertTrue(_provider(env=ENV).quote(REQ).price_known)
         self.assertEqual(image_provider_readiness(ENV)["status"], "PARTIAL")
         self.assertEqual(image_provider_readiness({})["optional_media"]["media.audio.tts"], "NOT_CONFIGURED")
         self.assertEqual(image_provider_readiness({})["optional_media"]["media.3d.mesh.generate"], "NOT_CONFIGURED")

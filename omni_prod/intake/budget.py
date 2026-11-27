@@ -196,6 +196,8 @@ def quote(*, system: str, user: str, max_tokens: int, task: str = 'conversation'
                          output_per_million=Decimal(str(item['output_per_million'])), when=when)
         except (KeyError, TypeError, ValueError, InvalidOperation):
             continue
+        if not getattr(gov, 'price_known', True):
+            continue    # the conversation quotes only a verified price (unchanged by the owner's rule of 2026-11-26)
         if not gov.routable or not eligible(task, model_id=model, quality=quality):
             continue
         if gov.input_per_million is None or gov.output_per_million is None or \
@@ -662,6 +664,13 @@ class ReservationService:
                                 'WHERE reservation_id = %s', (row[0],))
             sent.append(row[0])
         return sent
+
+
+# The owner, 2026-11-26 ~16:10 UTC ("כן. רק מדידה"): his conversations keep no per-project or daily cap, only
+# measurement. This is the safety bound his reservations carry instead (CLAUDE.md §3: nothing unbounded) -- about
+# 350 times what all intake cost in the last 14 days ($0.14, production intake_reservations, 2026-11-26). His calls
+# still count in the shared daily scope that bounds the other accounts.
+OWNER_INTAKE_SAFETY_USD = Decimal('50')
 
 
 def caps_from_env(lane: str = PRODUCTION) -> Caps:

@@ -41,7 +41,7 @@ class Cursor:
             self._last = ('one', (1,))
         elif sql.startswith('SELECT EXISTS (SELECT 1 FROM build_jobs'):
             self._last = ('one', (self.w['build_status'] in rr.TERMINAL_BUILD,))
-        elif sql.startswith('SELECT outcome, metered_cost_usd FROM task_attempts'):
+        elif sql.startswith('SELECT outcome, metered_cost_usd'):   # money review S2: + reason, authorized
             self._last = ('all', self.w['attempts'])
         elif sql.startswith('UPDATE credit_reservations SET status=') and self.w['reservation']:
             self.w['reservation'] = (self.w['reservation'][0], 'RELEASED') + self.w['reservation'][2:]

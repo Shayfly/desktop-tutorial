@@ -116,15 +116,23 @@ class CatalogGovernanceTests(unittest.TestCase):
         self.assertEqual((m.option.input_per_million, m.option.output_per_million), (Decimal('1.50'), Decimal('7.50')))
         self.assertTrue(any('replaced by schedule' in n for n in m.governance_notes))
 
-    def test_managed_model_without_source_backed_price_fails_closed(self):
+    def test_managed_model_without_source_backed_price_routes_with_an_unknown_cost(self):
+        # The owner 2026-11-26: "fail closed" is now about the PRICE, not the route. The catalog's unverified number is
+        # still never trusted (price_known False, the stand-in for authorization), but the model is no longer left
+        # out of a build: it routes and its calls are recorded with tokens and an unknown cost.
+        from omni_prod.model_catalog import UNPRICED_STAND_IN
         raw = _cat(('nano', 'openai', 'https://api.openai.com/v1', 'gpt-5-nano', 70, '0.05', '0.40'))
         m, = parse_model_catalog(raw, {'KEY': 'k'})
-        self.assertIsNone(m.endpoint)
-        self.assertFalse(m.option.enabled)
-        self.assertEqual(m.status, 'PRICE_UNVERIFIED')
+        self.assertIsNotNone(m.endpoint)
+        self.assertTrue(m.option.enabled)
+        self.assertFalse(m.option.price_known)
+        self.assertEqual((m.option.input_per_million, m.option.output_per_million), UNPRICED_STAND_IN)
+        self.assertEqual(m.status, 'CONFIGURED')
+        self.assertIn('no source-backed token price for gpt-5-nano', ' '.join(m.governance_notes))
         with mock.patch.dict(os.environ, {'OMNI_PRICE_GOVERNANCE': 'off'}):
             m, = parse_model_catalog(raw, {'KEY': 'k'})
             self.assertIsNotNone(m.endpoint)
+            self.assertTrue(m.option.price_known)          # diagnostics only: the catalog number is taken as is
 
     def test_retired_model_is_never_routed(self):
         raw = _cat(('old', 'gemini', self.REAL, 'gemini-3.1-flash-lite', 70, '0.25', '1.50'))

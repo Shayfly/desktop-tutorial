@@ -26,6 +26,12 @@ MODEL_TASK_AGENT = {
     'classification': ('product_evolution_agent', ()),
 }
 
+# S4.2: the work a checkpoint holds, by its stage (autonomous_core.RESUME_STAGES): the spec, and from round 0 on the
+# generated code too. A build that continues carries those tasks into its run instead of running them again.
+COVERED_STAGES = {'spec': ('architecture',), 'round': ('architecture', 'codegen'), 'finished': ('architecture', 'codegen')}
+COVERED_AGENTS = {stage: tuple(MODEL_TASK_AGENT[s][0] for s in stages) for stage, stages in COVERED_STAGES.items()}
+_LOST = 'worker lost'     # how supersede_open_runs marks a task the lost worker had not finished
+
 
 class BuildAgentRecorder:
     def __init__(self, pool, subject_id: str, *, subject_kind: str = 'build', budget_usd=None):
@@ -37,6 +43,7 @@ class BuildAgentRecorder:
         self.current = None        # (task_id, agent_key)
         self.done: dict[str, str] = {}  # agent_key -> last SUCCEEDED task id
         self.failed_qa = False
+        self.carried: list[dict] = []   # S4.2: the lost worker's tasks this run carries (old id -> new id)
 
     def _safe(self, fn, *a, **k):
         try:
@@ -45,10 +52,48 @@ class BuildAgentRecorder:
             _log.warning('agent recorder: %s', exc)
             return None
 
-    def start(self, *, from_brief: bool) -> None:
+    def _carry_task(self, old_run: str, task: dict, state: str, resume: dict, note: str = '') -> str | None:
+        """One task of the lost worker's run, recorded in this run with its state and cost and where it came from."""
+        evidence = {'carried_from': {'run': old_run, 'task': task['id']}, 'checkpoint': resume.get('checkpoint')}
+        if note:
+            evidence['note'] = note
+        tid = self.rt.add_task(self.run_id, task['agent_key'], skills=list(task.get('skill_keys') or ()),
+                               evidence=evidence)
+        self.rt.transition(tid, 'RUNNING')
+        cost = Decimal(str(task['cost_usd'])) if task.get('cost_usd') else None
+        self.rt.transition(tid, state, evidence=evidence, cost_usd=cost if cost else None)
+        if state == 'SUCCEEDED':
+            self.done[task['agent_key']] = tid
+        self.carried.append({'from': task['id'], 'to': tid, 'agent': task['agent_key'], 'state': state})
+        return tid
+
+    def _carry(self, resume: dict) -> None:
+        """S4.2: the lost worker's run (superseded) ends where its checkpoint was written. Every task it had finished by
+        then is carried into this run as it ended; a task still open at the checkpoint whose work the checkpoint holds
+        (the architect's spec at a 'spec' checkpoint) is carried SUCCEEDED, closed by the checkpoint. Everything else of
+        the lost run is work this run does again."""
+        old = self.rt.last_superseded_run(self.subject_kind, self.subject_id)
+        if old is None:
+            _log.warning('agent recorder: %s continues from %s but no superseded run exists', self.subject_id,
+                         resume.get('checkpoint'))
+            return
+        covered = COVERED_AGENTS.get(resume.get('stage'), ())
+        for task in self.rt.tasks_until(old, resume.get('written_at')):
+            lost = task['state'] == 'FAILED' and str((task.get('evidence') or {}).get('failed', '')).startswith(_LOST)
+            if task['state'] not in ('SUCCEEDED', 'FAILED') or (lost and task['agent_key'] not in covered):
+                continue
+            self._carry_task(old, task, 'SUCCEEDED' if lost else task['state'], resume,
+                             'its work is in the checkpoint' if lost else '')
+
+    def start(self, *, from_brief: bool, resume: dict | None = None) -> None:
+        """`resume` (S4.2): the checkpoint a recovered build continues from ({checkpoint, stage, round, written_at,
+        report_passed}); its finished tasks are carried from the lost worker's run instead of being run again."""
         def go():
             self.rt.supersede_open_runs(self.subject_kind, self.subject_id)
             self.run_id = self.rt.create_run(self.subject_kind, self.subject_id, budget_usd=self.budget)
+            if resume is not None:
+                self._carry(resume)
+                return
             if self.subject_kind == 'build':
                 for agent, skills in (('discovery_agent', ('safe_default_selection',)) if from_brief else (None, ()),
                                       ('requirements_agent', ('requirement_extraction',)),
@@ -194,6 +239,7 @@ class PlanBoundRecorder(BuildAgentRecorder):
         self.acceptance_criteria = list(acceptance_criteria or [])   # approved intake criteria (G3)
         self.by_stage: dict[str, str] = {}
         self.agent_of: dict[str, str] = {}
+        self.plan_task_of: dict[str, str] = {}   # task id -> the plan's task id (S4.2: matched in the lost run)
         self.state: dict[str, str] = {}
         # Plan-governed execution (OMNI_PLAN_DRIVEN=1): the durable task graph
         # admits every engine step; recording-only otherwise (legacy behaviour).
@@ -314,7 +360,7 @@ class PlanBoundRecorder(BuildAgentRecorder):
         self.state[tid] = st
         return st == target
 
-    def start(self, *, from_brief: bool) -> None:
+    def start(self, *, from_brief: bool, resume: dict | None = None) -> None:
         def go():
             self.rt.supersede_open_runs(self.subject_kind, self.subject_id)
             self.run_id = self.rt.create_run(self.subject_kind, self.subject_id, budget_usd=self.budget)
@@ -333,6 +379,7 @@ class PlanBoundRecorder(BuildAgentRecorder):
                 ids[plan_task_id] = tid
                 self.by_stage.setdefault(t.stage, tid)
                 self.agent_of[tid] = t.responsible_agent
+                self.plan_task_of[tid] = t.task_id
                 if not t.executable:
                     self.rt.transition(tid, 'BLOCKED', evidence={'gap': t.gap or 'no execution engine'})
         self._safe(go)
@@ -343,6 +390,58 @@ class PlanBoundRecorder(BuildAgentRecorder):
             if tid and self._move(tid, 'RUNNING'):
                 self._move(tid, 'SUCCEEDED', {'source': note})
                 self.done[self.agent_of[tid]] = tid
+        if resume is not None:
+            self._carry_plan(resume)
+
+    def _carry_plan(self, resume: dict) -> None:
+        """S4.2 on the plan's task graph: the stages the checkpoint holds end SUCCEEDED, carried from the lost worker's
+        run with their cost (the same plan budgets); the verification and repair tasks stand where the checkpoint's
+        round left them -- REPAIRING after a failed round, SUCCEEDED after a passed one -- with the plan's repair count,
+        so the plan admits the next repair round exactly as it would have."""
+        old = self._safe(self.rt.last_superseded_run, self.subject_kind, self.subject_id)
+        old_tasks = {}
+        for t in (self._safe(self.rt.tasks_until, old) or []) if old else []:
+            old_tasks[(t.get('evidence') or {}).get('plan_task')] = t
+
+        def carried_from(tid):
+            task = old_tasks.get(self.plan_task_of.get(tid))
+            return task, {'carried_from': {'run': old, 'task': task['id'] if task else None},
+                          'checkpoint': resume.get('checkpoint')}
+
+        def carry_cost(tid, task):
+            if task and task.get('cost_usd'):
+                self._safe(self.rt.charge, tid, Decimal(str(task['cost_usd'])),
+                           evidence={'carried_cost_from_task': task['id']})
+
+        for stage in COVERED_STAGES.get(resume.get('stage'), ()):
+            tid = self.by_stage.get(stage)
+            if tid is None:
+                continue
+            task, evidence = carried_from(tid)
+            if self._move(tid, 'RUNNING'):
+                carry_cost(tid, task)
+                if self._move(tid, 'SUCCEEDED', evidence):
+                    self.done[self.agent_of[tid]] = tid
+                    self.carried.append({'from': task['id'] if task else None, 'to': tid, 'stage': stage})
+        if resume.get('stage') not in ('round', 'finished'):
+            return
+        rounds, passed = int(resume.get('round') or 0), bool(resume.get('report_passed'))
+        self.verification_rounds, self.repair_rounds = rounds + 1, rounds
+        for stage in ('repair', 'review'):            # their spend so far counts against the same plan budgets
+            tid = self.by_stage.get(stage)
+            if tid is not None:
+                carry_cost(tid, carried_from(tid)[0])
+        for stage, reached in (('unit_tests', True), ('repair', rounds >= 1)):
+            tid = self.by_stage.get(stage)
+            if tid is None or not reached or not self._move(tid, 'RUNNING'):
+                continue
+            task, evidence = carried_from(tid)
+            if passed:
+                if self._move(tid, 'SUCCEEDED', {**evidence, 'round': rounds}):
+                    self.done[self.agent_of[tid]] = tid
+            else:
+                self._move(tid, 'REPAIRING', {**evidence, 'round': rounds,
+                                              'last_failure': f"round {rounds} failed ({resume.get('checkpoint')})"})
 
     def _stage_state(self, stage):
         tid = self.by_stage.get(stage)
