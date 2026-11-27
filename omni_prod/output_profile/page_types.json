@@ -1,0 +1,198 @@
+{
+ "schema": "148ai.page_types/1",
+ "_about": "Warehouse 123 (released by the owner 2026-11-27, inbox/004): the page types of a website. Today the engine has two output families (website, web_app); a website is one of eight page types, and each type is a SKELETON: which sections, in what order, which of them the type cannot do without, the image-to-text ratio it aims at, and the threshold table its gates judge it by. The model fills a skeleton; it does not copy a page. Every entry is source 'seed': written by hand from the section library (omni_prod/section_library, the keys of its ORDER), not extracted from a corpus. A corpus run (warehouse 120: five to eight real pages of the type) replaces an entry and sets source 'corpus' with 'corpus_pages'; check() refuses a 'corpus' entry without them. The detector reads 'cues': a cue is a word the customer wrote, with the weight of how strongly it names the type (3 names it, 2 leans, 1 hints; weak cues are capped). The stable key is the type's id (the key of 'types'): `page_type`. Fields that belong to item 122 (required FIELDS per type) are not here. 'sections' are section_library keys only; a section a type needs that the library does not have is named in 'not_in_library' and never faked. Thresholds: [min, max], measured on the rendered page (page_types.measure).",
+ "unit": {
+  "image_text": "images per 1000 characters of visible text in <main>",
+  "sections": "<section> elements in <main>",
+  "text_chars": "visible characters in <main>",
+  "ctas": "links or buttons with class btn in <main>"
+ },
+ "weak_cap": 3,
+ "min_score": 2,
+ "types": {
+  "business": {
+   "label_he": "עסק או שירות",
+   "label_en": "business or service",
+   "source": "seed",
+   "sections": ["hero", "stats", "services", "pricelist", "gallery", "about", "team", "process", "cta", "testimonials", "faq", "contact"],
+   "required_sections": ["hero", "services", "contact"],
+   "not_in_library": ["map", "booking"],
+   "image_text_target": 0.5,
+   "thresholds": {
+    "sections": [4, 12],
+    "text_chars": [1200, 9000],
+    "images": [0, 12],
+    "image_text": [0.0, 4.0],
+    "ctas": [2, 12],
+    "h1": [1, 1]
+   },
+   "cues": {
+    "3": ["עסק", "משרד עורכי דין", "משרד", "עורך דין", "עורכי דין", "רואה חשבון", "אטליז", "קצב", "מספרה",
+          "חנות", "בית קפה", "קפה", "מסעדה", "מאפייה", "מרפאה", "מרפאת שיניים", "קליניקה", "מכון", "חשמלאי", "אינסטלטור",
+          "מנעולן", "מנעולנות", "קבלן", "קייטרינג", "צימר", "וטרינר", "מוסך", "חברת הובלות", "חברה", "חברת", "business", "shop", "online store",
+          "clinic", "restaurant", "bakery", "salon", "firm", "company"],
+    "2": ["אתר תדמית", "תדמית", "מחירון", "תפריט", "שירותים"],
+    "1": ["שעות פתיחה", "שעות פעילות", "שעות", "כתובת", "רחוב", "ברח'", "טלפון", "וואטסאפ", "משלוחים", "שירות"]
+   }
+  },
+  "portfolio": {
+   "label_he": "תיק עבודות",
+   "label_en": "portfolio",
+   "source": "seed",
+   "sections": ["hero", "gallery", "services", "about", "process", "testimonials", "cta", "contact"],
+   "required_sections": ["hero", "gallery", "contact"],
+   "not_in_library": ["project_detail"],
+   "image_text_target": 4.0,
+   "thresholds": {
+    "sections": [3, 9],
+    "text_chars": [600, 6000],
+    "images": [3, 40],
+    "image_text": [1.0, 20.0],
+    "ctas": [1, 8],
+    "h1": [1, 1]
+   },
+   "cues": {
+    "3": ["תיק עבודות", "portfolio", "עבודות נבחרות", "פרויקטים נבחרים", "case studies"],
+    "2": ["גלריית עבודות", "צלם", "צלמת", "מעצב", "מעצבת", "מאייר", "מאיירת", "אדריכל", "אדריכלית", "פרילנסר", "freelancer",
+          "פרויקטים"],
+    "1": ["גלריה", "עבודות", "עבודות קודמות"]
+   }
+  },
+  "event": {
+   "label_he": "אירוע",
+   "label_en": "event",
+   "source": "seed",
+   "sections": ["hero", "about", "team", "faq", "cta", "contact"],
+   "required_sections": ["hero", "cta", "contact"],
+   "not_in_library": ["schedule", "venue", "countdown", "registration_form"],
+   "image_text_target": 1.0,
+   "thresholds": {
+    "sections": [3, 8],
+    "text_chars": [500, 5000],
+    "images": [0, 12],
+    "image_text": [0.0, 6.0],
+    "ctas": [2, 8],
+    "h1": [1, 1]
+   },
+   "cues": {
+    "3": ["כנס", "אירוע", "יום עיון", "פסטיבל", "הרצאה", "הזמנה לחתונה", "הזמנה לברית", "בר מצווה", "בת מצווה", "rsvp",
+          "אישור הגעה", "conference", "festival", "meetup", "webinar", "וובינר"],
+    "2": ["סדנה", "מסיבה", "חתונה", "ברית", "יום הולדת", "מפגש", "ערב השקה"],
+    "1": ["תאריך", "מיקום", "הרשמה", "כרטיסים"]
+   }
+  },
+  "community": {
+   "label_he": "קהילה",
+   "label_en": "community",
+   "source": "seed",
+   "sections": ["hero", "about", "stats", "gallery", "testimonials", "faq", "cta", "contact"],
+   "required_sections": ["hero", "about", "contact"],
+   "not_in_library": ["members", "events_list", "news"],
+   "image_text_target": 1.5,
+   "thresholds": {
+    "sections": [3, 9],
+    "text_chars": [600, 7000],
+    "images": [0, 20],
+    "image_text": [0.0, 8.0],
+    "ctas": [1, 8],
+    "h1": [1, 1]
+   },
+   "cues": {
+    "3": ["קהילה", "קהילתי", "קהילתית", "אוהדים", "מועדון", "עמותה", "פורום", "forum", "community", "fan site", "club", "מתנדבים", "התנדבות",
+          "תנועת נוער"],
+    "2": ["חברים", "תרומה", "תרומות", "הצטרפות", "להצטרף", "חברות"],
+    "1": ["קבוצה", "שכונה", "היסטוריה"]
+   }
+  },
+  "documentation": {
+   "label_he": "תיעוד",
+   "label_en": "documentation",
+   "source": "seed",
+   "sections": ["hero", "about", "process", "faq", "contact"],
+   "required_sections": ["hero", "process"],
+   "not_in_library": ["contents_nav", "article_body", "code_block", "search"],
+   "image_text_target": 0.3,
+   "thresholds": {
+    "sections": [3, 8],
+    "text_chars": [1500, 20000],
+    "images": [0, 10],
+    "image_text": [0.0, 1.5],
+    "ctas": [0, 6],
+    "h1": [1, 1]
+   },
+   "cues": {
+    "3": ["תיעוד", "documentation", "docs", "מדריך למשתמש", "מדריך התקנה", "מדריך שימוש", "מדריך מקוון", "api reference",
+          "readme", "wiki", "ויקי", "תיעוד טכני", "הוראות הפעלה", "knowledge base", "מאגר ידע"],
+    "2": ["מדריכים", "נהלים", "הנחיות", "צעד אחר צעד", "שלבי התקנה", "טוטוריאל", "tutorial"],
+    "1": ["התקנה", "הגדרה", "גרסה", "גרסאות"]
+   }
+  },
+  "product": {
+   "label_he": "מוצר",
+   "label_en": "product",
+   "source": "seed",
+   "sections": ["hero", "stats", "services", "gallery", "pricelist", "process", "testimonials", "faq", "cta", "contact"],
+   "required_sections": ["hero", "services", "cta"],
+   "not_in_library": ["feature_comparison", "specs_table"],
+   "image_text_target": 2.0,
+   "thresholds": {
+    "sections": [4, 11],
+    "text_chars": [800, 8000],
+    "images": [1, 20],
+    "image_text": [0.3, 10.0],
+    "ctas": [2, 10],
+    "h1": [1, 1]
+   },
+   "cues": {
+    "3": ["עמוד מוצר", "דף מוצר", "product page", "השקת מוצר", "המוצר שלנו", "המוצר החדש", "product launch", "תוכנה"],
+    "2": ["מוצר", "המוצר", "product", "אפליקציה", "תכונות", "features", "גאדג'ט", "השקה"],
+    "1": ["מפרט", "יתרונות", "הזמנה מוקדמת", "pre-order"]
+   }
+  },
+  "personal": {
+   "label_he": "עמוד אישי",
+   "label_en": "personal page",
+   "source": "seed",
+   "sections": ["hero", "about", "gallery", "services", "testimonials", "contact"],
+   "required_sections": ["hero", "about", "contact"],
+   "not_in_library": ["links_list", "timeline"],
+   "image_text_target": 1.5,
+   "thresholds": {
+    "sections": [3, 7],
+    "text_chars": [400, 4500],
+    "images": [0, 12],
+    "image_text": [0.0, 8.0],
+    "ctas": [1, 6],
+    "h1": [1, 1]
+   },
+   "cues": {
+    "3": ["אתר אישי", "עמוד אישי", "דף אישי", "personal site", "personal page", "קורות חיים", "cv", "resume", "אודותיי",
+          "הכירו אותי", "link in bio"],
+    "2": ["עליי", "על עצמי", "ביוגרפיה", "bio"],
+    "1": ["תחביבים", "הסיפור שלי"]
+   }
+  },
+  "landing": {
+   "label_he": "דף נחיתה",
+   "label_en": "landing page",
+   "source": "seed",
+   "sections": ["hero", "services", "stats", "testimonials", "faq", "cta", "contact"],
+   "required_sections": ["hero", "cta"],
+   "not_in_library": ["lead_form"],
+   "image_text_target": 1.5,
+   "thresholds": {
+    "sections": [3, 6],
+    "text_chars": [300, 3500],
+    "images": [0, 8],
+    "image_text": [0.0, 8.0],
+    "ctas": [3, 8],
+    "h1": [1, 1]
+   },
+   "cues": {
+    "3": ["קמפיין", "השארת פרטים", "להשאיר פרטים", "לידים", "leads", "הרשמה לניוזלטר", "הצעת מחיר"],
+    "2": ["דף נחיתה", "landing page", "landing"],
+    "1": ["מבצע", "הנחה", "קריאה לפעולה", "cta"]
+   }
+  }
+ }
+}
