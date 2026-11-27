@@ -290,9 +290,7 @@
     "tests/test_direction_sketch_money_pg.py"
    ],
    "expect_failed": [
-    "test_not_json_a_timeout_and_a_blocked_document_free_the_slot",
-    "test_the_fourth_attempt_after_three_failures_is_refused",
-    "test_the_total_on_a_projects_free_scope_never_passes_the_cap"
+    "test_an_answer_that_is_no_document_fails_the_sketch_with_its_reason_and_frees_the_slot"
    ]
   }
  ]

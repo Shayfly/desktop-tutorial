@@ -56,6 +56,13 @@ class Transport:
             Transport.calls += 1
         if self.mode == 'timeout':
             raise TimeoutError('read timed out')
+        if self.mode == 'list':
+            from omni_prod.provider_usage import ProviderUsage
+            self.last_usage = ProviderUsage(provider='gemini', model='gemini-3.1-flash-lite', external=True,
+                                            request_id=f'req-{uuid.uuid4().hex[:8]}', request_id_source='header',
+                                            response_id=None, input_tokens=900, output_tokens=5, cached_tokens=0,
+                                            provider_reported_cost_usd=None, usage_reported=True)
+            return []
         if self.mode == 'not_json':
             from omni_prod.model_gateway import ModelJSONRejected
             raise ModelJSONRejected('not JSON', raw='plain words', diagnostic={})
@@ -306,6 +313,15 @@ class AFailedCallDoesNotUseUpTheFreeSketch(PG):
                 self.assertEqual(done.copy_state, 'failed', done)
                 self.assertIsNone(done.copy)
         # after the first failure the slot is free: another sketch of the project may take it
+        other, _ = self.sketch(d, seq=1)
+        self.assertEqual(self.store.claim(other.id, self.project, self.account, 'company_first'), S.FREE)
+
+    def test_an_answer_that_is_no_document_fails_the_sketch_with_its_reason_and_frees_the_slot(self):
+        d = self.direction()
+        row, _ = self.sketch(d)
+        done = self.attempt(row, d, Transport(mode='list'))
+        self.assertEqual(done.copy_state, 'failed', done)
+        self.assertTrue(done.copy_reason.startswith('no words'), done.copy_reason)
         other, _ = self.sketch(d, seq=1)
         self.assertEqual(self.store.claim(other.id, self.project, self.account, 'company_first'), S.FREE)
 

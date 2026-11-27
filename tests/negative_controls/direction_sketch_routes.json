@@ -140,15 +140,12 @@
     }
    ],
    "targets": [
-    "tests/test_direction_sketch_routes_pg.py",
-    "tests/test_tenant_isolation_registry.py::test_every_gate_is_called_by_its_endpoint"
+    "tests/test_direction_sketch_routes_pg.py"
    ],
    "expect_failed": [
     "test_a_sketch_changes_nothing_that_decides_a_build",
     "test_a_sketch_id_of_another_project_is_a_404_like_an_id_that_never_existed",
     "test_another_account_gets_the_unknown_project_answer_on_all_three_routes",
-    "test_every_gate_is_called_by_its_endpoint[GET /api/v28/projects/{project_id}/sketches/{sketch_id}/page]",
-    "test_every_gate_is_called_by_its_endpoint[GET /api/v28/projects/{project_id}/sketches/{sketch_id}]",
     "test_from_the_reply_to_the_page_takes_seconds_with_no_worker_and_the_page_shows_the_direction",
     "test_with_the_model_route_on_and_the_queue_down_the_sketch_is_still_there_and_the_money_is_given_back"
    ]
@@ -212,6 +209,24 @@
    ],
    "expect_failed": [
     "test_the_customers_view_names_no_amount_no_reservation_and_no_prompt"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the three routes lose their gate (the registry test sees that the endpoint no longer calls it)",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "    from .direction_sketch.store import SketchStoreMissing\n    account, _key = _owner(project_id, request)\n    store = _sketch_store()",
+     "new": "    from .direction_sketch.store import SketchStoreMissing\n    account, _key = type('Anyone', (), {'id': 'usr_anyone'})(), None\n    store = _sketch_store()"
+    }
+   ],
+   "targets": [
+    "tests/test_tenant_isolation_registry.py::test_every_gate_is_called_by_its_endpoint"
+   ],
+   "expect_failed": [
+    "test_every_gate_is_called_by_its_endpoint[GET /api/v28/projects/{project_id}/sketches/{sketch_id}/page]",
+    "test_every_gate_is_called_by_its_endpoint[GET /api/v28/projects/{project_id}/sketches/{sketch_id}]"
    ]
   }
  ]
