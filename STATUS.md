@@ -1,3 +1,46 @@
+# 2026-11-27 — 2D games on the product route, behind a flag, with generated art (Claude Code; branch `claude/practical-hopper-oi3qj2-game2d`, pushed, NO PR, NOT dispatched, no paid call)
+
+- **Owner decision (inbox/005, answer 11):** 2D games at the highest level available now; warehouse 134 widened to generated art.
+- **What changed, in one line each:**
+  - `feature_flags.output_rollout(kind, account)`: `OMNI_OUTPUT_GAME` = `off` (default) | `owner` | `all`; any other value raises.
+    `route(family, account_id)` refuses `game` with today's sentence unless the rollout lets the account through; `game` is in
+    `EXECUTABLE` and has a profile (builder `canvas_game_v1`, check `omni_prod.game_kit.probe`). Sites and apps: byte for byte as before.
+  - `omni_prod/game_kit/builder.py`: the game builder is the SAME `AutonomousProductEngine` with game agents. The model writes
+    ONE definition (schema `148ai.game/1`), it is validated (one corrective call, a second invalid answer fails the build), the
+    art layer attaches images, the page is what the tested runtime assembles, and `game_probe` plays it in a real Chromium.
+    `worker_tasks.game_engine_for` (called by `execute_live_build_job`'s components factory) chooses the engine from the
+    approved contract's `product_family`; a game for an account the rollout does not allow raises in the worker too.
+  - `omni_prod/game_kit/art.py`: schema `148ai.game/2` (a version 1 definition still plays, a version 2 key in a version 1 file
+    is refused). Five roles (background, player, enemy, item, ground). Deterministic pixel art from the definition's seed and
+    palette is the fallback and the default; with `OMNI_GAME_ART=provider` the EXISTING image provider is asked per role and an
+    image that fails its checks (type, size, 16-2048 px, a sprite needs transparency) or an error is dropped and said, never
+    failing the build (`.omni/art.json` in the repository says per role where each image came from).
+  - Art is carried as FILES under `assets/` (the platform's image envelope), named by the definition: found on the real worker
+    path that bytes inlined in the page are blocked by the rights gate G5 (`IMAGE_SOURCE_UNKNOWN`); a relative file is a known source.
+  - `runtime.js`: sprites, a parallax background and ground tiles when the art is there (the flat look when not); the state window
+    of `__game.state()` is unchanged; `__game.art()` says what was drawn.
+- **Not done, said:**
+  1. The game's own QUESTIONS (what you do, how you win; acceptance 6 of warehouse 134): the conversation still asks the web app's
+     fields for a game (personal data, dates, duplicates). The customer's own request is what the model designs from.
+  2. RELEASE POLICY: `release_policy.build_report` knows only the web profile's mandatory set (preview_starts, behavioural
+     acceptance, browser flow). In production the policy always enforces, so a game that passed `game_probe` ends
+     `release_policy_failed` (pinned by `test_with_the_release_policy_enforcing_...`). What a game's mandatory set is, is a design
+     decision: ESCALATE.
+  3. The worker image has no Python Playwright or Chromium: on such a machine `game_probe` reads NOT_RUN as a FAILURE (a game that
+     was not played is not ready). Before `OMNI_OUTPUT_GAME=owner` can build in production the worker needs a browser (or the
+     probe must run through the sandbox runner).
+  4. Spend: `OMNI_GAME_ART=provider` calls the image provider through its own journal and kill switch, but the art's cost is not
+     in the build's economics quote or the plan's budget. The default (procedural) spends nothing. Never run on the real provider.
+  5. A real `BuildContract` of a game was not run through the worker (the test's request carries `product_family: game`, which
+     the conversation's real contract does say: tests/test_game_profile_routing.py); `planning.architect` plans a game with the web graph.
+  6. No sprite cutting or vision check (S12.4's cast sheet); no sound (S12.5); no quality measures beyond game_probe's (S12.6).
+- **Evidence (local, this session; PostgreSQL 16 throw-away, Chromium /opt/pw-browsers):** `tests/test_game_art.py` 27 passed (browser class
+  included: every kind played with art at 1280 and 390 px, every role it draws drawn from a loaded image); `tests/test_game_build_pg.py`
+  8 passed (the real worker path: a game is written, validated, played in Chromium and released; an invalid definition gets one corrective
+  call and a second invalid one fails the build before anything is played; a game the probe cannot win is repaired with the probe's findings
+  and played again; a game that is never playable never shows as ready); `tests/test_game_profile_routing.py` 16 passed; controls `game2d`
+  25/25 (15 plain, 25 with `NC_ENV=game`). The identity digest of main and of this branch are equal (`fd3a45bf...`).
+
 # 2026-11-27 — A requested rehearsal option that the worker ignored is now a red run (Claude Code; branch `claude/practical-hopper-oi3qj2-wh117-loud`, pushed, NO PR)
 
 - **Root cause (run 46005664127, job 140528059099):** the workflow printed `image=customer_photo account=none` and the build
