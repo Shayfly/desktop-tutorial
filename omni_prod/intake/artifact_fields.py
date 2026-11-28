@@ -53,6 +53,7 @@ class Field:
     implies: tuple[tuple[str, str], ...] = ()   # (value, cue pattern); '' = implied unless a raising cue appears
     raises: tuple[tuple[int, str], ...] = ()    # (boost, cue pattern)
     confirm: bool = False                       # sensitive: an implied value is proposed and confirmed, never assumed
+    words: bool = False                         # warehouse 122: the customer's reply to its question IS the value
 
 
 _COMMON = (

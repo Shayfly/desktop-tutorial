@@ -144,6 +144,9 @@ def to_library(doc: dict, sheet, *, direction: str, year: str, outline_titles: d
     if sheet.address:
         facts.append(('כתובת', sheet.address))
     facts.append(('טלפון', sheet.phone, L.tel(sheet.phone)))
+    page = getattr(sheet, 'page', None)
+    if page is not None:       # warehouse 122: the customer's words for the category's required fields, then its marked defaults
+        facts.extend(page.rows('he'))
     hero['panel_facts'] = facts
     if sheet.images.get('hero'):
         hero['image'] = dict(sheet.images['hero'])

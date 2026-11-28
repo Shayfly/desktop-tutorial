@@ -871,7 +871,8 @@ def customer_text(brief: Brief) -> str:
 def _facts(brief: Brief) -> dict:
     f = brief.assets.get('facts') or {}
     return {'spans': list(f.get('spans') or ()), 'needs': list(f.get('needs') or ()),
-            'waived': list(f.get('waived') or ())}
+            'waived': list(f.get('waived') or ()), 'page': dict(f.get('page') or {}),
+            'page_asked': list(f.get('page_asked') or ())}
 
 
 def _store_facts(brief: Brief, facts: dict) -> None:
@@ -927,12 +928,42 @@ def note_customer_texts(brief: Brief, texts) -> bool:
     facts = _facts(brief)
     before = json.dumps(facts, sort_keys=True, ensure_ascii=False)
     own = needs_in(brief.prompt)                           # read from the request itself: not stored again
+    from .page_requirements import capture
     for text in texts:
         clean = ' '.join((text or '').split())
         facts['spans'] += [x for x in _labelled_spans(clean, fact_spans(text or '')) if x not in facts['spans']]
         facts['needs'] += [k for k in needs_in(text or '') if k not in facts['needs'] and k not in own]
+        # warehouse 122: the customer's own words for a required field of the page's category (kosher status, delivery
+        # area, projects), from any message; the first words stay (a later message does not replace them)
+        facts['page'].update(capture(text or '', customer_text(brief), facts['page']))
     if json.dumps(facts, sort_keys=True, ensure_ascii=False) == before:
         return False
+    _store_facts(brief, facts)
+    return True
+
+
+def note_page_answers(brief: Brief, answers: dict) -> bool:
+    """Warehouse 122: record the customer's words for the required fields of the page's category that the detector took
+    from their replies ({field: words}); a field already recorded keeps its words. Returns whether it changed."""
+    facts = _facts(brief)
+    new = {k: v for k, v in (answers or {}).items() if v and not facts['page'].get(k)}
+    if not new:
+        return False
+    facts['page'].update(new)
+    _store_facts(brief, facts)
+    return True
+
+
+def page_asked(brief: Brief) -> list[str]:
+    """The required page fields the conversation agent was already given to ask (warehouse 122: each at most once)."""
+    return _facts(brief)['page_asked']
+
+
+def note_page_asked(brief: Brief, key: str) -> bool:
+    facts = _facts(brief)
+    if key in facts['page_asked']:
+        return False
+    facts['page_asked'].append(key)
     _store_facts(brief, facts)
     return True
 
@@ -1104,6 +1135,8 @@ def requirements_text(brief: Brief) -> str:
         if phone:
             lines.append(f'Call button: the button the customer asked for dials their phone -- a tel: link to {phone[0]}; '
                          'never a dead button or a "#" link.')
+    from .page_requirements import brief_lines
+    lines.extend(brief_lines(customer_text(brief), _facts(brief)['page'], _facts(brief)['page_asked']))   # warehouse 122
     if unwaived:
         lines.append(MISSING_PREFIX + '; '.join(unwaived) + '.')
     if missing:

@@ -1,0 +1,301 @@
+{
+ "pr": "wh122-required-fields",
+ "sha256": [
+  "tests/test_page_requirements.py",
+  "omni_prod/output_profile/required_fields.json"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a required field gets a default: an unanswered kosher status becomes a value nobody said",
+   "mutations": [
+    {
+     "file": "omni_prod/page_requirements.py",
+     "old": "out += [Field(r.key, '', REASON + r.key, BASE,",
+     "new": "out += [Field(r.key, 'standard', REASON + r.key, BASE,"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_dont_know_leaves_the_field_off_with_no_default_and_it_is_not_asked_again"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a field the agent was already given is given again: the same question twice",
+   "mutations": [
+    {
+     "file": "omni_prod/page_requirements.py",
+     "old": "        if key not in set(asked or ()):\n            return key",
+     "new": "        if True:\n            return key"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_a_field_the_agent_was_given_once_is_not_given_again"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the agent asks what the customer already said: the cue and the extractors are not read",
+   "mutations": [
+    {
+     "file": "omni_prod/page_requirements.py",
+     "old": "return [r.key for r in profile.required if not stored.get(r.key) and reader(r)(customer) is None]",
+     "new": "return [r.key for r in profile.required if not stored.get(r.key)]"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_a_butcher_who_said_everything_is_asked_nothing",
+    "test_a_butcher_who_said_only_the_phone_is_asked_for_the_rest",
+    "test_a_field_the_customer_did_not_give_is_listed_as_not_given_and_never_invented",
+    "test_a_field_the_message_states_is_not_asked_and_the_next_one_is",
+    "test_an_event_states_its_date_place_and_registration",
+    "test_kosher_or_halal_in_each_language",
+    "test_no_delivery_is_an_answer_and_delivery_without_a_place_is_not",
+    "test_the_customers_words_for_a_required_field_are_kept_and_bound_into_the_approved_brief",
+    "test_the_route_report_names_what_the_page_did",
+    "test_the_sheet_holds_the_customers_words_the_marked_defaults_and_what_is_not_given",
+    "test_three_projects_are_a_list_and_two_are_not"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a default shows on the page without its mark: the customer cannot tell it from what they said",
+   "mutations": [
+    {
+     "file": "omni_prod/page_requirements.py",
+     "old": "out.append((d.label[lang], f'{d.text[lang]} ({MARK[lang]})'))",
+     "new": "out.append((d.label[lang], f'{d.text[lang]}'))"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_the_page_shows_the_rows_in_the_hero_panel_and_marks_the_defaults",
+    "test_the_rows_are_in_hebrew_arabic_and_english_and_every_default_carries_the_mark",
+    "test_the_sheet_holds_the_customers_words_the_marked_defaults_and_what_is_not_given"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a price default shows although the customer gave prices",
+   "mutations": [
+    {
+     "file": "omni_prod/page_requirements.py",
+     "old": "        if d.key == 'price' and not has_prices:",
+     "new": "        if d.key == 'price':"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_a_default_is_not_shown_where_the_customer_said_it"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "no page type named: the type is not asked first, the page is built without knowing what it is",
+   "mutations": [
+    {
+     "file": "omni_prod/page_requirements.py",
+     "old": "    if profile.found in ('none', 'tie'):\n        out.append(Field(TYPE_KEY",
+     "new": "    if False:\n        out.append(Field(TYPE_KEY"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_a_tie_asks_the_type_too_and_a_reply_that_names_none_ends_the_question",
+    "test_no_type_the_type_is_asked_first_listing_the_types_and_a_reply_names_it",
+    "test_the_fixed_questions_are_the_tables_in_the_customers_language_and_offer_no_default",
+    "test_the_hebrew_arabic_and_english_butcher_ask_the_same_fields_after_the_type"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a required field the customer never gave is not listed as not given",
+   "mutations": [
+    {
+     "file": "omni_prod/page_requirements.py",
+     "old": "    if missing:\n        lines.append(NOT_GIVEN_LINE",
+     "new": "    if False:\n        lines.append(NOT_GIVEN_LINE"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_a_field_the_customer_did_not_give_is_listed_as_not_given_and_never_invented"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the agent is off and the page questions are asked anyway: a card-flow customer meets a text question with no button",
+   "mutations": [
+    {
+     "file": "omni_prod/page_requirements.py",
+     "old": "    from .intake.conversation_agent import enabled\n    return enabled()",
+     "new": "    from .intake.conversation_agent import enabled\n    return True"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_with_the_agent_off_nothing_is_asked_and_the_card_flow_is_unchanged",
+    "test_with_the_agent_off_the_brief_is_not_touched"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a platform word reaches a customer: the question about the phone speaks of the server",
+   "mutations": [
+    {
+     "file": "omni_prod/page_requirements.py",
+     "old": "'הוא יופיע בעמוד, ובו לקוחות יזמינו'",
+     "new": "'הוא יופיע בשרת, ובו לקוחות יזמינו'"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py",
+    "tests/test_customer_words.py"
+   ],
+   "expect_failed": [
+    "test_no_other_customer_text_gains_a_platform_word",
+    "test_the_conversation_route_holds_no_platform_word",
+    "test_the_module_is_part_of_the_customer_text_the_platform_words_check_reads",
+    "test_the_texts_are_in_three_languages_in_the_customers_words"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a question about a required field is asked at the conversation limit, where only a free question may be asked",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "            allowed = [n for n in allowed if n not in PR.TEXT]",
+     "new": "            allowed = allowed"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py",
+    "tests/test_conversation_limit.py"
+   ],
+   "expect_failed": [
+    "test_the_missing_items_are_named_and_one_is_asked_and_answered_by_words_for_free"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the table is read from a category, not the page type: a portfolio is asked for opening hours",
+   "mutations": [
+    {
+     "file": "omni_prod/page_requirements.py",
+     "old": "required = [_req(r) for r in data()['page_types'][page_type]['required']] if page_type else []",
+     "new": "required = [_req(r) for r in data()['page_types']['business']['required']] if page_type else []"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_a_portfolio_and_an_event_are_not_asked_for_opening_hours",
+    "test_an_event_states_its_date_place_and_registration",
+    "test_no_type_the_type_is_asked_first_listing_the_types_and_a_reply_names_it",
+    "test_three_projects_are_a_list_and_two_are_not"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "a reply of \"I don't know\" is taken as the customer's answer for a words field",
+   "mutations": [
+    {
+     "file": "omni_prod/page_requirements.py",
+     "old": "    return not (text or '').strip() or bool(_NON_ANSWER.match(text))",
+     "new": "    return not (text or '').strip()"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_dont_know_leaves_the_field_off_with_no_default_and_it_is_not_asked_again"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the name question replaces a reply that carries a required page field already marked as asked (the field is lost)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "if no_name and not page_gap and not res.conflicts",
+     "new": "if no_name and not res.conflicts"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_a_required_field_marked_as_asked_was_put_to_the_customer_not_swallowed_by_the_name_or_colour_question"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "the colour question replaces a reply that carries a required page field already marked as asked (the field is lost)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "if no_colour and not page_gap and not model_failed",
+     "new": "if no_colour and not model_failed"
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": [
+    "test_a_required_field_marked_as_asked_was_put_to_the_customer_not_swallowed_by_the_name_or_colour_question"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "a required field chosen in the turn that asks which of two names is marked as asked although the customer did not see it",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "if (q is not None and not two_names ",
+     "new": "if (q is not None "
+    }
+   ],
+   "targets": [
+    "tests/test_page_requirements.py"
+   ],
+   "expect_failed": ["test_two_names_are_asked_which_first_and_the_page_field_waits_unasked_for_its_turn"]
+  },
+  {
+   "id": "NC16",
+   "what": "a required page field blocks the which-of-two-names question",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": " and not model_failed and not name_choice\n",
+     "new": " and not model_failed\n"
+    }
+   ],
+   "targets": [
+    "tests/test_name_asked_once.py"
+   ],
+   "expect_failed": ["test_on_the_real_path_two_names_are_asked_which_and_the_answer_settles_it"]
+  }
+ ]
+}
