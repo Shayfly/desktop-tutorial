@@ -3,15 +3,41 @@ import json
 import re
 from urllib import request, error
 
-DEFAULT_MODEL = 'black-forest-labs/flux-schnell'
+SCHNELL = 'black-forest-labs/flux-schnell'
+# The owner, 2026-11-27 (inbox/005, decision 3): a stronger image model, without a side-by-side test. FLUX 1.1 pro:
+# Replicate lists it at $0.04 per image with commercial use (https://replicate.com/black-forest-labs/flux-1.1-pro, read
+# 2026-11-27 through a search of that page: the page itself was not reachable from the build sandbox). It returns ONE
+# image per prediction (no num_outputs input), so the adapter does not send one ('single_output').
+DEFAULT_MODEL = 'black-forest-labs/flux-1.1-pro'
+# model -> the configuration the provider needs to run it priced: one table, so a model change is one entry (law 9).
+# A model that is not here runs only with the operator's own price and licence (nothing is guessed for it).
+MODEL_PROFILES = {
+    DEFAULT_MODEL: {
+        'OMNI_IMAGE_PROVIDER_ESTIMATED_USD_PER_IMAGE': '0.04',
+        'OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE': '0.04',
+        'OMNI_IMAGE_PROVIDER_PRICE_SOURCE': 'https://replicate.com/black-forest-labs/flux-1.1-pro#2026-11-27',
+        'OMNI_IMAGE_PROVIDER_BILLING_UNIT': 'output',   # billed per output image
+        'OMNI_IMAGE_PROVIDER_COMMERCIAL_USE': 'true',
+        'OMNI_IMAGE_PROVIDER_LICENSE': 'Black Forest Labs API terms via Replicate (FLUX 1.1 pro; commercial use of outputs)',
+        'OMNI_IMAGE_PROVIDER_SINGLE_OUTPUT': 'true',
+    },
+    SCHNELL: {
+        'OMNI_IMAGE_PROVIDER_ESTIMATED_USD_PER_IMAGE': '0.003',
+        'OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE': '0.003',
+        'OMNI_IMAGE_PROVIDER_PRICE_SOURCE': 'https://replicate.com/pricing#2026-10-06',
+        'OMNI_IMAGE_PROVIDER_BILLING_UNIT': 'output',   # FLUX schnell is billed per output image
+        'OMNI_IMAGE_PROVIDER_COMMERCIAL_USE': 'true',
+        'OMNI_IMAGE_PROVIDER_LICENSE': 'Apache-2.0 (FLUX.1 schnell)',
+    },
+}
 
 
 def image_environment(env):
     """Use the saved token without overriding an explicitly configured provider.
 
-    The default model's published price is $3 per thousand output images:
-    https://replicate.com/pricing (checked 2026-10-06).
-    Custom models require their own price and licence configuration.
+    Each model of MODEL_PROFILES carries its published price and licence; schnell: $3 per thousand output images,
+    https://replicate.com/pricing (checked 2026-10-06). Any other model requires its own price and licence
+    configuration.
     """
     values = dict(env)
     if not str(values.get('REPLICATE_API_TOKEN', '')).strip():
@@ -31,15 +57,8 @@ def image_environment(env):
         'OMNI_IMAGE_PROVIDER_OUTPUT_HOSTS': 'replicate.delivery,'
                                             '=ai-gateway-outputs.0d37909e38d3e99c29fa2cd343ac421a.r2.cloudflarestorage.com',
     }
-    if model == DEFAULT_MODEL and not str(values.get('OMNI_IMAGE_PROVIDER_VERSION', '')).strip():
-        defaults.update({
-            'OMNI_IMAGE_PROVIDER_ESTIMATED_USD_PER_IMAGE': '0.003',
-            'OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE': '0.003',
-            'OMNI_IMAGE_PROVIDER_PRICE_SOURCE': 'https://replicate.com/pricing#2026-10-06',
-            'OMNI_IMAGE_PROVIDER_BILLING_UNIT': 'output',   # FLUX schnell is billed per output image
-            'OMNI_IMAGE_PROVIDER_COMMERCIAL_USE': 'true',
-            'OMNI_IMAGE_PROVIDER_LICENSE': 'Apache-2.0 (FLUX.1 schnell)',
-        })
+    if model in MODEL_PROFILES and not str(values.get('OMNI_IMAGE_PROVIDER_VERSION', '')).strip():
+        defaults.update(MODEL_PROFILES[model])
     if str(values.get('OMNI_IMAGE_PROVIDER_VERSION', '')).strip():
         defaults['OMNI_IMAGE_PROVIDER_SUBMIT_PATH'] = '/predictions'
     for name, value in defaults.items():

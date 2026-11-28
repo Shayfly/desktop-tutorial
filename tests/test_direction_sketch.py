@@ -31,7 +31,13 @@ PIZZA = 'אתר לפיצריה משפחתית ברמת גן בשם "פיצה ר�
 ACCOUNTANT = 'אני רוצה אתר למשרד רואי חשבון "לוי ושות׳". טלפון 03-5557777'
 FIXTURES = {'salon': SALON, 'pizza': PIZZA, 'accountant': ACCOUNTANT}
 # sha256 of demo_law_firm.build()'s html, taken on origin/main a034c58 before the library gained `draft`
-DEMO_SHA = '5fef8ccfee4adc591d3c6e685f56bb9829d20515fb58115223f486890a8d3097'
+# visual plan S0 (2026-11-27): LIBRARY_VERSION 2 -> 3 (the hero overlay stacking). The only byte that differs on this
+# page is the body marker data-148-kit="section-library/2" -> "section-library/3" (a difflib of the two pages, run on
+# origin/main bc7077e and on this branch); the demo has no hero photo, so none of the hero CSS reaches it.
+# visual plan S1 (2026-11-27): LIBRARY_VERSION 3 -> 4 (the photo-led heroes). Again the only byte that differs is the
+# body marker, "section-library/3" -> "section-library/4" (a difflib of the demo page on the S0 head c983924 and here):
+# the demo has no hero photo, so the new hero rules are purged from its page.
+DEMO_SHA = '3caaac236723037a4dddc8ef0e66a58317ced1a4fac4e1f1a89a379746bbe733'
 
 
 def on(**extra):

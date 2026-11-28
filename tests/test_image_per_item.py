@@ -160,12 +160,15 @@ class WhenNoItemsAreNamedOrAsked(unittest.TestCase):
         (question,) = [q for q in contract.unresolved_questions if q.id == 'image_items']
         self.assertEqual(question.question, 'לאילו פריטים לשים תמונה? כתבו את רשימת הפריטים, מופרדת בפסיקים.')
 
-    def test_a_list_alone_without_the_customers_ask_makes_no_item_pictures(self):
+    def test_a_list_alone_without_the_customers_ask_gets_a_picture_per_item_by_default(self):
+        # the owner, 2026-11-27 (inbox/005, decision 2): every listed item gets a picture unless the customer says none.
+        # It was: "a list alone makes no item pictures". The opt-out cases are tests/test_item_pictures_default.py.
         prompt = PROMPT
         for words in ASKED:
             prompt = prompt.replace(words + '\n', '')
         contract = compile_contract(prompt)
-        self.assertEqual([r for r in images(contract) if r.purpose == a4.ITEM_PURPOSE], [])
+        self.assertEqual([r.constraints['subject'] for r in images(contract) if r.purpose == a4.ITEM_PURPOSE],
+                         list(ITEMS))
         self.assertNotIn(IMAGE_ITEMS_UNREAD, contract.capability_plan.notes)
 
 

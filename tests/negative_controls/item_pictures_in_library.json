@@ -1,0 +1,229 @@
+{
+ "pr": "visual-s3",
+ "sha256": [
+  "tests/test_item_pictures_in_library.py",
+  "omni_prod/site_content/__init__.py",
+  "omni_prod/site_content/facts.py",
+  "omni_prod/site_content/render.py",
+  "omni_prod/site_content/validate.py",
+  "omni_prod/section_library/__init__.py",
+  "omni_prod/section_library/library.css"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a picture per item, asked in words, goes to the legacy path again (beyond_one_page: picture_per_item)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "if kind != 'picture_per_item']",
+     "new": "if True]"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_in_library.py::TheRoute"
+   ],
+   "expect_failed": [
+    "test_a_picture_per_item_never_sends_the_build_to_the_legacy_path"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the default picture per item goes to the legacy path again (item_pictures_default)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    if asked:\n        return Route(LEGACY, ('beyond_one_page: '",
+     "new": "    from ..capability_planner import item_pictures, item_pictures_wanted\n    if item_pictures_wanted(prompt) and item_pictures(prompt)['generated']:\n        return Route(LEGACY, 'item_pictures_default')\n    if asked:\n        return Route(LEGACY, ('beyond_one_page: '"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_in_library.py::TheRoute",
+    "tests/test_item_pictures_default.py::TheRoute"
+   ],
+   "expect_failed": [
+    "test_a_picture_per_item_never_sends_the_build_to_the_legacy_path",
+    "test_a_defaulted_item_picture_stays_on_the_library_route_which_places_it",
+    "test_a_page_per_item_and_the_owners_later_edits_still_go_to_the_legacy_path_by_name"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "some cards with a picture and some without is rendered instead of refused (all or none)",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    if any(have) and not all(have):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_in_library.py::TheLibrary"
+   ],
+   "expect_failed": [
+    "test_some_cards_with_a_picture_and_some_without_raises"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "every card is given the picture of the first item",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/render.py",
+     "old": "image = sheet.item_images.get(i.get('item'))",
+     "new": "image = sheet.item_images.get('@item:1')"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_in_library.py::TheRenderer"
+   ],
+   "expect_failed": [
+    "test_each_picture_is_inside_the_card_of_its_item_with_the_items_words_as_alt",
+    "test_a_card_reaching_the_renderer_without_its_item_is_a_platform_defect"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a card with no item, and an item no card names, pass validation",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/validate.py",
+     "old": "    if sheet.services_pictured() and cards:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_in_library.py::TheValidator",
+    "tests/test_site_content_validate.py::TheValidator::test_every_code_has_a_failing_document"
+   ],
+   "expect_failed": [
+    "test_a_card_with_no_item_while_every_item_has_a_picture_is_refused",
+    "test_two_cards_for_one_item_and_an_item_no_card_names_are_refused",
+    "test_every_code_has_a_failing_document"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a generated picture is bound to the first free item, not to the item its alt names",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/facts.py",
+     "old": "i['id'] not in bound and i['text'] == _norm(slot['alt'])",
+     "new": "i['id'] not in bound"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_in_library.py::TheSheetBindsItemsToPictures"
+   ],
+   "expect_failed": [
+    "test_an_alt_that_names_no_item_is_not_bound_to_the_wrong_one"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the library does not declare the places its sections hold pictures for",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    places = f' data-places=\"{\" \".join(serves)}\"' if serves else ''",
+     "new": "    places = ''"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_in_library.py::TheRenderer"
+   ],
+   "expect_failed": [
+    "test_each_picture_is_inside_the_card_of_its_item_with_the_items_words_as_alt",
+    "test_the_placement_check_of_the_asset_plan_passes_on_the_finished_page",
+    "test_an_item_with_no_picture_leaves_the_cards_bare_and_the_pictures_in_the_gallery",
+    "test_a_picture_among_the_items_with_no_list_is_in_a_gallery_that_says_so"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the gallery is never offered: the pictures the cards cannot carry are paid for and not shown",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "'gallery': bool(sheet.gallery_pictures()), 'contact': True}",
+     "new": "'gallery': False, 'contact': True}"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_in_library.py::TheRenderer::test_the_gallery_is_offered_only_with_pictures_for_it"
+   ],
+   "expect_failed": [
+    "test_the_gallery_is_offered_only_with_pictures_for_it"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a pictured services section keeps the numbered list layout, which has no card to carry a picture",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "        out['services'] = 'cards'               # the numbered list has no card to carry a picture",
+     "new": "        pass"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_in_library.py::TheLibrary"
+   ],
+   "expect_failed": [
+    "test_a_pictured_services_section_is_cards_even_when_the_list_was_asked"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a customer photo placed in the gallery sends the build to the legacy path again",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "if p not in ('hero', 'story', 'products', 'gallery')]",
+     "new": "if p not in ('hero', 'story')]"
+    }
+   ],
+   "targets": [
+    "tests/test_site_content_route.py::TheDecisionTable::test_what_the_library_now_holds_stays_on_it"
+   ],
+   "expect_failed": [
+    "test_what_the_library_now_holds_stays_on_it"
+   ]
+  },
+  {
+   "id": "NC11",
+   "envs": ["browser"],
+   "what": "the picture in a card does not fill the card",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": ".card-photo { width: 100%;",
+     "new": ".card-photo { width: 50%;"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_in_library.py::InTheBrowser::test_nothing_scrolls_sideways_and_each_picture_fills_its_card"
+   ],
+   "expect_failed": [
+    "test_nothing_scrolls_sideways_and_each_picture_fills_its_card"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the page is rendered without the gallery the customer's outline did not name, so its pictures vanish",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/schema.py",
+     "old": "    if order is None or 'gallery' in order or not sheet.gallery_pictures():\n        return order\n    return [*order, 'gallery']",
+     "new": "    return order"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_in_library.py::TheRenderer::test_a_picture_among_the_items_with_no_list_is_in_a_gallery_that_says_so"
+   ],
+   "expect_failed": [
+    "test_a_picture_among_the_items_with_no_list_is_in_a_gallery_that_says_so"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "pr": "hero-overlay-stacking",
+ "sha256": ["tests/test_hero_overlay_stacking.py", "omni_prod/section_library/library.css"],
+ "controls": [
+  {"id": "NC1", "envs": ["browser"], "what": "the overlay is back at z-index 0 under the photo: the panel's edge reads the photo's own colour",
+   "mutations": [{"file": "omni_prod/section_library/library.css", "old": ".panel--photo::before { content: \"\"; position: absolute; inset: 0; z-index: 1;", "new": ".panel--photo::before { content: \"\"; position: absolute; inset: 0; z-index: 0;"},
+                 {"file": "omni_prod/section_library/library.css", "old": ".panel-photo { position: absolute; inset: 0; z-index: 0;", "new": ".panel-photo { position: absolute; inset: 0;"}],
+   "targets": ["tests/test_hero_overlay_stacking.py"],
+   "expect_failed": ["test_the_overlay_is_above_the_photo_in_every_direction_and_viewport", "test_the_stacking_is_photo_then_overlay_then_text"]},
+  {"id": "NC2", "what": "the text is under the overlay (z-index 1 beside the overlay's 1): the order photo, overlay, text is lost",
+   "mutations": [{"file": "omni_prod/section_library/library.css", "old": ".panel--photo > :not(img) { position: relative; z-index: 2; }", "new": ".panel--photo > :not(img) { position: relative; z-index: 1; }"}],
+   "targets": ["tests/test_hero_overlay_stacking.py"],
+   "expect_failed": ["test_the_stacking_is_photo_then_overlay_then_text"]},
+  {"id": "NC3", "what": "the page's bytes changed but LIBRARY_VERSION did not move",
+   "mutations": [{"file": "omni_prod/section_library/__init__.py", "old": "LIBRARY_VERSION = '4'", "new": "LIBRARY_VERSION = '3'"}],
+   "targets": ["tests/test_hero_overlay_stacking.py"],
+   "expect_failed": ["test_the_library_version_moved_with_the_page_bytes"]}
+ ]
+}

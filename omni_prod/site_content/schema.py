@@ -79,7 +79,10 @@ SECTIONS = {
     'hero': {'eyebrow': Str(40, True), 'title': Str(_H['h1']), 'lead': Str(220), 'cta': Str(30), 'note': Str(90, True),
              'panel_label': Str(40, True), 'panel_figure': Obj({'value': Num(), 'caption': Str(40)}, True)},
     'stats': {'label': Str(40, True), 'items': Lst(2, 6, Obj({'value': Num(), 'label': Str(30)}))},
-    'services': {**_head(), 'items': Lst(2, 24, Obj({'title': Str(_H['h3']), 'desc': Str(220)}))},
+    # `item`: when the customer's items have pictures (sheet.services_pictured) each card names the item whose picture it
+    # carries, "@item:N" -- the renderer attaches the picture; the model never sees or chooses one (visual plan S3)
+    'services': {**_head(), 'items': Lst(2, 24, Obj({'title': Str(_H['h3']), 'desc': Str(220), 'item': Ref('@item', True)}))},
+    'gallery': {**_head()},
     'about': {**_head(), 'paragraphs': Lst(1, 6, Str(400)),
               'facts': Lst(1, 12, Obj({'label': Str(20), 'value': Str(80)}), True)},
     'process': {**_head(), 'steps': Lst(2, 12, Obj({'title': Str(_H['h3']), 'desc': Str(200)}))},
@@ -98,9 +101,9 @@ TOP = {'schema': None, 'name': Str(60), 'tagline': Str(50), 'description': Str(1
 # (section.field), each only when its section is offered:
 SHORTENABLE = ('stats.items', 'services.items', 'about.paragraphs', 'about.facts', 'process.steps', 'faq.items',
                'testimonials.items', 'pricelist.groups', 'contact.topics')
-NAV_SECTIONS = ('services', 'about', 'process', 'faq', 'testimonials', 'pricelist', 'contact')
+NAV_SECTIONS = ('services', 'about', 'process', 'faq', 'testimonials', 'pricelist', 'gallery', 'contact')
 # sections the library has that this route never offers in slice 1, and why (said in `skipped`)
-NEVER = {'team': 'no team members in the customer\'s facts', 'gallery': 'gallery images are not on this route yet'}
+NEVER = {'team': 'no team members in the customer\'s facts'}
 
 
 def platform_fields(key: str, outline_titles: dict) -> set[str]:
@@ -119,9 +122,9 @@ def offered_sections(sheet, palette: dict, order: list[str] | None, outline_titl
     """({section: 'required' | 'optional'}, [(section, why it is not offered)])."""
     outline_titles = outline_titles or {}
     basis = {'stats': len(sheet.allowed_numbers()) >= 2, 'testimonials': bool(sheet.reviews), 'pricelist': bool(sheet.prices),
-             'contact': True}
+             'gallery': bool(sheet.gallery_pictures()), 'contact': True}
     reason = {'stats': 'fewer than two numbers the customer wrote', 'testimonials': 'no review the customer gave',
-              'pricelist': 'no price the customer gave'}
+              'pricelist': 'no price the customer gave', 'gallery': 'no picture for a gallery'}
     offered: dict[str, str] = {}
     skipped: list[tuple[str, str]] = []
     if order is not None:
@@ -129,17 +132,19 @@ def offered_sections(sheet, palette: dict, order: list[str] | None, outline_titl
             if key in NEVER or not basis.get(key, True):
                 raise ValueError(f'outline section {key!r} has no basis on this route: {NEVER.get(key) or reason[key]}')
             offered[key] = 'required'
+        if basis['gallery'] and 'gallery' not in offered:
+            offered['gallery'] = 'required'      # a picture the page must show has its section, after the customer's own
         skipped += [(k, "not in the customer's outline") for k in SECTIONS if k not in offered]
     else:
         for key in palette['sections']:
             offered[key] = 'required'
         for key in palette.get('optional_sections', ()):    # an unnamed business (site_content.unnamed_entry)
             offered.setdefault(key, 'optional')
-        for key in ('stats', 'testimonials', 'pricelist'):
+        for key in ('stats', 'testimonials', 'pricelist', 'gallery'):
             if key in offered:
                 continue
             if basis[key]:
-                offered[key] = 'optional'
+                offered[key] = 'required' if key == 'gallery' else 'optional'     # pictures paid for are shown
             else:
                 skipped.append((key, reason[key]))
         said = {k for k, _ in skipped}
@@ -183,3 +188,11 @@ def schema_for_model(offered: dict, outline_titles: dict, *, name_given: bool, l
                                           'left_out': 'how many of the customer\'s items this list leaves out (1 or more)',
                                           'why': 'one short English sentence'}]})
     return top
+
+
+def page_order(sheet, order: list[str] | None) -> list[str] | None:
+    """The order the page is rendered in: the customer's outline, and -- when the sheet has pictures for a gallery that
+    the outline does not name -- the gallery after it (offered_sections offers it as required)."""
+    if order is None or 'gallery' in order or not sheet.gallery_pictures():
+        return order
+    return [*order, 'gallery']

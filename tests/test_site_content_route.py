@@ -83,6 +83,16 @@ class TheDecisionTable(unittest.TestCase):
         self.assertEqual((route.contract['tokens']['--font-family'], route.contract['tokens']['--font-display']),
                          ("'Heebo', system-ui, sans-serif", "'Frank Ruhl Libre', serif"))
 
+    def test_what_the_library_now_holds_stays_on_it(self):
+        # visual plan S3: a photo placed among the items or in the gallery, several pictures, a picture per item
+        gallery = ('Uploaded image 1 attachment: att_' + 'c' * 32 + '; sha256=' + 'd' * 64
+                   + '; src="148ai-asset://upload/1"; placement: gallery; role place: "המשרד".')
+        with on():
+            for label, prompt in (('a photo in the gallery', with_brief_line(gallery)),
+                                  ('three pictures', with_request('אני רוצה 3 תמונות של המשרד.'))):
+                with self.subTest(label):
+                    self.assertEqual(decide(prompt).route, 'section_library')
+
     def test_every_legacy_reason(self):
         logo = 'Uploaded logo attachment: att_' + 'a' * 32 + '; sha256=' + 'b' * 64 + '.'
         gallery = ('Uploaded image 1 attachment: att_' + 'c' * 32 + '; sha256=' + 'd' * 64
@@ -95,9 +105,7 @@ class TheDecisionTable(unittest.TestCase):
                            'Do not store personal or contact details of people.\nProduct kind: CONTENT-ONLY website.'),
             'uploaded_logo': with_brief_line(logo),
             'approved_windows: mega_menu': with_brief_line('\n'.join(prompt_lines(['mega_menu']))),
-            'image_place_gallery': with_brief_line(gallery),
             'icon_image': with_request('אני רוצה גם לוגו למשרד.'),
-            'several_pictures': with_request('אני רוצה 3 תמונות של המשרד.'),
             # a brief with no Design line at all locks nothing to complete; a Design line whose colour answer has no hex
             # (a description) no longer lands here: colour_roles completes it (tests/test_colour_roles.py)
             'no_design_contract: ': PROMPT.replace(

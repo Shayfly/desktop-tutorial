@@ -1,0 +1,211 @@
+{
+ "pr": "images-strong-default",
+ "sha256": [
+  "tests/test_item_pictures_default.py",
+  "omni_prod/capability_planner.py",
+  "omni_prod/media_pipeline.py",
+  "omni_prod/providers/image_provider.py",
+  "omni_prod/providers/replicate_connection.py",
+  "omni_prod/providers/replicate_image_test.py",
+  "omni_prod/site_content/__init__.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the picture per listed item is not the default any more: it needs the customer's words again",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": "    return (_CONTENT_SITE in (full_prompt or \"\") and not pictures_declined(full_prompt) and bool(_brief_items(full_prompt)))",
+     "new": "    return False"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_default.py"
+   ],
+   "expect_failed": [
+    "test_each_listed_item_gets_a_picture_with_no_word_from_the_customer",
+    "test_no_stock_photos_is_not_no_pictures",
+    "test_a_defaulted_item_picture_stays_on_the_library_route_which_places_it",
+    "test_every_item_picture_is_one_request_to_the_model_with_its_proportions_and_a_computed_cost",
+    "test_ten_item_pictures_and_the_main_one_stay_far_under_the_build_cap"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the customer's no-pictures is ignored by the default",
+   "mutations": [
+    {
+     "file": "omni_prod/capability_planner.py",
+     "old": " and not pictures_declined(full_prompt) and ",
+     "new": " and "
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_default.py"
+   ],
+   "expect_failed": [
+    "test_a_customer_who_says_no_pictures_gets_none_in_three_languages",
+    "test_a_defaulted_item_picture_stays_on_the_library_route_which_places_it"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the Arabic refusal of pictures is not read",
+   "mutations": [
+    {
+     "file": "omni_prod/media_pipeline.py",
+     "old": "(?:بدون|بلا|دون|من\\s+غير|لا)",
+     "new": "(?:XX)"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_default.py"
+   ],
+   "expect_failed": [
+    "test_a_customer_who_says_no_pictures_gets_none_in_three_languages"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "'no STOCK photos' is read as 'no pictures'",
+   "mutations": [
+    {
+     "file": "omni_prod/media_pipeline.py",
+     "old": "(?!\\s+(?:מלאי|סטוק))",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_default.py"
+   ],
+   "expect_failed": [
+    "test_no_stock_photos_is_not_no_pictures",
+    "test_each_listed_item_gets_a_picture_with_no_word_from_the_customer",
+    "test_every_item_picture_is_one_request_to_the_model_with_its_proportions_and_a_computed_cost",
+    "test_ten_item_pictures_and_the_main_one_stay_far_under_the_build_cap",
+    "test_a_defaulted_item_picture_stays_on_the_library_route_which_places_it"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "num_outputs is sent to a model that takes none",
+   "mutations": [
+    {
+     "file": "omni_prod/providers/image_provider.py",
+     "old": "        if not self.config.single_output:",
+     "new": "        if True:"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_default.py"
+   ],
+   "expect_failed": [
+    "test_every_item_picture_is_one_request_to_the_model_with_its_proportions_and_a_computed_cost"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a quantity above one for a one-image model is accepted and silently delivered short",
+   "mutations": [
+    {
+     "file": "omni_prod/providers/image_provider.py",
+     "old": "        if self.config.single_output and int(requirement.quantity) != 1:",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_default.py"
+   ],
+   "expect_failed": [
+    "test_a_model_that_makes_one_image_refuses_a_larger_quantity_before_anything_is_sent"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the default model is FLUX schnell again",
+   "mutations": [
+    {
+     "file": "omni_prod/providers/replicate_connection.py",
+     "old": "DEFAULT_MODEL = 'black-forest-labs/flux-1.1-pro'",
+     "new": "DEFAULT_MODEL = 'black-forest-labs/flux-schnell'"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_default.py",
+    "tests/test_replicate_connection.py",
+    "tests/test_computed_cost_from_usage.py"
+   ],
+   "expect_failed": [
+    "test_the_default_is_flux_1_1_pro_priced_and_licensed_from_its_profile",
+    "test_every_item_picture_is_one_request_to_the_model_with_its_proportions_and_a_computed_cost",
+    "test_ten_item_pictures_and_the_main_one_stay_far_under_the_build_cap",
+    "test_a_model_that_makes_one_image_refuses_a_larger_quantity_before_anything_is_sent",
+    "test_saved_replicate_token_selects_priced_image_provider",
+    "test_replicate_official_model_submit_uses_input_only_and_resumes",
+    "test_flux_1_1_pro_is_billed_per_output_and_gets_a_computed_cost"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "FLUX 1.1 pro is metered at the schnell price",
+   "mutations": [
+    {
+     "file": "omni_prod/providers/replicate_connection.py",
+     "old": "        'OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE': '0.04',",
+     "new": "        'OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE': '0.003',"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_default.py",
+    "tests/test_replicate_connection.py",
+    "tests/test_computed_cost_from_usage.py"
+   ],
+   "expect_failed": [
+    "test_the_default_is_flux_1_1_pro_priced_and_licensed_from_its_profile",
+    "test_every_item_picture_is_one_request_to_the_model_with_its_proportions_and_a_computed_cost",
+    "test_ten_item_pictures_and_the_main_one_stay_far_under_the_build_cap",
+    "test_saved_replicate_token_selects_priced_image_provider",
+    "test_flux_1_1_pro_is_billed_per_output_and_gets_a_computed_cost",
+    "test_a_model_that_makes_one_image_refuses_a_larger_quantity_before_anything_is_sent",
+    "test_replicate_official_model_submit_uses_input_only_and_resumes"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the owner's $0.003 connection test runs on the new $0.04 model",
+   "mutations": [
+    {
+     "file": "omni_prod/providers/replicate_image_test.py",
+     "old": "'OMNI_IMAGE_PROVIDER_MODEL': SCHNELL,",
+     "new": "'OMNI_IMAGE_PROVIDER_UNUSED': SCHNELL,"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_default.py",
+    "tests/test_replicate_image_test.py"
+   ],
+   "expect_failed": [
+    "test_the_owners_paid_connection_test_stays_on_the_cheap_model_it_confirms",
+    "test_paid_submit_is_fixed_single_image_and_survives_new_process"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the content route sends a defaulted item picture to the legacy path again (item_pictures_default) instead of placing it",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    asked = [(kind, words) for kind, words in beyond(Fx.customer_text(prompt)) if kind != 'picture_per_item']",
+     "new": "    from ..capability_planner import item_pictures, item_pictures_wanted\n    if item_pictures_wanted(prompt) and item_pictures(prompt)['generated']:\n        return Route(LEGACY, 'item_pictures_default')\n    asked = [(kind, words) for kind, words in beyond(Fx.customer_text(prompt)) if kind != 'picture_per_item']"
+    }
+   ],
+   "targets": [
+    "tests/test_item_pictures_default.py"
+   ],
+   "expect_failed": [
+    "test_a_defaulted_item_picture_stays_on_the_library_route_which_places_it"
+   ]
+  }
+ ]
+}

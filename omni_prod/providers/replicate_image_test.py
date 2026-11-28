@@ -8,6 +8,7 @@ import hashlib
 import re
 import logging
 from .image_provider import build_image_provider, sniff_image
+from .replicate_connection import SCHNELL
 from ..capabilities import CapabilityRequirement
 from ..provider_contracts import ProviderTaskHandle
 
@@ -84,7 +85,9 @@ class ReplicateImageTest:
         # This test always uses the publicly priced default model, irrespective
         # of custom build-provider settings. Never submit an unpriced model.
         # The switches travel with the token (C32 #93): the provider checks them again before its own request.
+        # The connection test is one cheap image: the model whose maximum it confirms ($0.003), whatever the builds use.
         self.provider = build_image_provider({'REPLICATE_API_TOKEN': env.get('REPLICATE_API_TOKEN', ''),
+                                              'OMNI_IMAGE_PROVIDER_MODEL': SCHNELL,
                                               **{k: env[k] for k in SWITCHES if k in env}},
             journal=journal, urlopen=urlopen, fetcher=fetcher)
         self.journal = journal

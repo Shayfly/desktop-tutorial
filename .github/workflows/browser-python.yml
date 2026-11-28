@@ -220,3 +220,68 @@ jobs:
           NC_ENV: browser
           NC_JOBS: "2"
         run: NC_SCOPE=declared python scripts/run_negative_controls.py font_range
+
+  # Visual plan S1-S3 (2026-11-28, #573): the picture measures run the platform's in-sandbox script in real Chromium
+  # (tests/test_visual_picture_measures.py) and the pictured cards of the section library are measured in it
+  # (tests/test_item_pictures_in_library.py, class InTheBrowser). v24-ci's `validate` job has no playwright, so these
+  # skip there -- and one of them did not skip and failed (job 141032356496, "No module named 'playwright'"); it skips
+  # loudly now. No other job ran either file. A job of its own: browser-python's steps already fill its cap. A skip
+  # fails here too, so the skip in `validate` cannot become a pass that nothing ever ran.
+  picture-measures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt playwright==1.63.0
+      - name: Install Chromium (bounded attempts, retried)
+        timeout-minutes: 9
+        run: |
+          echo 'DPkg::Lock::Timeout "150";' | sudo tee /etc/apt/apt.conf.d/90-wait-for-dpkg-lock >/dev/null
+          for attempt in 1 2 3; do
+            if timeout 160 python -m playwright install --with-deps chromium; then
+              echo "playwright install: ok on attempt $attempt"; exit 0
+            fi
+            echo "::warning title=playwright install::attempt $attempt failed or hung (160s); retrying"
+            sleep $((attempt * 5))
+          done
+          echo "::error title=playwright install::failed 3 times; the picture tests cannot run"
+          exit 1
+      - name: Picture tests
+        timeout-minutes: 9
+        run: python -m pytest -q -rs --junitxml=pictures.xml tests/test_visual_picture_measures.py tests/test_item_pictures_in_library.py
+      - name: No test may be skipped
+        if: always()
+        run: |
+          python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          cases = list(ET.parse('pictures.xml').getroot().iter('testcase'))
+          skipped = [f"{c.get('classname')}.{c.get('name')}" for c in cases if c.find('skipped') is not None]
+          failed = [f"{c.get('classname')}.{c.get('name')}" for c in cases
+                    if c.find('failure') is not None or c.find('error') is not None]
+          print(f'::notice title=picture-measures::{len(cases)} test cases, {len(failed)} failed, {len(skipped)} skipped')
+          for s in skipped:
+              print(f'::error title=skipped::{s}')
+          for f in failed:
+              print(f'::notice title=failed test::{f}')
+          sys.exit(1 if skipped or failed or not cases else 0)
+          PY
+      - name: Negative controls (browser)
+        if: always()
+        # The controls of visual-s1, visual-s2 and visual-s3 (and the hero overlay's NC1) whose expected tests need Chromium
+        # say envs: browser: in v24-ci's shards those tests skip, and a control whose expected test skipped is DID NOT RUN
+        # (#573, negative-controls (4): visual-s1 NC1, NC4-NC8). They run here and nowhere else.
+        timeout-minutes: 10
+        env:
+          NC_ENV: browser
+          NC_JOBS: "2"
+        run: |
+          NC_SCOPE=declared python scripts/run_negative_controls.py hero_photo_led; a=$?
+          NC_SCOPE=declared python scripts/run_negative_controls.py visual_picture_measures; b=$?
+          NC_SCOPE=declared python scripts/run_negative_controls.py item_pictures_in_library; c=$?
+          NC_SCOPE=declared python scripts/run_negative_controls.py hero_overlay_stacking; d=$?
+          exit $(( a | b | c | d ))

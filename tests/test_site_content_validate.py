@@ -88,6 +88,11 @@ class TheValidator(unittest.TestCase):
         case('PLACEHOLDER', 'sections.contact.lead', lambda d: sec(d)['contact'].update(lead='כתבו לנו ל«דוא״ל»'))
         case('UNVERIFIABLE_CLAIM', 'sections.hero.lead', lambda d: sec(d)['hero'].update(
             lead='המשרד המוביל בדיני עבודה, משיחת הייעוץ ועד סיום ההליך.'))
+        # visual plan S3: the customer's items all have pictures, and no card names one
+        pictured = copy.copy(self.sheet)
+        pictured.items = [{'id': '@item:1', 'text': 'פיטורים'}, {'id': '@item:2', 'text': 'הטרדה'}]
+        pictured.item_images = {i['id']: {'src': f'148ai-asset://image/{n}', 'alt': i['text']} for n, i in enumerate(pictured.items, 1)}
+        case('ITEM_PICTURE_UNPLACED', 'sections.services.items', lambda d: None, sheet=pictured)
         self.assertEqual(set(cases), set(V.CODES))                    # a code with no failing document fails here
         for code, (path, found) in cases.items():
             with self.subTest(code=code):

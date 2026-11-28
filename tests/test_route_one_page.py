@@ -53,13 +53,15 @@ class OnePageCannotHoldIt(unittest.TestCase):
         self.assertTrue(route.reason.startswith('beyond_one_page: '), route.reason)
         found = one_page.beyond(Fx.customer_text(GOA))
         self.assertEqual([k for k, _ in found], ['picture_per_item', 'separate_pages', 'owner_edits_later'])
+        self.assertNotIn('picture_per_item', route.reason)         # visual plan S3: a picture per item stays on the route
         words = dict(found)
         self.assertIn('כל נושא', words['picture_per_item'])
         self.assertIn('תמונה', words['picture_per_item'])
         self.assertIn('לעמוד חדש', words['separate_pages'])
         self.assertIn('להעלות', words['owner_edits_later'])
         for kind, said in found:
-            self.assertIn(f'{kind} "{said}"', route.reason)
+            if kind != 'picture_per_item':
+                self.assertIn(f'{kind} "{said}"', route.reason)
         # the customer's own request says all three; the approved brief's Screens line is read too, never alone
         self.assertEqual([k for k, _ in one_page.beyond(Fx.request_text(GOA))],
                          ['picture_per_item', 'separate_pages', 'owner_edits_later'])
@@ -83,8 +85,10 @@ class OnePageCannotHoldIt(unittest.TestCase):
                 self.assertEqual(decide(with_request(text + '.')).route, 'section_library')
 
     def test_each_kind_on_the_route_names_itself(self):
-        for text, kind in (('ליד כל שירות תשימו תמונה.', 'picture_per_item'),
-                           ('עמוד נפרד לכל תחום התמחות.', 'separate_pages'),
+        # a picture per item is read (picture_per_item) and stays on the library route (visual plan S3)
+        self.assertIn('picture_per_item', [k for k, _ in one_page.beyond('ליד כל שירות תשימו תמונה.')])
+        self.assertEqual(decide(with_request('ליד כל שירות תשימו תמונה.')).route, 'section_library')
+        for text, kind in (('עמוד נפרד לכל תחום התמחות.', 'separate_pages'),
                            ('ושאוכל לעדכן את השאלות הנפוצות בעצמי.', 'owner_edits_later')):
             with self.subTest(kind):
                 route = decide(with_request(text))

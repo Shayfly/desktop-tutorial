@@ -31,7 +31,7 @@ from .. import typography as T
 
 HERE = Path(__file__).resolve().parent
 # shipped without its comments: a comment that names what the page avoids must not read as the thing itself
-LIBRARY_VERSION = '2'
+LIBRARY_VERSION = '4'
 
 
 def _minify(css: str) -> str:
@@ -276,9 +276,13 @@ def _head(d: dict, key: str) -> str:
     return f'<div class="section-head">{eyebrow}<h2 class="title" id="{key}-title">{e(d["title"])}</h2>{lead}</div>'
 
 
-def _section(key: str, tone: str, inner: str, wrap: str = '') -> str:
+def _section(key: str, tone: str, inner: str, wrap: str = '', serves: tuple = ()) -> str:
+    """`serves`: the customer's places (a4: products) this section holds pictures for although its own name is another's --
+    the pictured services cards stand for the products, a gallery may stand in for them. The attribute is read by a4's
+    placement check (uploaded_assets.place_state): its section words for `products` match the attribute value itself."""
     cls = ' '.join(['section'] + tone.split())
-    return (f'<section class="{cls}" id="{key}" aria-labelledby="{key}-title"><div class="wrap{" " + wrap if wrap else ""}">'
+    places = f' data-places="{" ".join(serves)}"' if serves else ''
+    return (f'<section class="{cls}" id="{key}"{places} aria-labelledby="{key}-title"><div class="wrap{" " + wrap if wrap else ""}">'
             f'{inner}</div></section>')
 
 
@@ -316,8 +320,9 @@ def hero(c: dict, tone: str, direction: str, merge_stats: bool = False) -> str:
     if not has_panel(c):
         return (f'<section class="hero hero--solo" id="top" aria-labelledby="hero-title"><div class="wrap">{copy}</div>'
                 f'</section>')
-    facts = ''.join(f'<div><dt>{e(f[0])}</dt><dd>' + (f'<a href="{ea(f[2])}">{e(f[1])}</a>' if len(f) > 2 else _val(f[1]))
-                    + '</dd></div>' for f in h.get('panel_facts', ()))
+    facts = _facts(h)
+    if h.get('image') and _layout(c, 'hero') in PHOTO_HERO:
+        return _photo_hero(c, copy, facts, merge_stats)
     art = h.get('art', DEFAULT_ART[direction])
     visual = img(h['image'], eager=True, cls='panel-photo') if h.get('image') else _art(None if art == 'none' else art)
     figure = (f'<p class="panel-figure">{e(h["panel_figure"])}</p><p class="panel-caption">{e(h.get("panel_caption", ""))}</p>'
@@ -331,6 +336,36 @@ def hero(c: dict, tone: str, direction: str, merge_stats: bool = False) -> str:
             f'<div class="panel{" panel--photo" if h.get("image") else ""}" role="group" '
             f'aria-label="{ea(h.get("panel_label") or c["name"])}">{"" if h.get("image") else visual}{figure}'
             f'{f"<dl>{facts}</dl>" if facts else ""}{visual if h.get("image") else ""}</div></div></section>')
+
+
+def _facts(h: dict) -> str:
+    """The hero's facts as <div><dt>..</dt><dd>..</dd></div> rows (a phone fact is a link)."""
+    return ''.join(f'<div><dt>{e(f[0])}</dt><dd>' + (f'<a href="{ea(f[2])}">{e(f[1])}</a>' if len(f) > 2 else _val(f[1]))
+                   + '</dd></div>' for f in h.get('panel_facts', ()))
+
+
+def _photo_hero(c: dict, copy: str, facts: str, merge_stats: bool) -> str:
+    """A hero led by its picture (visual plan S1). `photo`: the picture fills the end half of the first screen to the
+    viewport edge, the words the start half; `cover`: the picture fills the first screen and the words sit on a scrim
+    made from the page's own text colour. In both, the facts are a strip UNDER the hero -- never printed on the picture --
+    and on a phone the picture comes first."""
+    h, layout = c['hero'], _layout(c, 'hero')
+    figure = ''
+    if merge_stats:
+        # elegant (round 2): the panel figure and the numbers strip are one row in the first screen, not two bands
+        row = ([(h['panel_figure'], h.get('panel_caption', ''))] if h.get('panel_figure') else []) + stats_shown(c)
+        figure = '<dl class="panel-stats">' + ''.join(f'<div><dt>{e(k)}</dt><dd>{e(v)}</dd></div>' for v, k in row) + '</dl>'
+    elif h.get('panel_figure'):
+        figure = (f'<div class="strip-figure"><p class="panel-figure">{e(h["panel_figure"])}</p>'
+                  f'<p class="panel-caption">{e(h.get("panel_caption", ""))}</p></div>')
+    strip = (f'<div class="hero-strip"><div class="hero-inner" role="group" aria-label="{ea(h.get("panel_label") or c["name"])}">'
+             f'{figure}{f"<dl>{facts}</dl>" if facts else ""}</div></div>') if (figure or facts) else ''
+    photo = img(h['image'], eager=True, cls='hero-photo')
+    # the facts come before the picture in the markup: the truth gate reads the first 45,000 characters of the page, and
+    # an inlined picture must not push them out; the grid puts the picture back where the layout wants it
+    return (f'<section class="hero hero--{layout}" id="top" aria-labelledby="hero-title">'
+            f'<div class="hero-words"><div class="hero-inner">{copy}</div></div>{strip}'
+            f'<div class="hero-picture">{photo}</div></section>')
 
 
 def stats_shown(c: dict) -> list:
@@ -349,8 +384,22 @@ def _layout(c: dict, axis: str) -> str:
     return c['_layout'][axis] if '_layout' in c else LAYOUTS[axis][0]
 
 
+def pictured_items(items) -> bool:
+    """Do the services items carry a picture each (a third element, {src, alt, ...})? All or none: a section is given in
+    full or left out, so some cards with a picture and some without raises."""
+    have = [len(i) > 2 and bool(i[2]) for i in items]
+    if any(have) and not all(have):
+        raise ValueError('some services items have a picture and some do not: all or none')
+    return bool(have) and all(have)
+
+
 def services(c: dict, tone: str) -> str:
     s = c['services']
+    if pictured_items(s['items']):                 # a picture on the top of each card, the item's own (visual plan S3)
+        cards = ''.join(f'<article class="card card--picture">{img(i[2], cls="card-photo")}<div class="card-body">'
+                        f'<h3>{e(i[0])}</h3><p>{e(i[1])}</p></div></article>' for i in s['items'])
+        return _section('services', tone, f'{_head(s, "services")}<div class="cards cards--pictures">{cards}</div>',
+                        serves=('products',))
     if _layout(c, 'services') == 'list':           # an editorial numbered list: rows on hairlines, no boxes
         rows = ''.join(f'<li><h3>{e(t)}</h3><p>{e(d)}</p></li>' for t, d in s['items'])
         return _section('services', tone, f'{_head(s, "services")}<ol class="svc-list">{rows}</ol>')
@@ -444,7 +493,7 @@ def gallery(c: dict, tone: str) -> str:
     g = c['gallery']
     figs = ''.join(f'<figure>{img(i)}' + (f'<figcaption>{e(i["caption"])}</figcaption>' if i.get('caption') else '')
                    + '</figure>' for i in g['images'])
-    return _section('gallery', tone, f'{_head(g, "gallery")}<div class="gallery">{figs}</div>')
+    return _section('gallery', tone, f'{_head(g, "gallery")}<div class="gallery">{figs}</div>', serves=tuple(g.get('serves', ())))
 
 
 def process(c: dict, tone: str) -> str:
@@ -646,17 +695,29 @@ check_page_types()
 # what the content names wins, the rest comes from its name -- two businesses on one palette do not look alike.
 LAYOUTS = {'hero': ('split', 'banner'), 'services': ('cards', 'list'), 'process': ('steps', 'timeline'),
            'faq': ('aside', 'stacked'), 'testimonials': ('grid', 'feature')}
+# Visual plan S1: the two heroes a picture leads. They exist only for a page with a hero image: the library picks one
+# for such a page (by the business's name, as every axis), and naming one for a page without an image raises. They are
+# not in LAYOUTS, which is what the content model is offered: the model never chooses a composition whose picture it
+# cannot know.
+PHOTO_HERO = ('photo', 'cover')
 
 
 def layout_for(c: dict) -> dict:
     """{axis: variant}. A named axis or variant the library does not have raises (never a silent default)."""
     given = c.get('layout') or {}
-    bad = {k: v for k, v in given.items() if k not in LAYOUTS or v not in LAYOUTS[k]}
+    bad = {k: v for k, v in given.items() if k not in LAYOUTS or v not in LAYOUTS[k] + (PHOTO_HERO if k == 'hero' else ())}
     if bad:
-        raise ValueError(f'unknown layout {bad!r}; the library has {LAYOUTS!r}')
+        raise ValueError(f'unknown layout {bad!r}; the library has {LAYOUTS!r}')       # and the hero's PHOTO_HERO
+    photo = bool((c.get('hero') or {}).get('image'))
+    if given.get('hero') in PHOTO_HERO and not photo:
+        raise ValueError(f"hero layout {given['hero']!r} is led by the hero picture and this page has none")
     seed = hashlib.sha256(str(c['name']).encode('utf-8')).digest()
     out = {k: given.get(k) or opts[seed[i] % len(opts)] for i, (k, opts) in enumerate(LAYOUTS.items())}
-    if c['direction'] == 'elegant':
+    if photo and not given.get('hero'):
+        out['hero'] = PHOTO_HERO[seed[0] % len(PHOTO_HERO)]          # a picture leads the first screen (visual plan S1)
+    if pictured_items((c.get('services') or {}).get('items') or ()):
+        out['services'] = 'cards'               # the numbered list has no card to carry a picture
+    if c['direction'] == 'elegant' and out['hero'] not in PHOTO_HERO:
         out['hero'] = 'split'       # elegant's hero is its centred block; a banner would undo the direction
     return out
 

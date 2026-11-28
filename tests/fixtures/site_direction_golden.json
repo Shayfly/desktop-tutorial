@@ -1,5 +1,5 @@
 {
- "captured_from": "origin/main bc7077e (with #551 colour_roles), before the extraction",
+ "captured_from": "origin/main bc7077e (with #551 colour_roles), before the extraction | visual S3 (2026-11-27): the case several_pictures is removed -- the library now holds several pictures, so decide() no longer answers it with a legacy reason; every other case is as captured",
  "routes": {
   "icon_image": {
    "canon_hash": null,
@@ -314,26 +314,6 @@
    "script": "hebrew",
    "windows": []
   },
-  "several_pictures": {
-   "canon_hash": null,
-   "category": null,
-   "category_found": null,
-   "contract": null,
-   "contract_source": null,
-   "direction": null,
-   "domain": null,
-   "domain_facts": [],
-   "font_pair": null,
-   "fonts": null,
-   "order": null,
-   "outline_titles": {},
-   "palette": null,
-   "palette_category": null,
-   "reason": "several_pictures",
-   "route": "legacy",
-   "script": null,
-   "windows": []
-  },
   "unnamed_subject": {
    "canon_hash": "174954aeece1fd3e",
    "category": "lawyers",
@@ -384,5 +364,5 @@
    "windows": []
   }
  },
- "sha256": "676395ca3aa83f190e64c4d98306a6722144d26a59fd97af3a6a9ffecb903b67"
+ "sha256": "e378d9b660816108b088431edfb8aed282b2345dfb0d5ef66381fee5f019dd06"
 }

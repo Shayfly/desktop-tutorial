@@ -16,7 +16,9 @@ from omni_prod.output_profile import page_types as PT
 from omni_prod.section_library import demo_law_firm as D
 
 # sha256 of the owner's law-firm page (section_library.demo_law_firm.build) on main c7acb59, before the keyword existed
-LAW_PAGE_SHA = '5fef8ccfee4adc591d3c6e685f56bb9829d20515fb58115223f486890a8d3097'
+# visual S1 (2026-11-27): LIBRARY_VERSION 2 -> 4 over main; the only byte of the demo page that differs is the body marker
+# data-148-kit section-library/2 -> /4 (tests/test_direction_sketch.py DEMO_SHA is the same page)
+LAW_PAGE_SHA = '3caaac236723037a4dddc8ef0e66a58317ced1a4fac4e1f1a89a379746bbe733'
 
 
 class SkeletonInTheLibrary(unittest.TestCase):
