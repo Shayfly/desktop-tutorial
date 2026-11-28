@@ -65,6 +65,14 @@ FULL = {
 }
 
 
+def picture_less_only(result):
+    """Visual plan S0 (2026-11-27): the barest shape has no picture and no hero panel, and design_minimum no longer counts
+    an icon as a visual. It must fall on exactly that finding -- any other finding (headings, sections, the contact
+    action twice) is still a failure of the matrix."""
+    return (result.get('code') == 'DESIGN_TOO_BASIC' and len(result['findings']) == 1
+            and result['findings'][0]['why'].startswith('no image or visual anywhere'))
+
+
 def shapes():
     full = copy.deepcopy(FULL)
     minimal = {k: copy.deepcopy(FULL[k]) for k in ('title', 'description', 'name', 'phone', 'services', 'about', 'contact')}
@@ -100,7 +108,8 @@ class Conformance(unittest.TestCase):
                 doc, skipped = L.page(content, contract)
                 key, found = f'{palette}/{name}', []
                 found += [f"g_apple {f['code']}" for f in static.check(doc, contract)]
-                found += [f'unit {u}: {r}' for u in UNITS for r in [U.run(u, doc)] if r.get('status') != 'pass']
+                found += [f'unit {u}: {r}' for u in UNITS for r in [U.run(u, doc)] if r.get('status') != 'pass'
+                          and not (u == 'design_minimum' and name == 'minimal' and picture_less_only(r))]
                 if unwrapped_ranges(doc):
                     found.append(f'unwrapped ranges {unwrapped_ranges(doc)}')
                 if len(re.findall(r'<h1\b', doc)) != 1:

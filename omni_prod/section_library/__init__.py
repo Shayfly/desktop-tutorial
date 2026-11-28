@@ -31,7 +31,7 @@ from .. import typography as T
 
 HERE = Path(__file__).resolve().parent
 # shipped without its comments: a comment that names what the page avoids must not read as the thing itself
-LIBRARY_VERSION = '2'
+LIBRARY_VERSION = '3'
 
 
 def _minify(css: str) -> str:
