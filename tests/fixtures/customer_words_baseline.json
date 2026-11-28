@@ -1,8 +1,4 @@
 {
- "_about": "Platform words still in customer text, per file (omni_prod.customer_words.scan). A ratchet: a count may only go down; the conversation route is not listed because it is zero.",
- "counts": {
-  "omni_prod/assets/app.js": {
-   "לשונית": 1
-  }
- }
+ "_about": "Platform words still in customer text, per file (omni_prod.customer_words.scan). A ratchet: a count may only go down. Warehouse 132 (2026-11-27): every route is at zero (python -m omni_prod.customer_words prints the count per route), so no file is listed; a word that comes back in any listed customer text fails tests/test_customer_words.py.",
+ "counts": {}
 }

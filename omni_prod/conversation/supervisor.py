@@ -52,6 +52,7 @@ class _AtLimit(DeterministicInterpreter):
         out.dropped.append(f'model not used: {self.reason}')
         return out
 from ..planning import feasibility as F
+from ..planning import feasibility_words as FW   # warehouse 132: a finding is said in the customer's words, with its next action
 from ..planning.architect import ChiefArchitect
 
 # #330 (Michael 2026-11-12 19:45) set a limit on how often the customer-only question was written out; since
@@ -75,16 +76,6 @@ _MODIFY_RX = r'(תשנה|תשנו|שנה את|תוסיף|תוסיפו|להוסי
 _FEAS_KEYS = (('payments', r'(תשלו[םמ]|סליקה|payment|stripe|checkout)'), ('sign-in', r'(התחברות|לוגין|login|sign ?in)'),
               ('email', r'(מייל|email)'), ('sms', r'(sms|וואטסאפ|whatsapp)'), ('mobile app', r'(אפליקציה|app store|android|ios)'),
               ('publishing', r'(לפרסם|דומיין|כתובת קבועה|publish|domain)'), ('images', r'(תמונות|image|לוגו)'))
-
-
-_CAP_HE = {'payments': 'תשלומים', 'sign-in': 'התחברות משתמשים', 'email': 'שליחת מיילים', 'sms': 'הודעות SMS/וואטסאפ',
-           'mobile app': 'אפליקציה לנייד', 'publishing': 'פרסום לכתובת קבועה', 'images': 'יצירת תמונות'}
-_REASON_HE = {F.BLOCKED: 'עוד לא מחובר בפלטפורמה', F.UNSUPPORTED: 'עוד לא נתמך', F.WITH_CONSTRAINTS: 'אפשרי עם מגבלות'}
-_INTEGRATION_HE = {'payments': 'תשלומים וסליקה', 'email': 'שליחת מיילים', 'sms': 'שליחת הודעות SMS/WhatsApp',
-                   'maps': 'מפות', 'calendar': 'יומן', 'ai_model': 'מודל בינה מלאכותית'}
-_ALT_HE = {'payments': 'לבנות עכשיו בלי תשלומים ולהוסיף אותם כשהחיבור יהיה זמין', 'sign-in': 'כלי פנימי בלי התחברות, בקישור פרטי',
-           'email': 'לבנות עכשיו בלי שליחת מיילים', 'sms': 'לבנות עכשיו בלי הודעות', 'mobile app': 'גרסת ווב שעובדת גם בנייד',
-           'publishing': 'תצוגה מקדימה פרטית והורדת קוד המקור', 'images': 'להעלות תמונות משלכם'}
 
 
 # A bare "start" once a brief exists ("תתחיל", "בוא נתחיל", "go") asks for the approval screen. The first message
@@ -226,6 +217,9 @@ def _plan_view(plan: dict) -> dict:
     return {k: plan[k] for k in ('status', 'product_family', 'complexity', 'architecture', 'feasibility', 'layers',
                                  'critical_path', 'executable', 'budget', 'milestones', 'capability_gaps', 'graph_problems',
                                  'brief_fingerprint', 'spec_gate') if k in plan} | {
+        # warehouse 132: each finding carries its words in the three languages, with the next action; the screen shows these
+        **({'feasibility': {**plan['feasibility'], 'findings': FW.attach(plan['feasibility'].get('findings'))}}
+           if isinstance(plan.get('feasibility'), dict) else {}),
         'tasks': [{'task_id': t['task_id'], 'task_type': t['task_type'], 'department': t['department'],
                    'agent': t['responsible_agent'], 'dependencies': t['dependencies'], 'stage': t['stage'],
                    'conditional': t['conditional'], 'executable': t['executable']} for t in plan['execution_graph']['tasks']]}
@@ -1021,7 +1015,7 @@ class ConversationSupervisor:
             elif not self._feasibility(row).get('buildable'):
                 blocked = [f for f in self._feasibility(row).get('findings', [])
                            if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
-                turn.reply = T['blocked'] + ': ' + '; '.join(self._finding_message(f, lang, T) for f in blocked[:3])
+                turn.reply = self._blocked_reply(blocked, lang)
             else:
                 held = self._open_question_instead_of_gate1(turn, row, lang) if current else None
                 turn.reply = ' '.join(held if held is not None else [t['stale']] + self._gate1(turn, row, lang))
@@ -1064,7 +1058,7 @@ class ConversationSupervisor:
                              {'type': 'approve_build', 'brief_revision': row.revision, 'cost': cmp}]
         else:
             blocked = [f for f in plan['feasibility'].get('findings', []) if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
-            parts.append(T['blocked'] + ': ' + '; '.join(self._finding_message(f, lang, T) for f in blocked[:3]))
+            parts.append(self._blocked_reply(blocked, lang))
             turn.actions += [{'type': 'show_plan', 'brief_revision': row.revision},
                              {'type': 'edit_requirements', 'brief_revision': row.revision}]
         turn.reply = ' '.join(parts)
@@ -1588,8 +1582,7 @@ class ConversationSupervisor:
             else:
                 blocked = [f for f in feas.get('findings', []) if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
                 turn.blocked = [f['item'] for f in blocked]
-                parts.append(T['blocked'] + ': ' + '; '.join(
-                    self._finding_message(f, lang, T) for f in blocked[:3]))
+                parts.append(self._blocked_reply(blocked, lang))
         elif res.asked or gap_q is not None:                # still listening: no plan while a material field is open
             # C6: the detector may still ask while the catalog is already complete; a blocker is known (and said)
             # now, not after the last question -- from the feasibility check, never from a plan (no plan before gate 1)
@@ -1598,7 +1591,7 @@ class ConversationSupervisor:
                            if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
                 turn.blocked = [f['item'] for f in blocked]
                 if blocked and not row.complete:
-                    parts.append(T['blocked'] + ': ' + '; '.join(self._finding_message(f, lang, T) for f in blocked[:3]))
+                    parts.append(self._blocked_reply(blocked, lang))
             if gap_q is not None and not res.conflicts and image_q is None:
                 carded = gap_q.field in {q.field for q in res.asked}
                 why = gap_q.text.startswith(_WHY_PREFIXES)
@@ -2281,16 +2274,16 @@ class ConversationSupervisor:
         return defaults
 
     @staticmethod
-    def _finding_message(f, lang, T):
-        if lang == 'he' and f['item'].startswith('sign-in'):
-            return 'התחברות והרשאות באתר שייבנה עדיין אינן זמינות. אפשר לערוך את דרישת ההתחברות או להשאיר אותה להמשך'
-        if lang == 'he' and f['item'].startswith('integration: '):
-            # 2026-11-09: the customer saw "integration: payments חלופה: build without payments now ..." in English.
-            kind = f['item'].split(': ', 1)[1]
-            name = _INTEGRATION_HE.get(kind, kind)
-            alt = _ALT_HE.get(kind) or 'לבנות עכשיו בלי החיבור הזה ולהוסיף אותו כשיהיה זמין'
-            return f'חיבור ל{name} עדיין לא זמין' + T['alt'].format(x=alt)
-        return f['item'] + (T['alt'].format(x=f['alternative']) if f.get('alternative') else '')
+    def _finding_message(f, lang, T=None) -> str:
+        """One finding in one sentence of the customer's language: what, why and the next action (warehouse 132)."""
+        return FW.sentence(f, lang if lang in FW.LANGS else 'en')
+
+    @staticmethod
+    def _blocked_reply(blocked, lang) -> str:
+        """What blocks the build, in the customer's language and words, each finding with its next action (warehouse 132).
+        One table (planning/feasibility_words.py): this route no longer derives words of its own, and shows no platform
+        name of an item to any customer."""
+        return FW.reply(blocked, lang if lang in FW.LANGS else 'en')
 
     _last_reply_was_why = False
 
@@ -2366,19 +2359,21 @@ class ConversationSupervisor:
             return T['cost'].format(credits=self.credits if self.credits is not None else '—',
                                     cap=plan['budget']['graph_authorized_usd'])
         if intent == 'feasibility':
-            return self._feasibility_answer(message, row, T)
+            return self._feasibility_answer(message, row, T, lang)
         if intent == 'approve':
             if plan and plan.get('executable') and row.complete:
                 return T['approve']
-            reasons = [f['item'] for f in ((plan or {}).get('feasibility') or self._feasibility(row)).get('findings', [])
+            blocked = [f for f in ((plan or {}).get('feasibility') or self._feasibility(row)).get('findings', [])
                        if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
             pend = [(q.he if lang == 'he' else q.en) for q in d.pending(row.brief)]
-            return T['approve_not_ready'] + ' ' + '; '.join((pend + reasons)[:4] or ['—'])
+            if blocked:                      # warehouse 132: the reasons are said in words, never as the platform's item names
+                return ' '.join(([T['approve_not_ready'] + ' ' + '; '.join(pend[:4])] if pend else []) + [self._blocked_reply(blocked, lang)])
+            return T['approve_not_ready'] + ' ' + '; '.join(pend[:4] or ['—'])
         if intent == 'modify':
             return T['modify']
         return T['nothing']
 
-    def _feasibility_answer(self, message, row, T) -> str:
+    def _feasibility_answer(self, message, row, T, lang='he') -> str:
         """Answers "can we add X?" from the registries, never from a model."""
         import dataclasses
         from ..product_architect import strip_whatsapp_links
@@ -2404,14 +2399,9 @@ class ConversationSupervisor:
                 from ..planning import registry_view as R
                 st = R.agent_status('image_agent')
                 hit = [] if st in R.VERIFIED else [F.Finding('images', F.BLOCKED, f'image generation is {st}', 'upload your own images')]
+            lang = lang if lang in FW.LANGS else 'en'
             if hit and hit[0].outcome in (F.BLOCKED, F.UNSUPPORTED, F.WITH_CONSTRAINTS):
-                f = hit[0]
-                # Customer wording; the registry status stays visible for the record.
-                he = T is _TXT['he']
-                cap = _CAP_HE.get(name, name) if he else name
-                reason = (_REASON_HE.get(f.outcome, f.reason) + f' ({f.reason})') if he else f.reason
-                alt = _ALT_HE.get(name, f.alternative) if he else f.alternative
-                out.append(T['feas_no'].format(cap=cap, reason=reason, alt=T['alt'].format(x=alt) if alt else ''))
+                out.append(FW.sentence(hit[0].to_dict(), lang))        # warehouse 132: what, why and the next action
             else:
-                out.append(T['feas_yes'].format(cap=_CAP_HE.get(name, name) if T is _TXT['he'] else name))
+                out.append(FW.available(name, lang))
         return ' '.join(out) or T['nothing']

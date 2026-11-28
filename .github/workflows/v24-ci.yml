@@ -309,6 +309,12 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v5
         with: {node-version: "22"}
+      # 2026-11-27 (warehouse 132): customer_flow_browser.cjs reads its 409 from the real admission gate
+      # (tests/customer_flow_409_fixture.py imports omni_prod.investor_app), so this job needs the app's Python deps
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
       - name: Parse-check browser scripts before downloading Chromium
         run: |
           node --check omni_prod/assets/app.js
@@ -327,6 +333,7 @@ jobs:
           node --check tests/phone_chat_browser.cjs
           node --check tests/image_failure_words_browser.cjs
           node --check tests/workspace_guards_browser.cjs
+          node --check tests/feasibility_words_browser.cjs
           node --check tests/workspace_sidebar_local.cjs
       # axe-core: the WCAG engine of the platform accessibility check (the owner, 2026-11-22: accessible to everyone)
       - run: npm install --no-save --package-lock=false playwright@1.62.1 axe-core@4.10.3
@@ -403,6 +410,10 @@ jobs:
       # project), each scenario also run with its guard taken out, where it must fail (review item T2)
       - run: node tests/workspace_guards_browser.cjs
         timeout-minutes: 4
+      # warehouse 132: the findings of the feasibility gate on the plan screen, in Hebrew, Arabic and English, each as its
+      # words with the next action and none of the platform's names; six mutations of app.js must each make it fail
+      - run: node tests/feasibility_words_browser.cjs
+        timeout-minutes: 3
       # Codex's sidebar test against the real development API (review item T1): a disposable server with in-memory
       # accounts, the test, then the test once per mutation -- each must fail, and a mutation whose anchor is gone
       # from the code is not counted as caught

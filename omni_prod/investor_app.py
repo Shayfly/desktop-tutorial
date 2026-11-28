@@ -36,6 +36,7 @@ from .native_source import android_project, ios_project, game_project, omni_andr
 from .product_evolution import ProductEvolutionAgent
 from .remote_sandbox import RemoteSandboxConfig, RemoteSandboxRepositoryExecutor
 from .model_runtime_config import ModelRuntimeConfig
+from .planning import feasibility_words as FW     # warehouse 132: a finding is said in the customer's words
 from .provider_contracts import ProviderQuote
 from .provider_pricing import aggregate_build_quote, enforce_margin_floor
 from .project_memory import ProjectMemory
@@ -2640,7 +2641,9 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
         blocked = [f for f in plan['feasibility']['findings'] if f['outcome'] not in ('FEASIBLE', 'FEASIBLE_WITH_CONSTRAINTS')]
         findings = blocked or plan.get('graph_problems') or []
         raise HTTPException(409, detail={'error': 'capability_not_feasible', 'outcome': plan['feasibility']['outcome'],
-                                         'findings': findings, 'message': _capability_block_message(findings)})
+                                         # warehouse 132: each finding carries its words (he, ar, en) with the next action;
+                                         # the workspace shows these and never the item or the reason
+                                         'findings': FW.attach(findings), 'message': _capability_block_message(findings)})
     return {'plan_id': saved['id'], 'graph': plan['execution_graph'], 'graph_fingerprint': plan['graph_fingerprint'],
             'feasibility': plan['feasibility']['outcome'], 'status': 'APPROVED',
             # G3: the approved criteria travel with the plan; plan-governed builds test against them.

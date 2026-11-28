@@ -3,6 +3,10 @@ const {chromium}=require('playwright');
 const fs=require('fs');
 const assert=require('node:assert/strict');
 const path=require('path');
+const {execFileSync}=require('child_process');
+// The 409 and the blocker are what the REAL gate answers (warehouse 132): never a hand-written finding, which the real server
+// never sends -- it carries `words` (feasibility_words.attach), and a finding with none is said as the general sentence.
+const GATE=JSON.parse(execFileSync('python3',[path.join(__dirname,'customer_flow_409_fixture.py')],{cwd:path.join(__dirname,'..'),encoding:'utf8',maxBuffer:64*1024*1024}));
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH,args:['--no-sandbox','--disable-gpu']}:{} )});
  try {
@@ -20,9 +24,9 @@ const path=require('path');
      if(failSend){failSend=false;return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:{error:'attachments_not_ready'}})});}
      return route.fulfill({contentType:'application/json',body:JSON.stringify({messages:[],discovery:fixture,turn:{actions:[]}})});
     }
-    if(u.pathname.includes('/approvals')){blockedBuild=true;await new Promise(r=>setTimeout(r,150));return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({detail:{error:'capability_not_feasible',findings:[{item:'sign-in (roles)',outcome:'BLOCKED'}]}})});}
+    if(u.pathname.includes('/approvals')){blockedBuild=true;await new Promise(r=>setTimeout(r,150));return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({detail:GATE.detail})});}
     if(u.pathname.endsWith('/builds')){buildCalls++;return route.fulfill({status:500,body:'{}'});}
-    if(u.pathname.includes('/build-contracts'))return route.fulfill({contentType:'application/json',body:JSON.stringify({can_build:!blockedBuild,brief_revision:1,capabilities:[],infrastructure:[],product:{},blockers:blockedBuild?[{code:'capability_not_feasible',message:'unsupported',findings:[{item:'sign-in (roles)',outcome:'BLOCKED'}]}]:[],clarification_questions:[]})});
+    if(u.pathname.includes('/build-contracts'))return route.fulfill({contentType:'application/json',body:JSON.stringify({can_build:!blockedBuild,brief_revision:1,capabilities:[],infrastructure:[],product:{},blockers:blockedBuild?[GATE.blocker]:[],clarification_questions:[]})});
     if(u.pathname==='/fixture')return route.fulfill({contentType:'text/html',body:fs.readFileSync(process.env.BASELINE_HTML||path.join(__dirname,'../omni_prod/assets/index.html'),'utf8')});
     if(u.pathname==='/assets/app.js' && process.env.BASELINE_APP)return route.fulfill({path:process.env.BASELINE_APP});
     if(u.pathname.startsWith('/assets/'))return route.fulfill({path:path.join(__dirname,'../omni_prod',u.pathname)});
@@ -81,17 +85,20 @@ const path=require('path');
    assert.equal(await page.locator('#confirmBtn').isDisabled(),true,'fresh quote blocks approval');
    assert.match(await page.locator('#planMsg').textContent(),/הבנייה לא התחילה/);
    assert.match(await page.locator('#planMsg').textContent(),/התחברות והרשאות/,'409 names the missing capability');
-   assert.match(await page.locator('#planMsg').textContent(),/ערכו|לערוך/,'409 tells the customer what to do');
+   const signIn=GATE.detail.findings.find(f=>f.item==='sign-in (roles)').words.he;
+   assert.ok((await page.locator('#planMsg').textContent()).includes(signIn.next),'409 tells the customer what to do: the finding\'s own next action');
    assert.match(await page.locator('#planPanel').textContent(),/התחברות והרשאות/);
-   const namedError=await page.evaluate(()=>{
-    const detail={error:'capability_not_feasible',findings:[{item:'calendar integration',reason:'not connected',alternative:'Connect the calendar or remove this requirement.'}]};
+   // every other finding of the same 409 is said too, in the customer's language, with its own next action (the calendar's)
+   const cal=GATE.detail.findings.find(f=>f.item==='integration: calendar');
+   assert.ok(cal&&cal.words,'the real gate worded the calendar finding');
+   const named=await page.evaluate(detail=>{
     const he=explain(new ApiError(409,detail));S.lang='en';
     const en=explain(new ApiError(409,detail));S.lang='he';return {he,en};
-   });
-   for(const text of [namedError.he,namedError.en]){
-    assert.match(text,/calendar integration/,'other item names are preserved');
-    assert.match(text,/Connect the calendar/,'specific remedy is preserved');
-    assert.doesNotMatch(text,/undefined/);
+   },GATE.detail);
+   for(const [text,lang] of [[named.he,'he'],[named.en,'en']]){
+    assert.ok(text.includes(cal.words[lang].what),`the calendar finding is named in ${lang}`);
+    assert.ok(text.includes(cal.words[lang].next),`its own next action is kept in ${lang}`);
+    assert.doesNotMatch(text,/undefined|integration: calendar|sign-in \(roles\)|unresolved requirement/,'no platform item name');
    }
    if(width===390){
     await page.evaluate(()=>{S.projects=[{id:'p',title:'פרויקט בדיקה'},{id:'other',title:'פרויקט נוסף'}];renderProjects();});

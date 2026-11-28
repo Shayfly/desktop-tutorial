@@ -358,12 +358,16 @@ class SupervisorTests(unittest.TestCase):
         self.say('internal tool for my team, no login, in English')
         r = self.say('can we add payments later?')
         self.assertEqual(r.intent, 'feasibility')
-        self.assertIn('payments: not available right now', r.reply)
-        self.assertIn('integration_agent is NOT_IMPLEMENTED', r.reply)
+        # warehouse 132: said in the customer's words with the next action; the registry's own names are not the customer's
+        self.assertIn('The connection to payments is not available yet', r.reply)
+        self.assertIn('Write to me here to build without it now', r.reply)
+        self.assertNotIn('integration_agent', r.reply)
         he = self.sup.turn(project_id='p1', account_id='a1', message='אפשר להוסיף תשלומים בהמשך?')   # plural, final letters
         self.assertEqual(he.intent, 'feasibility')
-        self.assertIn('תשלומים: לא זמין כרגע — עוד לא מחובר בפלטפורמה', he.reply)
-        self.assertIn('integration_agent is NOT_IMPLEMENTED', he.reply)   # the registry fact stays visible
+        self.assertIn('החיבור לתשלומים וסליקה עדיין לא זמין', he.reply)
+        self.assertIn('כתבו לי כאן לבנות עכשיו בלי זה', he.reply)
+        self.assertNotIn('integration_agent', he.reply)
+        self.assertNotIn('NOT_IMPLEMENTED', he.reply)
 
     def test_existing_product_change_goes_to_the_modification_offer(self):
         self.say('internal tool for my team, no login, in English')

@@ -689,6 +689,17 @@ Object.assign(T.en, { actRetryBuild:'Try building again', stillMissing:'Still mi
 Object.assign(T.he, { actApproveReading:'נכון, להשתמש בזה', actDiscardReading:'לא נכון, לבטל' });
 Object.assign(T.en, { actApproveReading:'Correct, use it', actDiscardReading:'Not right, discard it' });
 Object.assign(T.ar, { actApproveReading:'صحيح، استخدام هذا', actDiscardReading:'غير صحيح، إلغاء هذا' });
+// warehouse 132: what a finding of the feasibility gate says when the server sent no words for it (an older server), and the
+// two sentences around the findings. The server's own words (omni_prod/planning/feasibility_words.py) are shown when they exist.
+Object.assign(T.he, { findingGeneralWhat:'יש משהו בבקשה שאי אפשר לבנות כרגע', findingGeneralWhy:'לכן הבנייה לא יכולה להתחיל',
+  findingGeneralNext:'כתבו לי כאן מה חשוב לכם, ונחפש דרך אחרת', buildNotStarted:'הבנייה לא התחילה: ',
+  requirementsInvalid:'יש להשלים או לתקן פרטים בבקשה.' });
+Object.assign(T.en, { findingGeneralWhat:'Something in the request cannot be built right now', findingGeneralWhy:'so the build cannot start',
+  findingGeneralNext:'Write to me here what matters most to you and we will look for another way', buildNotStarted:'The build did not start: ',
+  requirementsInvalid:'Complete or correct the details of the request.' });
+Object.assign(T.ar, { findingGeneralWhat:'هناك أمر في الطلب لا يمكن بناؤه حاليا', findingGeneralWhy:'ولذلك لا يمكن أن يبدأ البناء',
+  findingGeneralNext:'اكتبوا لي هنا ما الأهم بالنسبة لكم وسنبحث عن طريقة أخرى', buildNotStarted:'لم يبدأ البناء: ',
+  requirementsInvalid:'يرجى استكمال تفاصيل الطلب أو تصحيحها.' });
 
 Object.assign(T.he, {
   workspaceHero: 'מה תרצו ליצור היום?',
@@ -2805,14 +2816,15 @@ function renderArch() {
   const layers = (a.layers || []).map((ids, i) => h('div', { class: 'layer' }, h('b', {}, `${t('layer')} ${i + 1}`),
     ids.map(id => { const x = byId[id] || {}; return h('span', { class: `tk ${x.executable === false ? 'gap' : ''}`, title: `${x.department} · ${x.agent}` },
       `${x.department} · ${ttLabel(x.task_type || id)}${x.conditional ? ` (${t('ifNeeded')})` : ''}`); })));
-  const limits = (f.findings || []).filter(x => x.outcome !== 'FEASIBLE');
+  const limits = uniqueFindings((f.findings || []).filter(x => x.outcome !== 'FEASIBLE'));
   const blockedByBuildGate = Boolean(S.plan && !S.plan.can_build);
   panel.replaceChildren(h('h2', {}, t('archTitle')),
     h('p', {}, h('b', {}, `${t('feasibility')}: `), h('span', { class: `feas ${blockedByBuildGate ? 'bad' : f.outcome === 'FEASIBLE' ? 'ok' : f.outcome === 'FEASIBLE_WITH_CONSTRAINTS' ? 'warn' : 'bad'}` }, blockedByBuildGate ? t('readinessBlocked') : (t(`f_${f.outcome}`) || f.outcome))),
     limits.length ? h('details', {}, h('summary', {}, `${t('constraints')} (${limits.length})`),
+      // warehouse 132: a finding's item and reason are the platform's own English; only the owner's account sees them
       h('ul', {}, limits.map(x => h('li', {}, findingLabel(x),
-        h('details', {}, h('summary', {}, S.lang==='he'?'פרטים טכניים':'Technical details'),
-          `${x.item}: ${x.reason}`, x.alternative ? ` — ${x.alternative}` : ''))))) : null,
+        ownerView() ? h('details', {}, h('summary', {}, t('techDetails')),
+          `${x.item}: ${x.reason}`, x.alternative ? ` — ${x.alternative}` : '') : null)))) : null,
     h('div', { class: 'layers' }, layers),
     (S.chat && S.chat.interpreter === 'deterministic') ? h('p', { class: 'hint' }, t('interpreterNote')) : null);
 }
@@ -2831,7 +2843,7 @@ function mediaLines(p) {
 // One line per blocker in the plan tab (top level so the test runs this exact function).
 function blockerTitle(b, p) {
   if(b.code==='capability_not_feasible')return capabilityBlockMessage(b);
-  if(b.code==='requirements_invalid')return S.lang==='he'?'יש להשלים או לתקן פרטים בבקשה.':'Complete or correct the request.';
+  if(b.code==='requirements_invalid')return t('requirementsInvalid');
   if (b.code.startsWith('infrastructure_')) {
     const kind = ((p.infrastructure || []).find(i => b.code.startsWith(`infrastructure_${i.kind}_`)) || {}).kind;
     return t('b_infrastructure')(kind ? t(`k_${kind}`) : b.code);
@@ -2845,24 +2857,24 @@ function planReason(b) {
   return (T[S.lang].planReasons || {})[reason] || T.en.planReasons[reason] || t('b_plan_cannot_authorize_cost');
 }
 function capabilityBlockMessage(detail) {
-  const action = S.lang==='he' ? 'ערכו את הדרישה או פנו לתמיכה להשלמת היכולת.' : 'Edit the requirement or contact support to enable this capability.';
-  const rows = (Array.isArray(detail.findings) ? detail.findings : []).map(x => {
-    if(!x || typeof x!=='object' || typeof x.item!=='string' || !x.item.trim())return '';
-    // The existing Hebrew sign-in label already names the capability and offers an action.
-    if(S.lang==='he' && x.item.startsWith('sign-in'))return findingLabel(x);
-    return `${findingLabel(x)} ${x.alternative || action}`;
-  }).filter(Boolean);
-  const intro = S.lang==='he' ? 'הבנייה לא התחילה: ' : 'The build did not start: ';
-  return intro + (rows.length ? rows.join(' ') : (detail.message || action));
+  // warehouse 132: every finding is said as the server worded it (what, why, the next action) in the customer's language
+  const rows = uniqueFindings((Array.isArray(detail.findings) ? detail.findings : []).filter(x => x && typeof x === 'object')).map(findingLabel);
+  return t('buildNotStarted') + (rows.length ? rows.join(' ') : `${t('findingGeneralWhat')}: ${t('findingGeneralWhy')}. ${t('findingGeneralNext')}.`);
+}
+// One finding of the feasibility gate as the customer reads it: what, why, and the next action, in their language. The words are
+// the server's (feasibility_words.attach); a finding that arrives with none says the general sentence, never its item or reason.
+function findingWords(x) {
+  const w = x && x.words && (x.words[S.lang] || x.words.en);
+  return w && w.what && w.why && w.next ? w : { what: t('findingGeneralWhat'), why: t('findingGeneralWhy'), next: t('findingGeneralNext') };
 }
 function findingLabel(x) {
-  if(S.lang!=='he')return `${x.item}: ${x.reason || 'not supported yet'}`;
-  if(x.item.startsWith('sign-in'))return 'התחברות והרשאות באתר שייבנה עדיין אינן זמינות. אפשר לערוך את הדרישה או להשאיר אותה להמשך.';
-  if(x.item==='publishing')return 'פרסום בכתובת קבועה עדיין אינו זמין. קיימות תצוגה פרטית והורדת קוד.';
-  if(x.item==='independent model review')return 'מודל הביקורת עשוי להיות מאותו ספק של מודל הכתיבה. בדיקות הקוד עדיין נדרשות לפני שחרור.';
-  const names={'code generation':'יצירת קוד','behavioural acceptance':'בדיקות התנהגות','release policy':'מדיניות שחרור'};
-  if(names[x.item])return `${names[x.item]}: ${x.outcome==='FEASIBLE_WITH_CONSTRAINTS'?'קיימות מגבלות שיש לבדוק':'דרושה בדיקה נוספת'}`;
-  return `${x.item}: ${x.reason || 'עדיין אינה נתמכת'}`;
+  const w = findingWords(x);
+  return `${w.what}: ${w.why}. ${w.next}.`;
+}
+// Several findings can say the same thing to a customer (each unresolved question is "a detail is still unclear"): said once.
+function uniqueFindings(list) {
+  const seen = new Set();
+  return list.filter(x => { const said = findingLabel(x); return seen.has(said) ? false : (seen.add(said), true); });
 }
 const TT = {
   he: { requirements:'דרישות', plan_and_quote:'תוכנית והצעת מחיר', architecture:'ארכיטקטורה', implementation:'כתיבת הקוד',
