@@ -55,6 +55,9 @@
    "expect_failed": [
     "test_it_is_right_to_left_arabic_with_the_pairs_fonts",
     "test_the_arabic_page_is_computed_right_to_left_with_the_arabic_fonts_first"
+   ],
+   "envs": [
+    "browser"
    ]
   },
   {
@@ -107,6 +110,9 @@
    "expect_failed": [
     "test_the_spacing_override_is_there_once_and_comes_after_the_librarys_css",
     "test_an_arabic_heading_has_no_letter_spacing_and_a_taller_line_than_a_hebrew_one"
+   ],
+   "envs": [
+    "browser"
    ]
   },
   {
@@ -125,6 +131,9 @@
    "expect_failed": [
     "test_the_spacing_override_is_there_once_and_comes_after_the_librarys_css",
     "test_an_arabic_heading_has_no_letter_spacing_and_a_taller_line_than_a_hebrew_one"
+   ],
+   "envs": [
+    "browser"
    ]
   },
   {
@@ -160,6 +169,9 @@
    "expect_failed": [
     "test_a_hebrew_page_has_no_override_and_no_arabic_word",
     "test_an_arabic_heading_has_no_letter_spacing_and_a_taller_line_than_a_hebrew_one"
+   ],
+   "envs": [
+    "browser"
    ]
   },
   {
