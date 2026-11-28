@@ -27,7 +27,7 @@ from .. import fact_canon as F
 BRIEF_MARKER = '--- Approved project brief'
 # The brief lines that carry the customer's own words (discovery.requirements_text); every other brief line is 148AI's
 # wording (rules, decisions, the design line with its hex colours) and is not the customer's text.
-CUSTOMER_LINES = ('Customer facts', 'Audience:', 'Main action:', 'Screens:', 'Initial content:')
+CUSTOMER_LINES = ('Customer facts', 'Audience:', 'Main action:', 'Screens:', 'Initial content:', "Page details (the customer's")
 _WHATSAPP = re.compile(r'וואטסאפ|ווטסאפ|וואצאפ|ווצאפ|whats\s*app', re.I)
 # the WhatsApp word, then at most 15 characters of label punctuation/words inside the same sentence, then a phone span
 _WA_LABEL = re.compile(r'(?:וואטסאפ|ווטסאפ|וואצאפ|ווצאפ|whats\s*app)([^\d\n.!?;]{0,15}?)(?=[+\d])', re.I)
@@ -103,6 +103,7 @@ class FactSheet:
     counts: dict = field(default_factory=dict)          # typed counts the customer gave (fact_canon.count_facts)
     withheld_prices: list = field(default_factory=list)  # prices of the build itself (a budget): never on the page
     name_candidates: list = field(default_factory=list)  # with no declared name: the customer's quoted names
+    page: object = None             # warehouse 122: page_requirements.PageFacts (required fields and marked defaults)
 
     def allowed_numbers(self) -> set[str]:
         return {n['value'] for n in self.numbers}
@@ -349,6 +350,8 @@ def fact_sheet(prompt: str, *, asset_plan=None, images=()) -> FactSheet:
     prices, withheld = _prices(customer)
     sections = outline(prompt)
     hours = [v for k, v in F.facts_to_show(prompt) if k == 'hours']
+    from ..page_requirements import page_facts
+    page = page_facts(prompt, customer, phone=mains[0] if len(mains) == 1 else None, has_prices=bool(prices))
     return FactSheet(
         prompt_sha256=hashlib.sha256((prompt or '').encode('utf-8')).hexdigest(), canon_hash=canon.hash,
         name=names[0] if len(names) == 1 else None, phone=mains[0] if len(mains) == 1 else None,
@@ -359,7 +362,7 @@ def fact_sheet(prompt: str, *, asset_plan=None, images=()) -> FactSheet:
         exclusions=[x['key'] for x in read_customer_exclusions(prompt)], images=placed,
         problems=problems + image_problems,
         counts={k: sorted(canon.values(k)) for k in ('reviewCount', 'rating', 'customerCount', 'count')
-                if canon.values(k)})
+                if canon.values(k)}, page=page)
 
 
 def fingerprint(value) -> str:
