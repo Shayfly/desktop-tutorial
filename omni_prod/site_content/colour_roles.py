@@ -11,8 +11,9 @@ for black and gold got black on the blush palette's pink.
 palette (a dict of primary, accent, background, ink):
   * a stated colour that is nearly black or nearly white is the page's background when at least one more colour is
     stated (a pair "black, gold": black is the page, gold the primary); the remaining colours are primary, then accent;
-  * a description word ("כהה"/"dark", "בהיר"/"light") picks the palette's dark or light variant when no stated colour is
-    a background; colour names that contain such a word ("כחול כהה" = navy) are colours, not descriptions;
+  * a description word ("כהה"/"dark", "בהיר"/"light") picks the palette's DECLARED dark or light variant
+    (vertical_palettes.json, warehouse 125: each meets WCAG AA) when no stated colour is a background; a word with no
+    variants given raises, never a made-up mix; colour names that contain such a word ("כחול כהה" = navy) are colours, not descriptions;
   * a role nobody stated comes from the palette; text is chosen to read on the background.
 It never raises for a colour answer: words it does not know leave the category's palette as it is (basis says so).
 """
@@ -29,7 +30,6 @@ _LIGHT = re.compile(r'(?<![\w֐-׿])[הובלכ]?(?:בהיר|בהירה|בהיר
 BACKGROUND_DARK = 0.02      # relative luminance at or below: a page background ("black")
 BACKGROUND_LIGHT = 0.75     # at or above: a page background ("white", "cream", "beige")
 DARK_INK, LIGHT_INK = '#f5f5f4', '#111111'
-DARK_MIX = 0.9              # a dark page: the hue colour mixed this far toward black
 
 
 def _long(colour: str) -> str:
@@ -69,8 +69,9 @@ def _ink_for(background: str, palette_ink: str) -> str:
     return palette_ink if C.contrast(palette_ink, background) >= 7.0 else LIGHT_INK
 
 
-def roles(clause: str, palette: dict) -> dict:
-    """{primary, accent, background, ink, basis, source} for the Design line's colour clause."""
+def roles(clause: str, palette: dict, variants: dict | None = None) -> dict:
+    """{primary, accent, background, ink, basis, source} for the Design line's colour clause. `variants` is the
+    palette's declared {'dark': {...}, 'light': {...}} (vertical_palettes.variants_for); a description word needs it."""
     stated = stated_hexes(clause)
     word = words_of(description_of(clause))
     background = None
@@ -83,21 +84,22 @@ def roles(clause: str, palette: dict) -> dict:
                 rest.remove(colour)
                 break
     basis = []
+    base = palette                  # the colours a role nobody stated comes from: the palette, or its declared variant
     if background:
         basis.append('the stated colour %s is the page' % background)
         ink = _ink_for(background, palette['ink'])
-    elif word == 'dark':
-        hue = stated[0] if stated else palette['primary']
-        background = C._mix(hue, '#000000', DARK_MIX)
-        ink = DARK_INK
-        basis.append('"dark": the palette\'s dark variant')
+    elif word:
+        if not variants or word not in variants:
+            raise ValueError(f'the colour answer says "{word}" and no declared {word} variant was given')
+        base = variants[word]
+        background, ink = base['background'], base['ink']
+        basis.append(f'"{word}": the palette\'s declared {word} variant')
     else:
         background = palette['background']
         ink = palette['ink']
-        basis.append('"light": the palette\'s light variant' if word == 'light'
-                     else 'no role word: the category\'s palette')
-    primary = rest[0] if rest else palette['primary']
-    accent = rest[1] if len(rest) > 1 else palette['accent']
+        basis.append('no role word: the category\'s palette')
+    primary = rest[0] if rest else base['primary']
+    accent = rest[1] if len(rest) > 1 else base['accent']
     if stated:
         basis.append('primary and accent from the stated colours' if len(rest) > 1 else 'primary from the stated colours')
     source = 'brief-primary+category' if stated else ('category+' + word if word else 'category')
