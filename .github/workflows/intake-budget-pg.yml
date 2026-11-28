@@ -108,6 +108,7 @@ jobs:
                    tests/test_rate_limits_pg.py \
                    tests/test_direction_sketch_money_pg.py \
                    tests/test_direction_sketch_funding_pg.py \
+                   tests/test_media_infra_pg.py \
                    tests/test_owner_costs_pg.py \
                    tests/test_contract_scope_lineage_pg.py \
                    tests/test_media_reading_128_pg.py \

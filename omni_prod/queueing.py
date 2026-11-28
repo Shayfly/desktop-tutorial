@@ -21,6 +21,10 @@ def redis_connection(
         decode_responses=False,
     )
 
+# S13.4: long media renders. The row in media_render_jobs (omni_prod/media_queue.py) is the truth; this RQ queue only
+# carries the wake-up, in its own worker process, one job at a time, so a render never takes the build queue's worker.
+MEDIA_QUEUE = "omni-media"
+
 PREVIEW_HOST_QUEUE_PREFIX = "omni-preview-host-"
 
 def preview_host_queue(runtime_host: str) -> str:

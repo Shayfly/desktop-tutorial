@@ -4,9 +4,9 @@ Generated from `omni_prod/agent_catalog.py` (roles), `omni_prod/skill_catalog.py
 
 Dimensions are separate: implementation · configuration · verification (scope + freshness) · blocked. VERIFIED always names what the run asserted, and only counts while the implementation is unchanged since the commit that ran; otherwise the row is STALE and needs re-verification.
 
-Roles (61): VERIFIED 1, STALE 15, CONNECTED 3, DEFINED 42
+Roles (61): STALE 16, CONNECTED 3, DEFINED 42
 
-Skills in the §9 catalog (137): VERIFIED 6, STALE 30, TESTED 17, IMPLEMENTED 7, NOT_IMPLEMENTED 77
+Skills in the §9 catalog (137): VERIFIED 5, STALE 31, TESTED 17, IMPLEMENTED 7, NOT_IMPLEMENTED 77
 
 ## management
 
@@ -32,7 +32,7 @@ Skills in the §9 catalog (137): VERIFIED 6, STALE 30, TESTED 17, IMPLEMENTED 7,
 | Data Engineer | DEFINED ⚠ | — | — | not verified | — | — | — | not implemented |
 | Identity & Access Engineer | DEFINED | — | — | not verified | — | — | — | not implemented |
 | Integration Engineer | DEFINED | — | — | not verified | — | — | — | not implemented |
-| Repository Maintainer | VERIFIED | PostgresProjectWorkspace, S3ArtifactStore, restore_version_with_spec | OMNI_DATABASE_URL: ok (deploy-worker migrations + queue probe PASS); OMNI_S3_ENDPOINT/OMNI_S3_BUCKET/OMNI_S3_ACCESS_KEY/OMNI_S3_SECRET_KEY: ok (deploy-worker storage probe PASS) | VERIFIED for: change classified and applied; tests passed on the new version; version promoted on accept; export ZIP of a promoted version (fresh: mod_c14435dc9baa44bdac784d0c15ed9b85@3a4d822, ZIP@3a4d822) | — | mod_c14435dc9baa44bdac784d0c15ed9b85 -> v_0bc82ef7b33b4210 — natural-language change accepted 2026-10-08 22:55; spec A1-A6 [workspace@3a4d822]; ZIP of v_0bc82ef7b33b4210 opened by the founder 2026-10-08 22:59 [workspace@3a4d822] | $0 | — |
+| Repository Maintainer | STALE | PostgresProjectWorkspace, S3ArtifactStore, restore_version_with_spec | OMNI_DATABASE_URL: ok (deploy-worker migrations + queue probe PASS); OMNI_S3_ENDPOINT/OMNI_S3_BUCKET/OMNI_S3_ACCESS_KEY/OMNI_S3_SECRET_KEY: ok (deploy-worker storage probe PASS) | STALE — was verified for: versions committed, promoted and exported as ZIP at 3a4d822; code changed since: omni_prod/storage.py | — | mod_c14435dc9baa44bdac784d0c15ed9b85 -> v_0bc82ef7b33b4210 — natural-language change accepted 2026-10-08 22:55; spec A1-A6 [workspace@3a4d822]; ZIP of v_0bc82ef7b33b4210 opened by the founder 2026-10-08 22:59 [workspace@3a4d822] | $0 | — |
 | Brand & Design Director | DEFINED | — | — | not verified | — | — | — | not implemented |
 
 ## quality
@@ -191,7 +191,7 @@ Skills in the §9 catalog (137): VERIFIED 6, STALE 30, TESTED 17, IMPLEMENTED 7,
 | artifact.commit | delivery | EXECUTABLE | VERIFIED | PostgresProjectWorkspace | — | VERIFIED for: prompt -> build contract (task list); model-generated code; sandbox tests passed; version committed to R2; preview served a real UI (fresh: bld_f419acd1317a40afab5a7bd287841048@beb67b4) | — |
 | version.restore | delivery | EXECUTABLE | TESTED | restore_version_with_spec | — | unit tests only | — |
 | preview.verify | delivery | VALIDATOR | STALE | PostgresPreviewRepository | runtime.readiness, api.behavior.verify | STALE — was verified for: prompt -> ready build (library, business rules); HTTP acceptance: create/read/conflict/return/delete at b0a0cfa; code changed since: omni_prod/preview_repository.py | acceptance recording fixed 2026-10-09 |
-| project.export | delivery | EXECUTABLE | VERIFIED | S3ArtifactStore | artifact.commit | VERIFIED for: export ZIP of a promoted version (fresh: ZIP@3a4d822) | — |
+| project.export | delivery | EXECUTABLE | STALE | S3ArtifactStore | artifact.commit | STALE — was verified for: export ZIP of a promoted version at 3a4d822; code changed since: omni_prod/storage.py | — |
 | release.prepare | delivery | WORKFLOW | NOT_IMPLEMENTED | — | — | none | not implemented |
 | deployment.publish | delivery | EXECUTABLE | NOT_IMPLEMENTED | — | release.prepare | none | not implemented (promote is in memory only) |
 | deployment.verify | delivery | VALIDATOR | NOT_IMPLEMENTED | — | deployment.publish | none | not implemented |

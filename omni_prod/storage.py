@@ -114,6 +114,13 @@ class S3ArtifactStore:
             if callable(close):
                 close()
 
+    def presign_get(self, key: str, *, expires_seconds: int) -> str:
+        """A time-limited GET link of this bucket (S13.2). The caller decides who may ask for one and for how long."""
+        if not 1 <= int(expires_seconds) <= 3600:
+            raise ValueError("expires_seconds must be between 1 and 3600")
+        return self.client.generate_presigned_url(
+            "get_object", Params={"Bucket": self.bucket, "Key": key}, ExpiresIn=int(expires_seconds))
+
     def get_bytes(self, key: str, *, verify: bool = True) -> bytes:
         """Small-object compatibility path; use iter_bytes/download_file for large artifacts."""
         response = self.client.get_object(Bucket=self.bucket, Key=key)

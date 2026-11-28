@@ -23,6 +23,12 @@ EXPECTED_VERSIONS = tuple(sorted(EXPECTED_VERSIONS + (49,)))
 if REQUIRED_MIGRATION < 49:
     REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME = 49, '049_direction_sketches'
 
+# 050 (media infrastructure, 2026-11-27: asset_rights and media_render_jobs) is added on lines of its own, as 047 was. 049
+# is the direction-sketches migration of another branch; 050 does not depend on it.
+EXPECTED_VERSIONS = tuple(sorted(EXPECTED_VERSIONS + (50,)))
+if REQUIRED_MIGRATION < 50:
+    REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME = 50, '050_media_infra'
+
 
 def db_fingerprint(host, dbname) -> str:
     """Comparable identity of a database without exposing a URL: host and
