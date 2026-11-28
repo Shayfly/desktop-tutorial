@@ -26,7 +26,7 @@ from ..g_apple import contract as C
 from . import colour_roles
 
 HERE = Path(__file__).resolve().parent
-_LIBRARY_FILES = ('__init__.py', 'library.css', 'directions.json')
+_LIBRARY_FILES = ('__init__.py', 'library.css', 'directions.json', 'words.json')
 _TYPOGRAPHY_FILES = ('__init__.py', 'scripts.json', 'font_pairs.json')     # warehouse 126/129: the page's fonts
 _REF = re.compile(r'@price:\d{1,3}')
 _TIME = re.compile(r'\d{1,2}:\d{2}')

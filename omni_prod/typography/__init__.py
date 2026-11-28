@@ -36,7 +36,7 @@ WEIGHTS = (400, 700)                       # the design contract's two weights (
 GENERIC = frozenset({'serif', 'sans-serif', 'system-ui', 'monospace', 'cursive', 'fantasy', 'ui-serif',
                      'ui-sans-serif', 'ui-monospace', 'ui-rounded'})
 _SUPPORTED_KEYS = {'supported', 'direction', 'lang', 'og_locale', 'languages', 'blocks', 'heading_max_chars', 'date',
-                   'number', 'currency', 'sample'}
+                   'number', 'currency', 'sample', 'spacing'}
 _DECLARED_KEYS = {'supported', 'direction', 'languages', 'blocks', 'why'}
 HEADINGS = ('h1', 'h2', 'h3', 'h4')
 # The owner, 2026-11-25 ("את כל המגוון"): every tone of every supported script offers at least this many pairs.
@@ -80,6 +80,35 @@ def _ranges(blocks: list[str]) -> list[tuple[int, int]]:
     return out
 
 
+SPACING_OVERRIDE = {'mode', 'connected', 'letter_spacing', 'word_spacing', 'body_line_height', 'heading_line_height'}
+
+
+def _check_spacing(name: str, sp: dict) -> None:
+    """A script's spacing: 'library' (the section library's own CSS suits it) or 'override' (the page gets the values
+    named here). A script whose letters connect (`connected`) may carry no letter-spacing: the library's headings are
+    tracked tighter than normal, which breaks the joins of Arabic -- so it must override, with letter_spacing '0'."""
+    if not isinstance(sp, dict) or sp.get('mode') not in ('library', 'override') or not isinstance(sp.get('connected'), bool):
+        raise ScriptError(f'script {name!r}: spacing {sp!r} needs a mode (library | override) and connected (true | false)')
+    if sp['mode'] == 'library':
+        if set(sp) != {'mode', 'connected'}:
+            raise ScriptError(f'script {name!r}: spacing mode library carries nothing else, not {sorted(sp)}')
+        if sp['connected']:
+            raise ScriptError(f'script {name!r}: its letters connect, so it needs the override: the library tracks headings '
+                              'tighter than normal, which breaks the joins')
+        return
+    if set(sp) != SPACING_OVERRIDE:
+        raise ScriptError(f'script {name!r}: spacing override needs exactly {sorted(SPACING_OVERRIDE)}, not {sorted(sp)}')
+    if not re.fullmatch(r'0|-?\d+(\.\d+)?(em|px|rem)', sp['letter_spacing']) or not re.fullmatch(
+            r'0|\d+(\.\d+)?(em|px|rem)', sp['word_spacing']):
+        raise ScriptError(f'script {name!r}: letter_spacing {sp["letter_spacing"]!r} or word_spacing '
+                          f'{sp["word_spacing"]!r} is not a CSS length')
+    if sp['connected'] and sp['letter_spacing'] != '0':
+        raise ScriptError(f'script {name!r}: its letters connect, so letter_spacing is 0, not {sp["letter_spacing"]!r}')
+    for key in ('body_line_height', 'heading_line_height'):
+        if isinstance(sp[key], bool) or not isinstance(sp[key], (int, float)) or not 1 <= sp[key] <= 3:
+            raise ScriptError(f'script {name!r}: {key} {sp[key]!r} is not a number from 1 to 3')
+
+
 def _check() -> None:
     for name, s in DECLARED.items():
         keys = _SUPPORTED_KEYS if s.get('supported') is True else _DECLARED_KEYS
@@ -101,6 +130,7 @@ def _check() -> None:
         c = s['currency']
         if set(c) != {'position', 'space', 'symbols'} or c['position'] not in ('before', 'after') or not c['symbols']:
             raise ScriptError(f'script {name!r}: currency format {c!r}')
+        _check_spacing(name, s['spacing'])
     langs = [lang for s in DECLARED.values() for lang in s['languages']]
     if len(langs) != len(set(langs)):
         raise ScriptError('a language belongs to two scripts')
@@ -213,6 +243,19 @@ def detect_script(text: str) -> str:
         raise UnknownScript('most of the text is in letters of no declared script')
     script(name)                                   # an unsupported script raises here, never a fallback
     return name
+
+
+def spacing_css(name: str) -> str:
+    """The CSS a page of this script adds after the section library's own, minified; '' for a script the library's CSS
+    suits (Hebrew, Latin): such a page stays byte for byte what it was. The override: the body's line height and word
+    spacing, no letter-spacing anywhere (the joins of a connected script), and taller lines for the headings and the big
+    figures, which the library sets at 1.05 to 1.3."""
+    sp = script(name)['spacing']
+    if sp['mode'] == 'library':
+        return ''
+    return (f'body{{line-height:{sp["body_line_height"]};word-spacing:{sp["word_spacing"]}}}'
+            f'*,*::before,*::after{{letter-spacing:{sp["letter_spacing"]}!important}}'
+            f'h1,h2,h3,h4,.title,.stat dd,.panel-figure,.panel-stats dd{{line-height:{sp["heading_line_height"]}!important}}')
 
 
 def html_attrs(name: str) -> str:

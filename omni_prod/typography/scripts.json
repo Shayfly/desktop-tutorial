@@ -1,5 +1,5 @@
 {
- "_about": "Warehouse 129 (the owner, 2026-11-22): the unit is the script, not the language. Every script the platform names is declared here; only a script with 'supported': true has fonts (font_pairs.json), a direction, formats and heading limits. A declared but unsupported script RAISES wherever it is used (omni_prod/typography), and a script not declared here raises too: nothing ever falls back to Latin. Formats: 'date' is a pattern of DD, MM and YYYY; numbers are written with Western digits in every supported script (the customer's own phones and prices are written that way; Eastern Arabic digits are not built). Currency: the symbols a page of this script may show, and where the symbol stands; a currency not listed raises (no default currency). heading_max_chars: Hebrew equals the content route's schema bounds (site_content/schema.py reads them from here); Arabic and Latin are estimates from average glyph width, not measured. 'ריווח', 'כוונת חיפוש' and 'קורפוס' of 129 are not built.",
+ "_about": "Warehouse 129 (the owner, 2026-11-22): the unit is the script, not the language. Every script the platform names is declared here; only a script with 'supported': true has fonts (font_pairs.json), a direction, formats and heading limits. A declared but unsupported script RAISES wherever it is used (omni_prod/typography), and a script not declared here raises too: nothing ever falls back to Latin. Formats: 'date' is a pattern of DD, MM and YYYY; numbers are written with Western digits in every supported script (the customer's own phones and prices are written that way; Eastern Arabic digits are not built). Currency: the symbols a page of this script may show, and where the symbol stands; a currency not listed raises (no default currency). heading_max_chars: Hebrew equals the content route's schema bounds (site_content/schema.py reads them from here); Arabic and Latin are estimates from average glyph width, not measured. Spacing ('ריווח') is built: 'spacing' says whether the library's own CSS suits the script ('library') or the page gets the override named here ('override'); a script whose letters connect (Arabic) may carry no letter-spacing at all and needs taller lines than the library's headings. 'כוונת חיפוש' and 'קורפוס' of 129 are not built.",
  "version": 1,
  "scripts": {
   "hebrew": {
@@ -13,6 +13,7 @@
    "date": "DD/MM/YYYY",
    "number": {"group": ",", "decimal": "."},
    "currency": {"position": "after", "space": true, "symbols": {"ILS": "₪", "USD": "$", "EUR": "€"}},
+   "spacing": {"mode": "library", "connected": false},
    "sample": "אבגדהוזחטיכלמנסעפצקרשת"
   },
   "arabic": {
@@ -27,6 +28,8 @@
    "number": {"group": ",", "decimal": "."},
    "currency": {"position": "after", "space": true,
                 "symbols": {"ILS": "₪", "SAR": "ر.س", "AED": "د.إ", "EGP": "ج.م", "JOD": "د.أ", "USD": "$"}},
+   "spacing": {"mode": "override", "connected": true, "letter_spacing": "0", "word_spacing": "0.05em",
+               "body_line_height": 1.85, "heading_line_height": 1.4},
    "sample": "أبجد هوز حطي كلمن سعفص قرشت"
   },
   "latin": {
@@ -40,6 +43,7 @@
    "date": "YYYY-MM-DD",
    "number": {"group": ",", "decimal": "."},
    "currency": {"position": "before", "space": false, "symbols": {"USD": "$", "EUR": "€", "GBP": "£"}},
+   "spacing": {"mode": "library", "connected": false},
    "sample": "The quick brown fox jumps over the lazy dog"
   },
   "cyrillic": {"supported": false, "direction": "ltr", "languages": ["ru", "uk", "bg", "sr"],

@@ -527,7 +527,7 @@
    "what": "the library's own text carries a number the customer never gave",
    "mutations": [
     {
-     "file": "omni_prod/section_library/__init__.py",
+     "file": "omni_prod/section_library/words.json",
      "old": "היא נשלחת רק כשתלחצו שם על שליחה, ולא נשמרת באתר.",
      "new": "היא נשלחת רק כשתלחצו שם על שליחה, ונענה תוך 24 שעות."
     }

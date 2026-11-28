@@ -49,13 +49,13 @@
    "mutations": [
     {
      "file": "omni_prod/section_library/__init__.py",
-     "old": " data-148-close=\"accept\">אישור",
-     "new": ">אישור"
+     "old": " data-148-close=\"accept\">{_w(\"cookie_accept\")}",
+     "new": ">{_w(\"cookie_accept\")}"
     },
     {
      "file": "omni_prod/section_library/__init__.py",
-     "old": " data-148-close=\"necessary\">רק הכרחי",
-     "new": ">רק הכרחי"
+     "old": " data-148-close=\"necessary\">{_w(\"cookie_necessary\")}",
+     "new": ">{_w(\"cookie_necessary\")}"
     },
     {
      "file": "omni_prod/section_library/__init__.py",

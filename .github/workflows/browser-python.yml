@@ -49,10 +49,13 @@ jobs:
         timeout-minutes: 4
         # 2026-11-22 (warehouse 126): the font pairs load in a real browser, and the owner's brief builds READY through the
         # real chain with its pair; both files skip without Chromium, so they run here.
+        # 2026-11-28 (#569, warehouse 129): tests/test_script_layer_129.py's InABrowser class (the Arabic page's computed
+        # direction, fonts and letter-spacing) skips without Chromium and no job ran it: it runs here, and a skip fails.
         run: >-
           python -m pytest -q -rs --junitxml=browser.xml tests/test_section_library.py
           tests/test_section_library_conformance.py tests/test_site_content_engine.py tests/test_library_cookie_banner.py
           tests/test_font_pairs_load.py tests/test_font_pair_on_the_real_chain.py
+          tests/test_script_layer_129.py
       - name: No test may be skipped
         if: always()
         run: |
@@ -96,7 +99,10 @@ jobs:
           # 2026-11-26: test_visual_qa now takes a free port per page (_free_port), so the spec runs on the step's 2 workers again
           # (NC_JOBS=1 made this step slower; #545's run timed out at the 13-minute step limit).
           NC_SCOPE=declared python scripts/run_negative_controls.py repair_converge_offscreen; d=$?
-          c=$(( c | d ))
+          # 2026-11-28 (#569, negative-controls (2) job 141029594446): script_layer_129's NC3, NC6, NC7 and NC9 expect browser
+          # tests (InABrowser), which skip in v24-ci's shards: DID NOT RUN. envs browser now; they run here.
+          NC_SCOPE=declared python scripts/run_negative_controls.py script_layer_129; e=$?
+          c=$(( c | d | e ))
           b=$(( b | c ))
           exit $(( a | b ))
 

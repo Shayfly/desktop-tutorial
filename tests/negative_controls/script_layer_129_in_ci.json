@@ -1,0 +1,59 @@
+{
+ "pr": "569-script-layer-129-in-ci",
+ "sha256": [
+  "tests/test_script_layer_129_in_ci.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the browser job stops running the Arabic page's browser tests (the file is dropped from its test step)",
+   "mutations": [
+    {
+     "file": ".github/workflows/browser-python.yml",
+     "old": "          tests/test_script_layer_129.py\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_browser_job_runs_the_file_on_every_pull_request_and_a_skip_fails_it"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the browser job stops running the script_layer_129 controls",
+   "mutations": [
+    {
+     "file": ".github/workflows/browser-python.yml",
+     "old": "          NC_SCOPE=declared python scripts/run_negative_controls.py script_layer_129; e=$?\n",
+     "new": "          e=0\n"
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_the_spec_runs_in_the_browser_job_and_a_failing_spec_fails_the_step"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a control that expects a browser test loses its envs browser (it would be DID NOT RUN in v24-ci's shards)",
+   "mutations": [
+    {
+     "file": "tests/negative_controls/script_layer_129.json",
+     "old": "   ],\n   \"envs\": [\n    \"browser\"\n   ]\n  },\n  {\n   \"id\": \"NC10\"",
+     "new": "   ]\n  },\n  {\n   \"id\": \"NC10\""
+    }
+   ],
+   "targets": [
+    "tests/test_script_layer_129_in_ci.py"
+   ],
+   "expect_failed": [
+    "test_a_control_expecting_a_browser_test_is_declared_browser_and_only_that_one"
+   ]
+  }
+ ]
+}

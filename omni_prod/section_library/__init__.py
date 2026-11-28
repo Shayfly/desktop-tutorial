@@ -20,6 +20,7 @@ designed sections and fills them with the customer's content. This module is tha
 """
 from __future__ import annotations
 
+import contextvars
 import hashlib
 import html
 import json
@@ -99,6 +100,31 @@ def purge(css: str, classes: set, attrs: dict) -> str:
                 out.append(f'{",".join(sels)}{{{body}}}')
     return ''.join(out)
 DIRECTIONS = json.loads((HERE / 'directions.json').read_text(encoding='utf-8'))
+_WORDS_FILE = json.loads((HERE / 'words.json').read_text(encoding='utf-8'))
+WORDS: dict = _WORDS_FILE['scripts']              # the library's own words, one table per script (words.json)
+TITLES: dict = {k: frozenset(v) for k, v in _WORDS_FILE['titles'].items()}
+_SCRIPT = contextvars.ContextVar('section_library_script', default='hebrew')      # the script of the page being rendered
+
+
+def _check_words() -> None:
+    """Every script of the table has exactly the keys of the first one, a non-empty text for each, and a titles list; a
+    script the table has must be a script the typography layer supports. Nothing falls back to another script."""
+    first = next(iter(WORDS))
+    keys = set(WORDS[first])
+    for name, table in WORDS.items():
+        T.script(name)
+        if set(table) != keys or not all(isinstance(v, str) and v for v in table.values()):
+            raise ValueError(f'words.json: script {name!r} differs from {first!r} in {sorted(set(table) ^ keys)} '
+                             'or has an empty text')
+    if set(TITLES) != set(WORDS):
+        raise ValueError(f'words.json: titles for {sorted(TITLES)}, words for {sorted(WORDS)}')
+
+
+def _w(key: str) -> str:
+    """One of the library's own words in the script of the page being rendered. An unknown key raises (KeyError)."""
+    return WORDS[_SCRIPT.get()][key]
+
+
 NBSP = ' '
 
 
@@ -126,9 +152,10 @@ def _val(v) -> str:
     return ''.join(e(p) if i % 2 else f'<span class="hours-seg">{e(p)}</span>' for i, p in enumerate(parts))
 
 
-# The library writes its own words (the menu, the form, the footer, the skip link) in Hebrew only: a contract for a
-# page of another script is refused here, never rendered with Hebrew around it (warehouse 129).
-LIBRARY_SCRIPT = 'hebrew'
+# The library writes its own words (the menu, the form, the footer, the skip link) from words.json, one table per script
+# (Hebrew and Arabic): a contract for a page of any other script is refused here, never rendered with Hebrew around it
+# (warehouse 129).
+LIBRARY_SCRIPT = 'hebrew'                  # the script of a page whose contract locks no font pair
 
 
 def page_fonts(contract: dict) -> tuple[str, dict | None]:
@@ -146,9 +173,9 @@ def page_fonts(contract: dict) -> tuple[str, dict | None]:
         raise T.FontNotInLibrary(f"pair {p['id']!r} is a {p['script']} pair, the contract says {locked['script']}")
     if (tokens.get('--font-family'), tokens.get('--font-display')) != (T.stack(p['body']), T.stack(p['display'])):
         raise T.FontNotInLibrary(f"the contract's font tokens are not those of pair {p['id']!r}")
-    if p['script'] != LIBRARY_SCRIPT:
-        raise T.UnsupportedScript(f"the section library writes its own words in Hebrew only; a {p['script']} page "
-                                  'needs its own skeleton (warehouse 129)')
+    if p['script'] not in WORDS:
+        raise T.UnsupportedScript(f"the section library has its own words (words.json) for {sorted(WORDS)} only; a "
+                                  f"{p['script']} page needs its own (warehouse 129)")
     return p['script'], p
 
 
@@ -260,7 +287,7 @@ def _call(c: dict, label: str | None = None, cls: str = 'btn btn-primary') -> st
 
 
 def _whatsapp(c: dict, cls: str = 'btn btn-secondary') -> str:
-    return f'<a class="{cls}" href="{wa(c["whatsapp"])}">{_icon("whatsapp")}<span>וואטסאפ</span></a>' if c.get('whatsapp') else ''
+    return f'<a class="{cls}" href="{wa(c["whatsapp"])}">{_icon("whatsapp")}<span>{_w("whatsapp")}</span></a>' if c.get('whatsapp') else ''
 
 
 def _need(d: dict, keys: tuple, where: str) -> None:
@@ -290,9 +317,9 @@ def header(c: dict, rendered: list[str]) -> str:
     links = ''.join(f'<a href="#{ea(i)}">{e(t)}</a>' for i, t in items)
     long = len(items) > 5 or sum(len(t) for _, t in items) > _LONG_NAV
     tagline = f'<span>{e(c["tagline"])}</span>' if c.get('tagline') else ''
-    nav = f'<nav class="nav" aria-label="ניווט ראשי">{links}</nav>' if items else ''
-    menu = (f'<details class="menu"><summary aria-label="ניווט באתר">{_icon("menu")}</summary>'
-            f'<nav aria-label="ניווט ראשי בטלפון">{links}</nav></details>'
+    nav = f'<nav class="nav" aria-label="{_w("nav_main")}">{links}</nav>' if items else ''
+    menu = (f'<details class="menu"><summary aria-label="{_w("nav_site")}">{_icon("menu")}</summary>'
+            f'<nav aria-label="{_w("nav_phone")}">{links}</nav></details>'
             if items else '')
     return (f'<header class="site-header{" site-header--long" if long else ""}"><div class="wrap">'
             f'<a class="brand" href="#top"><b>{e(c["name"])}</b>{tagline}</a>{nav}'
@@ -341,7 +368,7 @@ def stats_shown(c: dict) -> list:
 
 def stats(c: dict, tone: str) -> str:
     items = ''.join(f'<div class="stat"><dt>{e(label)}</dt><dd>{e(value)}</dd></div>' for value, label in stats_shown(c))
-    label = c.get('stats_label') or f'{c["name"]} במספרים'
+    label = c.get('stats_label') or _w('stats_label').format(name=c['name'])
     return f'<section class="stats" aria-label="{ea(label)}"><div class="wrap"><dl>{items}</dl></div></section>'
 
 
@@ -396,12 +423,12 @@ def about(c: dict, tone: str, facts: list | None = None) -> str:
     return _section('about', tone, f'<div>{_head(a, "about")}{paras}</div>{side}', 'split')
 
 
-_TITLES = {'ד״ר', 'ד"ר', 'דר׳', 'עו״ד', 'עו"ד', 'פרופ׳', "פרופ'", 'רו״ח', 'רו"ח', 'מר', 'גב׳', 'הרב', 'Dr.', 'Dr', 'Prof.'}
+_TITLES = TITLES['hebrew']                     # kept for the importers that read it; initials() reads the page's script
 
 
 def initials(name: str) -> str:
     """Two letters for a member without a photo; a title ('ד״ר', 'עו״ד') is not part of a name."""
-    words = [w for w in name.split() if w not in _TITLES] or name.split()
+    words = [w for w in name.split() if w not in TITLES[_SCRIPT.get()]] or name.split()
     return ''.join(w[0] for w in words[:2])
 
 
@@ -471,52 +498,52 @@ def cta(c: dict, tone: str) -> str:
                                  f'<div class="actions">{_call(c)}{_whatsapp(c)}</div></div>')
 
 
-FORM_NOTE = 'השליחה פותחת את וואטסאפ עם ההודעה מוכנה. היא נשלחת רק כשתלחצו שם על שליחה, ולא נשמרת באתר.'
+FORM_NOTE = WORDS['hebrew']['form_note']
 
 
 def contact(c: dict, tone: str) -> str:
     k = c['contact']
-    rows = [('טלפון', f'<a href="{tel(c["phone"])}">{e(c["phone"])}</a>')]
+    rows = [(_w('phone'), f'<a href="{tel(c["phone"])}">{e(c["phone"])}</a>')]
     if c.get('whatsapp') and c['whatsapp'] != c['phone']:
         # a WhatsApp number of its own is a fact the customer gave: shown as written, not only behind a button; a phone
         # the page shows can be dialled (G11 links_tel)
-        rows.append(('וואטסאפ', f'<a href="{tel(c["whatsapp"])}">{e(c["whatsapp"])}</a> · '
-                                f'<a href="{ea(wa(c["whatsapp"]))}">שליחת הודעה</a>'))
+        rows.append((_w('whatsapp'), f'<a href="{tel(c["whatsapp"])}">{e(c["whatsapp"])}</a> · '
+                                     f'<a href="{ea(wa(c["whatsapp"]))}">{_w("send_message")}</a>'))
     if c.get('email'):
-        rows.append(('דוא״ל', f'<a href="mailto:{ea(c["email"])}">{e(c["email"])}</a>'))
+        rows.append((_w('email'), f'<a href="mailto:{ea(c["email"])}">{e(c["email"])}</a>'))
     if c.get('address'):
         q = quote(c['address'])
-        rows.append(('כתובת', e(c['address']) + f'<span class="directions">ניווט: <a href="https://waze.com/ul?q={q}">Waze</a>'
+        rows.append((_w('address'), e(c['address']) + f'<span class="directions">{_w("directions")} <a href="https://waze.com/ul?q={q}">Waze</a>'
                      f' · <a href="https://www.google.com/maps/search/?api=1&amp;query={q}">Google Maps</a></span>'))
     if c.get('hours'):
-        rows.append(('שעות פעילות', _val(c['hours'])))
+        rows.append((_w('hours'), _val(c['hours'])))
     info = ''.join(f'<div><dt>{t}</dt><dd>{v}</dd></div>' for t, v in rows)
     form = ''
     if c.get('whatsapp'):                       # the form hands the message to WhatsApp; no number -> no form
-        req = ' <span class="req">(חובה)</span>'
-        topics = (f'<div class="field"><label for="f-topic">נושא הפנייה{req}</label><select id="f-topic" name="topic" required>'
-                  '<option value="" disabled selected>בחרו נושא</option>'
+        req = f' <span class="req">({_w("required")})</span>'
+        topics = (f'<div class="field"><label for="f-topic">{_w("topic")}{req}</label><select id="f-topic" name="topic" required>'
+                  f'<option value="" disabled selected>{_w("choose_topic")}</option>'
                   + ''.join(f'<option>{e(t)}</option>' for t in k['topics']) + '</select></div>') if k.get('topics') else ''
         form = (f'<form class="form" action="{ea(wa(c["whatsapp"]))}" method="get" data-wa="{ea(wa(c["whatsapp"]))}" '
-                f'aria-label="טופס יצירת קשר">'
-                f'<div class="field"><label for="f-name">שם מלא{req}</label><input id="f-name" name="name" autocomplete="name" required></div>'
-                f'<div class="field"><label for="f-phone">טלפון{req}</label><input id="f-phone" name="phone" type="tel" '
+                f'aria-label="{_w("form_aria")}">'
+                f'<div class="field"><label for="f-name">{_w("full_name")}{req}</label><input id="f-name" name="name" autocomplete="name" required></div>'
+                f'<div class="field"><label for="f-phone">{_w("phone")}{req}</label><input id="f-phone" name="phone" type="tel" '
                 f'autocomplete="tel" inputmode="tel" required></div>{topics}'
-                f'<div class="field"><label for="f-message">כמה מילים על הפנייה</label><textarea id="f-message" name="message" rows="3">'
+                f'<div class="field"><label for="f-message">{_w("message")}</label><textarea id="f-message" name="message" rows="3">'
                 f'</textarea></div>'
-                f'<button class="btn btn-primary" type="submit">{_icon("whatsapp")}<span>{e(k.get("submit") or "המשך בוואטסאפ")}</span></button>'
-                f'<p class="form-note">{e(k.get("note") or FORM_NOTE)}</p></form>')
+                f'<button class="btn btn-primary" type="submit">{_icon("whatsapp")}<span>{e(k.get("submit") or _w("submit"))}</span></button>'
+                f'<p class="form-note">{e(k.get("note") or _w("form_note"))}</p></form>')
     return _section('contact', tone, f'<div>{_head(k, "contact")}<dl class="contact-list">{info}</dl></div>{form}', 'contact')
 
 
 def footer(c: dict, rendered: list[str]) -> str:
     links = ''.join(f'<a href="#{ea(i)}">{e(t)}</a>' for i, t in c.get('nav', ()) if i in rendered)
-    nav = f'<nav aria-label="ניווט בתחתית העמוד">{links}</nav>' if links else ''
+    nav = f'<nav aria-label="{_w("nav_footer")}">{links}</nav>' if links else ''
     reach = [f'<a href="{tel(c["phone"])}">{e(c["phone"])}</a>']
     if c.get('email'):
         reach.append(f'<a href="mailto:{ea(c["email"])}">{e(c["email"])}</a>')
     if c.get('whatsapp'):
-        reach.append(f'<a href="{ea(wa(c["whatsapp"]))}">וואטסאפ</a>')
+        reach.append(f'<a href="{ea(wa(c["whatsapp"]))}">{_w("whatsapp")}</a>')
     if c.get('address'):
         reach.append(e(c['address']))
     if c.get('hours'):
@@ -524,8 +551,11 @@ def footer(c: dict, rendered: list[str]) -> str:
     tagline = f'<p>{e(c["tagline"])}</p>' if c.get('tagline') else ''
     year = f'{e(c["year"])} ' if c.get('year') else ''
     return (f'<footer class="site-footer"><div class="wrap"><div><b>{e(c["name"])}</b>{tagline}</div>{nav}'
-            f'<div><b>יצירת קשר</b>{"".join(f"<p>{r}</p>" for r in reach)}</div>'
+            f'<div><b>{_w("contact_us")}</b>{"".join(f"<p>{r}</p>" for r in reach)}</div>'
             f'<p class="legal">© {year}{e(c["name"])}</p></div></footer>')
+
+
+_check_words()
 
 
 # ---- in-page windows (omni_prod/window_catalog.py) the library renders itself, deterministically ---------------------
@@ -534,7 +564,7 @@ def footer(c: dict, rendered: list[str]) -> str:
 # (site_content.decide). A window id passed to page() that is not listed here raises.
 RENDERED_WINDOWS = frozenset({'cookie_banner'})
 COOKIE_KEY = '148-cookie-consent'       # sessionStorage: the visitor's answer ('accept' / 'necessary') for this visit
-COOKIE_TEXT = 'האתר עשוי להשתמש בעוגיות. בחרו אם לאשר את כולן או רק את ההכרחיות לפעולתו.'
+COOKIE_TEXT = WORDS['hebrew']['cookie_text']
 
 
 def cookie_banner() -> str:
@@ -550,12 +580,12 @@ def cookie_banner() -> str:
     close = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
              'aria-hidden="true" focusable="false"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>')
     return (f'<div class="cookie-banner" id="cookie-banner" data-148-window="cookie_banner" role="region" '
-            f'aria-label="הודעת עוגיות" hidden><div class="wrap">'
-            f'<p class="cookie-text">{e(COOKIE_TEXT)}</p>'
+            f'aria-label="{_w("cookie_region")}" hidden><div class="wrap">'
+            f'<p class="cookie-text">{e(_w("cookie_text"))}</p>'
             f'<div class="cookie-actions">'
-            f'<button type="button" class="btn btn-primary" data-148-close="accept">אישור</button>'
-            f'<button type="button" class="btn btn-secondary" data-148-close="necessary">רק הכרחי</button></div>'
-            f'<button type="button" class="cookie-close" data-148-close="necessary" aria-label="סגירת ההודעה">{close}'
+            f'<button type="button" class="btn btn-primary" data-148-close="accept">{_w("cookie_accept")}</button>'
+            f'<button type="button" class="btn btn-secondary" data-148-close="necessary">{_w("cookie_necessary")}</button></div>'
+            f'<button type="button" class="cookie-close" data-148-close="necessary" aria-label="{_w("cookie_close")}">{close}'
             f'</button></div></div>'
             f'<script>(function(){{var b=document.getElementById("cookie-banner"),k="{COOKIE_KEY}",a=null;'
             f'try{{a=sessionStorage.getItem(k);}}catch(x){{}}if(!a)b.hidden=false;'
@@ -584,15 +614,15 @@ def windows_markup(windows) -> str:
 def mobile_bar(c: dict) -> str:
     # away while the first screen (which carries the same actions) is on screen: the production visual check reads a
     # fixed bar over the hero's own links as an overlap (the content route's real chain, 2026-11-21)
-    return (f'<nav class="mobile-bar is-away" aria-label="פעולות מהירות">{_call(c, "התקשרו")}{_whatsapp(c)}</nav>')
+    return (f'<nav class="mobile-bar is-away" aria-label="{_w("quick_actions")}">{_call(c, _w("call"))}{_whatsapp(c)}</nav>')
 
 
 # the form opens WhatsApp with the message ready; the menu closes on a link, a tap outside it or Escape; the phone action
 # bar steps aside while the page's own call-to-action band or the form is on screen, and until the visitor has scrolled
 # past the first screen (read from the scroll position, so a full-page screenshot never flips it)
-SCRIPT = ('<script>document.querySelectorAll("form[data-wa]").forEach(function(f){f.addEventListener("submit",function(ev){'
-          'ev.preventDefault();var d=new FormData(f),t="שלום, שמי "+d.get("name")+". טלפון: "+d.get("phone")'
-          '+(d.get("topic")?". נושא: "+d.get("topic"):"")+(d.get("message")?". "+d.get("message"):"");'
+_SCRIPT_JS = ('<script>document.querySelectorAll("form[data-wa]").forEach(function(f){f.addEventListener("submit",function(ev){'
+          'ev.preventDefault();var d=new FormData(f),t="@HELLO@"+d.get("name")+"@PHONE@"+d.get("phone")'
+          '+(d.get("topic")?"@TOPIC@"+d.get("topic"):"")+(d.get("message")?". "+d.get("message"):"");'
           'window.location.href=f.dataset.wa+"?text="+encodeURIComponent(t);});});'
           'var m=document.querySelector(".menu");if(m){m.querySelectorAll("nav a").forEach(function(a){'
           'a.addEventListener("click",function(){m.removeAttribute("open");});});'
@@ -607,6 +637,15 @@ SCRIPT = ('<script>document.querySelectorAll("form[data-wa]").forEach(function(f
           'document.querySelectorAll(".band, #contact form").forEach(function(t){io.observe(t);});'
           'window.addEventListener("scroll",show,{passive:true});}'
           'else if(bar){bar.classList.remove("is-away");}</script>')
+
+def page_script() -> str:
+    """The page's script, the form's message in the words of the page's script (the library's `_w`)."""
+    return (_SCRIPT_JS.replace('@HELLO@', _w('js_hello')).replace('@PHONE@', _w('js_phone'))
+            .replace('@TOPIC@', _w('js_topic')))
+
+
+SCRIPT = page_script()                              # the Hebrew page's script, under its old name
+
 
 # The direction sketch (S6.3): a section that is only outlined -- its real heading and its real background tone, with
 # skeleton lines where the words will be -- and the ribbon that says the page is a draft. Used only by page(draft=...).
@@ -697,6 +736,18 @@ def _schema(c: dict) -> str:
 
 def page(content: dict, contract: dict, order: list[str] | None = None, windows=(),
          draft: dict | None = None, page_type: str | None = None) -> tuple[str, list[str]]:
+    """The page of a content dict (see `_page`), with the library's own words (words.json) and spacing in the script the
+    contract locks: Hebrew without a locked pair, else the pair's script (Hebrew or Arabic; any other raises)."""
+    script, _ = page_fonts(contract)
+    token = _SCRIPT.set(script)
+    try:
+        return _page(content, contract, order, windows, draft, page_type)
+    finally:
+        _SCRIPT.reset(token)
+
+
+def _page(content: dict, contract: dict, order: list[str] | None = None, windows=(),
+          draft: dict | None = None, page_type: str | None = None) -> tuple[str, list[str]]:
     """(html, skipped section keys). `contract` is a G-APPLE contract (contract.build). `order` is the customer's own
     outline as section keys (the hero always opens the page); without it, ORDER. `windows` are the approved window ids
     (window_catalog), each one of RENDERED_WINDOWS. A missing required fact, an unknown section key, an unknown art
@@ -765,8 +816,8 @@ def page(content: dict, contract: dict, order: list[str] | None = None, windows=
     else:
         single = any(n in contract['tokens'].get('--font-display', '') for n in DIRECTIONS['single_weight_display'])
     ribbon = f'<div class="draft-ribbon" role="note">{e(draft["ribbon"])}</div>' if draft is not None else ''
-    markup = (f'{ribbon}<a class="skip" href="#main">דלגו לתוכן</a>{window_html}{header(c, rendered)}'
-              f'<main id="main">{body}</main>{footer(c, rendered)}{mobile_bar(c)}{SCRIPT}')
+    markup = (f'{ribbon}<a class="skip" href="#main">{_w("skip")}</a>{window_html}{header(c, rendered)}'
+              f'<main id="main">{body}</main>{footer(c, rendered)}{mobile_bar(c)}{page_script()}')
     T.check_headings(markup, script)            # a heading longer than its script's limit raises (warehouse 129)
     classes = {k for m in re.findall(r'class="([^"]*)"', markup) for k in m.split()}
     attrs = {'data-direction': direction, **({'data-display-weight': 'regular'} if single else {})}
@@ -775,7 +826,7 @@ def page(content: dict, contract: dict, order: list[str] | None = None, windows=
             f'<meta property="og:title" content="{ea(c["title"])}"><meta property="og:description" content="{ea(c["description"])}">'
             f'<meta property="og:type" content="website"><meta property="og:locale" content="{T.script(script)["og_locale"]}">'
             f'{"<meta name=robots content=noindex>" if draft is not None else ""}'
-            f'{font_links(contract)}<style>{contract["css"]}\n{purge(CSS, classes, attrs) if PURGE else CSS}</style>{_schema(c)}')
+            f'{font_links(contract)}<style>{contract["css"]}\n{purge(CSS, classes, attrs) if PURGE else CSS}{T.spacing_css(script)}</style>{_schema(c)}')
     doc = (f'<!doctype html><html {T.html_attrs(script)}><head>{head}</head>'
            f'<body data-direction="{direction}" data-148-kit="section-library/{LIBRARY_VERSION}" '
            f'{f"data-page-type={page_type} " if page_type else ""}'
