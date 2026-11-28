@@ -401,7 +401,59 @@
      "ar": "توكيل",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Titles and reserved work. Some titles (certified, chartered, licensed tax adviser) and some work (statutory audit, representing clients before the tax authority) are reserved by law. Other work (bookkeeping) is often open to anyone.",
+       "Anti-money-laundering. Accountants and tax advisers are commonly required to identify clients and report suspicions, and to be supervised for it. This happens at engagement.",
+       "Confidentiality is a professional duty, with exceptions the law imposes.",
+       "Financial and identity data. Returns, payslips, bank statements and ID numbers are high-risk data. A privacy notice, retention periods (tax records are kept for years by law) and secure transfer are needed.",
+       "Advertising is subject to consumer law and to the professional body's code: no misleading claims about savings, fees or status.",
+       "Engagement letter. Scope, fees and each side's responsibilities are set out in writing in most professional frameworks.",
+       "Professional indemnity insurance is required by many bodies; some require stating it."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Auditors Law (1955): \"roeh heshbon\" is a licensed title, and audit is reserved. Conduct rules on advertising and soliciting clients exist under it; whether and how advertising is restricted today: not verified.",
+       "Law Regulating the Practice of Representation by Tax Consultants (2005): tax advisers are licensed and may represent clients before the tax authorities. Scope: not verified.",
+       "Bookkeepers are graded by training but, as far as the author knows, the occupation is not licensed. Not verified.",
+       "Anti-money-laundering duties for accountants acting as business-service providers. Scope and current state: not verified.",
+       "Record-keeping: tax rules require keeping books for several years (believed seven). Not verified.",
+       "Privacy law (Amendment 13, in force August 2025) and data-security regulations apply to databases of clients' financial data. What a small office must do: not verified.",
+       "Accessibility statement, consent for advertising messages, prices to consumers including VAT: as in other domain files; not verified for this profession."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "UK: \"accountant\" is not a protected title; \"chartered accountant\" and similar are. Anyone providing accountancy services by way of business must be supervised for anti-money-laundering by a professional body or by the tax authority. Statutory audit is reserved to registered auditors. Not verified.",
+       "One reference carries a footer statement that the group and its subsidiaries are authorised and regulated by a chartered institute; another carries a regulator statement for its legal-services arm (observed 2026-11-21).",
+       "UK: Making Tax Digital requires digital records and software filing for VAT and, in stages, for income tax of sole traders and landlords above income thresholds. Two references explain it on their home pages (observed 2026-11-21). Thresholds and dates: not verified.",
+       "GDPR / UK GDPR; cookie consent. One reference shows a cookie-consent manager and an accessibility-settings tool on its home page (observed 2026-11-21).",
+       "EU: the profession is regulated very differently by member state (tax advice is reserved in Germany, open in others). Not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "\"CPA\" is a state licence. Enrolled agents are federally licensed. Paid return preparers need a preparer identification number; conduct before the tax authority is governed by Circular 230. Not verified.",
+       "Tax-return information may not be disclosed or used without consent (Internal Revenue Code section 7216). Financial institutions including tax preparers must have a written information-security plan (FTC Safeguards Rule). Not verified.",
+       "State rules on firm names, advertising and contingent fees. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "Asks the country and the exact professional status before generating any page.",
+     "Never publishes a rate, threshold or deadline of its own.",
+     "Never states that the site \"complies with\" a named law, and never writes a claim about tax savings.",
+     "Marks every legal page as a draft for review."
+    ]
+   }
   },
   "beauty-cosmetics": {
    "slug": "beauty-cosmetics",
@@ -740,7 +792,66 @@
      "ar": "سبا",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Privacy notice. Needed as soon as the site collects a name and phone.",
+       "Consultation forms are health data. Medical history, medication, allergies, pregnancy and reactions are health data, specially protected in many places. Default: the product does not collect them unless the customer decides to, and then only behind a login with per-practitioner access.",
+       "Photos of clients need consent before publication; before/after photos need separate, written consent.",
+       "Who may perform what. In many countries some treatments (injections, prescription-strength peels, some lasers) are reserved for licensed or medical practitioners, and advertising some of them to the public may be restricted. Rules differ widely by country.",
+       "Age limits exist for some treatments in some countries.",
+       "Terms: cancellation, deposit, refund, course validity and fix-up period, shown before the visitor commits.",
+       "Price promotions: \"was\" prices and limited-time offers are regulated in many places.",
+       "Marketing messages generally need prior agreement.",
+       "Reviews and before/after photos must be real. Edited results are misleading advertising in many jurisdictions."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Accessibility: websites of businesses serving the public must be accessible, with an accessibility statement and a contact for accessibility requests, under the Equal Rights for Persons with Disabilities Law and its regulations, with Israeli Standard 5568 as the technical reference. Small-business exemptions exist. Not verified in detail.",
+       "Privacy: the Protection of Privacy Law applies; Amendment 13 came into force in August 2025. Health information is sensitive. Not verified for a one-person studio.",
+       "Injections (botulinum toxin, fillers): believed to be restricted to physicians (and in some cases dentists). Not verified.",
+       "Laser and light devices for hair removal: believed to be regulated by the Ministry of Health (device approval and operator requirements). Not verified.",
+       "Whether a beautician needs a licence, and whether a beauty salon needs a municipal business licence: not verified.",
+       "Pricing by gender for the same service may be prohibited discrimination under the Prohibition of Discrimination in Products, Services and Entry into Places of Entertainment and Public Places Law. Safer: price by area. Not verified.",
+       "Displayed consumer prices must include VAT: believed true; not verified. Spam law (section 30A of the Communications Law) for marketing messages: not verified in detail."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR and UK GDPR: consultation-form data is special-category health data. Believed true; details not verified.",
+       "Cookies: consent for non-essential cookies (ePrivacy in the EU, PECR in the UK).",
+       "England: the Botulinum Toxin and Cosmetic Fillers (Children) Act 2021 bans these procedures for under-18s for cosmetic purposes. Believed true; details not verified.",
+       "UK: prescription-only medicines (which includes botulinum toxin) may not be advertised to the public; the advertising regulator enforces this against clinics. Believed true; not verified.",
+       "UK: a licensing scheme for non-surgical cosmetic procedures was enabled by the Health and Care Act 2022. Whether and when it applies: not verified. Sunbed use under 18 is banned in the UK: believed true; not verified.",
+       "UK clinics doing regulated medical activities are registered with the Care Quality Commission (England) and equivalents in Wales and Scotland; one reference states it is regulated by all three (observed 2026-11-22).",
+       "Distance-selling cancellation rights, with exceptions for services on a specific date: whether a booked treatment falls under it is not verified.",
+       "Accessibility: the European Accessibility Act from June 2025, microenterprise exemption; scope for a studio booking page not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Estheticians, nail technicians and cosmetologists need state licences, and salons usually an establishment licence. Rules differ by state. Not verified per state.",
+       "\"Med spas\" offering injections or medical lasers are subject to state medical-practice rules (supervising physician, who may inject). Not verified per state.",
+       "Cosmetic versus drug claims: a product or treatment claimed to treat a condition may be regulated as a drug or device by the FDA. Not verified for services.",
+       "Gender-based pricing for the same service is prohibited in some states and cities (for example California, New York). Not verified in detail.",
+       "Privacy law is by state; one reference shows a privacy policy and contraindications page in the footer (observed 2026-11-22). Text-message marketing needs prior express consent under the TCPA. Not verified.",
+       "The Americans with Disabilities Act is applied by courts to business websites in many cases; one reference shows an \"Enable Accessibility\" control (observed 2026-11-22). Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page, terms, an aftercare page and an accessibility statement, each marked as a draft that needs review.",
+     "The product never states that the site \"complies with\" a named law, and never states that a treatment is \"safe\", \"approved\" or \"regulated\" unless the customer supplies the evidence.",
+     "The product asks which country the business is in before generating any legal page, and before showing any treatment the law may reserve (mandatory fact 9)."
+    ]
+   }
   },
   "butcher-deli": {
    "slug": "butcher-deli",
@@ -1136,7 +1247,73 @@
      "ar": "عربون",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Selling meat is licensed and inspected. The product does not check it and never writes \"licensed\", \"inspected\" or \"approved\" on its own.",
+       "Unit pricing. Goods sold by weight must generally show a price per unit of weight.",
+       "Weights. The price charged follows a weight measured on an approved scale. An online total for weight-priced goods is an estimate unless the product is sold at a fixed price.",
+       "Origin, method and quality words (\"organic\", \"free-range\", \"grass-fed\", a protected regional name, a grade) are regulated terms or treated as advertising claims.",
+       "Religious claims are regulated or treated as consumer protection.",
+       "Allergens and ingredients in made products.",
+       "Fresh versus frozen must not be misdescribed.",
+       "Privacy notice as soon as an order, an enquiry or a newsletter signup exists.",
+       "Terms when orders or money are taken: deposits, cancellation, uncollected orders, delivery, substitution by weight.",
+       "Perishable goods are commonly excluded from the right to cancel an online purchase.",
+       "Alcohol sold online needs an age check."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "A butcher's shop requires a business licence under the Business Licensing Law, with Ministry of Health and veterinary conditions. Details: not verified.",
+       "Kosher: presenting a shop or its meat as kosher without a certificate from an authorised body is prohibited under the Kosher Fraud Prohibition Law. Which bodies are authorised today: not verified.",
+       "Pork: selling it is restricted by municipal by-laws in many towns. Whether a website may advertise it, and where: not verified.",
+       "Halal certification in Israel: who issues it and whether the term is protected: not verified.",
+       "Prices must be shown including VAT, and goods sold by weight must show a price per unit (Consumer Protection Law and its price-display regulations). Thresholds and exemptions for small shops: not verified.",
+       "Marking of meat as fresh, chilled, frozen or thawed, and of the country of origin: regulations exist. Details: not verified.",
+       "Price control: some basic food products are under government price supervision. Whether any meat product is: not verified.",
+       "Cancelling a distance transaction: exceptions for perishable goods. Details: not verified.",
+       "Accessibility, privacy and marketing-message rules: as in the other food files; thresholds not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "Unit pricing: EU Directive 98/6/EC and the UK Price Marking Order 2004 require the selling price and the unit price for goods sold by weight, with exemptions for some small shops. Believed true; not verified.",
+       "Beef must be labelled with origin under EU Regulation 1760/2000; fresh pork, lamb, goat and poultry under Regulation 1337/2013. How these apply to meat sold loose over a counter, and in the UK after 2021: not verified.",
+       "14 allergens under EU Regulation 1169/2011 (kept by the UK); mustard, sulphites and cereals with gluten are the common ones in sausages and marinades. Believed true; not verified.",
+       "UK: \"prepacked for direct sale\" items (a wrapped sandwich, packed sausages in a chiller) need a full ingredient list since October 2021. Not verified.",
+       "\"Organic\" may be used only by certified operators. Believed true in both; not verified.",
+       "Minced meat and meat preparations have composition and labelling rules (fat and collagen content, \"previously frozen\"). Not verified.",
+       "Raw-milk cheese may need a notice. Not verified.",
+       "Distance selling: no right to cancel for goods that spoil quickly. Believed true; not verified.",
+       "UK: alcohol may not be sold to under-18s; an online seller needs an age check. Reference 6 shows an age-verification prompt on its home page (observed 2026-11-21).",
+       "GDPR and UK GDPR apply to order data. Consent is needed for non-essential cookies.",
+       "European Accessibility Act, from June 2025, covers e-commerce with a microenterprise exemption. Not verified for a butcher's order page."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Meat sold at retail comes from inspected plants (federal or state). Retail butchers are regulated by state and local health codes. Not verified.",
+       "\"Prime\", \"Choice\" and \"Select\" are federal grades; \"organic\" requires certification; \"grass-fed\" and \"natural\" have federal guidance. Not verified.",
+       "Country-of-origin labelling rules changed in recent years for beef and pork. Current state: not verified.",
+       "Prices are per pound; sales tax on unprepared food varies by state. Not verified.",
+       "Shipping perishable food across state lines has its own rules. Not verified.",
+       "The Americans with Disabilities Act is applied by courts to shop websites. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product asks which country the shop is in before generating any legal page, unit or price format.",
+     "The product may generate the structure of a privacy page, terms and an accessibility statement, each marked as a draft that needs review.",
+     "The product never writes \"kosher\", \"halal\", \"organic\", \"free-range\", \"inspected\", \"licensed\" or \"complies with\" on its own."
+    ]
+   }
   },
   "cafe-bakery": {
    "slug": "cafe-bakery",
@@ -1476,7 +1653,66 @@
      "ar": "not verified",
      "he_verified": false
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Allergens. A food business must be able to tell a buyer which listed allergens are in each product. Food that is wrapped before the buyer chooses it is often treated more strictly than food served from an open counter.",
+       "Privacy notice. Needed as soon as the site takes an order, an enquiry or a newsletter signup.",
+       "An allergy note on an order is health data in many places. Default: do not store it longer than the order.",
+       "Terms. Needed when orders or money are taken: notice, cancellation, deposit, uncollected orders, gift-card expiry, delivery area and fee.",
+       "Perishable and made-to-order goods are commonly excluded from the right to cancel an online purchase. The exclusion and its wording differ by country.",
+       "Home baking for sale is regulated: in some places allowed under limits, in others not. The product does not check it.",
+       "Marketing messages need prior agreement. An order confirmation is not marketing.",
+       "Health and nutrition claims (\"healthy\", \"low sugar\") are regulated."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "A bakery or cafe requires a business licence under the Business Licensing Law, with Ministry of Health conditions. Whether baking for sale from a home kitchen can be licensed: not verified.",
+       "Kosher: presenting a bakery as kosher without a certificate from an authorised body is prohibited under the Kosher Fraud Prohibition Law. Which bodies are authorised today: not verified.",
+       "Passover: rules on displaying leavened products for sale during the holiday exist. What they require of a bakery, and whether a website is affected: not verified.",
+       "Prices shown to consumers must include VAT (Consumer Protection Law). Not verified for counter labels and online lists specifically.",
+       "Allergen labelling for packaged food exists; duties for unpackaged counter products: not verified.",
+       "Cancelling a distance transaction: the Consumer Protection Law gives cancellation rights with exceptions for perishable goods and goods made to the buyer's order. How this applies to an ordered cake: not verified.",
+       "Gift vouchers: rules on minimum validity exist. Details: not verified.",
+       "Accessibility: the website of a business serving the public must be accessible and carry an accessibility statement, with exemptions for very small businesses by turnover. Thresholds: not verified.",
+       "Privacy and marketing messages: the Protection of Privacy Law and section 30A of the Communications Law. Details: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "EU Regulation 1169/2011 lists 14 allergens and requires that information on them be available for non-prepacked food. The UK kept the list. Believed true; not verified against the text.",
+       "UK: food packed on the premises before the buyer chooses it (\"prepacked for direct sale\", for example a wrapped sandwich or a boxed pastry in a chiller) must carry a full ingredient list with allergens emphasised, since October 2021. Not verified.",
+       "\"Gluten-free\" is a regulated term in the EU and the UK with a limit of 20 parts per million. Believed true; not verified.",
+       "Distance selling: the right to cancel does not apply to goods that spoil quickly or are made to the buyer's specification. Believed true in both; not verified.",
+       "GDPR and UK GDPR apply to order data. Consent is needed for non-essential cookies.",
+       "Displayed consumer prices must include VAT: believed true; not verified.",
+       "UK: food businesses register with the local authority, including home bakers selling regularly. Not verified.",
+       "European Accessibility Act, from June 2025, covers e-commerce with a microenterprise exemption. Whether a small bakery's order page is in scope: not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "\"Cottage food\" laws let home bakers sell certain goods under limits that differ by state (what, how much, where, labelling). Not verified per state.",
+       "Nine major allergens are named in federal law for packaged-food labelling. Not verified.",
+       "The Americans with Disabilities Act is applied by courts to business websites. One reference, Levain Bakery, carries a link at the very top of its page to a notice of a class-action settlement under that law (observed 2026-11-21; the content of the notice was not read).",
+       "Privacy is by state. One reference, Dominique Ansel, has a \"do not sell my info\" link for California in its footer (observed 2026-11-21).",
+       "Gift-card expiry is limited by federal and state law. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product asks which country the bakery is in before generating any legal page.",
+     "The product may generate the structure of a privacy page, terms and an accessibility statement, each marked as a draft that needs review.",
+     "The product never writes \"gluten-free\", \"allergen-free\", \"kosher\", \"organic\", \"licensed\" or \"complies with\" on its own."
+    ]
+   }
   },
   "catalogue-collection": {
    "slug": "catalogue-collection",
@@ -1814,7 +2050,58 @@
      "ar": "مقود على اليسار (not verified)",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Image rights. Every photograph has an author. Using one requires permission or a licence. Museum images often carry their own licence terms, which differ between institutions. Not verified per institution.",
+       "Designer and artist names, design names and logos can be protected as trademarks or by design right. Use only what the owner has the right to use.",
+       "Privacy notice. Needed as soon as the site collects a name and contact (an enquiry form, a viewing request, a saved-items account).",
+       "Descriptions must not mislead. Condition, age, attribution and claims such as \"original\" are treated as part of the offer in most consumer-protection law. Not verified per country.",
+       "Marketing messages (newsletters) generally need prior agreement and an easy way to unsubscribe.",
+       "Reviews and press quotes must be real and correctly attributed."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Accessibility: businesses serving the public are required to make their websites accessible and to publish an accessibility statement, under the Equal Rights for Persons with Disabilities Law and its service-accessibility regulations, with Israeli Standard 5568 as the technical reference. Exemptions and thresholds: not verified.",
+       "Privacy: the Protection of Privacy Law applies; Amendment 13 came into force in August 2025. What it requires of a small catalogue site: not verified.",
+       "Prices: consumer law requires displayed prices to include VAT. Whether a catalogue that does not sell online must show prices at all: not verified.",
+       "Antiquities: dealing in antiquities is regulated under the Antiquities Law and needs a licence from the Israel Antiquities Authority. What a dealer's site must display: not verified.",
+       "Marketing messages: section 30A of the Communications Law requires prior consent for advertising by SMS or email. Details: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR (EU) and UK GDPR apply to enquiry data. Non-essential cookies need consent (ePrivacy rules in the EU, PECR in the UK).",
+       "Consumer prices, when shown as an offer, are believed to have to include VAT in both. Whether a catalogue with \"price on request\" is an offer at all: not verified.",
+       "UK: copyright protection for mass-produced artistic designs (relevant to replica furniture) was extended in 2020 when an older time limit was repealed. Exact scope: not verified.",
+       "UK: the Ivory Act 2018 restricts dealing in items containing elephant ivory, with narrow exemptions that must be registered or certified. Not verified in detail.",
+       "Export of cultural goods out of the EU or UK can need an export licence above value and age thresholds. Not verified.",
+       "Selling used cars to consumers: the Consumer Rights Act 2015 (UK) applies to dealers; offering finance requires authorisation for credit broking by the Financial Conduct Authority. Not verified. One reference (4) offers vehicle finance.",
+       "Accessibility: the European Accessibility Act applies from June 2025 to certain consumer services, with a microenterprise exemption. Whether a catalogue without checkout is in scope: not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "The Americans with Disabilities Act is applied by courts to business websites in many cases; no single federal technical standard for private businesses. Not verified.",
+       "Used-car dealers are subject to the FTC Used Car Rule (the buyers guide) for vehicles offered for sale. How it applies to a website listing: not verified.",
+       "State privacy laws apply above thresholds. Not verified.",
+       "Prices are generally shown before sales tax. Not verified per state."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page, a terms page, an image-credits page and an accessibility statement. It marks each as a draft that needs review.",
+     "The product never states that the site \"complies with\" a named law.",
+     "The product asks which country the owner is in before generating any legal page, and asks whether any item contains regulated material (ivory, antiquities, protected species) before publishing such an item."
+    ]
+   }
   },
   "clinic": {
    "slug": "clinic",
@@ -2160,7 +2447,58 @@
      "ar": "تقرير طبي (not verified)",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Health data is a special category. An appointment at a named speciality, a reason for visit, a test request: all are health information and are more strictly protected than ordinary personal data.",
+       "Medical confidentiality binds practitioners by professional rules as well as law, and extends to reminders and emails.",
+       "Practitioners must be licensed, and using a protected title without being registered is an offence in many countries.",
+       "Advertising of medical services is restricted: limits on testimonials, before-and-after images, superlatives, price promotions and outcome claims are common. The limits differ by country and profession.",
+       "A complaints route to the clinic and to a regulator is often required to be published.",
+       "Privacy notice, terms for paid bookings, marketing consent: as in every domain, but with health data in scope."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Patients' Rights Law (1996): confidentiality, informed consent, the patient's right to their record. Application to a website: not verified.",
+       "Protection of Privacy Law and Amendment 13 (in force August 2025): health data is highly sensitive information; data-security regulations set duties by database level. What a small clinic must do: not verified.",
+       "Advertising by physicians is limited by regulations under the Physicians Ordinance and by ethics rules (no misleading claims, limits on superlatives and testimonials). Current text: not verified.",
+       "Clinics are licensed or registered with the Ministry of Health depending on type; whether a private single-doctor practice needs a facility licence: not verified.",
+       "Accessibility: service-accessibility regulations cover health services, physically and online, with an accessibility statement and coordinator details. Exemptions: not verified.",
+       "Advertising messages need prior consent (section 30A, Communications Law). Whether appointment reminders fall outside it: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR / UK GDPR, Article 9: health data needs a specific legal basis; a data-protection impact assessment and a data-protection officer may be required for larger providers. Thresholds: not verified.",
+       "England: providers of regulated health activities register with the Care Quality Commission and display their rating. Doctors register with the General Medical Council. Scope and display rules: not verified.",
+       "UK advertising rules (CAP code) restrict medical claims and prescription-only-medicine advertising to the public. Not verified.",
+       "One UK reference states on its home page that it is not an emergency service and directs emergencies to 999 or the nearest emergency department; it also states a consultation price as \"from\" and an administrative charge for cancellation (observed 2026-11-21).",
+       "Each EU state has its own professional chamber rules on doctors' advertising (strict in Germany and France): not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "HIPAA applies to most providers that bill electronically: a Notice of Privacy Practices, safeguards for protected health information, and written agreements with any vendor handling it. A website builder that stores appointment reasons may itself fall under these rules. Not verified.",
+       "Practitioners are licensed by state boards; telehealth across state lines is restricted. Not verified.",
+       "FTC rules on endorsements and health claims; price-transparency rules (good-faith estimates for uninsured patients). Not verified.",
+       "Section 1557 and the ADA on accessibility and language access. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "Asks the country and the profession before generating any page.",
+     "Does not store clinical information. A \"reason for visit\" field is off unless the customer turns it on after being told what it implies.",
+     "Never writes a medical claim, and never states that the site \"complies with\" a named law.",
+     "Marks every legal page as a draft for review."
+    ]
+   }
   },
   "clothing-shop": {
    "slug": "clothing-shop",
@@ -2498,7 +2836,71 @@
      "ar": "فاتورة / إيصال",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Who is selling. The site names the legal seller, a contact route and a postal address.",
+       "Price clarity. The full price, including tax and delivery, is known before payment.",
+       "Cancellation of online purchases. Most jurisdictions give a consumer some right to cancel a distance purchase. The length, the exceptions and who pays the return postage differ.",
+       "Faulty goods. Rights for a faulty item are separate from a change-of-mind return and usually cannot be removed by a policy.",
+       "Labelling. Fibre composition, care and origin labelling rules exist in many places and often apply to the online listing as well as the sewn-in label.",
+       "Privacy notice. Needed as soon as there is a contact form, a newsletter or an order.",
+       "Card data. The product never stores card numbers. Payment happens with a payment service.",
+       "Marketing messages need prior agreement. An order confirmation is not marketing; a \"back in stock\" or \"you left something in your basket\" message may be.",
+       "Reviews and environmental claims must be true. \"Green\" claims are an active enforcement area in several places.",
+       "Children's clothing has extra safety rules (cords, flammability of nightwear) in many places. Not verified per place."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Distance selling: the Consumer Protection Law is understood to let a consumer cancel within 14 days of receiving the goods, with a capped cancellation fee. Exceptions and the exact fee: not verified.",
+       "In-shop returns: the cancellation-of-transaction regulations are understood to cover clothing and footwear for a short period if unworn and with the tag. The exact period and conditions: not verified.",
+       "A shop must display its returns policy. Not verified for online display.",
+       "Displayed prices include VAT. Believed true; not verified.",
+       "Labelling: a consumer-protection order on marking goods is understood to require composition, care, country of origin and importer details in Hebrew. Not verified.",
+       "Gift cards and credit notes: rules on minimum validity exist. Details: not verified.",
+       "Sale prices: rules on presenting a \"before\" price exist. Details: not verified.",
+       "Website accessibility duty and statement, Israeli Standard 5568, exemptions by turnover: thresholds not verified.",
+       "Privacy: Protection of Privacy Law, Amendment 13 in force since August 2025. Not verified in detail.",
+       "Marketing by SMS or email needs prior consent (section 30A of the Communications Law). Not verified in detail."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "14-day right to cancel an online purchase: EU Consumer Rights Directive; in the UK the Consumer Contracts Regulations 2013. Exceptions include goods made to the buyer's specification. Believed true; not verified.",
+       "Faulty goods: a two-year legal guarantee in the EU; in the UK the Consumer Rights Act 2015 with a short-term right to reject. Not verified.",
+       "Fibre composition must be stated: EU Textile Regulation 1007/2011, and corresponding UK rules. Whether it must appear on the product page: believed yes for online sales; not verified.",
+       "EU price-reduction announcements must refer to the lowest price of the previous 30 days (the \"Omnibus\" changes to the Price Indication Directive). Not verified.",
+       "EU General Product Safety Regulation (applies from December 2024) is understood to require a responsible person in the EU for products sold there, including by small sellers from outside. Not verified.",
+       "VAT on cross-border sales to EU consumers, and customs after the UK left the EU: needs an accountant. Not verified.",
+       "GDPR and UK GDPR; cookie consent for non-essential cookies. Two references showed a country or cookie prompt on the home page (observed 2026-11-21).",
+       "European Accessibility Act: applies from June 2025 to e-commerce services, with an exemption for microenterprises. Whether a given shop is in scope: not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "No general federal right to return a purchase. The shop's posted policy governs; some states require the policy to be posted. Not verified per state.",
+       "The Federal Trade Commission rule on mail, internet and telephone orders is understood to require shipping within the stated time, or 30 days, or offering a refund. Not verified.",
+       "Fibre content, country of origin and care labels are required by FTC rules. Origin and fibre content are understood to be required in online descriptions too. Not verified.",
+       "Sales tax depends on the state and on sales volume into that state. Needs an accountant.",
+       "\"Made in USA\" claims have a specific FTC standard. Not verified.",
+       "Children's sleepwear has flammability rules. Not verified.",
+       "The Americans with Disabilities Act is applied by courts to shop websites in many cases. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "It may generate the structure of privacy, terms of sale, delivery and returns pages, each marked as a draft. The returns terms themselves come from the customer (mandatory fact 11).",
+     "It never writes a returns window, a guarantee or a \"complies with\" statement on its own.",
+     "It asks which country the shop is in, and which countries it sells to, before generating any legal page or turning on checkout."
+    ]
+   }
   },
   "community": {
    "slug": "community",
@@ -2717,7 +3119,52 @@
      "ar": "شعبي (not verified)",
      "he_verified": false
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Member data is personal data. Lists, attendance, roles. A privacy notice is needed once anything is collected.",
+       "Health data: physical-activity groups and wellbeing groups may collect health information; avoid unless essential.",
+       "Children and adults at risk: safeguarding duties and checks for volunteers exist in many countries. Not verified per country.",
+       "Photos at gatherings: a stated policy and consent; children need a parent's consent.",
+       "Online content: user posts raise moderation duties and, in some places, specific legal obligations for platforms. Not verified for small forums.",
+       "Unincorporated groups: who is legally responsible when a group has no legal entity is a question for a lawyer in each country."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "An association (עמותה) is registered with the Registrar of Associations; it has reporting duties. What the website must show: not verified.",
+       "Website accessibility statement for bodies serving the public: required under the Equal Rights for Persons with Disabilities Law regulations, with exemptions. Whether a small volunteer group is in scope: not verified.",
+       "Privacy Protection Law, Amendment 13 (in force August 2025): duties for databases of members. Thresholds: not verified.",
+       "Advertising messages need prior consent under the Communications Law section 30A; whether member notices from an association are \"advertising\": not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR and UK GDPR apply to member lists, even for volunteer groups. Not-for-profit bodies have a specific basis for processing members' data in some cases. Not verified.",
+       "UK: the Online Safety Act 2023 places duties on services hosting user content; how it applies to a small community forum: not verified.",
+       "EU: the Digital Services Act has lighter rules for small services. Not verified for this case.",
+       "UK: safeguarding checks (DBS) for volunteers working with children are believed to be required for certain roles. Not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "State nonprofit law if the group incorporates. COPPA applies to collecting data from children under 13 online. Not verified for this case.",
+       "Section 230 is believed to shield forum hosts from liability for most user posts. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product generates the structure of privacy, code-of-conduct and posting-rule pages, marked as drafts.",
+     "The product never publishes a member directory or a member's contact without opt-in.",
+     "The product asks whether children take part before publishing, and blocks publishing without a safeguarding contact if they do."
+    ]
+   }
   },
   "craftsman-renovation": {
    "slug": "craftsman-renovation",
@@ -3084,7 +3531,61 @@
      "ar": "not verified",
      "he_verified": false
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Privacy notice. Needed as soon as the site collects a name, phone, address of the job or photos of a home.",
+       "Photos of clients' homes are the client's private space. Consent before publishing; no identifying details.",
+       "Contracts made in the client's home often carry special cancellation rights and information duties, different from a contract signed in a shop. Not verified per country.",
+       "Claims about registration, insurance and guarantees are part of the offer. A false claim is treated as misleading advertising in most jurisdictions.",
+       "Reviews must be real. Fake reviews are banned outright in some places (see United Kingdom).",
+       "Marketing messages generally need prior agreement."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Accessibility: businesses serving the public are required to make their websites accessible and publish an accessibility statement, under the Equal Rights for Persons with Disabilities Law and its service-accessibility regulations, with Israeli Standard 5568 as the technical reference. Thresholds: not verified.",
+       "Contractor registration: building work above a value threshold must be done by a contractor registered under the Registration of Contractors for Engineering Construction Works Law. The threshold and what the site must show: not verified.",
+       "Electricians are licensed under the Electricity Law. Whether a licence number must appear in advertising: not verified.",
+       "Privacy: the Protection of Privacy Law applies; Amendment 13 came into force in August 2025. Not verified for a small trade business.",
+       "Cancellation: the Consumer Protection Law gives cancellation rights for transactions made at the consumer's home (door-to-door) and at a distance. How this applies to renovation work: not verified.",
+       "Prices shown to consumers must include VAT: believed true; not verified for price ranges."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR (EU) and UK GDPR apply to enquiry data and job photos. Non-essential cookies need consent (one reference, 5, shows an accept-or-reject cookie notice, observed 2026-11-22).",
+       "UK: the Consumer Contracts Regulations 2013 give a 14-day cancellation period for contracts made away from business premises (for example in the client's home), with written information duties; work started inside the period at the client's request may still be charged proportionally. Believed true; not verified.",
+       "UK: gas work must be done by a business on the Gas Safe Register. Believed true; not verified for what the site must show.",
+       "UK: building regulations apply to many renovation jobs; some electrical work in homes must be notified (Part P in England). Not verified.",
+       "UK: the Party Wall etc. Act 1996 requires notices to neighbours for some work on shared walls. Reference 5 lists party-wall surveying as a service. Details not verified.",
+       "UK: the Digital Markets, Competition and Consumers Act 2024 bans fake reviews and concealed incentivised reviews, from April 2025. Not verified.",
+       "UK: offering finance as a credit broker needs Financial Conduct Authority authorisation. Reference 2 links to finance. Not verified.",
+       "EU: rules on off-premises contracts follow the Consumer Rights Directive (14 days). Not verified per member state."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Contractor licensing is by state, and sometimes by city. Some states require the licence number in all advertising, including websites (California is commonly cited). Not verified per state.",
+       "Some states require home-improvement contractor registration and specific contract terms. Not verified.",
+       "Work that disturbs paint in homes built before 1978 requires lead-safe certification under the EPA Renovation, Repair and Painting rule. Believed true; not verified for website duties.",
+       "The FTC's cooling-off rule gives three days to cancel some sales made at the buyer's home. How it applies to renovation contracts: not verified.",
+       "The Americans with Disabilities Act is applied by courts to business websites in many cases. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page, a terms page and an accessibility statement. It marks each as a draft that needs review.",
+     "The product never states that the site or the business \"complies with\" a named law, and never adds a registration or licence badge on its own.",
+     "The product asks which country, and which trade, before generating any legal page, and asks for the registration number when the trade needs one."
+    ]
+   }
   },
   "dentist": {
    "slug": "dentist",
@@ -3443,7 +3944,57 @@
      "ar": "not verified",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Dental records, X-rays and photographs of teeth are health data.",
+       "Dentists and other dental professionals are licensed; titles and specialities are protected.",
+       "Advertising of dental services is restricted: before-and-after images, testimonials, superlatives, discounts and time-limited offers are limited or banned in several countries.",
+       "Offering instalments can make the practice a credit intermediary that needs authorisation. One UK reference carries a footer statement naming its credit partner and that partner's regulator (observed 2026-11-21).",
+       "Tooth whitening above a set concentration is restricted to dental professionals in many places, with age limits.",
+       "A written treatment plan and estimate before treatment starts is required or expected in many places."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Dentists Ordinance: dentistry is practised only by licensed dentists; specialities are registered. Advertising rules for dentists (misleading claims, comparisons, testimonials): current text not verified.",
+       "Children's dental care is included in the public health basket through the health funds up to a set age, and some care for older adults. Current ages and scope: not verified.",
+       "Dental X-ray equipment needs a permit. Not verified.",
+       "Hygienists work under rules on what they may do alone. Not verified.",
+       "Patients' Rights Law, privacy law (Amendment 13, 2025), accessibility statement, consent for advertising messages: as in `clinic.md`, all not verified for a small practice.",
+       "Prices shown to consumers include VAT; how that applies to \"from\" prices: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR / UK GDPR for health data.",
+       "UK: dental professionals register with the General Dental Council, whose guidance covers advertising (register number and qualification displayed, no misleading claims, a complaints procedure). Practices in England register with the Care Quality Commission. Details: not verified.",
+       "UK: NHS dental charges are set in bands; a practice must be clear about which treatment is NHS and which is private. Not verified.",
+       "UK: credit broking for patient finance is regulated by the Financial Conduct Authority, with exemptions for some interest-free instalment arrangements. Not verified.",
+       "EU: whitening products above 0.1% and up to 6% hydrogen peroxide are for use by or under a dentist, not for under-18s. Not verified.",
+       "Advertising rules for dentists differ by member state: not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "State dental boards license dentists and hygienists; some states restrict advertising a speciality. Not verified.",
+       "HIPAA as in `clinic.md`. Not verified.",
+       "Patient-financing and membership plans are regulated by state; some states treat in-house membership plans as insurance. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "Asks the country before generating any page; marks every legal page as a draft.",
+     "Before-and-after, reviews, photo upload and \"free\" offers are off until the customer confirms they are allowed and true.",
+     "Never writes a clinical claim and never states that the site \"complies with\" a named law."
+    ]
+   }
   },
   "event": {
    "slug": "event",
@@ -3690,7 +4241,55 @@
      "ar": "not verified",
      "he_verified": false
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Privacy notice for registrations and ticket orders. Attendee lists shared with sponsors need a clear basis and, in many places, consent.",
+       "Health data: dietary and access needs may count as health data. Collect only if the event uses it.",
+       "Photography and recording: a stated policy, a way to opt out, and care with children.",
+       "Terms of sale: refunds, transfers, postponement and cancellation, age limits, entry conditions.",
+       "Code of conduct: not a legal requirement in most places as far as the author knows; a safety and trust practice. Not verified.",
+       "Venue safety and capacity: set by the venue and local authorities, not by the website. The site must not promise capacity the venue does not have."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Public events may need a business licence or police approval depending on size and type. Not verified.",
+       "Website accessibility: an accessibility statement is required for businesses serving the public under the Equal Rights for Persons with Disabilities Law regulations, with exemptions by size. Thresholds: not verified. Accessibility of the event venue itself is also regulated. Not verified.",
+       "Consumer prices displayed must include VAT. Whether added booking fees are allowed and how they must be shown: not verified.",
+       "Cancellation of tickets bought at a distance: the Consumer Protection Law has rules, with exceptions for leisure services on a set date believed to exist. Not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR (EU) and UK GDPR apply to registration and ticket data; non-essential cookies need consent.",
+       "The Consumer Rights Directive is believed to exclude leisure services on a specific date from the 14-day withdrawal right. Believed; not verified against the text for this file.",
+       "UK: the Digital Markets, Competition and Consumers Act 2024 is believed to ban \"drip pricing\" (mandatory fees revealed late) from 2025. Not verified.",
+       "EU: price indication rules require the total price including taxes. How booking fees must be shown: not verified.",
+       "Ticket resale rules (caps, disclosure) exist in several countries. Not verified per country.",
+       "European Accessibility Act: whether ticket sales by a small organiser are in scope: not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "The FTC rule on unfair or deceptive fees is believed to require all-in pricing for live-event tickets from 2025. Not verified.",
+       "State ticketing laws differ (refunds, resale, fee disclosure). Not verified.",
+       "ADA applies to venues; courts have applied it to websites in many cases. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product generates the structure of privacy, terms, photography and code-of-conduct pages, marked as drafts.",
+     "The product never states that the event or site \"complies with\" a named law, and never writes an accessibility claim about the venue.",
+     "The product asks in which country the event takes place before generating any legal page."
+    ]
+   }
   },
   "fitness-trainer": {
    "slug": "fitness-trainer",
@@ -4029,7 +4628,65 @@
      "ar": "تكوين الجسم (not verified)",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Privacy notice. Needed as soon as the site collects a name and contact (an enquiry form, a booking, a newsletter). It says who collects, what, why, how long it is kept and how to ask for deletion.",
+       "Health data. A health questionnaire, injury notes, measurements, weight and progress photos are health or body data. In many places this is a specially protected category that needs explicit consent and stricter security. Default: the product does not collect it unless the customer decides to, and then only behind a login with per-client access.",
+       "Photos and videos of clients need consent before publication. Before/after photos need separate, written consent.",
+       "Terms. If the product takes bookings or money: cancellation window, late-cancel and no-show fees, pack expiry, membership renewal and cancellation, refunds. Shown before the visitor commits.",
+       "Recurring payments. Automatic renewal is regulated in many places: clear disclosure before purchase, a reminder before renewal in some places, and cancellation as easy as sign-up. Details differ by country.",
+       "Liability waivers. Common in this trade. Whether a waiver is enforceable, and what it can exclude, depends on the country and the state. Not verified anywhere.",
+       "Marketing messages generally need prior agreement. Class reminders are not marketing; keep them separate.",
+       "Reviews and results must be real. Invented results or reviews, or \"typical\" claims that are not typical, are misleading advertising in many jurisdictions."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Accessibility: businesses serving the public must make their websites accessible and publish an accessibility statement with a contact for accessibility requests, under the Equal Rights for Persons with Disabilities Law and its service-accessibility regulations, with Israeli Standard 5568 as the technical reference. Exemptions for very small businesses by turnover exist. Thresholds and current version: not verified.",
+       "Sport Law: believed to require that a person training at a fitness institute provides a medical certificate or a signed health declaration before training. Whether it applies to a personal trainer working outside an institute, and the current form: not verified.",
+       "Qualifications: whether a fitness instructor needs a recognised certificate by law today, after reforms of recent years: not verified.",
+       "Privacy: the Protection of Privacy Law applies; Amendment 13 came into force in August 2025. Health information is treated as sensitive. What it requires of a one-person trainer: not verified.",
+       "Consumer protection: rules on cancelling ongoing (continuing) transactions, such as memberships, and on cancelling distance transactions with capped fees. How they apply to class packs and memberships: not verified.",
+       "Prices must be shown including VAT for consumers: believed true; not verified for \"from\" prices.",
+       "Marketing messages: the \"spam law\" (section 30A of the Communications Law) requires prior consent. Not verified in detail.",
+       "Business licence: whether a fitness studio needs a municipal business licence: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR (EU) and UK GDPR: health data is special-category data; processing needs a specific legal condition, usually explicit consent. Believed true; details not verified.",
+       "Cookies: consent for non-essential cookies (ePrivacy in the EU, PECR in the UK). Several references show consent managers (Ultimate Performance, Matt Roberts Evolution, observed 2026-11-22).",
+       "Distance contracts: a 14-day cancellation right for many online purchases, with exceptions for leisure services on a specific date. Whether a booked class or a pack falls under it: not verified.",
+       "UK subscription contracts: new rules on subscription contracts under the Digital Markets, Competition and Consumers Act 2024 (reminders, easy exit). Commencement date and scope: not verified.",
+       "Personal training is not a regulated profession in the UK; voluntary registers and certifications exist. Not verified for each EU country.",
+       "Accessibility: the European Accessibility Act applies from June 2025 to some consumer services, with an exemption for microenterprises. Whether a studio booking page is in scope: not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "No federal licence for personal trainers; certifications are private. Not verified per state.",
+       "Many states have \"health club\" or \"health spa\" laws that regulate memberships (cooling-off periods, cancellation on moving or disability, bonding). Not verified per state.",
+       "Automatic-renewal laws exist in several states (for example California). A federal \"click-to-cancel\" rule was adopted by the FTC in 2024 and, as far as the author knows, vacated by a court in 2025. Current state: not verified.",
+       "One reference (solidcore) shows a California privacy notice and a \"Your privacy choices\" link; another (Ultimate Performance) shows a \"Do Not Sell or Share My Personal Information\" control (observed 2026-11-22).",
+       "HIPAA generally covers health providers and insurers, not trainers. Not verified.",
+       "The Americans with Disabilities Act is applied by courts to business websites in many cases. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page, terms, a cancellation policy page and an accessibility statement. Each is marked as a draft that needs review.",
+     "The product never states that the site \"complies with\" a named law.",
+     "The product asks which country the business is in before generating any legal page.",
+     "The product does not build a health questionnaire unless the customer asks for one and has answered mandatory fact 14."
+    ]
+   }
   },
   "food-stall": {
    "slug": "food-stall",
@@ -4340,7 +4997,59 @@
      "ar": "not verified",
      "he_verified": false
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Selling food needs registration or a licence, and selling in a public place usually needs a further permission. The product does not check either. It never writes \"licensed\" or \"approved\" unless the customer supplied the detail.",
+       "Allergens. Most jurisdictions require a food business to be able to tell a buyer which listed allergens are in each item. How (written, spoken, on a label) differs.",
+       "Privacy notice. Needed as soon as the site collects a name and a phone number or email (an event form, an order). A menu-and-location page with no form collects nothing itself, but analytics and embedded maps may.",
+       "Terms. Needed when money or orders are taken online: refunds, what happens when the stall cannot trade, deposits for events.",
+       "Religious and dietary claims are regulated or treated as consumer-protection matters in many places.",
+       "Reviews must be real."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "A food business requires a business licence under the Business Licensing Law, with Ministry of Health conditions. How this applies to a mobile food truck, and whether municipalities issue permits for them: not verified.",
+       "Street peddling requires a municipal permit. Details: not verified.",
+       "Kosher: presenting a food business as kosher without a certificate from an authorised body is prohibited under the Kosher Fraud Prohibition Law. Which bodies are authorised today, after the kashrut reforms: not verified.",
+       "Allergens: labelling rules for packaged food exist. What an unpackaged street-food seller must disclose, and how: not verified.",
+       "Prices shown to consumers must include VAT (Consumer Protection Law). Not verified for menu boards specifically.",
+       "Accessibility: a website of a business serving the public must be accessible and carry an accessibility statement, with exemptions for very small businesses by turnover. Thresholds: not verified.",
+       "Privacy: the Protection of Privacy Law applies to an enquiry form. What it requires of a one-person stall: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "EU Regulation 1169/2011 lists 14 allergens and requires that information on them be available for non-prepacked food; member states decide the form. The UK kept the same list. Believed true; not verified against the text.",
+       "UK: food packed on the premises before the buyer chooses it (\"prepacked for direct sale\") must carry a full ingredient list with allergens emphasised, since October 2021. Whether a given stall's wrapped items fall under it: not verified.",
+       "UK: food businesses register with the local authority and are inspected under the Food Hygiene Rating Scheme. Displaying the rating is mandatory in Wales and Northern Ireland and voluntary in England: not verified.",
+       "UK: street trading needs a licence or consent from the local council in most areas; markets have their own rules. Not verified.",
+       "GDPR and UK GDPR apply to enquiry and order data. Consent is needed for non-essential cookies. One reference, Yum Bun, shows a cookie notice on its home page (observed 2026-11-21).",
+       "Displayed consumer prices must include VAT: believed true in both; not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Mobile food vending is regulated by city and county: health permit, vending permit, commissary rules, where a truck may park. No single rule. Not verified per place.",
+       "Federal law names nine major food allergens (sesame was added in 2023) for packaged-food labelling. Duties of an unpackaged-food vendor come from state and local food codes. Not verified.",
+       "Sales tax on prepared food varies by state and city; menu prices usually exclude it. Not verified.",
+       "The Americans with Disabilities Act is applied by courts to business websites in many cases. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product asks which country and city the stall trades in before generating any legal page.",
+     "The product may generate the structure of a privacy page and terms, each marked as a draft that needs review.",
+     "The product never writes \"licensed\", \"inspected\", \"kosher\", \"halal\", \"allergen-free\" or \"complies with\" on its own."
+    ]
+   }
   },
   "garage": {
    "slug": "garage",
@@ -4687,7 +5396,60 @@
      "ar": "سيارة هجينة، سيارة كهربائية",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Privacy notice. Needed as soon as the site collects a name, a phone and a plate number. A plate number and a VIN are linked to a person and should be treated as personal data.",
+       "Estimate and approval. Many places have a rule, or at least strong consumer-law pressure, that work is agreed before it is done. Keep the approval record.",
+       "Terms. Storage charges for uncollected cars, a lien on a car until the bill is paid, liability for items left in the car, replaced parts returned on request: each is a legal question in its own country. The product writes none of these without the customer's own text.",
+       "Environmental duties (used oil, tyres, batteries) exist almost everywhere. They do not belong on the site unless the customer wants to state them.",
+       "Marketing messages need prior agreement. A reminder that the annual test is due is closer to marketing than an appointment reminder is; treat it as needing consent.",
+       "Reviews must be real."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Garages are licensed by the Ministry of Transport. The Vehicle Services and Professions Licensing Law of 2016 is believed to be the governing law. Whether the licence number must appear on a website: not verified.",
+       "A duty to give a written estimate, to get the customer's approval for work beyond it, and to offer the replaced parts back: believed to exist in the garage regulations. Not verified.",
+       "The annual test is done at licensed test stations, not at ordinary garages. A garage that \"prepares the car for the test\" should say that, not \"we do the test\". Not verified in detail.",
+       "Displayed consumer prices must include VAT. Not verified for hourly rates.",
+       "Website accessibility: a duty on businesses serving the public, with an accessibility statement and Israeli Standard 5568 as reference, and exemptions by turnover. Thresholds: not verified.",
+       "Privacy: the Protection of Privacy Law, Amendment 13 in force since August 2025. What it asks of a small garage: not verified.",
+       "Marketing by SMS or email needs prior consent (section 30A of the Communications Law). Details: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR and UK GDPR apply to customer and vehicle records. Consent is needed for non-essential cookies.",
+       "EU: competition rules for the motor sector are understood to let a driver service a car at an independent garage without losing the manufacturer's warranty, if the work follows the manufacturer's schedule. A garage that wants to say this must have it checked. Not verified.",
+       "UK: mechanics are not a licensed profession. MOT testing is done only by stations authorised by the Driver and Vehicle Standards Agency. A garage claims MOT testing only if it is an authorised station. Not verified in detail.",
+       "UK: the Consumer Rights Act 2015 requires a service to be done with reasonable care and skill. Codes of practice for garages exist and are voluntary. Not verified.",
+       "Work on air-conditioning refrigerant requires certified personnel in the EU and UK. Not verified.",
+       "Displayed consumer prices include VAT: believed true in both. Not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Rules are by state. Several states require repair shops to register, to give a written estimate and to get authorisation before exceeding it; California's Bureau of Automotive Repair is the best-known example. Not verified per state.",
+       "ASE certification of technicians is voluntary. It may be shown only if current.",
+       "Federal warranty law is understood to stop a manufacturer from voiding a warranty only because an independent shop did the maintenance. Not verified.",
+       "Emissions and safety inspections are state programmes with licensed stations. Not verified.",
+       "The Americans with Disabilities Act is applied by courts to business websites in many cases. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "It may generate the structure of a privacy page, a terms page and an accessibility statement, each marked as a draft.",
+     "It never states that the garage \"complies with\" a named law, is \"authorised\" or is \"licensed\" unless the customer supplied the licence number.",
+     "It asks which country the garage is in before generating any legal page."
+    ]
+   }
   },
   "hair-salon": {
    "slug": "hair-salon",
@@ -5019,7 +5781,60 @@
      "ar": "not verified",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Privacy notice. Needed as soon as the site collects a name and phone (a contact form or a booking). It says who collects, what, why, how long it is kept and how to ask for deletion.",
+       "Appointment history is personal data. Notes about a client (allergies, a skin reaction, a medical condition affecting hair) may count as health data, which is more strictly protected in many places. Default: do not collect notes of that kind through the product.",
+       "Photos of clients need consent before publication.",
+       "Terms. If the product takes bookings or money: cancellation, deposit, refund and late-arrival rules, shown before the visitor commits.",
+       "Marketing messages (offers by SMS or email) generally need the person's prior agreement. Appointment reminders are a different thing from marketing; keep them separate.",
+       "Reviews must be real. Invented or selectively edited reviews are treated as misleading advertising in many jurisdictions."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Accessibility: businesses serving the public are required to make their websites accessible and to publish an accessibility statement with a contact for accessibility requests, under the Equal Rights for Persons with Disabilities Law and its service-accessibility regulations, with Israeli Standard 5568 (based on WCAG 2.0 AA) as the technical reference. Exemptions exist for very small businesses by turnover. The exact thresholds and current standard version: not verified.",
+       "Privacy: the Protection of Privacy Law applies; Amendment 13 came into force in August 2025 and widened enforcement. What it requires of a one-person salon: not verified.",
+       "Prices: consumer law requires displayed prices to be the full price including VAT. Whether and how this applies to a \"from\" price on a website: not verified.",
+       "Marketing messages: the \"spam law\" (section 30A of the Communications Law) requires prior consent for advertising by SMS or email, with an easy way to unsubscribe. Details: not verified.",
+       "Cancellation of a transaction made at a distance (online prepayment, vouchers): the Consumer Protection Law gives cancellation rights with capped fees. How this applies to a booked service slot: not verified.",
+       "Gift vouchers: there are rules on minimum validity. Details: not verified.",
+       "Licensing: whether a hair salon or barbershop needs a municipal business licence today: not verified.",
+       "Pricing by gender for the same service may be prohibited discrimination under the Prohibition of Discrimination in Products, Services and Entry into Places of Entertainment and Public Places Law. Safer default: price by hair length or by time. Not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR (EU) and UK GDPR apply to booking data. Consent is needed for non-essential cookies (ePrivacy rules in the EU, PECR in the UK). One reference, Hare & Bone, shows a cookie-consent table on its home page (observed 2026-11-21).",
+       "Displayed consumer prices must include VAT: believed true in both; not verified.",
+       "Distance-selling cancellation rights have an exception for services booked for a specific date in some sectors. Whether a salon appointment falls under it: not verified.",
+       "Allergy patch tests before colour: commonly required by colour manufacturers' instructions and by salon insurers, typically 48 hours before. Whether it is a legal duty: not verified.",
+       "Accessibility: the European Accessibility Act applies from June 2025 to certain consumer services with an exemption for microenterprises. Whether a salon booking page is in scope: not verified.",
+       "Hairdressing is not a licensed profession in the UK; it is in several EU countries (for example a master qualification in Germany). Not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Cosmetology and barbering require a state licence, and the salon usually needs an establishment licence. Rules differ by state. Some states expect the licence number to be displayed. Not verified per state.",
+       "The Americans with Disabilities Act is applied by courts to business websites in many cases; there is no single federal technical standard for private businesses. Not verified.",
+       "Privacy law is by state (for example California). Small businesses are often below the thresholds. Not verified.",
+       "Text-message marketing needs prior express consent under the TCPA. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page, a terms page and an accessibility statement. It marks each as a draft that needs review.",
+     "The product never states that the site \"complies with\" a named law.",
+     "The product asks which country the salon is in before generating any legal page."
+    ]
+   }
   },
   "hotel-guesthouse": {
    "slug": "hotel-guesthouse",
@@ -5443,7 +6258,70 @@
      "ar": "مسبح",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Total price. Many jurisdictions require the first price shown to include all mandatory charges, or prohibit adding them late in the booking.",
+       "Cancellation. Accommodation booked for specific dates is commonly excluded from the general right to cancel an online purchase, so the property's own terms decide. They must be shown before payment.",
+       "Privacy notice. A booking collects names, contact details, dates of travel, sometimes passport details and children's ages. A notice is needed, and data should be kept no longer than the law and the booking require.",
+       "Guest registration. Many countries require accommodation to record guests' identity, and some to report foreign guests to the authorities. The product does not do this and says so.",
+       "Payment data. Card details are handled by a payment provider, never stored by the product.",
+       "Operating a place to stay needs registration or a licence, fire-safety compliance and insurance. Short-term letting of homes is restricted in many cities. The product checks none of it.",
+       "Classification (stars) is official in some countries and not in others. Showing stars without the award is misleading.",
+       "Reviews must be real. Several jurisdictions now prohibit fake or selectively shown reviews explicitly.",
+       "Accessibility information should be factual.",
+       "Marketing messages need prior agreement. A booking confirmation and pre-arrival information are not marketing."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "VAT on accommodation for foreign tourists has had a special (zero-rate) treatment, and its future has been under discussion. Current state, and how prices should be shown to Israeli and foreign guests: not verified.",
+       "Prices shown to consumers must be the total including VAT (Consumer Protection Law). Not verified for accommodation specifically.",
+       "Cancelling a distance transaction: the Consumer Protection Law has specific provisions for accommodation, including a period before the stay after which cancellation rights do not apply. The exact days and capped fee: not verified.",
+       "Hotel star rating is run by the Ministry of Tourism and is voluntary. Whether a non-rated place may use the word \"stars\": not verified.",
+       "Business licence: accommodation requires one above a certain size; small rural units have had a lighter track. Details: not verified.",
+       "Kosher: presenting a kitchen as kosher without a certificate is prohibited under the Kosher Fraud Prohibition Law. Not verified as to who certifies.",
+       "Accessibility: service-accessibility regulations apply to accommodation and to websites, with an accessibility statement required; exemptions by turnover. Details: not verified.",
+       "Privacy: the Protection of Privacy Law applies; Amendment 13 came into force in August 2025. Not verified as to what a small guesthouse must do.",
+       "Safety of pools and of rural units (railings, hot tubs): regulations exist. Not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR and UK GDPR apply to booking data. Consent is needed for non-essential cookies.",
+       "Distance-selling rules: the right to withdraw does not apply to accommodation for a specific date. Believed true in both; not verified.",
+       "Package travel: selling a stay together with transport or another significant tourist service can make the seller an organiser with heavy duties (EU Package Travel Directive 2015/2302; UK Package Travel Regulations 2018). Whether a stay with an included dinner, a workshop or an activity counts: not verified. This matters for the offers seen in reference 3.",
+       "Guest registration: Schengen-area accommodation must have foreign guests complete and sign a registration form. National rules differ. Not verified.",
+       "Tourist tax: charged by many municipalities per person per night, often payable on arrival. Not verified per place.",
+       "UK: from April 2025 the Digital Markets, Competition and Consumers Act prohibits showing a headline price without mandatory fees (\"drip pricing\") and prohibits fake reviews. Believed true; not verified.",
+       "EU: the Omnibus Directive requires traders who show reviews to say whether and how they check them. Not verified.",
+       "Short-term rental registration: an EU regulation on data collection for short-term rentals applies from 2026; many cities have their own registration numbers that must be shown. Not verified.",
+       "European Accessibility Act, from June 2025, covers e-commerce with a microenterprise exemption. Whether a small property's booking page is in scope: not verified.",
+       "Fire-safety law applies to all paying-guest accommodation in the UK, including small bed and breakfasts. Not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "A federal rule on unfair or deceptive fees, in force from May 2025, requires short-term lodging prices to show the total including mandatory fees up front. Believed true; not verified.",
+       "Lodging taxes are set by state, county and city and are added to the room price. Not verified per place.",
+       "The Americans with Disabilities Act requires places of lodging to describe accessible features in enough detail and to let accessible rooms be booked in the same way as others. Not verified. One reference, Hotel San Jose, labels its links with their behaviour (\"opens in a new window\") and its video with \"does not have audio\" (observed 2026-11-21).",
+       "Short-term rental permits are local. Not verified.",
+       "Privacy is by state. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product asks which country the property is in, and where most guests come from, before generating any legal page or price format.",
+     "The product may generate the structure of booking terms, a privacy page and an accessibility statement, each marked as a draft that needs review. It never writes the cancellation terms themselves.",
+     "The product never shows stars, never writes \"licensed\", \"accessible\" or \"complies with\", and never states that taxes are included unless the customer said so."
+    ]
+   }
   },
   "kindergarten": {
    "slug": "kindergarten",
@@ -5725,7 +6603,55 @@
      "ar": "التعلم باللعب (not verified)",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Operating permission. Caring for young children for payment is licensed, registered or supervised in most countries, usually above a small number of children. The site must not suggest a status the business does not hold.",
+       "Children's data is the most protected kind. A child's name with a photo, health or allergy information, and custody arrangements need a parent's consent and careful storage. Default: the public product collects none of it.",
+       "Photos of children need a parent's written consent before publication, separately from consent to take them.",
+       "Privacy notice as soon as an enquiry form stores a parent's name and phone.",
+       "Terms when registration or money is taken online: fees, deposit, notice period, refunds.",
+       "Marketing messages to parents generally need prior agreement.",
+       "Staff vetting (criminal-record checks for people working with children) exists in many countries. A site may say staff are vetted only if the customer confirms it."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Daycare for babies and toddlers: the Supervision of Daycare Centres for Toddlers Law (2018) requires a licence for settings above a minimum number of toddlers, with rules on ratios, first-aid training and security cameras. Thresholds, the responsible ministry today, and current ratio numbers: not verified.",
+       "Ages 3 to 6: compulsory free education applies from age 3 in public kindergartens; private ones need a licence from the Ministry of Education. Details: not verified.",
+       "Staff: the law preventing the employment of sex offenders in institutions serving minors requires a police clearance for male employees. Scope: not verified.",
+       "Accessibility statement and website accessibility duties, privacy law (including Amendment 13 of 2025), and the consent rule for advertising messages apply as in `hair-salon.md`. Exemptions and details: not verified.",
+       "Fees must be shown including VAT where VAT applies; whether a given kindergarten's fees carry VAT: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR and UK GDPR. Children's data and health data need particular care; consent for non-essential cookies. One reference (Bright Horizons UK) lists separate privacy, cookie and GDPR notices in its footer (observed 2026-11-21).",
+       "England: providers caring for children under eight for more than two hours a day must register with Ofsted or a childminder agency and follow the Early Years Foundation Stage framework, which sets staff ratios. Exact ratios and exemptions: not verified. Two UK references display an Ofsted rating; one states the date the rating was correct (observed 2026-11-21).",
+       "England: government-funded childcare hours exist for working parents and for three- and four-year-olds. Current eligibility and hours: not verified.",
+       "Other EU states each have their own licensing and ratios: not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Childcare is licensed by each state, with state ratios, group sizes and background checks. Not verified per state.",
+       "COPPA concerns online services collecting data from children under 13; a site used by parents, not children, is usually outside it. Not verified.",
+       "The ADA applies to childcare centres as public accommodations, and is applied by courts to websites in many cases. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "Asks the country before generating any legal page, and marks every legal page as a draft.",
+     "Never writes \"licensed\", \"registered\" or a rating without the number, body and date from the customer.",
+     "Never states that the site \"complies with\" a named law."
+    ]
+   }
   },
   "landing-page": {
    "slug": "landing-page",
@@ -6016,7 +6942,63 @@
      "ar": "حاشية، الشروط الدقيقة (not verified)",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Advertising claims. A landing page is advertising. Claims must be true and backed. Misleading claims, hidden conditions and fake urgency are regulated in most jurisdictions.",
+       "Reviews and endorsements. Testimonials must be real and represent typical experience or say they do not; paid or gifted endorsements must be disclosed. Rules differ; not verified per jurisdiction.",
+       "Prices. Total price, taxes and extra charges must be clear before purchase in most consumer-protection regimes.",
+       "Distance selling. Buying online usually brings a cancellation or withdrawal right, with exceptions (for example custom-made goods, digital content once downloaded with consent). Not verified per jurisdiction.",
+       "Preorders. Taking money for goods not yet available brings delivery-date duties and refund duties in many places. Not verified.",
+       "Privacy notice. Needed for any form, any signup and any tracking.",
+       "Marketing consent. Email and SMS marketing generally needs prior agreement and an easy unsubscribe.",
+       "Cookies and pixels. Advertising pixels and analytics cookies need consent in the EU and UK.",
+       "Trademarks. Other companies' names and logos (customers, press, compatible products) need permission or a clear descriptive basis. Reference 2 states in a footnote that trademarks belong to their owners."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Consumer protection: the Consumer Protection Law prohibits misleading a consumer, including in advertising, and gives cancellation rights for distance transactions (generally 14 days, with a capped cancellation fee). Details and exceptions: not verified.",
+       "Prices: displayed prices to consumers must include VAT. Not verified in detail.",
+       "Marketing messages: section 30A of the Communications Law (the \"spam law\") requires prior explicit consent for advertising by email, SMS and similar, with unsubscribe in every message. Not verified in detail.",
+       "Accessibility: businesses serving the public must make websites accessible and publish an accessibility statement, with Israeli Standard 5568 as the reference. Exemptions for very small businesses: not verified.",
+       "Privacy: the Protection of Privacy Law applies to lead data. Amendment 13 came into force in August 2025. Not verified in detail."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "EU: the Unfair Commercial Practices Directive bans misleading actions and omissions and lists banned practices, including false claims that an offer is available only for a very limited time. Believed correct; not verified for this file.",
+       "EU: the Omnibus Directive (from May 2022) requires that a claimed price reduction show the lowest price of the prior 30 days, and requires traders to say whether and how they check that reviews come from real buyers. Believed correct; not verified.",
+       "EU: the Consumer Rights Directive gives a 14-day withdrawal right for most distance contracts, with exceptions. Believed correct; not verified per product type.",
+       "UK: the Digital Markets, Competition and Consumers Act 2024 is believed to ban fake reviews and drip pricing from April 2025, enforced by the Competition and Markets Authority. Not verified.",
+       "GDPR and UK GDPR apply to leads; ePrivacy rules (EU) and PECR (UK) require consent for marketing emails to individuals and for non-essential cookies.",
+       "Accessibility: the European Accessibility Act (from June 2025) applies to e-commerce services, with a microenterprise exemption. A landing page with checkout could be in scope. Not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "The FTC Act prohibits unfair or deceptive advertising; the FTC's Endorsement Guides govern testimonials and disclosure of material connections. The FTC adopted a rule against fake reviews and testimonials in 2024. Believed correct; not verified for this file.",
+       "CAN-SPAM governs commercial email (unsubscribe, postal address, honest subject lines). Not verified.",
+       "The FTC's Mail, Internet, or Telephone Order Merchandise Rule requires shipping within the stated time (or 30 days) and notice and refund options when delayed; relevant to preorders. Not verified.",
+       "Text-message marketing needs prior express written consent under the TCPA. Not verified.",
+       "State privacy laws (for example California) may apply above thresholds. Not verified.",
+       "Automatic renewal laws (federal and state) govern free trials that turn into paid subscriptions. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page, terms of sale and an accessibility statement. It marks each as a draft that needs review.",
+     "The product never writes a claim, testimonial, rating, discount or deadline that the customer did not supply (section 4).",
+     "The product never states that the page \"complies with\" a named law.",
+     "The product asks which countries can buy before generating any legal page or price display."
+    ]
+   }
   },
   "lawyer": {
    "slug": "lawyer",
@@ -6376,7 +7358,58 @@
      "ar": "مساعدة قانونية",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Lawyer advertising is regulated by the bar or regulator, beyond ordinary consumer law: limits on outcome claims, comparisons, testimonials, naming clients, the word \"specialist\", and soliciting people in distress.",
+       "Confidentiality and privilege cover what a prospective client tells the firm, including through a web form.",
+       "Conflict of interest: a firm may be barred from acting, and information received from the other side can itself create a problem.",
+       "Anti-money-laundering duties require identifying clients before certain work (property, companies, handling money). This happens at engagement, not on the website.",
+       "Client money is held in separate accounts under strict rules. A website that takes payments on account of fees touches these rules.",
+       "Privacy notice: enquiries can include data on crimes, health and family, which is specially protected in many places.",
+       "Unauthorised practice: only licensed people may give legal advice in most countries; a site, a chatbot or a form must not appear to give it."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Bar Association Law (1961) and the Bar Association Rules (Professional Ethics) and (Advertising, 2001): advertising is permitted within limits (truthful, dignified, no misleading or comparative claims; limits on naming clients and on stating outcomes). Current text: not verified.",
+       "Fees: percentage-of-result fees are believed forbidden in criminal matters and limited by law in some areas (for example road-accident and national-insurance claims). Not verified.",
+       "A written fee agreement is strongly expected; whether it is mandatory: not verified.",
+       "Privilege under the Evidence Ordinance and the Bar Association Law. Application to web enquiries: not verified.",
+       "Privacy law (Amendment 13, in force August 2025), website accessibility statement, consent for advertising messages: as in other domain files; application to a small law office: not verified.",
+       "Fees quoted to private clients include VAT under consumer law: not verified for legal services."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "England and Wales: firms regulated by the Solicitors Regulation Authority must publish, for certain services (believed to include residential conveyancing, probate, immigration, employment tribunal claims, some motoring offences, debt recovery), price information, who does the work and typical timescales, and must publish their complaints procedure and display the regulator's digital badge. Exact list and wording: not verified.",
+       "Two references carry a footer statement that the firm is authorised and regulated by the Solicitors Regulation Authority, one with its number and VAT number (observed 2026-11-21). One reference states on its home page that it does not offer legal aid and that it offers both a fixed-fee and an hourly package (observed 2026-11-21).",
+       "\"No win, no fee\" arrangements are regulated (conditional fee and damages-based agreements). Not verified.",
+       "GDPR / UK GDPR: criminal-offence data and special-category data in enquiries. Not verified.",
+       "EU member states: each bar has its own advertising code; the CCBE code applies to cross-border practice. Not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Each state has rules of professional conduct based on the ABA Model Rules: 7.1 (no false or misleading communication), 7.2 and 7.3 (advertising and solicitation), 1.18 (duties to prospective clients), 5.5 (unauthorised and multi-jurisdictional practice). Some states require the words \"Attorney Advertising\", a responsible lawyer's name and office address, or a disclaimer next to past results. Not verified per state.",
+       "Contingency fees are allowed in many civil matters with a written agreement, and prohibited in criminal and most family matters. Not verified.",
+       "ADA applied to websites; state privacy laws. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "Asks the jurisdiction and the regulator before generating any page, and asks the customer which statements their regulator requires on a website.",
+     "Keeps results, client names and reviews off until the customer confirms consent and permission.",
+     "Never writes a statement of law, a time limit or a prediction.",
+     "Never states that the site \"complies with\" a named rule."
+    ]
+   }
   },
   "musician-band": {
    "slug": "musician-band",
@@ -6695,7 +7728,58 @@
      "ar": "نظام صوت (not verified)",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Privacy notice. Needed as soon as the site collects an email (mailing list, ticket alerts, downloads) or an enquiry. It names who collects, what, why, how long and how to unsubscribe or ask for deletion.",
+       "Mailing-list consent. Marketing emails generally need prior opt-in in the EU, UK and Israel; the US uses an opt-out model with conditions. An email gate for a free download is a marketing signup and must say so.",
+       "Copyright in the music. Publishing a recording of a cover song generally needs a licence from the song's publisher (often a mechanical or synchronisation licence for video). Embedding official players from streaming services is generally how artists share music without hosting files. Not verified per country.",
+       "Lyrics are protected text; reproducing them needs permission from the publisher.",
+       "Photos belong to the photographer unless assigned; publishing needs a licence and usually a credit.",
+       "Ticket resale. Many countries regulate secondary ticketing and above-face-value resale. One reference states that transfer and resale are only through the official face-value platform (observed 2026-11-22).",
+       "Merchandise sold on the site makes the act a shop: prices with tax as required, delivery, returns, a withdrawal right for distance sales in some places. One reference's footer carries terms, returns and exchanges, shipping and a \"withdrawal request\" link (observed 2026-11-22).",
+       "Performing for hire: a written contract with deposit, cancellation, timings, power and space needs, sound limits and what happens if the band cannot play."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Accessibility: websites of businesses serving the public must be accessible, with an accessibility statement and a contact, under the Equal Rights for Persons with Disabilities Law and its regulations, with Israeli Standard 5568 as the technical reference. Whether a musician's site counts as a business serving the public, and small-business exemptions: not verified.",
+       "Privacy: the Protection of Privacy Law applies to a mailing list; Amendment 13 came into force in August 2025. Not verified for a musician's list.",
+       "Marketing messages: the \"spam law\" (section 30A of the Communications Law) requires prior consent for advertising by email or SMS. Believed to apply to a band's newsletter; not verified.",
+       "Copyright: the Copyright Act 2007; collective licensing through ACUM for authors and composers. How it applies to cover recordings on a band's site: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR and UK GDPR apply to mailing lists and enquiries. Cookies: consent for non-essential cookies (ePrivacy, PECR); embedded players may set cookies. Not verified in detail.",
+       "UK: the Consumer Rights Act 2015 sets information duties on secondary ticket resale. Believed true; not verified.",
+       "Distance-selling withdrawal rights apply to merchandise; tickets for a dated event are usually excluded. Not verified.",
+       "Copyright collecting societies (for example PRS for Music in the UK) license performance and recording rights. Not verified for a band's own site.",
+       "Accessibility: the European Accessibility Act from June 2025 covers some e-commerce; microenterprise exemption; scope for a band's merch store: not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "CAN-SPAM sets rules for commercial email (identification, opt-out, physical address). Believed true; not verified in detail.",
+       "Text-message signups (one reference shows a text-message number on its home page, observed 2026-11-22) fall under the TCPA, which requires prior express consent for marketing texts. Not verified.",
+       "Mechanical licences for cover recordings are available under a statutory licence. Not verified in detail.",
+       "Several states regulate ticket resale and ticket-price disclosure (all-in pricing). Not verified per state.",
+       "State privacy laws (for example California) may apply above thresholds. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page (with a mailing-list heading), shop terms if merchandise is sold, booking terms for a band for hire, and an accessibility statement, each marked as a draft that needs review.",
+     "The product never states that the site \"complies with\" a named law.",
+     "The product asks which country the act is based in before generating any legal page, and asks about rights before publishing any recording or photo."
+    ]
+   }
   },
   "nonprofit": {
    "slug": "nonprofit",
@@ -6942,7 +8026,55 @@
      "ar": "not applicable",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Fundraising is regulated in most countries: who may ask for money, what must be disclosed, and how donor data is used.",
+       "Donor data: names, addresses, amounts, payment history are personal data; giving to some causes can reveal beliefs or health, which are sensitive data in many places.",
+       "Beneficiary data and images: consent, dignity and safety; stricter for children and for people in danger.",
+       "Card payments: handled by a payment provider so the product never touches card numbers.",
+       "Accessibility statement where the law requires it.",
+       "Lotteries, raffles and prize draws for fundraising are regulated separately in many countries. Not verified."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "A nonprofit association (עמותה) is registered with the Registrar of Associations. A \"proper management\" certificate (אישור ניהול תקין) is commonly expected by donors and funders. What must appear on a website: not verified.",
+       "Donors to institutions approved under section 46 of the Income Tax Ordinance can claim a tax credit. The receipt wording and approval number requirements: not verified.",
+       "Website accessibility statement under the Equal Rights for Persons with Disabilities Law regulations; exemptions by size. Not verified for small associations.",
+       "Privacy Protection Law, Amendment 13 (in force August 2025): duties for donor databases. Not verified.",
+       "Fundraising messages by SMS or email need consent under Communications Law section 30A; whether nonprofits have an exemption: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR and UK GDPR for donor and volunteer data.",
+       "England and Wales: registered charities above an income threshold are believed to be required to state that they are registered on their website and fundraising materials. Threshold and wording: not verified.",
+       "UK: the Fundraising Regulator's Code of Fundraising Practice applies to fundraising in England, Wales and Northern Ireland; Scotland has its own regulator. Not verified in detail.",
+       "UK Gift Aid requires a donor declaration with specific information. Exact wording: not verified.",
+       "EU: tax relief for cross-border giving varies by country. Not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "501(c)(3) status allows deductible gifts for eligible US taxpayers. Donors are believed to need a written acknowledgement for single gifts of 250 US dollars or more. Not verified.",
+       "Many states require registration before soliciting donations from their residents. Not verified per state.",
+       "COPPA if the site collects data from children under 13."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product generates the structure of privacy, terms, donation terms and accessibility pages, marked as drafts.",
+     "The product never writes a tax-relief statement, a registration number or a \"100%\" claim that the customer did not give.",
+     "The product asks in which countries the organisation is registered and where donors live before generating any donation page."
+    ]
+   }
   },
   "personal-site": {
    "slug": "personal-site",
@@ -7210,7 +8342,57 @@
      "ar": "not verified",
      "he_verified": false
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "The person's own data. Publishing one's own details is the person's choice, but the product should not encourage over-sharing (rules 1 and 2). Information about other people in posts (friends, family, colleagues) can raise privacy and defamation questions.",
+       "Privacy notice. Needed as soon as the site collects other people's data: a contact form, a newsletter, comments, analytics with cookies.",
+       "\"Household\" exemption. Data-protection laws often exempt purely personal or household activity. A public website that collects visitors' data is generally believed not to fall under it. Not verified.",
+       "Newsletter consent. Marketing or regular emails need prior agreement and an easy unsubscribe in most places.",
+       "Affiliate links and sponsored posts must be disclosed in many jurisdictions.",
+       "Copyright. Quoting others is allowed within limits (fair use, fair dealing, quotation exceptions) that differ by country. Images from elsewhere need permission. Not verified per jurisdiction.",
+       "Defamation. A personal site is publishing. Statements about named people can be defamatory. Not legal advice; the product does not judge content but should not generate claims about third parties.",
+       "Comments. Hosting other people's comments may bring responsibility for removing unlawful content once notified. Not verified per jurisdiction."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Privacy: the Protection of Privacy Law applies to stored data such as newsletter lists. Amendment 13 came into force in August 2025. Whether and how it applies to an individual's site: not verified.",
+       "Marketing messages: section 30A of the Communications Law (the \"spam law\") requires prior consent for advertising messages. Whether a personal newsletter counts as advertising depends on its content: not verified.",
+       "Accessibility: the duty to make websites accessible applies to those providing a service to the public. Whether a private person's non-commercial site is covered: not verified, believed not.",
+       "Defamation: the Prohibition of Defamation Law applies to online publication. Not verified in detail."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR (EU) and UK GDPR apply to newsletter lists and contact forms on a public site; the household exemption is believed not to cover them. Non-essential cookies need consent (ePrivacy rules in the EU, PECR in the UK).",
+       "Germany: a legal notice (Impressum) with the operator's name and an address is believed to be required for sites that are not purely private, which can include a personal blog with ads or affiliate links. This conflicts with keeping a home address private; a service address is sometimes used. The duty is believed to have moved from the Telemedia Act to the Digital Services Act (Digitale-Dienste-Gesetz) in 2024. Not verified.",
+       "UK: the Digital Markets, Competition and Consumers Act 2024 is believed to ban fake reviews and undisclosed paid endorsements from April 2025. Not verified for personal sites.",
+       "Accessibility law for private individuals: believed not to apply. Not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "The FTC requires disclosure of material connections in endorsements, including affiliate links (Endorsement Guides). Believed correct; not verified for this file.",
+       "CAN-SPAM applies to commercial email and requires a valid physical postal address in each message; people often use a post-office box to keep a home address private. Not verified.",
+       "Children: COPPA applies to sites directed at children under 13 that collect their data. Not verified.",
+       "Privacy law is by state. Small personal sites are usually below thresholds. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page. It marks it as a draft that needs review.",
+     "The product never states that the site \"complies with\" a named law.",
+     "The product asks which country the person lives in before generating any legal page, and warns about a legal-notice duty where one is believed to exist, without publishing an address unless the person decides to.",
+     "The product never generates statements about real third parties."
+    ]
+   }
   },
   "photographer": {
    "slug": "photographer",
@@ -7535,7 +8717,60 @@
      "ar": "ورشة عمل",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Copyright. The photographer usually owns copyright in their photos unless a contract transfers it. Clients typically receive a licence for personal use. Not verified per jurisdiction.",
+       "People in photos. Publishing recognisable people for marketing generally needs their consent, especially children. Rules differ widely between countries; some protect a person's image strongly (for example France, Germany). Not verified.",
+       "Privacy notice. Needed as soon as the site collects enquiries, bookings, newsletter emails or analytics.",
+       "Client galleries contain personal data (faces, homes, events) and must be protected accordingly.",
+       "Contracts. Booking terms (deposit, cancellation, delivery, image rights) belong in the photographer's contract and must match what the site says.",
+       "Consumer law for prints. Prices with tax, delivery costs, returns and cancellation rights for distance sales. A made-to-order print may be exempt from return rights in some places. Not verified.",
+       "Scarcity and pricing claims. \"Last chance\" and limited-edition claims must be true; misleading claims are regulated as unfair or misleading practices in many jurisdictions.",
+       "Drones. Aerial photography is regulated by aviation authorities in most countries. Not verified per country."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Accessibility: businesses serving the public must make websites accessible and publish an accessibility statement, under the Equal Rights for Persons with Disabilities Law and its regulations, with Israeli Standard 5568 as the reference. Exemptions for very small businesses by turnover: not verified.",
+       "Privacy: the Protection of Privacy Law applies; publishing a person's photograph in a way that could humiliate them, or using their image for profit without consent, is believed to be an infringement. Amendment 13 came into force in August 2025. Not verified in detail.",
+       "Copyright: under the Copyright Law 2007, the owner of a commissioned portrait or event photograph is believed to be the person who commissioned it, unless agreed otherwise. This differs from many other countries and changes what the photographer may show. Not verified; ask the customer what their contracts say.",
+       "Distance sales cancellation (prints, prepaid sessions): the Consumer Protection Law gives cancellation rights with capped fees. How it applies to a booked date: not verified.",
+       "Marketing messages: section 30A of the Communications Law requires prior consent. Not verified in detail."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR (EU) and UK GDPR: photographs of identifiable people are personal data. Publishing them in a portfolio needs a lawful basis, usually consent. Non-essential cookies need consent (ePrivacy, PECR).",
+       "Distance-selling rules: services for a specific date (leisure-related) may be exempt from the 14-day withdrawal right; whether a photo session falls under that exemption: not verified.",
+       "Displayed consumer prices must include VAT: believed true; not verified.",
+       "Accessibility: the European Accessibility Act (from June 2025) covers e-commerce services with a microenterprise exemption. A photographer with an online shop and more than ten staff or the turnover threshold could be in scope. Not verified.",
+       "UK: the commissioner of a photograph has a limited right not to have it published (privacy in certain photographs and films under the Copyright, Designs and Patents Act 1988). Not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Copyright stays with the photographer unless transferred in writing. Registration with the Copyright Office matters for enforcement. Believed correct; not verified.",
+       "Right of publicity (using a person's likeness commercially) is state law. Not verified per state.",
+       "Some states regulate limited-edition print disclosures (for example California and New York have fine-print laws). Not verified.",
+       "The Americans with Disabilities Act is applied by courts to business websites in many cases. Not verified.",
+       "Sales tax on prints and sometimes on photography services varies by state. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page, terms page, image-usage page and accessibility statement. It marks each as a draft that needs review.",
+     "The product never writes the photographer's contract and never states that the site \"complies with\" a named law.",
+     "The product asks about consent for people in pictures (fact 4) before publishing any gallery.",
+     "The product asks which country the photographer works in before generating any legal page."
+    ]
+   }
   },
   "portfolio": {
    "slug": "portfolio",
@@ -7839,7 +9074,59 @@
      "ar": "اتفاقية عدم إفصاح",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Who owns the work. After a commission, copyright in the finished work may belong to the client by contract. The designer's right to show it in a portfolio is often a contract clause, not automatic. Not verified per jurisdiction; ask the customer what their contracts say.",
+       "Confidentiality. Work under a non-disclosure agreement must not be shown, or must be shown as agreed.",
+       "Trademarks. Client names and logos are trademarks. Showing them to describe one's own work is common, but permission is the safe path.",
+       "Moral rights. In many jurisdictions authors have a right to be credited. Leaving out a collaborator, or presenting their work as one's own, can breach it. Not verified.",
+       "People in images. A recognisable person in a project image (a model, staff, the public) may need to have consented. Not verified per jurisdiction.",
+       "Privacy notice. Needed as soon as there is an enquiry form, a newsletter or analytics.",
+       "Marketing emails. A newsletter needs prior agreement and an easy way to unsubscribe in most places.",
+       "Shop. Selling prints or products brings consumer law (returns, delivery, prices with tax). Reference 5's shop states a no-returns policy except for damage; whether that is allowed depends on the buyer's country (EU buyers have a withdrawal right for distance sales, with exceptions). Not verified."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Accessibility: businesses serving the public must make websites accessible and publish an accessibility statement, under the Equal Rights for Persons with Disabilities Law and its regulations, with Israeli Standard 5568 as the reference. Exemptions exist for very small businesses by turnover; whether a one-person studio is exempt: not verified.",
+       "Privacy: the Protection of Privacy Law applies to enquiry data. Amendment 13 came into force in August 2025. What it requires of a one-person studio: not verified.",
+       "Copyright: the Copyright Law 2007 includes moral rights (the right to be named). How it applies to commissioned design: not verified.",
+       "Architects: the title and practice are believed to be regulated through registration (Engineers and Architects Law). Not verified.",
+       "Marketing messages: section 30A of the Communications Law requires prior consent for advertising by email or SMS. Details: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR (EU) and UK GDPR apply to enquiries and newsletters. Non-essential cookies need consent (ePrivacy rules in the EU, PECR in the UK).",
+       "UK: \"architect\" is a protected title under the Architects Act 1997; only people on the register held by the Architects Registration Board may use it. Believed correct; not verified for this file.",
+       "EU member states regulate architects separately; the profession is recognised across the EU under the Professional Qualifications Directive. Not verified.",
+       "Germany and Austria are believed to require a legal notice (Impressum) on business websites. Not verified for current law.",
+       "Accessibility: the European Accessibility Act (from June 2025) covers certain consumer services with a microenterprise exemption. A portfolio without a shop is likely out of scope; not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Copyright: work made by an independent contractor is not \"work made for hire\" unless a written agreement says so and it falls in listed categories; otherwise the designer keeps copyright unless assigned. Believed correct; not verified for this file.",
+       "\"Architect\" is a title restricted by state licensing laws. Not verified per state.",
+       "The Americans with Disabilities Act is applied by courts to business websites in many cases. Not verified.",
+       "Email marketing: the CAN-SPAM Act sets rules for commercial email, including an unsubscribe method and a postal address. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page, a terms page and an accessibility statement. It marks each as a draft that needs review.",
+     "The product never states that the site \"complies with\" a named law.",
+     "The product asks for permission per project (mandatory fact 5) and never publishes a project without an answer.",
+     "The product never uses a protected professional title unless the customer confirms it (mandatory fact 15)."
+    ]
+   }
   },
   "product-docs": {
    "slug": "product-docs",
@@ -8158,7 +9445,54 @@
      "ar": "كاتب تقني (not verified)",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Privacy notice. Needed when the docs collect anything about a visitor: search terms tied to an account, feedback with an email, analytics cookies, a contact form. Plain public pages with no tracking collect little, but the hosting still logs addresses.",
+       "Instructions and product safety. For a physical product, the instructions are often part of the product's legal safety duty, not just a courtesy. A missing warning can make the maker liable for harm. Which warnings are legally required: not verified, and differs by product category.",
+       "Copyright. The customer must own or have permission for every screenshot, photo and diagram. Screenshots of third-party software or websites may need permission. Not verified.",
+       "Trademarks. Naming other companies' products (\"works with ...\") is generally allowed to describe compatibility, but logos usually need permission. Not verified.",
+       "Open documentation. If the docs are published as open source for contributions (references 5 and 8 say theirs are), a licence and contribution terms are needed. Which licence fits: a question for the customer.",
+       "Accuracy of claims. Documentation that states a capability, a security property or a compliance status is a claim the company can be held to. Rule 8 applies with legal weight."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Accessibility: businesses serving the public must make websites accessible and publish an accessibility statement, under the Equal Rights for Persons with Disabilities Law and its service-accessibility regulations, with Israeli Standard 5568 (based on WCAG) as the technical reference. Whether a product's help centre counts as a \"service to the public\" in itself: believed yes when it is public; not verified.",
+       "Instructions in Hebrew: consumer-protection rules are believed to require Hebrew instructions and warnings for many consumer goods sold in Israel. Which goods and what exactly: not verified.",
+       "Privacy: the Protection of Privacy Law applies to any stored personal data (feedback with email, support tickets). Amendment 13 came into force in August 2025. What it requires of a small docs site: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR (EU) and UK GDPR apply to feedback, support forms and account-linked search. Non-essential cookies need consent (ePrivacy rules in the EU, PECR in the UK).",
+       "Product safety: the EU General Product Safety Regulation (applies from December 2024) and sector rules (for example machinery, toys, electrical equipment) require instructions and safety information in a language easily understood by consumers in the member state where the product is sold. Exact duties per category: not verified.",
+       "Accessibility: the European Accessibility Act (applies from June 2025) covers certain products and services and is believed to include the information and instructions supplied with in-scope products. Whether a given product is in scope, and the microenterprise exemption: not verified.",
+       "Digital products: the EU Digital Content Directive is believed to require that a digital product matches its description, which includes documentation the trader supplies. Not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "No general federal law requires product documentation. Sector rules do (for example medical devices, where \"instructions for use\" are regulated by the FDA). Not verified per sector.",
+       "Accessibility: the Americans with Disabilities Act is applied by courts to business websites in many cases; Section 508 applies when selling to federal agencies. Not verified for a given company.",
+       "Product liability: failure to warn is a recognised basis for liability in many states. Not verified per state.",
+       "Privacy law is by state (for example California). Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page and an accessibility statement. It marks each as a draft that needs review.",
+     "The product never writes a safety warning itself. It asks for warnings (mandatory fact 7) and places them before the step (rule 5).",
+     "The product never states that the docs or the product \"comply with\" a named law or standard.",
+     "The product asks which countries the product is sold in before generating any legal page."
+    ]
+   }
   },
   "real-estate-agent": {
    "slug": "real-estate-agent",
@@ -8517,7 +9851,62 @@
      "ar": "not used",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Agents are licensed or registered in many countries, and adverts must often show it. Not verified per country.",
+       "Adverts must not mislead. Price, size, condition, ownership type and running costs are treated as part of the offer.",
+       "Fair housing and non-discrimination. Descriptions and selection of buyers or tenants may not exclude protected groups. Not verified per country.",
+       "Privacy notice. Needed for enquiries, viewings, valuations and applicant accounts. Seller and tenant data (names, phone numbers, whether a home is empty) is especially sensitive.",
+       "Anti-money-laundering duties apply to agents in many countries (identity checks on buyers and sellers). Reference 3 links to \"AML documents\". Not verified per country.",
+       "Reviews must be real.",
+       "Marketing messages (alerts, newsletters) need prior agreement."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Real Estate Agents Law, 1996: a broker must hold a licence; commission depends on a written, signed order for brokerage services containing required details; exclusivity has its own rules. Whether the licence number must appear in every advert: not verified.",
+       "Accessibility: businesses serving the public are required to make their websites accessible and publish an accessibility statement, under the Equal Rights for Persons with Disabilities Law and its service-accessibility regulations, with Israeli Standard 5568 as the technical reference. Thresholds: not verified.",
+       "Privacy: the Protection of Privacy Law applies; Amendment 13 came into force in August 2025. Not verified for a small agency.",
+       "Consumer Protection Law: misleading advertising is prohibited. How it applies to room counts and sizes in listings: not verified.",
+       "Marketing messages: section 30A of the Communications Law requires prior consent. Details: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR (EU) and UK GDPR apply. Non-essential cookies need consent (one rejected reference, 2026-11-22, shows a cookie notice with three choices).",
+       "UK: estate and letting agents must belong to a government-approved redress scheme. Reference 1 and its sister site (rejected in section 9) include an ombudsman image, seen as a file name only. Believed true; not verified.",
+       "UK: letting agents must belong to a client money protection scheme and display their fees, and most fees charged to tenants in England are banned under the Tenant Fees Act 2019. Not verified.",
+       "UK: material information (price, tenure, council tax band, and more) is expected in every listing under National Trading Standards guidance applying consumer protection law. Not verified in detail.",
+       "UK: an energy performance certificate is required when a home is marketed for sale or rent. Believed true; not verified.",
+       "UK: the Renters' Rights Act changes tenancy rules; references 3 and 4 both lead with explainers on it (observed 2026-11-22). What it requires on an agent's website: not verified.",
+       "EU: energy-certificate display in property adverts is required under EU energy-performance rules as applied by each member state. Not verified per state.",
+       "Accessibility: the European Accessibility Act applies from June 2025 to certain consumer services with a microenterprise exemption. Whether an agency site is in scope: not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Brokers and agents are licensed by each state; advertising rules (brokerage name shown, licence numbers) differ by state. Not verified per state.",
+       "The Fair Housing Act prohibits discriminatory advertising of housing; many sites show an equal-housing-opportunity notice. Not verified for website duties.",
+       "Listing data from an MLS is shown under the MLS's display rules, with required attribution. Reference 5 shows such an attribution notice at the foot of the page.",
+       "\"Realtor\" is a trademark of the National Association of Realtors.",
+       "The Americans with Disabilities Act is applied by courts to business websites in many cases. Not verified.",
+       "State privacy laws apply above thresholds. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page, a terms page, a fees page and an accessibility statement. It marks each as a draft that needs review.",
+     "The product never states that the site \"complies with\" a named law and never adds a licence, redress or equal-housing badge on its own.",
+     "The product asks which country before generating any legal page or listing template, and asks which advert information that country requires (mandatory fact 15)."
+    ]
+   }
   },
   "restaurant": {
    "slug": "restaurant",
@@ -8899,7 +10288,69 @@
      "ar": "توصيل",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Privacy notice. Needed as soon as the site collects a name and a phone number (a booking, an enquiry, a newsletter). Reference 1 states under its newsletter field that subscribing means agreeing to receive promotional content under its privacy policy (observed 2026-11-21).",
+       "Allergy notes are health data in many places, which is more strictly protected. Default: the booking form asks the guest to tell the staff; if a note field exists, it is kept only as long as the booking.",
+       "Allergens. A restaurant must be able to tell a guest which listed allergens are in each dish. The form differs by country.",
+       "Prices. Whether menu prices must include tax, and how a service charge must be disclosed, is set by law in most places.",
+       "Alcohol. Selling it needs a licence; promoting it has age rules.",
+       "Terms. Needed when the product takes deposits, card holds, vouchers or prepaid events: cancellation, no-show fee, refund, voucher expiry.",
+       "Marketing messages need prior agreement. A booking confirmation is not marketing.",
+       "Reviews and awards must be real and current."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "A restaurant requires a business licence under the Business Licensing Law, with Ministry of Health conditions. Details: not verified.",
+       "Kosher: presenting a restaurant as kosher without a certificate from an authorised body is prohibited under the Kosher Fraud Prohibition Law. Which bodies are authorised today: not verified.",
+       "Prices shown to consumers must include VAT (Consumer Protection Law). Not verified for menus specifically.",
+       "Service: whether a mandatory service charge is allowed, and how tips must be handled for wages and tax: not verified.",
+       "Calorie and nutrition labelling duties for restaurant chains: not verified.",
+       "Allergen disclosure duties for restaurants: not verified.",
+       "Accessibility: the website of a business serving the public must be accessible and carry an accessibility statement, with exemptions for very small businesses by turnover. Thresholds and current standard version: not verified.",
+       "Privacy: the Protection of Privacy Law applies to booking data; Amendment 13 came into force in August 2025. What it requires of a single restaurant: not verified.",
+       "Marketing messages: prior consent under section 30A of the Communications Law. Details: not verified.",
+       "Gift vouchers: rules on minimum validity exist. Details: not verified.",
+       "Sale of alcohol to minors is prohibited and a notice is required on premises. Whether a website needs anything: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "EU Regulation 1169/2011 lists 14 allergens and requires that information on them be available for non-prepacked food, including restaurant dishes; member states decide the form. The UK kept the list. Believed true; not verified against the text.",
+       "UK, England: businesses with 250 or more employees must show calories on menus, since April 2022. Small restaurants are outside it. Not verified.",
+       "UK: from 2024-2025, tips and service charges must be passed to staff in full under the Employment (Allocation of Tips) Act. What must be said on a menu: not verified.",
+       "UK: a discretionary service charge must be shown clearly before ordering under consumer-protection rules. Not verified.",
+       "Displayed consumer prices must include VAT: believed true in both; not verified.",
+       "UK: the Food Hygiene Rating must be displayed in Wales and Northern Ireland, and is voluntary in England. Not verified.",
+       "GDPR and UK GDPR apply to booking data. Consent is needed for non-essential cookies. Reference 4 states on its page that it uses cookie-free analytics (observed 2026-11-21).",
+       "Distance-selling cancellation rights have an exception for catering and leisure services booked for a specific date. Whether a prepaid restaurant booking falls under it: not verified.",
+       "European Accessibility Act, from June 2025, with a microenterprise exemption. Whether a restaurant booking page is in scope: not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Menu prices usually exclude sales tax and tip. Some states and cities regulate added service fees and require them to be disclosed up front. Not verified per place.",
+       "Federal menu-labelling rules require calories on menus of chains with 20 or more locations. Not verified.",
+       "Nine major allergens are named in federal law for packaged food; restaurant duties come from state and local food codes. Not verified.",
+       "The Americans with Disabilities Act is applied by courts to restaurant websites in many cases. Reference 7 ends its page with a line offering help by phone to anyone having trouble using the site (observed 2026-11-21).",
+       "Liquor licensing is by state and locality. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product asks which country the restaurant is in before generating any legal page or price format.",
+     "The product may generate the structure of a privacy page, terms and an accessibility statement, each marked as a draft that needs review.",
+     "The product never writes \"licensed\", \"kosher\", \"halal\", \"allergen-free\" or \"complies with\" on its own."
+    ]
+   }
   },
   "tour-guide": {
    "slug": "tour-guide",
@@ -9146,7 +10597,54 @@
      "ar": "إمكانية الوصول",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Privacy notice as soon as the site collects a name and phone. Booking data for foreign visitors may cross borders.",
+       "Health data: dietary allergies and mobility needs may count as health data in many places. Collect only what the tour needs, and say why.",
+       "Terms whenever the product takes bookings or money: cancellation by visitor, cancellation by the guide, weather, minimum numbers, lateness, refunds.",
+       "Photos of visitors need consent before publication.",
+       "Reviews must be real.",
+       "Insurance: guides commonly carry public liability insurance. Whether it is required and whether it must be stated: not verified."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Guiding tourists in Israel is believed to require a licence from the Ministry of Tourism. Whether this applies to every kind of guided walk, and whether the licence must be shown on a website: not verified.",
+       "Accessibility of the website: the Equal Rights for Persons with Disabilities Law and its service-accessibility regulations require an accessibility statement for businesses serving the public, with exemptions for very small businesses. Thresholds: not verified.",
+       "Displayed prices to consumers include VAT; whether tours sold to foreign tourists are VAT-exempt and how prices must then be shown: not verified.",
+       "Distance-selling cancellation under the Consumer Protection Law: how it applies to a dated tour: not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR (EU) and UK GDPR apply to booking data; non-essential cookies need consent.",
+       "The Consumer Rights Directive is believed to exclude leisure services booked for a specific date from the 14-day withdrawal right, so the operator's own cancellation terms govern. Believed; not verified against the text for this file.",
+       "The Package Travel Directive (EU) 2015/2302 and the UK Package Travel Regulations may apply when a tour is sold together with accommodation or transport. A single-day guided tour is believed not to be a package. Not verified.",
+       "Guide licensing differs by country and sometimes by site. Italy, Greece and others are believed to require a licensed guide inside certain monuments and museums. Not verified per country.",
+       "European Accessibility Act: whether a small tour operator's booking page is in scope: not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "Some cities have required tour-guide licences in the past and some of these rules were challenged in court. Current rules per city: not verified.",
+       "ADA applied to websites by courts in many cases; no single federal technical standard for private businesses. Not verified.",
+       "Sales tax on tours varies by state. Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of privacy, terms and accessibility pages, marked as drafts that need review.",
+     "The product never states that the site \"complies with\" a named law, and never displays a licence number the customer did not give.",
+     "The product asks in which country the tours run before generating any legal page."
+    ]
+   }
   },
   "tutor-courses": {
    "slug": "tutor-courses",
@@ -9422,7 +10920,62 @@
      "ar": "يوم مفتوح",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Privacy notice. Needed as soon as the site collects a name and contact.",
+       "Children's data. Data about minors is more protected in many places, and online services aimed at children may need a parent's consent below a set age. Default: the product collects a minor's details only through the parent.",
+       "Learning needs and diagnoses may be health data. Default: not collected unless the customer decides to, and then private.",
+       "Safeguarding. Working one-to-one with children brings duties and expectations (background checks, lesson in a visible place, no private messaging with a child). Which are legal duties and which are good practice differs by country.",
+       "Terms. Lesson cancellation, missed lessons, course refunds and transfers, minimum numbers, shown before the parent or student pays.",
+       "Distance purchases. Online enrolment may carry a cooling-off right; recorded online courses may have a different rule once access starts.",
+       "Copyright. Exam papers, textbooks and worksheets belong to their owners. Recording lessons needs the participants' agreement.",
+       "Advertising claims. Results and qualifications must be true and evidenced.",
+       "Marketing messages generally need prior agreement."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "Accessibility: websites of businesses serving the public must be accessible with an accessibility statement and a contact, under the Equal Rights for Persons with Disabilities Law and its regulations, with Israeli Standard 5568 as the technical reference. Small-business exemptions exist. Not verified in detail.",
+       "Privacy: the Protection of Privacy Law applies; Amendment 13 came into force in August 2025. Not verified for a one-person tutor.",
+       "Work with minors: a law on preventing the employment of sex offenders in certain institutions requires an employer to obtain a police certificate before employing someone to work with minors. Whether it covers a self-employed private tutor, or an agency placing tutors: not verified.",
+       "Private tutoring is not a licensed occupation as far as the author knows; some course types (for example driving lessons) are regulated. Not verified.",
+       "Consumer protection: cancellation of distance transactions with capped fees, and specific rules for cancelling courses and ongoing services. Not verified in detail.",
+       "Displayed consumer prices must include VAT: believed true; not verified. Spam law (section 30A of the Communications Law): not verified in detail."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR and UK GDPR: children's data needs care; for online services offered directly to children, parental consent is needed below an age set by each country (13 to 16; 13 in the UK). Believed true; details not verified.",
+       "UK: criminal-record checks (DBS) are available for work with children; whether a self-employed private tutor is required to have one: believed not required by law, but expected. Not verified. One reference states its tutors are DBS-checked (observed 2026-11-22).",
+       "UK: English language schools may be accredited by the British Council; one reference states that a low-cost evening offer is not accredited and is taught by trainee teachers (observed 2026-11-22). The accreditation scheme's rules: not verified.",
+       "Cookies: consent for non-essential cookies (ePrivacy, PECR). One reference shows an \"if you continue we will assume you are happy\" notice (observed 2026-11-22); whether that wording is valid consent under UK rules is believed not, but not verified.",
+       "Distance contracts: 14-day cancellation right for many online purchases; exceptions for leisure services on a specific date and for digital content once access starts with consent. How they apply to a course run or a lesson pack: not verified.",
+       "Accessibility: the European Accessibility Act from June 2025, microenterprise exemption; scope not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "COPPA (federal) regulates online collection of personal information from children under 13. Believed true; details not verified.",
+       "FERPA covers schools that receive federal funding, not private tutors. Not verified.",
+       "Background checks for tutors are generally a matter of state law and contract. Not verified per state.",
+       "Some states regulate private vocational schools and require approval before offering certain courses. Not verified per state.",
+       "The Americans with Disabilities Act is applied by courts to business websites in many cases; one reference links an accessibility page from its footer (observed 2026-11-22). Not verified."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "The product may generate the structure of a privacy page (with a children's data heading), terms with cancellation and refunds, a safeguarding statement and an accessibility statement, each marked as a draft that needs review.",
+     "The product never states that the site \"complies with\" a named law, or that tutors are \"checked\" or \"qualified\", unless the customer confirms it (mandatory fact 13).",
+     "The product asks which country the provider is in before generating any legal page."
+    ]
+   }
   },
   "wedding": {
    "slug": "wedding",
@@ -9675,7 +11228,52 @@
      "ar": "ترتيب الجلوس (not verified)",
      "he_verified": true
     }
-   ]
+   ],
+   "legal": {
+    "groups": [
+     {
+      "heading": "Applies almost everywhere",
+      "items": [
+       "Guest data is personal data of private people. Names, households, dietary needs (possibly health data), attendance. Collect the least, protect the page, delete after the wedding.",
+       "A couple is a private person, not a business. Data-protection law often exempts purely personal activity, but publishing personal data on an open website may fall outside that exemption. Treat guests' data as if the law applies. Not verified per jurisdiction.",
+       "Children: names and photos of children deserve extra care; a parent's consent before publishing.",
+       "Cash gifts by payment link may involve payment-service rules and tax questions. Not verified.",
+       "For venues and planners: privacy notice, terms (deposits, cancellation, date changes, damage, noise and curfew), and consumer law on advertised prices."
+      ]
+     },
+     {
+      "heading": "Israel",
+      "items": [
+       "A business website serving the public needs an accessibility statement under the Equal Rights for Persons with Disabilities Law regulations, with size exemptions. Whether a couple's private site is in scope: believed not, not verified.",
+       "Event venues need a business licence and have capacity limits set by authorities. Not verified.",
+       "Prices advertised to consumers must include VAT. Per-guest pricing displays: not verified.",
+       "Privacy Protection Law, Amendment 13 (in force August 2025): what it requires of a venue's enquiry form: not verified.",
+       "Legal validity of a marriage ceremony is governed separately (religious authorities, recognition of marriages abroad). The site never states that a ceremony is legally binding. Not verified."
+      ]
+     },
+     {
+      "heading": "European Union and United Kingdom",
+      "items": [
+       "GDPR and UK GDPR for venue enquiries and, likely, for a couple's public RSVP site (see \"private person\" above). Not verified.",
+       "UK: legal ceremonies may be held only at approved premises (England and Wales rules changed recently to allow outdoor ceremonies at approved venues). Whether a venue states it holds a licence is a fact to ask. Not verified.",
+       "Consumer rights on venue deposits and cancellation: national rules; withdrawal-right exceptions for dated leisure services are believed to apply. Not verified.",
+       "UK drip-pricing rules (DMCC Act 2024): how they apply to venue \"from\" prices: not verified."
+      ]
+     },
+     {
+      "heading": "United States",
+      "items": [
+       "State law on deposits and cancellation; venue alcohol licensing; no single federal rule for a couple's site. Not verified.",
+       "ADA applies to venues as public accommodations. Not verified for websites."
+      ]
+     }
+    ],
+    "platform_rules": [
+     "For a couple: a private site by default, a short privacy note, and deletion of RSVP data after a set time.",
+     "For a venue or planner: the structure of privacy and terms pages, marked as drafts.",
+     "The product never says a ceremony is legal or a venue is licensed unless the customer stated it."
+    ]
+   }
   }
  }
 }

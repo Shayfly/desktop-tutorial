@@ -155,6 +155,61 @@ jobs:
           NC_JOBS: "2"
         run: python scripts/run_negative_controls.py game_kit
 
+  # Warehouse 127 (2026-11-28, #568, run 46162357695): the legal page's real chain (tests/test_domain_legal_chain_127.py)
+  # drives Chromium through the fixed server of a real build, so it skips in v24-ci, whose shard 1 then reported its
+  # two controls DID NOT RUN. A job of its own: browser-python's step limits already fill its 34-minute cap (browser
+  # tests 221 s of 240 on run 46161200611). Measured locally: 2 tests in 72 s; the 2 controls in about 3 minutes.
+  legal-chain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt playwright==1.63.0
+      - name: Install Chromium (bounded attempts, retried)
+        timeout-minutes: 9
+        run: |
+          echo 'DPkg::Lock::Timeout "150";' | sudo tee /etc/apt/apt.conf.d/90-wait-for-dpkg-lock >/dev/null
+          for attempt in 1 2 3; do
+            if timeout 160 python -m playwright install --with-deps chromium; then
+              echo "playwright install: ok on attempt $attempt"; exit 0
+            fi
+            echo "::warning title=playwright install::attempt $attempt failed or hung (160s); retrying"
+            sleep $((attempt * 5))
+          done
+          echo "::error title=playwright install::failed 3 times; the legal-chain tests cannot run"
+          exit 1
+      - name: Legal-chain tests
+        timeout-minutes: 4
+        run: python -m pytest -q -rs --junitxml=legal.xml tests/test_domain_legal_chain_127.py
+      - name: No test may be skipped
+        if: always()
+        run: |
+          python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          cases = list(ET.parse('legal.xml').getroot().iter('testcase'))
+          skipped = [f"{c.get('classname')}.{c.get('name')}" for c in cases if c.find('skipped') is not None]
+          failed = [f"{c.get('classname')}.{c.get('name')}" for c in cases
+                    if c.find('failure') is not None or c.find('error') is not None]
+          print(f'::notice title=legal-chain::{len(cases)} test cases, {len(failed)} failed, {len(skipped)} skipped')
+          for s in skipped:
+              print(f'::error title=skipped::{s}')
+          for f in failed:
+              print(f'::notice title=failed test::{f}')
+          sys.exit(1 if skipped or failed or not cases else 0)
+          PY
+      - name: Negative controls (browser)
+        if: always()
+        timeout-minutes: 6
+        env:
+          NC_ENV: browser
+          NC_JOBS: "2"
+        run: NC_SCOPE=declared python scripts/run_negative_controls.py domain_legal_chain_127
+
   # The owner, 2026-11-25 (the font question, "א. צריך שיהיה את כל המגוון"): the font-pair library's full range is
   # checked live -- the licences, scripts and weights Google Fonts states today for every family on the allowed list,
   # and every Hebrew pair on the section library's page in real Chromium (no sideways scroll, every heading inside its

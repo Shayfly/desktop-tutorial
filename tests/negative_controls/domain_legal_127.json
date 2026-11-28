@@ -1,0 +1,268 @@
+{
+ "pr": "domain-legal-127",
+ "sha256": [
+  "tests/test_domain_legal_127.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a domain file without its Israel or everywhere group, or with an empty one, passes the schema",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    for needed in (LEGAL_EVERYWHERE, LEGAL_ISRAEL):\n        if not groups.get(needed):\n            raise DomainError(f'{slug}: legal group {needed!r} is missing or has no items')\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_a_domain_without_the_israel_group_fails_naming_the_domain_and_the_group",
+    "test_a_domain_without_the_everywhere_group_fails_naming_it",
+    "test_a_group_with_no_items_fails_too"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the platform's own rules (a note to us) become a group the customer's page would show",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    rules = groups.pop(LEGAL_PLATFORM, [])\n",
+     "new": "    rules = groups.get(LEGAL_PLATFORM, [])\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_the_platforms_own_rules_are_kept_apart_and_never_a_group"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the page does not say, first, that it is not legal advice",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/legal.py",
+     "old": "'notice': f'{NOT_ADVICE} העמוד",
+     "new": "'notice': f'העמוד"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_it_says_in_plain_hebrew_that_it_is_not_legal_advice_and_says_it_first",
+    "test_a_page_for_every_domain_right_to_left_with_one_h1_and_the_notice_in_the_visible_text",
+    "test_a_whole_repository_passes",
+    "test_the_parity_executor_fails_the_build_on_it_in_every_mode"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the page leaves out the jurisdiction's questions (Israel)",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/legal.py",
+     "old": "    wanted = (LEGAL_EVERYWHERE, JURISDICTION_BY_SCRIPT[script])\n",
+     "new": "    wanted = (LEGAL_EVERYWHERE,)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_the_questions_are_the_domains_two_groups_as_written_and_nothing_else"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the page invents a company number and a registrar",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/legal.py",
+     "old": "'מספר עוסק או חברה לא נמסר לנו, ולכן הוא לא מופיע כאן.'",
+     "new": "'ח.פ. 514000000, רשם החברות אישר.'"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_it_invents_no_company_number_regulator_licence_or_terms"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the page claims a form the home page does not have",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/legal.py",
+     "old": "    return {'form': 'data-wa=\"' in html,",
+     "new": "    return {'form': True,"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_what_the_site_collects_is_read_from_the_page_not_assumed"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a business with a domain and no legal page passes the chain",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/agents.py",
+     "old": "        if legal:                                   # the legal page is not a mode: a business with a domain has one\n",
+     "new": "        if False and legal:   # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_the_parity_executor_fails_the_build_on_it_in_every_mode"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the home page does not link to the legal page",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "    return f' · <a href=\"{ea(c[\"legal_href\"])}\">{LEGAL_LINK_TEXT}</a>' if c.get('legal_href') else ''\n",
+     "new": "    return ''\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_the_footer_links_to_it_only_when_the_content_names_one"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the fixed server does not serve the legal page",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/render.py",
+     "old": ", \"/legal.html\": \"legal.html\"}",
+     "new": "}"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_legal_html_is_served_when_the_build_has_it"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the part ledger leaves the legal files unclaimed",
+   "mutations": [
+    {
+     "file": "omni_prod/part_ledger.py",
+     "old": "    for path, part in ((LEGAL_PAGE, 'page'), (LEGAL_JSON, 'copy')):\n",
+     "new": "    for path, part in ():\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_the_ledger_claims_the_files_of_a_build_with_a_domain"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the review's page fallback judges the legal page for the customer's facts",
+   "mutations": [
+    {
+     "file": "omni_prod/skills_runtime.py",
+     "old": "            if p.lower().endswith(('.html', '.htm')) and p != LEGAL_PAGE_PATH}",
+     "new": "            if p.lower().endswith(('.html', '.htm'))}"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_the_reviews_page_fallback_leaves_the_legal_page_out_and_names_the_same_path"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "the renderer's version does not cover the legal text",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/render.py",
+     "old": "    h.update((HERE / 'legal.py').read_bytes())                   # warehouse 127: the legal page's text\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_the_renderer_version_covers_the_legal_text"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "an unknown domain slug is None instead of an error",
+   "mutations": [
+    {
+     "file": "omni_prod/domain_registry.py",
+     "old": "    if slug not in domains:\n        raise DomainError(f'unknown domain {slug!r}')\n    return domains[slug]\n",
+     "new": "    return domains.get(slug)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_domain_by_slug_never_guesses"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "a page of another script gets the Hebrew legal page",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/legal.py",
+     "old": "    if script not in JURISDICTION_BY_SCRIPT:\n        raise LegalNotBuilt(f'the legal page is written in Hebrew only; a {script} page has no jurisdiction mapped')\n",
+     "new": "    script = 'hebrew'\n"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_another_script_raises_and_never_falls_back_to_hebrew"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "the lawyer questions are not marked English and left to right",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/__init__.py",
+     "old": "_ENGLISH = ' lang=\"en\" dir=\"ltr\"'",
+     "new": "_ENGLISH = ''"
+    }
+   ],
+   "targets": [
+    "tests/test_domain_legal_127.py"
+   ],
+   "expect_failed": [
+    "test_the_questions_are_marked_english_and_left_to_right_inside_the_hebrew_page"
+   ]
+  }
+ ]
+}

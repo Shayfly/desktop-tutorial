@@ -48,8 +48,10 @@ from dataclasses import replace
 
 from ..autonomous_core import AcceptanceFailure, ExecutionReport, RepairDeclined
 from ..preview_smoke import served_cut
+from ..domain_registry import domain_by_slug
 from ..repository_patch import FilePatch
 from . import facts as Fx
+from . import legal as LG
 from . import owners as O
 from . import render as R
 from . import schema as K
@@ -643,7 +645,12 @@ class ContentSiteGenerator:
         core.site_sheet = sheet
         bound = R.binds(sheet, route.contract, route.year)
         names = [route.outline_titles[k] for k in (route.order or []) if k in route.outline_titles]
-        files = R.repository(doc, sheet, html, spec=spec, contract=route.contract, bound=bound, order_names=names)
+        domain = domain_by_slug(route.domain)
+        produced = R.legal_files(doc, sheet, route.contract, html, domain=domain, direction=route.direction,
+                                 year=route.year, outline_titles=route.outline_titles, order=route.order)
+        report['legal'] = LG.summary(domain, produced)             # warehouse 127: the legal page, said in the evidence
+        files = R.repository(doc, sheet, html, spec=spec, contract=route.contract, bound=bound, order_names=names,
+                             legal=produced)
         return tuple(FilePatch(path, text) for path, text in sorted(files.items()))
 
     def _without_invented(self, doc, problems, sheet, offered, route):
@@ -663,7 +670,8 @@ class ContentSiteGenerator:
 
     def _render(self, doc, sheet, route):
         return R.render(doc, sheet, route.contract, expect_fp=route.contract_fp, direction=route.direction,
-                        year=route.year, outline_titles=route.outline_titles, order=route.order, windows=route.windows)
+                        year=route.year, outline_titles=route.outline_titles, legal=route.domain is not None,
+                        order=route.order, windows=route.windows)
 
 
 # ---- after a failed round -------------------------------------------------------------------------------------------------
@@ -763,7 +771,19 @@ class ContentSiteRepairer:
                 raise SiteContentInvalid('the repair rewrite made the document invalid', problems)
             html, _ = R.render(doc, sheet, route.contract, expect_fp=route.contract_fp, direction=route.direction,
                                year=route.year, outline_titles=route.outline_titles, order=route.order,
-                               windows=route.windows)
+                               windows=route.windows, legal=route.domain is not None)
+            # the legal page depends on what the home page collects (a form, a cookie window), not on its copy: a
+            # copy repair leaves it as it is (it has also been through the repository transform), and re-writes it
+            # only when what the page collects changed or the page is not there
+            produced = R.legal_files(doc, sheet, route.contract, html, domain=domain_by_slug(route.domain),
+                                     direction=route.direction, year=route.year, outline_titles=route.outline_titles,
+                                     order=route.order)
+            try:
+                kept = json.loads(repository.get(LG.LEGAL_JSON) or 'null')
+            except ValueError:
+                kept = None
+            if kept is not None and kept.get('collects') == LG.collects(html) and LG.LEGAL_PAGE in repository:
+                produced = {}
         except SiteRenderDefect as exc:
             self.trace.append({'declined': 'platform_render_defect', 'why': str(exc)[:1500]})
             raise RepairDeclined('platform_render_defect', str(exc), paid_call=self.agent.calls > called) from exc
@@ -780,7 +800,8 @@ class ContentSiteRepairer:
         self.trace.append({'rewrote': sorted(changes)})
         core.site_report['repairs'] = core.site_report.get('repairs', 0) + 1
         core.site_report['content_calls'] = core.site_report.get('content_calls', 0) + 1
-        return (FilePatch(R.SITE_JSON, R.site_json(doc, stored['binds'])), FilePatch(R.PAGE, html))
+        return (FilePatch(R.SITE_JSON, R.site_json(doc, stored['binds'])), FilePatch(R.PAGE, html),
+                *(FilePatch(path, text) for path, text in sorted(produced.items())))
 
 
 # ---- route-level executors --------------------------------------------------------------------------------------------------
@@ -888,9 +909,10 @@ class SiteParityExecutor:
         preview = find_in_chain(self._inner, PreviewReadyExecutor)
         pages = getattr(preview, 'last_pages', None) if preview is not None else None
         findings = []
-        others = sorted(p for p in repository if p.lower().endswith(('.html', '.htm')) and p != R.PAGE)
+        others = sorted(p for p in repository if p.lower().endswith(('.html', '.htm')) and p not in (R.PAGE, LG.LEGAL_PAGE))
         if others:
             findings.append(f'other HTML documents in the repository: {others}')
+        legal = LG.findings(repository, domain_by_slug(getattr(getattr(self._core, 'site_route', None), 'domain', None)))
         if not isinstance(pages, dict) or not isinstance(pages.get('/'), str):
             self.last_parity = {'status': 'NOT_RUN', 'mode': self.mode, 'reason': 'no served page from the preview',
                                 'findings': findings}
@@ -901,6 +923,9 @@ class SiteParityExecutor:
                 findings.append('the served GET / is not the rendered public/index.html')
             self.last_parity = {'status': 'fail' if findings else 'pass', 'mode': self.mode, 'findings': findings}
         self._core.site_report['parity'] = self.last_parity
+        if legal:                                   # the legal page is not a mode: a business with a domain has one
+            self._core.site_report['legal_findings'] = legal
+            return ExecutionReport(False, tuple(AcceptanceFailure('gate-SITE_LEGAL', f) for f in legal), report.build_log)
         if findings and self.mode == 'block':
             return ExecutionReport(False, tuple(AcceptanceFailure('gate-SITE_PARITY', f) for f in findings),
                                    report.build_log)

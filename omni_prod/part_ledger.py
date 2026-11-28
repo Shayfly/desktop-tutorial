@@ -77,6 +77,10 @@ PAGE = 'public/index.html'
 SITE_JSON = 'content/site.json'
 FACTS_JSON = 'content/facts.json'
 PLATFORM_FILES = ('app.py', 'tests/test_site.py', '.omni/project.json', 'README.md', FACTS_JSON)
+# Warehouse 127: a business with a domain file also gets a legal page the platform writes (site_content/legal.py), and
+# its data; a business without one has neither.
+LEGAL_PAGE = 'public/legal.html'
+LEGAL_JSON = 'content/legal.json'
 
 # The platform's records (rights_ip.RightsEngine.repository_files, media_pipeline.CreativeDirector.repository_files).
 RIGHTS_MANIFEST = 'rights/rights-manifest.json'
@@ -394,6 +398,9 @@ def _section_files(L: _Ledger) -> list[str]:
             L.item(part, origin, path=path)
         else:
             L.unresolve(path, 'the section_library/1 route writes this file and it is missing')
+    for path, part in ((LEGAL_PAGE, 'page'), (LEGAL_JSON, 'copy')):
+        if path in L.repo:
+            L.item(part, 'platform_rendered', path=path)
     return [PAGE]
 
 

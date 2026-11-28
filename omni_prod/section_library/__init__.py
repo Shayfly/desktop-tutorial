@@ -509,6 +509,15 @@ def contact(c: dict, tone: str) -> str:
     return _section('contact', tone, f'<div>{_head(k, "contact")}<dl class="contact-list">{info}</dl></div>{form}', 'contact')
 
 
+LEGAL_LINK_TEXT = 'מידע משפטי ופרטיות'
+
+
+def _legal_link(c: dict) -> str:
+    """The footer's link to the legal page (warehouse 127, acceptance 6): only when the content names one -- a page
+    without a legal page is byte-identical to what it was before."""
+    return f' · <a href="{ea(c["legal_href"])}">{LEGAL_LINK_TEXT}</a>' if c.get('legal_href') else ''
+
+
 def footer(c: dict, rendered: list[str]) -> str:
     links = ''.join(f'<a href="#{ea(i)}">{e(t)}</a>' for i, t in c.get('nav', ()) if i in rendered)
     nav = f'<nav aria-label="ניווט בתחתית העמוד">{links}</nav>' if links else ''
@@ -525,7 +534,7 @@ def footer(c: dict, rendered: list[str]) -> str:
     year = f'{e(c["year"])} ' if c.get('year') else ''
     return (f'<footer class="site-footer"><div class="wrap"><div><b>{e(c["name"])}</b>{tagline}</div>{nav}'
             f'<div><b>יצירת קשר</b>{"".join(f"<p>{r}</p>" for r in reach)}</div>'
-            f'<p class="legal">© {year}{e(c["name"])}</p></div></footer>')
+            f'<p class="legal">© {year}{e(c["name"])}{_legal_link(c)}</p></div></footer>')
 
 
 # ---- in-page windows (omni_prod/window_catalog.py) the library renders itself, deterministically ---------------------
@@ -783,3 +792,62 @@ def page(content: dict, contract: dict, order: list[str] | None = None, windows=
            f'{" data-display-weight=regular" if single else ""}>{markup}</body></html>')
     from ..bidi_ranges import wrap_ranges        # "09:00–18:00" stays in its order on a right-to-left page
     return wrap_ranges(doc), skipped
+
+
+# ---- the legal page (warehouse 127, acceptance 6; DECISIONS.md question 13) ------------------------------------------------
+LEGAL_BACK_TEXT = 'חזרה לדף הבית'
+LEGAL_SKIP_TEXT = 'דלגו לתוכן'
+LEGAL_REQUIRED = ('title', 'lead', 'notice', 'sections', 'questions')
+_ENGLISH = ' lang="en" dir="ltr"'
+
+
+def _legal_list(items: list[str], attrs: str = '') -> str:
+    return f'<ul{attrs}>' + ''.join(f'<li>{e(i)}</li>' for i in items) + '</ul>'
+
+
+def legal_page(c: dict, contract: dict, legal: dict) -> str:
+    """The legal page of a site, as one document, with the same head, fonts, contract and style as the home page. `legal`
+    is site_content.legal's document: a title, a lead, the notice that this is not legal advice, sections of paragraphs and
+    lists the platform knows, and the questions for the customer's lawyer in groups, then the same questions as one block
+    of text to copy. A missing part raises; nothing is filled in. The page carries no script, no form, no image and no
+    phone or e-mail link of its own: it links back to the home page, where the business's contact details are (so the
+    gates that judge a business page -- PRO, G11 -- have nothing to judge here)."""
+    _need(c, ('title', 'description', 'name', 'direction'), 'legal page')
+    _need(legal, LEGAL_REQUIRED, 'legal page')
+    script, _ = page_fonts(contract)
+    q = legal['questions']
+    _need(q, ('title', 'lead', 'groups', 'copy_label', 'copy_text'), 'legal questions')
+    sections = ''
+    for s in legal['sections']:
+        _need(s, ('id', 'title'), 'legal section')
+        body = ''.join(f'<p>{e(p)}</p>' for p in s.get('paragraphs') or ())
+        body += _legal_list(s['items']) if s.get('items') else ''
+        sections += f'<h2 id="{ea(s["id"])}">{e(s["title"])}</h2>{body}'
+    groups = ''.join(f'<h3>{e(g["heading"])}</h3>{_legal_list(g["items"], _ENGLISH)}' for g in q['groups'])
+    rows = min(max(len(q['copy_text'].splitlines()) + 1, 6), 30)
+    ask = (f'<h2 id="legal-questions">{e(q["title"])}</h2><p>{e(q["lead"])}</p>{groups}'
+           f'<label class="legal-label" for="legal-copy">{e(q["copy_label"])}</label>'
+           f'<textarea class="legal-copy" id="legal-copy" readonly rows="{rows}"{_ENGLISH}>{e(q["copy_text"])}</textarea>')
+    head_block = (f'<div class="section-head"><h1 class="title" id="legal-title">{e(legal["title"])}</h1>'
+                  f'<p class="lead">{e(legal["lead"])}</p></div>')
+    notice = f'<p class="legal-notice" role="note">{e(legal["notice"])}</p>'
+    body = (f'<section class="section" id="legal" aria-labelledby="legal-title"><div class="wrap legal-doc">'
+            f'{head_block}{notice}{sections}{ask}</div></section>')
+    header_ = (f'<header class="site-header"><div class="wrap"><a class="brand" href="index.html"><b>{e(c["name"])}</b></a>'
+               f'<div class="header-actions"><a class="btn btn-secondary" href="index.html">{LEGAL_BACK_TEXT}</a></div>'
+               f'</div></header>')
+    year = f'{e(c["year"])} ' if c.get('year') else ''
+    foot = (f'<footer class="site-footer"><div class="wrap"><p class="legal">© {year}{e(c["name"])} · '
+            f'<a href="index.html">{LEGAL_BACK_TEXT}</a></p></div></footer>')
+    markup = f'<a class="skip" href="#main">{LEGAL_SKIP_TEXT}</a>{header_}<main id="main">{body}</main>{foot}'
+    T.check_headings(markup, script)
+    classes = {k for m in re.findall(r'class="([^"]*)"', markup) for k in m.split()}
+    attrs = {'data-direction': c['direction']}
+    head = ('<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+            f'<title>{e(legal["title"])} – {e(c["name"])}</title><meta name="description" content="{ea(legal["lead"])}">'
+            f'<meta property="og:title" content="{ea(legal["title"])} – {ea(c["name"])}">'
+            f'<meta property="og:description" content="{ea(legal["lead"])}">'
+            f'<meta property="og:type" content="website"><meta property="og:locale" content="{T.script(script)["og_locale"]}">'
+            f'{font_links(contract)}<style>{contract["css"]}\n{purge(CSS, classes, attrs) if PURGE else CSS}</style>')
+    return (f'<!doctype html><html {T.html_attrs(script)}><head>{head}</head>'
+            f'<body data-direction="{c["direction"]}" data-148-kit="section-library/{LIBRARY_VERSION}">{markup}</body></html>')

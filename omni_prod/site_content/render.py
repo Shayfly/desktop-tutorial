@@ -24,6 +24,7 @@ from .. import section_library as L
 from .. import typography as T
 from ..g_apple import contract as C
 from . import colour_roles
+from . import legal as LEGAL
 
 HERE = Path(__file__).resolve().parent
 _LIBRARY_FILES = ('__init__.py', 'library.css', 'directions.json')
@@ -48,6 +49,7 @@ def renderer_version() -> str:
     for name in _TYPOGRAPHY_FILES:
         h.update((Path(T.__file__).resolve().parent / name).read_bytes())
     h.update((HERE / 'render.py').read_bytes())
+    h.update((HERE / 'legal.py').read_bytes())                   # warehouse 127: the legal page's text
     return h.hexdigest()[:16]
 
 
@@ -114,13 +116,16 @@ def _head(s: dict, key: str, sheet, outline_titles: dict) -> dict:
 
 
 def to_library(doc: dict, sheet, *, direction: str, year: str, outline_titles: dict,
-               order: list[str] | None = None) -> dict:
-    """The section library's content dict: the model's copy, the sheet's facts."""
+               order: list[str] | None = None, legal: bool = False) -> dict:
+    """The section library's content dict: the model's copy, the sheet's facts. `legal`: the site has a legal page
+    (warehouse 127), and the footer links to it."""
     sec = doc['sections']
     name = sheet.name or doc['name']
     c: dict = {'name': name, 'title': f"{name} – {_sub(doc['tagline'], sheet)}",
                'description': _sub(doc['description'], sheet), 'tagline': _sub(doc['tagline'], sheet), 'year': year,
                'direction': direction, 'phone': sheet.phone}
+    if legal:
+        c['legal_href'] = LEGAL.HREF
     for key in ('whatsapp', 'email', 'address'):
         if getattr(sheet, key):
             c[key] = getattr(sheet, key)
@@ -215,17 +220,32 @@ def binds(sheet, contract: dict, year: str) -> dict:
 
 
 def render(doc: dict, sheet, contract: dict, *, expect_fp: str, direction: str, year: str, outline_titles: dict,
-           order: list[str] | None, windows) -> tuple[str, list[str]]:
+           order: list[str] | None, windows, legal: bool = False) -> tuple[str, list[str]]:
     """(html, skipped). The contract must be the one the route locked; `windows` are the route's approved windows
-    (Route.windows: the library renders them). Anything the library refuses is a platform defect, raised as
-    SiteRenderDefect -- never filled in."""
+    (Route.windows: the library renders them); `legal`: the business has a domain, so the footer links to the legal
+    page. Anything the library refuses is a platform defect, raised as SiteRenderDefect -- never filled in."""
     if contract.get('fingerprint') != expect_fp:
         raise SiteRenderDefect(f"design contract {contract.get('fingerprint')} is not the route's {expect_fp}")
-    content = to_library(doc, sheet, direction=direction, year=year, outline_titles=outline_titles, order=order)
+    content = to_library(doc, sheet, direction=direction, year=year, outline_titles=outline_titles, order=order,
+                         legal=legal)
     try:
         return L.page(content, contract, order=order, windows=windows)
     except (KeyError, ValueError, TypeError) as exc:
         raise SiteRenderDefect(f'the section library refused the content: {type(exc).__name__}: {exc}') from exc
+
+
+def legal_files(doc: dict, sheet, contract: dict, html: str, *, domain: dict | None, direction: str, year: str,
+                outline_titles: dict, order: list[str] | None) -> dict[str, str]:
+    """The legal page and its data ({} without a domain), from the rendered home page: what the site collects is read
+    from it. The same facts as the home page, so a repair round that re-renders the home page re-writes these too."""
+    if domain is None:
+        return {}
+    content = to_library(doc, sheet, direction=direction, year=year, outline_titles=outline_titles, order=order,
+                         legal=True)
+    try:
+        return LEGAL.files(domain, content, html, contract)
+    except (KeyError, ValueError, TypeError) as exc:
+        raise SiteRenderDefect(f'the legal page was refused: {type(exc).__name__}: {exc}') from exc
 
 
 def check_binds(stored: dict, expected: dict) -> None:
@@ -237,14 +257,15 @@ def check_binds(stored: dict, expected: dict) -> None:
 
 # ---- the repository ---------------------------------------------------------------------------------------------------
 APP_PY = '''"""The site's server (written by 148AI, the same in every build): the standard library only. GET / and
-/index.html serve public/index.html; every other path is 404; every method that would send data is 405. Nothing a
-visitor sends is read or stored; the server writes nothing. Each request is logged to stderr."""
+/index.html serve public/index.html, and /legal.html serves public/legal.html when the build has one; every other
+path is 404; every method that would send data is 405. Nothing a visitor sends is read or stored; the server writes
+nothing. Each request is logged to stderr."""
 import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-PAGE = os.path.join(ROOT, "public", "index.html")
+PAGES = {"/": "index.html", "/index.html": "index.html", "/legal.html": "legal.html"}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -252,7 +273,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _page(self, body):
         path = self.path.split("?", 1)[0].split("#", 1)[0]
-        if path not in ("/", "/index.html"):
+        page = os.path.join(ROOT, "public", PAGES.get(path, "-"))
+        if path not in PAGES or not os.path.isfile(page):
             self.send_response(404)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Content-Length", "9")
@@ -260,7 +282,7 @@ class Handler(BaseHTTPRequestHandler):
             if body:
                 self.wfile.write(b"not found")
             return
-        with open(PAGE, "rb") as fh:
+        with open(page, "rb") as fh:
             data = fh.read()
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -357,6 +379,21 @@ class Site(unittest.TestCase):
         if FACTS["contract_token"]:
             self.assertIn(FACTS["contract_token"], self.page)
 
+    def test_the_legal_page_is_served_when_the_build_has_one_and_the_home_page_links_to_it(self):
+        has = os.path.isfile(os.path.join(ROOT, "public", "legal.html"))
+        linked = 'href="legal.html"' in self.page
+        self.assertEqual(has, linked)
+        try:
+            with urllib.request.urlopen(self.base + "/legal.html", timeout=10) as r:
+                legal = r.status, r.read().decode("utf-8")
+        except urllib.error.HTTPError as caught:
+            legal = caught.code, ""
+        if has:
+            self.assertEqual(legal[0], 200)
+            self.assertIn("זה לא ייעוץ משפטי", visible(legal[1]))
+        else:
+            self.assertEqual(legal[0], 404)
+
     def test_nothing_a_visitor_sends_is_accepted(self):
         for method in ("POST", "PUT", "DELETE"):
             req = urllib.request.Request(self.base + "/", data=b"x=1", method=method)
@@ -418,9 +455,12 @@ def site_json(doc: dict, bound: dict) -> str:
     return json.dumps({'document': doc, 'binds': bound}, ensure_ascii=False, indent=1, sort_keys=True) + '\n'
 
 
-def repository(doc: dict, sheet, html: str, *, spec, contract: dict, bound: dict, order_names: list[str]) -> dict:
+def repository(doc: dict, sheet, html: str, *, spec, contract: dict, bound: dict, order_names: list[str],
+               legal: dict[str, str] | None = None) -> dict:
+    """The build's files. `legal`: the legal page and its data (legal_files), written beside the home page."""
     ids = [a.id for a in spec.acceptance]
     name = sheet.name or doc['name']
     return {'app.py': APP_PY, PAGE: html, SITE_JSON: site_json(doc, bound),
             FACTS_JSON: facts_json(sheet, ids, contract, order_names), 'tests/test_site.py': TEST_SITE,
-            '.omni/project.json': project_json(sheet, ids, contract), 'README.md': README.format(name=name)}
+            '.omni/project.json': project_json(sheet, ids, contract), 'README.md': README.format(name=name),
+            **(legal or {})}

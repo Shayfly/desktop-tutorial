@@ -80,6 +80,9 @@ class Skill:
         return {'key': self.key, 'version': self.version}
 
 
+LEGAL_PAGE_PATH = 'public/legal.html'        # the content route's legal page (site_content/legal.py LEGAL_PAGE)
+
+
 def _text_files(repository: dict) -> dict[str, str]:
     return {p: c for p, c in repository.items() if isinstance(c, str)
             and p.lower().endswith(('.py', '.html', '.js', '.mjs', '.css', '.htm'))
@@ -97,11 +100,14 @@ def _pages(repository: dict, context: dict) -> dict[str, str]:
     page built inside a Python string or a template is seen as the user sees it (bld_1721136c: dir="rtl" was in the
     rendered page, the gate read page.py and burned two repair rounds). Without a rendered page -- unit tests, the
     quality gate before any sandbox run -- only real .html/.htm files count; HTML inside .py/.js is never judged,
-    because a string in code is not the page."""
+    because a string in code is not the page. The content route's legal page (warehouse 127) is not what GET / serves:
+    it is left out here as it is when a page was captured, because the facts a customer gave belong to the home page
+    (a test asserts the path is the route's)."""
     rendered = context.get('rendered_pages')
     if isinstance(rendered, dict) and isinstance(rendered.get('/'), str) and rendered['/'].strip():
         return {'(served page /)': rendered['/']}
-    return {p: c for p, c in _text_files(repository).items() if p.lower().endswith(('.html', '.htm'))}
+    return {p: c for p, c in _text_files(repository).items()
+            if p.lower().endswith(('.html', '.htm')) and p != LEGAL_PAGE_PATH}
 
 
 def _page_css(repository: dict, context: dict, pages: dict) -> str:
