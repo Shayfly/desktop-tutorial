@@ -489,6 +489,20 @@ def _skills_applied() -> list:
         return []
 
 
+def _said_when_unexplained(fn):
+    """warehouse 70: the catch-all code is said, not silent -- an exception type with no code of its own is named in the
+    log (the customer reads "something went wrong on our side"; the owner sees which failure it was)."""
+    def wrapper(exc: BaseException) -> str:
+        code = fn(exc)
+        if code == 'worker_exception':
+            logging.getLogger(__name__).error('failure_code: %s has no code of its own; reported as worker_exception',
+                                              type(exc).__name__)
+        return code
+    wrapper.__name__, wrapper.__doc__ = fn.__name__, fn.__doc__
+    return wrapper
+
+
+@_said_when_unexplained
 def failure_code(exc: BaseException) -> str:
     """Customer-meaningful error code for an exception that ended a job.
 

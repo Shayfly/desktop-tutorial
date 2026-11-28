@@ -1,0 +1,113 @@
+{
+ "pr": "wh70-modification-failure-words",
+ "sha256": [
+  "tests/test_modification_failure_words.py",
+  "omni_prod/assets/app.js",
+  "omni_prod/worker_tasks.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the gate names of a failed change are no longer mapped: the code stays 'quality' and reads as unknown",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  const code = Object.prototype.hasOwnProperty.call(MOD_GATE_CODES, m.error_code) ? MOD_GATE_CODES[m.error_code] : m.error_code;\n",
+     "new": "  const code = m.error_code;\n"
+    }
+   ],
+   "targets": [
+    "tests/test_modification_failure_words.py"
+   ],
+   "expect_failed": [
+    "test_every_gate_and_every_queue_failure_of_a_change_reads_its_own_words_never_the_raw_text"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "an unknown failure code gets the default line silently again",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  if (!known) console.error(`friendlyError: no customer words for failure code ${JSON.stringify(b.error_code)}`);\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_modification_failure_words.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_code_fails_loudly_and_still_never_shows_the_raw_text",
+    "test_a_failed_build_with_an_unknown_code_is_loud_too"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a failed change prints the engine's own English text to the customer again",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "    const mv = modFailureView(m);\n",
+     "new": "    const mv = { text: m.error_message, raw: '' };\n"
+    }
+   ],
+   "targets": [
+    "tests/test_modification_failure_words.py"
+   ],
+   "expect_failed": [
+    "test_renderMod_uses_it_for_failed_changes_and_only_the_owner_sees_the_raw_text"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the raw text and code are shown to every customer, not only the owner",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "if (ownerView() && mv.raw)",
+     "new": "if (mv.raw)"
+    }
+   ],
+   "targets": [
+    "tests/test_modification_failure_words.py"
+   ],
+   "expect_failed": [
+    "test_renderMod_uses_it_for_failed_changes_and_only_the_owner_sees_the_raw_text"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a failed change sends the customer to the build's retry button, which is not on that screen",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "t('modFailNext')(t('modifySend'))",
+     "new": "t('failNext').retry(t('actRetryBuild'))"
+    }
+   ],
+   "targets": [
+    "tests/test_modification_failure_words.py"
+   ],
+   "expect_failed": [
+    "test_a_failed_change_names_the_button_it_has_not_the_builds"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the catch-all code is silent again: an exception with no code of its own is not named in the log",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        if code == 'worker_exception':\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_modification_failure_words.py"
+   ],
+   "expect_failed": [
+    "test_an_exception_with_no_code_of_its_own_is_named_in_the_log"
+   ]
+  }
+ ]
+}
