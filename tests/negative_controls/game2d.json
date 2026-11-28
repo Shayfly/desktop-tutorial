@@ -282,8 +282,8 @@
    "mutations": [
     {
      "file": "omni_prod/game_kit/probe.py",
-     "old": "        if files:\n            import functools",
-     "new": "        if False:\n            import functools"
+     "old": "        if files:\n            server, url = serve_game(d)",
+     "new": "        if False:\n            server, url = serve_game(d)"
     }
    ],
    "targets": [
