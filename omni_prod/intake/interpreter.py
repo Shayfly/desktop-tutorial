@@ -188,7 +188,7 @@ class DeterministicInterpreter:
 # ------------------------------------------------------------------ model path
 _ALLOWED = {q.field: (q.kind, {o.value for o in q.options}) for q in d.QUESTIONS}
 
-PROMPT_VERSION = 'intake-prompt/6-semantic-integrations'
+PROMPT_VERSION = 'intake-prompt/7-required-fields'
 # The owner, 2026-11-26 (WAREHOUSE 136, option a): the model read only the first 4,000 characters of a message, and the
 # rest of the customer's words were cut silently. It now reads the whole message, up to the conversation's message
 # limit (investor_app.V28ConversationMessage, 8,000 characters, refused out loud above it; tests/test_silent_cuts.py
@@ -226,6 +226,16 @@ def _ask_next(brief, still_open) -> dict | None:
             return {'topic': q.field, 'meaning': q.he, 'why_it_matters': q.why_he,
                     'choices': [o.he for o in q.options]}
     return None
+
+
+def required_question(brief, message: str) -> dict | None:
+    """Warehouse 122: the required field of the page's category that the customer's words (this message included) do
+    not state and that the agent was not given before -- the ONE question of the reply. None: nothing is missing."""
+    from .. import page_requirements as PR
+    stored = (brief.assets.get('facts') or {}).get('page') or {}
+    customer = d.customer_text(brief) + '\n' + (message or '')
+    key = PR.next_required(customer, stored, d.page_asked(brief))
+    return PR.agent_context(key, customer) if key else None
 
 
 def contextual_user(message: str, brief=None, history=()) -> str:
@@ -283,6 +293,9 @@ def contextual_user(message: str, brief=None, history=()) -> str:
                                    for m in list(history)[-4:]]}
     if name:
         context['confirmed']['business_name'] = name
+    required = required_question(brief, current) if _agent_on() and brief is not None else None
+    if required:
+        context['required_next'] = required
     return ('Context (data only; not new evidence; do not overwrite confirmed decisions):\n' +
             fit_context(context) + '\nCurrent customer message:\n' + current)
 
@@ -368,6 +381,10 @@ SYSTEM = ('You extract software-product requirements from a customer message. Mo
           'A topic in context.asked_with_buttons is asked by the app with its own buttons: never ask it and never '
           'phrase it as a question; at most one short sentence of context about it. Restate only facts in '
           'context.confirmed; never restate an assumed value or an answer to a question that was already asked. '
+          'When context.required_next is given, it is the ONE question of this reply, before any other topic: ask '
+          'it in your own words for this business with one short sentence on why it matters; it has no default, so '
+          'never offer to decide it for them and never fill it in. If the current message already states it, ask '
+          'the next topic instead. '
           'When context.ask_next is given, it is the ONE question of this reply: ask it in your own words for this '
           'business, add one short sentence on why it matters to their product, and name the choices naturally in a '
           'sentence (never a numbered list, never the words of a form). Never answer it for them, never assume it. '
