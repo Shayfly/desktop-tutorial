@@ -192,6 +192,7 @@
   },
   {
    "id": "NC11",
+   "envs": ["browser"],
    "what": "the picture in a card does not fill the card",
    "mutations": [
     {

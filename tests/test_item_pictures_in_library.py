@@ -357,6 +357,12 @@ class InTheBrowser(unittest.TestCase):
         self.assertEqual(loose, [])
 
     def test_the_picture_measures_see_the_cards_pictures(self):
+        # run_script starts the platform's in-sandbox script as a process, which needs playwright and the Chromium the
+        # visual check finds (tests.test_visual_qa.HAVE_BROWSER). Without them this skips loudly, as the two tests above
+        # do; browser-python.yml runs the file and fails on any skip, so the skip cannot hide in a job that has a browser.
+        from tests.test_visual_qa import HAVE_BROWSER
+        if not HAVE_BROWSER:
+            raise unittest.SkipTest('playwright and chromium are required to run the in-sandbox picture measures')
         from tests.test_visual_picture_measures import rules_of, run_script
         doc = self.page()
         for vp in ('desktop', 'mobile'):

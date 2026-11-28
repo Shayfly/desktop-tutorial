@@ -1,0 +1,95 @@
+{
+ "pr": "573-ci",
+ "sha256": [
+  "tests/test_picture_tests_in_ci.py",
+  "tests/test_item_pictures_in_library.py",
+  ".github/workflows/browser-python.yml"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the picture-measures test starts the in-sandbox script without checking for playwright: with no browser it fails (\"No module named playwright\") instead of skipping, as in the validate job",
+   "mutations": [
+    {
+     "file": "tests/test_item_pictures_in_library.py",
+     "old": "        from tests.test_visual_qa import HAVE_BROWSER\n        if not HAVE_BROWSER:\n            raise unittest.SkipTest('playwright and chromium are required to run the in-sandbox picture measures')\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_picture_tests_in_ci.py::WithoutABrowser"
+   ],
+   "expect_failed": [
+    "test_every_browser_test_of_the_pictured_cards_skips_and_none_fails"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the browser job no longer runs test_visual_picture_measures.py: nothing that has a browser runs it",
+   "mutations": [
+    {
+     "file": ".github/workflows/browser-python.yml",
+     "old": "tests/test_visual_picture_measures.py tests/test_item_pictures_in_library.py",
+     "new": "tests/test_item_pictures_in_library.py"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_tests_in_ci.py::TheJobThatHasABrowser"
+   ],
+   "expect_failed": [
+    "test_runs_both_picture_files_on_every_pull_request_and_a_skip_fails_it"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the browser job no longer fails on a skipped test: a skip there reads green",
+   "mutations": [
+    {
+     "file": ".github/workflows/browser-python.yml",
+     "old": "          print(f'::notice title=picture-measures::{len(cases)} test cases, {len(failed)} failed, {len(skipped)} skipped')\n          for s in skipped:\n              print(f'::error title=skipped::{s}')\n          for f in failed:\n              print(f'::notice title=failed test::{f}')\n          sys.exit(1 if skipped or failed or not cases else 0)",
+     "new": "          sys.exit(1 if failed or not cases else 0)"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_tests_in_ci.py::TheJobThatHasABrowser"
+   ],
+   "expect_failed": [
+    "test_runs_both_picture_files_on_every_pull_request_and_a_skip_fails_it"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the browser job stops running the controls of visual-s1: their expected tests skip in every other job, so nothing runs them",
+   "mutations": [
+    {
+     "file": ".github/workflows/browser-python.yml",
+     "old": "          NC_SCOPE=declared python scripts/run_negative_controls.py hero_photo_led; a=$?\n",
+     "new": "          a=0\n"
+    }
+   ],
+   "targets": [
+    "tests/test_picture_tests_in_ci.py::TheJobThatHasABrowser"
+   ],
+   "expect_failed": [
+    "test_every_control_whose_expected_test_needs_chromium_is_declared_browser_and_run_there"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "visual-s1 NC1 loses its envs: it runs again in v24-ci shards where its expected test skips, DID NOT RUN",
+   "mutations": [
+    {
+     "file": "tests/negative_controls/hero_photo_led.json",
+     "old": "{\"id\": \"NC1\", \"envs\": [\"browser\"], ",
+     "new": "{\"id\": \"NC1\", "
+    }
+   ],
+   "targets": [
+    "tests/test_picture_tests_in_ci.py::TheJobThatHasABrowser"
+   ],
+   "expect_failed": [
+    "test_every_control_whose_expected_test_needs_chromium_is_declared_browser_and_run_there"
+   ]
+  }
+ ]
+}

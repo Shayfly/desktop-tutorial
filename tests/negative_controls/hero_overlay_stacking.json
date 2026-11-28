@@ -2,7 +2,7 @@
  "pr": "hero-overlay-stacking",
  "sha256": ["tests/test_hero_overlay_stacking.py", "omni_prod/section_library/library.css"],
  "controls": [
-  {"id": "NC1", "what": "the overlay is back at z-index 0 under the photo: the panel's edge reads the photo's own colour",
+  {"id": "NC1", "envs": ["browser"], "what": "the overlay is back at z-index 0 under the photo: the panel's edge reads the photo's own colour",
    "mutations": [{"file": "omni_prod/section_library/library.css", "old": ".panel--photo::before { content: \"\"; position: absolute; inset: 0; z-index: 1;", "new": ".panel--photo::before { content: \"\"; position: absolute; inset: 0; z-index: 0;"},
                  {"file": "omni_prod/section_library/library.css", "old": ".panel-photo { position: absolute; inset: 0; z-index: 0;", "new": ".panel-photo { position: absolute; inset: 0;"}],
    "targets": ["tests/test_hero_overlay_stacking.py"],
