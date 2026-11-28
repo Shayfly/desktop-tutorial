@@ -9,7 +9,7 @@
 |---|---|---|
 | `omni_prod/verification_verdict.py` | `0dbe68cebd37f09e2103af9c0a7767e5691b931f6182890877cfc89f7efd8cc4` | — |
 | `omni_prod/browser_probe.py` | `2c1e4f14bbd1bc86c22a3b90ad08a43eaa6a491af3c7e07509a171baa10d9efa` | — |
-| `omni_prod/visual_qa.py` | `fecd4261337faac0755d34a615b87e3549741cf47d43456d4817501f3a7a44c3` | — |
+| `omni_prod/visual_qa.py` | `5f06fded8f119d82adcf62224508de9fc0202a543c90f754868222d26efb33c9` | — |
 | `omni_prod/behavior_acceptance.py` | `c8e32d382d151fd24d6883250003639590b4711571797d9bad63f3c8fdcfcd87` | — |
 | `omni_prod/preview_smoke.py` | `a7d91098f68d95b05bffb97ab1569df11b46fdc40ab411496bee56017401163e` | — |
 | `omni_prod/verification_group.py` | `73c35d2082a2e596eba432364282f3e7c35516c96bee36694abc74f57772358a` | — |
