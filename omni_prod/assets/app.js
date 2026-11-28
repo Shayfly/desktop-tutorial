@@ -101,7 +101,7 @@ const T = {
     current:'נוכחית', restore:'שחזור לגרסה הזו', restored:'שוחזר. נוצרה גרסה חדשה.', noVersions:'עדיין אין גרסאות.',
     modQueued:'השינוי נשלח. בונים גרסה מועמדת ובודקים אותה…', modReview:'הגרסה המועמדת עברה את הבדיקות. מה תרצו לעשות?',
     accept:'אישור השינוי', reject:'דחייה', modAccepted:'השינוי אושר ונשמר כגרסה חדשה.', modRejected:'השינוי נדחה.',
-    modFailed:'השינוי נכשל: ', classification:'סיווג',
+    modFailed:'השינוי נכשל: ', modFailNext:l=>`אפשר לנסות שוב: כתבו את השינוי ולחצו על "${l}".`, classification:'סיווג',
     gateNames:{verification:'אימות', quality:'איכות', security:'אבטחה', rights:'זכויות'},
     checksNotRun:'בדיקות שלא רצו', checksNoneRan:'אף בדיקה לא רצה: הבנייה נעצרה לפני הבדיקות.',
     checkNames:{preview_starts:'הפעלת ניסיון', behavioural_acceptance:'בדיקת התנהגות', browser_flow:'בדיקת דפדפן', visual_layout_desktop_mobile:'מראה הדף במחשב ובטלפון', qa_review:'סקירת איכות', qa_review_blocking_findings:'ממצאי סקירת האיכות', reviewer_independent_of_author:'סוקר שאינו הכותב', sandbox_build_and_tests:'בדיקות הקוד', cross_file_consistency:'עקביות בין הקבצים', dependency_allowlist:'ספריות מאושרות', approved_criteria_covered:'כיסוי הדרישות שאושרו', quality_score:'ציון איכות', static_security_scan:'סריקת אבטחה', rights_clear:'זכויות', acceptance_criteria_defined:'הגדרת דרישות קבלה'},
@@ -254,7 +254,7 @@ const T = {
     current:'Current', restore:'Restore this version', restored:'Restored as a new version.', noVersions:'No versions yet.',
     modQueued:'Change sent. Building and testing a candidate version…', modReview:'The candidate version passed its checks. What would you like to do?',
     accept:'Accept change', reject:'Reject', modAccepted:'Change accepted and saved as a new version.', modRejected:'Change rejected.',
-    modFailed:'Change failed: ', classification:'Classification',
+    modFailed:'Change failed: ', modFailNext:l=>`You can try again: write the change and press "${l}".`, classification:'Classification',
     gateNames:{verification:'Verification', quality:'Quality', security:'Security', rights:'Rights'},
     checksNotRun:'Checks that did not run', checksNoneRan:'No check ran: the build stopped before the checks.',
     checkNames:{preview_starts:'trial start-up', behavioural_acceptance:'behaviour check', browser_flow:'browser check', visual_layout_desktop_mobile:'how the page looks on desktop and phone', qa_review:'quality review', qa_review_blocking_findings:'quality review findings', reviewer_independent_of_author:'a reviewer who is not the author', sandbox_build_and_tests:'code tests', cross_file_consistency:'consistency between files', dependency_allowlist:'approved libraries', approved_criteria_covered:'coverage of the approved requirements', quality_score:'quality score', static_security_scan:'security scan', rights_clear:'rights', acceptance_criteria_defined:'acceptance criteria defined'},
@@ -511,6 +511,7 @@ const T = {
     modAccepted: "تمت الموافقة على التغيير وحُفظ كنسخة جديدة.",
     modRejected: "تم رفض التغيير.",
     modFailed: "فشل التغيير: ",
+    modFailNext: l=>`يمكنكم المحاولة مرة أخرى: اكتبوا التغيير واضغطوا على "${l}".`,
     classification: "التصنيف",
     gateNames: {"verification":"التحقق","quality":"الجودة","security":"الأمان","rights":"الحقوق"},
     checksNotRun: "فحوصات لم تُجرَ",
@@ -2113,6 +2114,9 @@ function friendlyError(b) {
     return t('uiEmpty') + (parts.length ? ': ' + t('uiMissingLead') + ' ' + parts.join(', ') : '') + ', ' + t('uiEmptyTail');
   }
   // No words for this code: one default line. The raw message and the code are the owner's (ownerTech), never the customer's.
+  // Warehouse 70: and never silently -- the customer gets the default line, the console gets the code, so a failure that has
+  // no words of its own is seen the first time it happens, not when a customer asks what "a problem on our side" was.
+  if (!known) console.error(`friendlyError: no customer words for failure code ${JSON.stringify(b.error_code)}`);
   return known || t('failUnknown');
 }
 // Who sees the technical blocks: only the owner's account. /api/v28/me says is_founder (pricing.m5_founder_account);
@@ -2138,6 +2142,17 @@ function failureView(b) {
   const label = action === 'retry' ? t('actRetryBuild') : t('editAll');
   const text = [what, notCharged ? t('failNotCharged') : '', t('failNext')[action](label)].filter(Boolean).join(' ');
   return { what, notCharged, action, label, text };
+}
+// Warehouse 70: a change request that failed (modification_requests) ends with the engine's gate name -- verification,
+// quality, security, rights -- or a build code, and its message is the engine's own English ("quality score 61 below
+// minimum 70 ..."; "ModelGatewayError: all model routes failed ..."). The customer reads the same words as for a failed
+// build, by code, and the one next action that exists on that screen; the raw text is the owner's.
+const MOD_GATE_CODES = { verification: 'verification_failed', quality: 'quality_gate_failed', security: 'security_gate_failed', rights: 'rights_gate_not_clear' };
+function modFailureView(m) {
+  const code = Object.prototype.hasOwnProperty.call(MOD_GATE_CODES, m.error_code) ? MOD_GATE_CODES[m.error_code] : m.error_code;
+  const fv = failureView({ status: 'failed', error_code: code, error_message: m.error_message, evidence: m.evidence });
+  const text = [fv.what, fv.notCharged ? t('failNotCharged') : '', t('modFailNext')(t('modifySend'))].filter(Boolean).join(' ');
+  return { text, raw: [m.error_code, m.error_message].filter(Boolean).join(': ') };
 }
 function failureButton(fv) {
   const go = fv.action === 'retry'
@@ -2313,7 +2328,11 @@ function renderMod() {
         h('button', { class: 'secondary', onclick: () => decideMod(false) }, t('reject'))));
   } else if (m.status === 'ACCEPTED') kids.push(h('p', { class: 'msg ok' }, t('modAccepted')));
   else if (m.status === 'REJECTED') kids.push(h('p', { class: 'hint' }, t('modRejected')));
-  else if (['FAILED', 'ERROR', 'CLARIFICATION_REQUIRED', 'NEEDS_CLARIFICATION', 'CONFLICT'].includes(m.status)) kids.push(h('p', { class: 'msg' }, t('modFailed') + (m.error_message || m.classification_reason || m.status)));
+  else if (m.status === 'FAILED') {
+    const mv = modFailureView(m);
+    kids.push(h('p', { class: 'msg' }, t('modFailed') + mv.text));
+    if (ownerView() && mv.raw) kids.push(h('p', { class: 'hint' }, `${t('ownerTech')}: ${mv.raw}`));
+  } else if (['ERROR', 'CLARIFICATION_REQUIRED', 'NEEDS_CLARIFICATION', 'CONFLICT'].includes(m.status)) kids.push(h('p', { class: 'msg' }, t('modFailed') + (m.error_message || m.classification_reason || m.status)));
   else if (m.status === 'CANCELLED') kids.push(h('p', { class: 'hint' }, t('modCancelled')));
   else {
     kids.push(h('p', { class: 'hint' }, m.cancelRequested ? t('stopping') : t('modQueued')));
