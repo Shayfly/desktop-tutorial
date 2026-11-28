@@ -18,7 +18,8 @@
     "tests/test_colour_roles.py"
    ],
    "expect_failed": [
-    "test_dark_picks_the_dark_variant_and_light_the_palettes_own"
+    "test_a_description_word_without_declared_variants_raises_never_a_mix",
+    "test_dark_and_light_pick_the_palettes_declared_variants"
    ]
   },
   {
@@ -46,8 +47,8 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/colour_roles.py",
-     "old": "    accent = rest[1] if len(rest) > 1 else palette['accent']\n",
-     "new": "    accent = palette['accent']\n"
+     "old": "    accent = rest[1] if len(rest) > 1 else base['accent']\n",
+     "new": "    accent = base['accent']\n"
     }
    ],
    "targets": [
@@ -80,16 +81,17 @@
    "mutations": [
     {
      "file": "omni_prod/site_content/render.py",
-     "old": "        r = colour_roles.roles(m['colours'], palette)\n",
-     "new": "        if not colour_roles.stated_hexes(m['colours']):\n            raise C.ContractError(f'{first}; and the Design line names no primary colour to complete') from first\n        r = colour_roles.roles(m['colours'], palette)\n        r = {**r, 'background': palette['background'], 'ink': palette['ink']}\n"
+     "old": "        r = colour_roles.roles(m['colours'], palette, variants)\n",
+     "new": "        if not colour_roles.stated_hexes(m['colours']):\n            raise C.ContractError(f'{first}; and the Design line names no primary colour to complete') from first\n        r = colour_roles.roles(m['colours'], palette, variants)\n        r = {**r, 'background': palette['background'], 'ink': palette['ink']}\n"
     }
    ],
    "targets": [
     "tests/test_colour_roles.py"
    ],
    "expect_failed": [
+    "test_a_description_word_without_declared_variants_raises_never_a_mix",
     "test_every_description_word_takes_the_route",
-    "test_dark_picks_the_dark_variant_and_light_the_palettes_own",
+    "test_dark_and_light_pick_the_palettes_declared_variants",
     "test_the_real_production_phrases_never_fall_to_the_legacy_path",
     "test_words_nothing_knows_leave_the_category_palette_and_say_so",
     "test_black_and_gold_on_a_barber_is_a_black_page_with_a_gold_primary",
