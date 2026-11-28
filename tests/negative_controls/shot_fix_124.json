@@ -1,0 +1,277 @@
+{
+ "pr": "wh124-shot-fix",
+ "sha256": [
+  "omni_prod/modification_engine.py",
+  "omni_prod/repair_edits.py",
+  "omni_prod/shot_fix.py",
+  "tests/test_shot_fix.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the image is not reduced before it is stored and read (the bound is skipped)",
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "    if max(w, h) <= MAX_SIDE:\n        return Shrunk(",
+     "new": "    if True:  # NEGATIVE CONTROL\n        return Shrunk("
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_a_fix_reaches_the_model_reduced_with_the_width_and_the_build_id_and_both_images_are_kept",
+    "test_a_large_screenshot_has_its_long_side_at_1400_and_keeps_its_shape",
+    "test_a_round_that_fails_keeps_both_images_and_all_five_lines",
+    "test_a_tall_phone_screenshot_is_reduced_on_its_height",
+    "test_each_stage_writes_one_line_in_order"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the window width is not told to the model (the message carries 0)",
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "'viewport_width': width, 'language': lang,",
+     "new": "'viewport_width': 0, 'language': lang,"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_a_fix_reaches_the_model_reduced_with_the_width_and_the_build_id_and_both_images_are_kept"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the model rebuilds from the image: an answer that brings whole files is accepted",
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "    if any(key in raw for key in REBUILD_KEYS):               # rule 1: the picture is a pointer, never a brief\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_a_round_that_fails_keeps_both_images_and_all_five_lines",
+    "test_an_answer_that_brings_whole_files_is_a_rebuild_and_is_refused"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the reduced image is not stored: only the original is kept",
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "    reduced = original if not shrunk.scaled else repo.create(",
+     "new": "    reduced = original if True else repo.create("
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_a_fix_reaches_the_model_reduced_with_the_width_and_the_build_id_and_both_images_are_kept",
+    "test_a_round_that_fails_keeps_both_images_and_all_five_lines"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a round that fails loses its evidence lines",
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "        record['evidence'] = ev.close(outcome)\n",
+     "new": "        record['evidence'] = ev.close(outcome) if outcome == 'fix_ready' else []\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_a_round_that_fails_keeps_both_images_and_all_five_lines"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a file nobody asked to touch changes, and the guard that finds it is gone",
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "    new_work = {**work, **texts}\n",
+     "new": "    new_work = {**work, **texts, 'README.md': 'x'}\n"
+    },
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "    if any(new_work[p] != work[p] for p in untouched) or set(new_work) != set(work):\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_an_exact_block_changes_that_component_and_nothing_else"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "an edit block that replaces most of a file is accepted",
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "        if len(work[path]) >= 1000 and replaced >= MAX_SHARE * len(work[path]):\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_an_edit_that_replaces_most_of_a_file_is_a_rebuild_in_disguise"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "an edit block that occurs many times is applied (the exactly-once rule is gone)",
+   "mutations": [
+    {
+     "file": "omni_prod/repair_edits.py",
+     "old": "        if len(at) > 1:\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_a_block_that_does_not_apply_exactly_once_applies_nothing"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the engine takes the exact edits through no gate at all",
+   "mutations": [
+    {
+     "file": "omni_prod/modification_engine.py",
+     "old": "        gates = self._evaluate_gates(report=report, spec=spec, repository=candidate, followup=followup,\n                                     target_markets=target_markets, rights_evidence=rights_evidence)\n        diff = diff_modification(old_repository=repository, new_repository=candidate, old_spec=spec, new_spec=spec)\n",
+     "new": "        gates = GateResult(True, None, None, None, None, None)  # NEGATIVE CONTROL\n        diff = diff_modification(old_repository=repository, new_repository=candidate, old_spec=spec, new_spec=spec)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_the_engine_applies_exactly_those_edits_through_its_own_gates"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the engine does not take the exact path: a followup with edits goes to the model again",
+   "mutations": [
+    {
+     "file": "omni_prod/modification_engine.py",
+     "old": "        exact = SF.edits_of(followup)\n",
+     "new": "        exact = None\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_the_engine_applies_exactly_those_edits_through_its_own_gates"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the customer reads English whatever their language",
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "    return TEXT[lang][key]\n",
+     "new": "    return TEXT['en'][key]\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_every_result_is_said_in_each_language_with_the_next_action"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "a wrong value of OMNI_SHOT_FIX is accepted",
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "    if value not in MODES:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_off_is_the_default_and_a_wrong_value_raises"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "the model reads the original image, not the reduced one",
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "            raw = reader.read(system=SYSTEM, user=user, image=shrunk.data)\n",
+     "new": "            raw = reader.read(system=SYSTEM, user=user, image=data)\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_a_fix_reaches_the_model_reduced_with_the_width_and_the_build_id_and_both_images_are_kept"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "a width outside the range is stored (the check is gone)",
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "    width = check_width(width)\n",
+     "new": "    width = width\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_a_request_refused_up_front_stores_nothing"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "a stage is written twice (the once-only rule is gone)",
+   "mutations": [
+    {
+     "file": "omni_prod/shot_fix.py",
+     "old": "        if stage not in STAGES or any(line['stage'] == stage for line in self.lines):\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_shot_fix.py"
+   ],
+   "expect_failed": [
+    "test_a_stage_is_written_once"
+   ]
+  }
+ ]
+}

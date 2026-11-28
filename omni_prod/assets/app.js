@@ -689,6 +689,25 @@ Object.assign(T.en, { actRetryBuild:'Try building again', stillMissing:'Still mi
 Object.assign(T.he, { actApproveReading:'נכון, להשתמש בזה', actDiscardReading:'לא נכון, לבטל' });
 Object.assign(T.en, { actApproveReading:'Correct, use it', actDiscardReading:'Not right, discard it' });
 Object.assign(T.ar, { actApproveReading:'صحيح، استخدام هذا', actDiscardReading:'غير صحيح، إلغاء هذا' });
+// warehouse 124: the build card (the sketch card's component, fed by a real build), the screenshot upload and its fix
+Object.assign(T.he, { buildCardTitle:'האתר שנבנה', buildCardId:'מספר בנייה', buildFrameTitle:'האתר שנבנה, כמו שהוא נראה עכשיו',
+  shotUploadLabel:'צילמתם משהו שלא נראה נכון? העלו כאן את הצילום', shotWidth: n => `רוחב החלון שיישמר עם הצילום: ${n}`,
+  shotNote:'הצילום הוא רק מצביע: הוא לא בונה את האתר מחדש. מתוקן רק הרכיב שבו יש בעיה, ורק אחרי האישור שלכם.',
+  shotSending:'קוראים את הצילום…', shotSent:'צירפתי צילום מסך של האתר', shotBadFile:'זה לא תמונה שאפשר לקרוא. אפשר להעלות PNG, JPEG או WebP עד 3MB.',
+  shotOldVersion:'התיקון הזה נמצא לגרסה קודמת של האתר, ולכן אי אפשר ליישם אותו על הגרסה הנוכחית. צלמו שוב את הגרסה הנוכחית.',
+  shotFixFollowup:'תיקון לפי הצילום שהעליתם' });
+Object.assign(T.en, { buildCardTitle:'The site we built', buildCardId:'Build number', buildFrameTitle:'The site we built, as it looks now',
+  shotUploadLabel:'Took a screenshot of something that looks wrong? Upload it here', shotWidth: n => `Window width saved with the screenshot: ${n}`,
+  shotNote:'The screenshot is only a pointer: it does not rebuild the site. Only the element with the problem is fixed, and only after you approve.',
+  shotSending:'Reading the screenshot…', shotSent:'I attached a screenshot of the site', shotBadFile:'That is not an image we can read. You can upload PNG, JPEG or WebP up to 3MB.',
+  shotOldVersion:'This fix was made for an earlier version of the site, so it cannot be applied to the current one. Take a new screenshot of the current version.',
+  shotFixFollowup:'Fix from the screenshot you uploaded' });
+Object.assign(T.ar, { buildCardTitle:'الموقع الذي بُني', buildCardId:'رقم البناء', buildFrameTitle:'الموقع الذي بُني، كما يظهر الآن',
+  shotUploadLabel:'التقطتم شيئا لا يبدو صحيحا؟ ارفعوا اللقطة هنا', shotWidth: n => `عرض النافذة الذي سيُحفظ مع اللقطة: ${n}`,
+  shotNote:'اللقطة مجرد مؤشر: لا تعيد بناء الموقع. يُصلَح فقط العنصر الذي فيه المشكلة، وبعد موافقتكم فقط.',
+  shotSending:'نقرأ اللقطة…', shotSent:'أرفقت لقطة شاشة للموقع', shotBadFile:'هذه ليست صورة يمكن قراءتها. يمكنكم رفع PNG أو JPEG أو WebP حتى 3MB.',
+  shotOldVersion:'هذا الإصلاح أُعدّ لنسخة سابقة من الموقع، ولذلك لا يمكن تطبيقه على النسخة الحالية. التقطوا لقطة جديدة للنسخة الحالية.',
+  shotFixFollowup:'إصلاح حسب اللقطة التي رفعتموها' });
 
 Object.assign(T.he, {
   workspaceHero: 'מה תרצו ליצור היום?',
@@ -1276,6 +1295,7 @@ async function selectProject(id) {
     else projectDrafts.delete(S.lastShownProject);
   }
   S.projectId = id || ''; localStorage.setItem('148ai_project', S.projectId);
+  S.buildCard = null; S.buildCardKey = '';
   S.plan = null; S.build = null; S.buildAdmissionError = ''; S.preview = null; S.previewId = null; S.mod = null; S.versions = []; S.newBuildOpen = false;
   S.disc = null; S.editQ = null; S.editDraft = null; S.chatRetry = null; S.answerRetry = null; S.chat = null; S.olderLoaded = []; S.olderHistory = null; S.olderBound = null; S.arch = null; S.tasks = null; S.tab = null;
   if (S.projectId !== S.lastShownProject) { $('chatInput').value = projectDrafts.get(S.projectId) || ''; autoGrow(); $('followup').value = ''; $('composerMsg').textContent = ''; }
@@ -1877,6 +1897,7 @@ async function cancelBuild() {
 const PHASE_ORDER = ['PLANNING', 'INFRASTRUCTURE', 'ASSETS', 'GENERATING', 'VERIFYING'];
 function renderTrack() {
   if (S.build?.status) rememberBuildState(S.build.status);
+  if (S.build && buildCardKey() !== S.buildCardKey) renderChat();     // warehouse 124: the build card follows the build
   renderProjectReadiness();
   const panel = $('progressPanel');
   if (!S.build) { panel.hidden = true; return; }
@@ -1974,6 +1995,7 @@ async function pollPreview() {
   S.timers.preview = setTimeout(pollPreview, 2000);
 }
 function renderPreview() {
+  if (S.build && buildCardKey() !== S.buildCardKey) renderChat();     // warehouse 124: the build card follows the preview
   const p = S.preview; const frame = $('previewFrame'); const empty = $('previewEmpty'); const text = $('previewEmptyText');
   const link = $('openPreviewLink'); const refresh = $('refreshPreviewBtn');
   const running = p && p.status === 'RUNNING' && p.preview_url;
@@ -2036,6 +2058,7 @@ async function requestPreviewAccess(p) {
     S.previewAccess = null; $('previewEmptyText').textContent = explain(e);
   } finally { accessPending = null; }
   renderPreview();
+  if (buildCardKey() !== S.buildCardKey) renderChat();     // warehouse 124: the build card shows the preview that is running
 }
 function renderSharing(p) {
   const box = $('previewSharing'); if (!box) return;
@@ -2582,6 +2605,14 @@ function actionButtons(actions) {
     // warehouse 77c: a failed build's one action in the conversation -- back to the approval screen to try again
     if (a.type === 'retry_build') out.push(h('button', { type: 'button', class: 'primary', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actRetryBuild')));
     if (a.type === 'approve_build') out.push(h('button', { type: 'button', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actApprove')));
+    // warehouse 124: the fix a screenshot round found; the edits are the server's own record, applied only after this click,
+    // through the same change pipeline and its checks
+    if (a.type === 'apply_shot_fix') {
+      const current = !a.version_id || a.version_id === currentVersionId();
+      out.push(h('button', { type: 'button', class: 'primary', disabled: modActive() || !current,
+        onclick: () => { $('followup').value = t('shotFixFollowup'); openTab('change'); sendModification({ shot_fix: a.fingerprint }); } }, a.label || t('actConfirmMod')));
+      if (!current) out.push(h('p', { class: 'hint', dir: 'auto' }, t('shotOldVersion')));
+    }
     if (a.type === 'confirm_modification') out.push(h('button', { type: 'button', disabled: modActive() || !currentVersionId(),
       onclick: () => { $('followup').value = a.request; openTab('change'); sendModification(a.attachment_ids && a.attachment_ids.length ? { attachment_ids: a.attachment_ids } : null); } }, t('actConfirmMod')));
   }
@@ -2711,10 +2742,7 @@ function sketchCard(a, current) {
   if (st.id && v) {
     nodes.frame = h('iframe', { class: `sketchFrame ${st.device}`, title: t('sketchFrameTitle'), sandbox: '',
       src: `/api/v28/projects/${pid()}/sketches/${encodeURIComponent(st.id)}/page?v=${st.frameKey}`, 'data-key': String(st.frameKey) });
-    const dev = (id, device, label) => (nodes.devices[device] = h('button', { type: 'button', class: 'secondary', 'aria-pressed': String(st.device === device),
-      onclick: () => { st.device = device; updateSketchDom(st); } }, label));
-    kids.push(h('div', { class: 'sketchTools', role: 'group', 'aria-label': t('previewDevice') },
-      dev('devPhone', 'phone', t('devPhone')), dev('devDesktop', 'desktop', t('devDesktop'))));
+    kids.push(deviceSwitch(st, nodes, () => updateSketchDom(st)));
     kids.push(h('div', { class: 'sketchFrameWrap' }, nodes.frame));
     kids.push(h('dl', { class: 'sketchRows' }, sketchSummaryRows(v).map(([k, val]) => h('div', {}, h('dt', {}, k), h('dd', { dir: 'auto' }, val)))));
   }
@@ -2729,6 +2757,100 @@ function sketchCard(a, current) {
   if (st.error) kids.push(h('button', { type: 'button', class: 'secondary', onclick: () => { st.error = null; ensureSketch(a); renderChat(); } }, t('tryAgain')));
   kids.push(h('p', { class: 'sketchNote hint', dir: 'auto' }, t('sketchNote')));
   return h('section', { class: 'sketchCard', 'aria-label': t('sketchTitle') }, kids);
+}
+
+/* ---------- the build card (warehouse 124): the sketch card's component, fed by a real build ---------- */
+// ONE card component: the frame, the phone / desktop switch and the bar are the direction sketch's (deviceSwitch below,
+// the same CSS classes). Here it shows the customer's real build, with its build id on it; the customer takes a screenshot
+// of it with their own device and uploads it to this conversation. The window width the frame has at that moment is stored
+// with the image and told to the model; the image is a pointer to the component that is wrong, never a brief.
+const SHOT_MAX_BYTES = 3 * 1024 * 1024, SHOT_MAX_SIDE = 2000;
+function deviceSwitch(st, nodes, onChange) {
+  const dev = (device, label) => (nodes.devices[device] = h('button', { type: 'button', class: 'secondary', 'aria-pressed': String(st.device === device),
+    onclick: () => { st.device = device; onChange(); } }, label));
+  return h('div', { class: 'sketchTools', role: 'group', 'aria-label': t('previewDevice') },
+    dev('phone', t('devPhone')), dev('desktop', t('devDesktop')));
+}
+function buildCardState() {
+  return S.buildCard || (S.buildCard = { device: 'phone', nodes: null, busy: false, error: '' });
+}
+function frameWidth(frame) { return Math.round(frame.getBoundingClientRect().width); }
+function updateBuildCardDom(st) {
+  const n = st.nodes;
+  if (!n) return;
+  if (n.frame) n.frame.className = `sketchFrame ${st.device}`;
+  for (const [dev, btn] of Object.entries(n.devices || {})) btn.setAttribute('aria-pressed', String(dev === st.device));
+  if (n.width && n.frame) n.width.textContent = t('shotWidth')(frameWidth(n.frame));
+  if (n.state) n.state.textContent = st.busy ? t('shotSending') : '';
+  if (n.error) { n.error.textContent = st.error || ''; n.error.hidden = !st.error; }
+  if (n.upload) n.upload.disabled = st.busy;
+}
+function buildCardKey() {
+  const b = S.build, p = S.preview;
+  const acc = p && S.previewAccess && S.previewAccess.id === p.id ? S.previewAccess.url : '';
+  return b && String(b.status).toLowerCase() === 'ready' ? [b.id, p && p.id, p && p.status, acc].join('|') : '';
+}
+// a screenshot as base64: as it is when it is within the limit, otherwise brought down in the browser (2000 px, JPEG), as the
+// image attachments are (visual-edit.js)
+async function shotBase64(file) {
+  let blob = file;
+  if (file.size > SHOT_MAX_BYTES) {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, SHOT_MAX_SIDE / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(bmp.width * scale)); c.height = Math.max(1, Math.round(bmp.height * scale));
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+  }
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',', 2)[1]); r.onerror = reject; r.readAsDataURL(blob);
+  });
+}
+const shotPath = () => `/api/v28/projects/${pid()}/builds/${encodeURIComponent(S.build.id)}/shots`;
+async function uploadShot(file) {
+  const st = buildCardState();
+  if (!file || st.busy || !S.build || !st.nodes || !st.nodes.frame) return;
+  st.error = '';
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) { st.error = t('shotBadFile'); updateBuildCardDom(st); return; }
+  st.busy = true; updateBuildCardDom(st);
+  try {
+    const width = Math.min(3840, Math.max(240, frameWidth(st.nodes.frame)));    // read now: what the customer is looking at
+    const data = await shotBase64(file);
+    await sendChat({ data_base64: data, viewport_width: width }, t('shotSent'), shotPath);
+  } catch (e) { st.error = explain(e); }
+  finally { st.busy = false; updateBuildCardDom(st); }
+}
+function buildCard() {
+  const key = buildCardKey();
+  S.buildCardKey = key;
+  if (!key) return null;
+  const b = S.build, p = S.preview, st = buildCardState();
+  const nodes = { devices: {} };
+  st.nodes = nodes;
+  const kids = [h('header', { class: 'sketchBar' }, h('strong', {}, t('buildCardTitle')),
+    h('span', { class: 'pill' }, `${t('buildCardId')}: `, h('code', { dir: 'ltr', class: 'buildId' }, String(b.id))))];
+  const running = p && p.status === 'RUNNING' && p.preview_url;
+  const acc = running && S.previewAccess && S.previewAccess.id === p.id ? S.previewAccess : null;
+  if (running && !acc) requestPreviewAccess(p);
+  if (acc) {
+    nodes.frame = h('iframe', { class: `sketchFrame ${st.device}`, title: t('buildFrameTitle'), src: acc.url,
+      sandbox: 'allow-scripts allow-forms allow-same-origin allow-popups', referrerpolicy: 'no-referrer' });
+    kids.push(deviceSwitch(st, nodes, () => updateBuildCardDom(st)), h('div', { class: 'sketchFrameWrap' }, nodes.frame));
+    nodes.upload = h('input', { type: 'file', id: 'shotFile', accept: 'image/png,image/jpeg,image/webp',
+      onchange: ev => { const f = ev.target.files && ev.target.files[0]; ev.target.value = ''; uploadShot(f); } });
+    nodes.width = h('p', { class: 'hint shotWidth', dir: 'auto' }, '');
+    nodes.state = h('p', { class: 'sketchState', role: 'status', dir: 'auto' }, '');
+    nodes.error = h('p', { class: 'sketchPayError hint', role: 'alert', dir: 'auto', hidden: true }, '');
+    kids.push(h('div', { class: 'shotRow' }, h('label', { for: 'shotFile' }, t('shotUploadLabel')), nodes.upload, nodes.width),
+      nodes.state, nodes.error, h('p', { class: 'sketchNote hint', dir: 'auto' }, t('shotNote')));
+  } else {
+    kids.push(h('p', { class: 'sketchState', role: 'status', dir: 'auto' }, running ? t('previewStarting') : t('noPreview')));
+    if (!running && currentVersionId()) kids.push(h('button', { type: 'button', class: 'secondary', onclick: () => startPreview(currentVersionId()) }, t('startPreview')));
+  }
+  const card = h('section', { class: 'sketchCard buildCard', 'aria-label': t('buildCardTitle') }, kids);
+  setTimeout(() => updateBuildCardDom(st), 0);          // the width is read once the frame has its place
+  return card;
 }
 function renderChat() {
   const box = $('thread'); if (!box) return;
@@ -2779,6 +2901,8 @@ function renderChat() {
     }
     kids.push(bubble);
   });
+  const shownBuild = buildCard();                         // warehouse 124: the real build, in the conversation
+  if (shownBuild) kids.push(shownBuild);
   // Build/change state lines come from the server records (no invented progress).
   if (S.build && S.build.status) {
     const st = String(S.build.status).toLowerCase();

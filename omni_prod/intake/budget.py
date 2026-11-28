@@ -143,16 +143,30 @@ def allowed_models() -> tuple[str, ...]:
     return tuple(m.strip() for m in raw.split(',') if m.strip()) if raw else DEFAULT_ALLOWED_MODELS
 
 
+class _RoutedOnly:
+    """Stands in for the Venice module in a routed-only quote (warehouse 124): the provider is never Venice."""
+    selected = staticmethod(lambda: False)
+
+
 def quote(*, system: str, user: str, max_tokens: int, task: str = 'conversation',
           models: tuple[str, ...] | None = None, when=None, max_calls: int = 1,
-          venice_profile: dict | None = None) -> Quote:
-    """Worst case of the permitted envelope, using the gateway's own bounds."""
+          venice_profile: dict | None = None, images: int = 0, routed_only: bool = False) -> Quote:
+    """Worst case of the permitted envelope, using the gateway's own bounds. `images` is the number of images the call carries
+    (3,000 input tokens each, as RoutedModelGateway bounds them): only a model with evidence that it reads images is priced, and
+    a call with images is quoted on the routed catalog only (`routed_only`, warehouse 124: the screenshot fix is a focused
+    vision candidate of its own and never the conversation agent's Venice profile)."""
     from ..intelligence.governance import govern
     from ..intelligence.task_policy import eligible
     if not isinstance(max_tokens, int) or max_tokens <= 0 or max_calls != 1:
         raise QuoteUnavailable('only a single bounded call is quotable (no automatic retry or fallback)')
-    input_tokens = len(f'{system}{user}'.encode('utf-8')) + 64       # == RoutedModelGateway.ranked_routes
+    if not isinstance(images, int) or isinstance(images, bool) or images < 0 or (images and not routed_only):
+        raise QuoteUnavailable('images are quoted on the routed catalog only (routed_only=True)')
+    if routed_only and venice_profile is not None:
+        raise QuoteUnavailable('a routed quote has no Venice profile')
+    input_tokens = len(f'{system}{user}'.encode('utf-8')) + 64 + 3000 * images   # == RoutedModelGateway.ranked_routes
     from ..providers import venice_gateway as VG
+    if routed_only:
+        VG = _RoutedOnly            # warehouse 124: no Venice branch for an image, whatever OMNI_INTAKE_PROVIDER says
     if venice_profile is not None and not VG.selected():
         # the agent's Sonnet profile is a Venice profile: never silently priced on another catalog
         raise QuoteUnavailable('the conversation agent profile is for Venice, and Venice is not the intake provider')
@@ -200,6 +214,10 @@ def quote(*, system: str, user: str, max_tokens: int, task: str = 'conversation'
             continue    # the conversation quotes only a verified price (unchanged by the owner's rule of 2026-11-26)
         if not gov.routable or not eligible(task, model_id=model, quality=quality):
             continue
+        if images:
+            from ..vision_models import accepts_images
+            if not accepts_images(model):
+                continue                    # a model with no evidence that it reads images is never priced for one
         if gov.input_per_million is None or gov.output_per_million is None or \
                 gov.input_per_million <= 0 or gov.output_per_million <= 0:
             raise QuoteUnavailable(f'{model}: no verified non-zero price')
@@ -274,8 +292,10 @@ def _res(row) -> Reservation:
 
 
 # The project scope's name: 'project' (the conversation's own), and the direction sketch's two (S6.3): the company's
-# first sketch of a project (capped at $0.10 in all) and a further one the customer pays for. Any other value raises.
-PURPOSES = ('project', 'sketch-free', 'sketch-paid')
+# first sketch of a project (capped at $0.10 in all) and a further one the customer pays for; and 'shot-fix' (warehouse 124):
+# a customer's screenshot round, which is NOT a turn of the conversation (the turn counter and the conversation's cost cap
+# read only the 'project' scope). Any other value raises.
+PURPOSES = ('project', 'sketch-free', 'sketch-paid', 'shot-fix')
 
 
 def scopes_for(account_id: str, project_id: str, lane: str, campaign_id: str | None, caps: Caps,

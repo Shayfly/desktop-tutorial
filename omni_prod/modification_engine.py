@@ -6,6 +6,8 @@ from .autonomous_core import ExecutionReport, Executor
 from .repository_patch import apply_patch
 from .modifier_engine import repo_summary, run_free_repair
 from .modification_diff import ModificationDiff, diff_modification
+from . import shot_fix as SF
+from .repair_edits import resolve_edits
 
 # M4C/D/E: this module is the pure, testable core of M4 -- it never touches
 # durable storage, never enqueues anything, and never mutates the accepted
@@ -169,12 +171,37 @@ class CandidateModificationEngine:
                                quality, security, rights)
         return GateResult(True, None, None, quality, security, rights)
 
+    def _propose_exact(self, *, spec, repository, edits, followup, target_markets, rights_evidence) -> CandidateOutcome:
+        """Warehouse 124: a followup that carries exact edit blocks (a customer's screenshot, read and stored by omni_prod/shot_fix)
+        becomes a candidate by applying exactly those blocks -- once each, all or none, on the stored version -- and then runs
+        through the SAME verification, quality, security and rights gates as any other candidate. No model is asked here: the
+        blocks were the model's answer, checked when the customer saw them. A block that no longer applies is a failed
+        candidate that says so, never a guess."""
+        assessment = ChangeAssessment('visual_fix', 'exact edit blocks from the customer\'s screenshot (warehouse 124)', (), True)
+        texts, misses = resolve_edits(repository, edits)
+        if misses:
+            gates = GateResult(False, 'verification', 'the edit blocks no longer apply to this version: '
+                               + '; '.join(f"{m.get('code')} {m.get('path', '')}" for m in misses)[:300], None, None, None)
+            return CandidateOutcome('failed', assessment, repository, spec, dict(repository), spec, 0, None, gates, None,
+                                    assessment.billable)
+        candidate = {**repository, **texts}
+        report = self.executor.execute(repository=candidate, spec=spec)
+        gates = self._evaluate_gates(report=report, spec=spec, repository=candidate, followup=followup,
+                                     target_markets=target_markets, rights_evidence=rights_evidence)
+        diff = diff_modification(old_repository=repository, new_repository=candidate, old_spec=spec, new_spec=spec)
+        status = 'ready_for_review' if gates.passed and candidate != dict(repository) else 'failed'
+        return CandidateOutcome(status, assessment, repository, spec, candidate, spec, 0, report, gates, diff, assessment.billable)
+
     def propose(self, *, spec: ProductSpec, repository: dict[str, str], followup: str,
                 target_markets: tuple[str, ...] = ('US', 'EU', 'IL'), rights_evidence: tuple = ()) -> CandidateOutcome:
         if not followup.strip():
             raise ValueError('followup cannot be empty')
         if not repository:
             raise ValueError('repository cannot be empty -- nothing to modify')
+        exact = SF.edits_of(followup)
+        if exact is not None:
+            return self._propose_exact(spec=spec, repository=repository, edits=exact, followup=followup,
+                                       target_markets=target_markets, rights_evidence=rights_evidence)
 
         assessment = self.classifier.classify(spec=spec, followup=followup)
 

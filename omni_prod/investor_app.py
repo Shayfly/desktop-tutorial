@@ -594,6 +594,9 @@ class V28ModificationRequest(BaseModel):
     # when locate() listed several, the candidate the person chose.
     target: dict | None = None
     attachment_ids: list[str] = Field(default_factory=list, max_length=20)   # = attachments.MAX_PER_MESSAGE
+    # warehouse 124: apply the exact fix a screenshot round stored (its fingerprint); the edits are the server's own record,
+    # never the browser's
+    shot_fix: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
 
 class V28ModificationAcceptRequest(BaseModel):
     force: bool = False
@@ -3199,6 +3202,8 @@ def v28_build_status(project_id: str, build_id: str, request: Request) -> dict:
             "artifact_key": details.artifact_key,
             "error_code": details.error_code,
             "evidence": strip_internal_economics(details.evidence),
+            # warehouse 124: the screenshots a customer took of this build, both images and the five lines of each round
+            "screenshots": _build_screenshots(project_id, build_id),
             # 2026-11-15: jobs ahead of a queued build on the single worker (a count only); None once it runs
             "queue_ahead": jobs.queue_ahead(build_id, internal_project_id=key) if details.status == 'QUEUED' else None,
         }
@@ -3484,7 +3489,9 @@ def v28_propose_modification(project_id: str, version_id: str, req: V28Modificat
 
     followup = req.followup
     visual = None
-    if req.target or req.attachment_ids:
+    if req.shot_fix:
+        followup = _shot_fix_followup(project_id, version_id, req.shot_fix)
+    elif req.target or req.attachment_ids:
         followup, visual = _visual_followup(project_id, account.id, key, version_id, req)
 
     modification_id = f"mod_{uuid.uuid4().hex}"
@@ -3775,6 +3782,78 @@ def _reading_decision(project_id: str, draft_fingerprint: str, req, request: Req
     except KeyError:
         raise HTTPException(404, detail={'error': 'draft_not_found'})
     return _conversation_view(project_id, turn.language, turn)
+
+
+# ---- warehouse 124: the customer sees the build in the conversation, takes a screenshot of it, and the model fixes the exact
+# component. The image round is stored whole (both images, the window width, five evidence lines) whatever its outcome; the fix
+# is applied only after the customer's one click, through the existing modification pipeline and its gates.
+
+class V28ShotRequest(BaseModel):
+    data_base64: str = Field(min_length=8, max_length=4_300_000)          # = attachments.MAX_BYTES as base64
+    viewport_width: int = Field(ge=240, le=3840)                          # = shot_fix.WIDTH_MIN..WIDTH_MAX
+    note: str | None = Field(default=None, max_length=500)
+    request_key: str | None = Field(default=None, max_length=80)
+
+
+@app.post('/api/v28/projects/{project_id}/builds/{build_id}/shots')
+def v28_build_shot(project_id: str, build_id: str, req: V28ShotRequest, request: Request) -> dict:
+    from . import shot_fix as SF
+    from .attachments import AttachmentError, decode_base64
+    account, key = _owner(project_id, request)
+    repo = _attachments()
+    store = _conversation_store()
+    lang = _lang(request) if request.query_params.get('lang') else None
+    if req.request_key and store.find_reply(project_id, req.request_key):
+        return _conversation_view(project_id, lang or 'he')              # a retried upload: no second round
+    try:
+        details = PostgresBuildRepository(_v28_pool).get_details(build_id, internal_project_id=key)   # isolation: this project's
+    except KeyError:
+        raise HTTPException(404, 'Build not found or access denied')
+    if not details.result_version_id:
+        raise HTTPException(409, detail={'error': 'build_has_no_version',
+                                         'message': 'this build has no version to look at: a screenshot needs a finished build'})
+    try:
+        work = _version_repository(key, details.result_version_id)
+        reader = SF.reader_for(_supervisor(key, account.id), account_id=account.id, project_id=project_id,
+                               request_key=req.request_key)
+    except HTTPException:
+        work, reader = {}, SF.FailedReader('version_unavailable', 'the photographed version could not be opened')
+    try:
+        SF.round_of(project_id=project_id, account_id=account.id, build_id=build_id, version_id=details.result_version_id,
+                    work=work, data=decode_base64(req.data_base64), width=req.viewport_width, note=req.note or '',
+                    lang=lang or 'he', repo=repo, reader=reader, store=store, request_key=req.request_key)
+    except (AttachmentError, SF.ShotError) as exc:
+        raise HTTPException(exc.status, detail={'error': exc.code, 'message': str(exc)}) from exc
+    return _conversation_view(project_id, lang or 'he')
+
+
+@app.get('/api/v28/projects/{project_id}/builds/{build_id}/shots')
+def v28_build_shots(project_id: str, build_id: str, request: Request) -> dict:
+    _, key = _owner(project_id, request)
+    try:
+        PostgresBuildRepository(_v28_pool).get_details(build_id, internal_project_id=key)
+    except KeyError:
+        raise HTTPException(404, 'Build not found or access denied')
+    return {'build_id': build_id, 'screenshots': _build_screenshots(project_id, build_id)}
+
+
+def _build_screenshots(project_id: str, build_id: str) -> list[dict]:
+    """The screenshots of a build, from the conversation's own records: [] when there is no conversation store (never an error:
+    a build's status does not depend on it)."""
+    from . import shot_fix as SF
+    try:
+        return SF.records_for_build(_conversation_store().messages_for(project_id, limit=200), build_id)
+    except HTTPException:
+        return []
+
+
+def _shot_fix_followup(project_id: str, version_id: str, fingerprint: str) -> str:
+    from . import shot_fix as SF
+    record = SF.record_for_fix(_conversation_store().messages_for(project_id, limit=200), fingerprint)
+    if record is None or record.get('version_id') != version_id:
+        raise HTTPException(409, detail={'error': 'shot_fix_not_found',
+                                         'message': 'this fix belongs to another version, or it was never stored here'})
+    return SF.followup_for(record)
 
 
 @app.post('/api/v28/projects/{project_id}/readings/{draft_fingerprint}/approve')
