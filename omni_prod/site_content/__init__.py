@@ -310,7 +310,7 @@ def install(engine, *, prompt: str, gateway, request=None, plan_governed: bool =
     route's two executors. Installed right after components_factory(), before any install that wraps the architect.
     The decision is logged (SITE_ROUTE) and kept on the engine for the evidence on every build."""
     core = getattr(engine, 'core', engine)
-    if getattr(core, 'game_state', None) is not None:       # a game (canvas_game_v1) has no site content to write
+    if 'game_state' in vars(core):       # a game (canvas_game_v1) has no site content to write; set on the instance by game_engine, never by a double's auto attribute
         return Route(LEGACY, 'game')
     route = decide(prompt, request, plan_governed=plan_governed, year=year)
     if route.route != ROUTE:

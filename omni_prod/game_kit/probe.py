@@ -216,6 +216,29 @@ def _run(browser, url, *, phone: bool, texts: dict, time_limit: int) -> tuple[li
     return findings, m
 
 
+def serve_game(directory: str):
+    """The game's folder over HTTP on a free local port, as a deployment serves it. Returns (server, address of index.html).
+    The browser asks for /favicon.ico by itself; the game has none, and the 404 would be a console error that is not the
+    game's: it is answered 204. The caller shuts the server down."""
+    import functools
+    import http.server
+    import threading
+
+    class Quiet(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            if self.path == '/favicon.ico':
+                self.send_response(204)
+                self.end_headers()
+            else:
+                super().do_GET()
+    server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(Quiet, directory=directory))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, f'http://127.0.0.1:{server.server_port}/index.html'
+
+
 def probe_html(html: str, defn: dict, *, launch=None, files: dict | None = None) -> dict:
     """Play the page at both widths. Returns {'ok', 'findings', 'measures'}; ok only with zero findings. `files` are the
     other files of the game ({'assets/148ai-player.png': bytes}), written next to the page so its art loads as it will."""
@@ -232,23 +255,7 @@ def probe_html(html: str, defn: dict, *, launch=None, files: dict | None = None)
         # and taint the canvas the probe reads. A page with none opens from the file, as it always did.
         server, url = None, path.as_uri()
         if files:
-            import functools
-            import http.server
-            import threading
-
-            class Quiet(http.server.SimpleHTTPRequestHandler):
-                def log_message(self, *args):
-                    pass
-
-                def do_GET(self):          # the browser asks for a favicon by itself; its 404 is not the game's error
-                    if self.path == '/favicon.ico':
-                        self.send_response(204)
-                        self.end_headers()
-                    else:
-                        super().do_GET()
-            server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(Quiet, directory=d))
-            threading.Thread(target=server.serve_forever, daemon=True).start()
-            url = f'http://127.0.0.1:{server.server_port}/index.html'
+            server, url = serve_game(d)
         try:
             with _chromium()() as p:
                 browser = (launch or _launch)(p)

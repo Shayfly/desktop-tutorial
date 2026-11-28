@@ -216,6 +216,9 @@ jobs:
         timeout-minutes: 8
         env:
           NC_ENV: game
+          # 27 controls took 31 s each in a row (a9a6619: 7.7 minutes for 22 of 25, then the step limit). Two at a time, as the
+          # other browser jobs: every test class makes its own database (uuid), so two controls never share data.
+          NC_JOBS: "2"
         run: python scripts/run_negative_controls.py game2d
 
   # The owner, 2026-11-25 (the font question, "א. צריך שיהיה את כל המגוון"): the font-pair library's full range is

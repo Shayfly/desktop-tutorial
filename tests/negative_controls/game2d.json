@@ -343,27 +343,19 @@
   },
   {
    "id": "NC19",
-   "what": "the favicon the browser asks for is a console error of the game",
+   "what": "the favicon the browser asks for is answered with a 404 by the server the probe serves a game from (a console error that is not the game's)",
    "mutations": [
     {
      "file": "omni_prod/game_kit/probe.py",
-     "old": "                    if self.path == '/favicon.ico':\n",
-     "new": "                    if False:\n"
+     "old": "        if self.path == '/favicon.ico':\n",
+     "new": "        if False:\n"
     }
    ],
    "targets": [
-    "tests/test_game_art.py",
-    "tests/test_game_build_pg.py"
+    "tests/test_game_art.py::TheProbesServer"
    ],
    "expect_failed": [
-    "test_a_game_is_written_validated_played_and_released",
-    "test_a_game_the_probe_cannot_win_is_repaired_with_the_probes_findings_and_then_played_again",
-    "test_an_invalid_definition_gets_one_corrective_call_that_names_every_problem",
-    "test_the_probe_plays_a_game_with_art_and_passes_it",
-    "test_with_the_release_policy_enforcing_a_game_that_passed_its_probe_is_still_refused"
-   ],
-   "envs": [
-    "game"
+    "test_the_favicon_a_browser_asks_for_is_answered_empty_not_with_a_404"
    ]
   },
   {
@@ -418,7 +410,7 @@
    "mutations": [
     {
      "file": "omni_prod/worker_tasks.py",
-     "old": "    if getattr(engine, 'game_state', None) is not None:\n        # a game is repaired",
+     "old": "    if 'game_state' in vars(engine):       # set on the instance by game_engine; a double's auto attribute is not a game\n        # a game is repaired",
      "new": "    if False:\n        # a game is repaired"
     }
    ],
@@ -494,6 +486,41 @@
    ],
    "envs": [
     "game"
+   ]
+  },
+  {
+   "id": "NC26",
+   "what": "a test double's auto attribute (MagicMock.game_state) is read as a game: the content route is skipped and the evidence loses its site_route",
+   "mutations": [
+    {
+     "file": "omni_prod/site_content/__init__.py",
+     "old": "    if 'game_state' in vars(core):",
+     "new": "    if getattr(core, 'game_state', None) is not None:"
+    }
+   ],
+   "targets": [
+    "tests/test_app_states.py::TheWorkerRecordsTheDecision"
+   ],
+   "expect_failed": [
+    "test_an_app_build_records_the_route_reason_and_the_app_gate",
+    "test_the_route_reason_is_recorded_when_the_build_raises"
+   ]
+  },
+  {
+   "id": "NC27",
+   "what": "the same read in the agentic-repair switch: a double's auto attribute turns the repair off for every build",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "    if 'game_state' in vars(engine):",
+     "new": "    if getattr(engine, 'game_state', None) is not None:"
+    }
+   ],
+   "targets": [
+    "tests/test_agentic_repair.py"
+   ],
+   "expect_failed": [
+    "test_a_game_is_never_given_the_agentic_repairer_and_a_double_is_not_a_game"
    ]
   }
  ]

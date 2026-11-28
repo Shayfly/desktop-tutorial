@@ -722,7 +722,7 @@ def _install_agentic_repair(engine, request) -> bool:
         # the content route repairs the content document, never the HTML; an agent editing the page would be undone
         logging.getLogger(__name__).info('AGENTIC_REPAIR_OFF the content route (site_content) repairs content only')
         return False
-    if getattr(engine, 'game_state', None) is not None:
+    if 'game_state' in vars(engine):       # set on the instance by game_engine; a double's auto attribute is not a game
         # a game is repaired by rewriting its DEFINITION (game_kit/builder.GameRepairer); an agent editing the page would be undone
         logging.getLogger(__name__).info('AGENTIC_REPAIR_OFF a game (canvas_game_v1) is repaired through its definition')
         return False

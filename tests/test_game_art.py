@@ -434,5 +434,23 @@ class ThePlayedGame(unittest.TestCase):
         self.assertIn('page_error', {f['kind'] for f in result['findings']})
 
 
+class TheProbesServer(unittest.TestCase):
+    """The server the probe serves a game with art from (no browser needed). A browser asks for /favicon.ico by itself and
+    the game has none: the 404 would be a console error that is not the game's. Whether a given Chromium asks is its own
+    business (the headless shell of CI does not), so what is tested is the server: the answer is 204, the page is served."""
+
+    def test_the_favicon_a_browser_asks_for_is_answered_empty_not_with_a_404(self):
+        import urllib.request
+        from omni_prod.game_kit.probe import serve_game
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, 'index.html').write_text('<!doctype html><title>g</title>', encoding='utf-8')
+            server, url = serve_game(d)
+            self.addCleanup(lambda: (server.shutdown(), server.server_close()))
+            with urllib.request.urlopen(url.replace('index.html', 'favicon.ico'), timeout=10) as r:
+                self.assertEqual((r.status, r.read()), (204, b''))
+            with urllib.request.urlopen(url, timeout=10) as r:
+                self.assertEqual((r.status, b'<title>g</title>' in r.read()), (200, True))
+
+
 if __name__ == '__main__':
     unittest.main()
