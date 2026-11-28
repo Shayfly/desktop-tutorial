@@ -37,10 +37,17 @@ class ProductIntentTests(unittest.TestCase):
                 self.assertEqual(classify_family(prompt), family)
 
     def test_recognition_does_not_enable_unsupported_engines(self):
-        for family in ('mobile_app', 'game', 'ai_agent', 'automation',
+        for family in ('mobile_app', 'ai_agent', 'automation',
                        'api_integration', 'media', '3d_experience'):
             with self.subTest(family=family):
                 self.assertFalse(executable(family))
+
+    def test_a_game_is_executable_but_only_for_an_account_the_output_rollout_lets_through(self):
+        # the owner, 2026-11-27, answer 11: `game` entered EXECUTABLE together with its profile (output_profile) and a flag.
+        # Recognition alone still enables nothing: the router (tests/test_game_profile_routing.py) refuses it with the flag off.
+        from omni_prod.output_profile import route
+        self.assertTrue(executable('game'))
+        self.assertFalse(route('game').supported)
 
 
 if __name__ == '__main__':

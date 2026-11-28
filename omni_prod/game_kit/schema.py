@@ -10,6 +10,14 @@ import re
 
 SCHEMA = '148ai.game/1'
 KINDS = ('platformer', 'shooter', 'match', 'runner')
+SCHEMA_V2 = '148ai.game/2'      # adds the optional `art` block (S12.3): a version 1 definition still plays, with the flat look
+ART_ROLES = ('background', 'player', 'enemy', 'item', 'ground')
+ART_MAX_BYTES = 300_000          # one image file; the images of a game stay under ART_TOTAL_MAX_BYTES
+ART_TOTAL_MAX_BYTES = 1_200_000
+# Art is carried as FILES under assets/ (the platform's own way to carry an image: repository_assets), named by role, and the
+# definition only names them. A relative path is a source the rights gate knows (rights_sources.json `build_served`); bytes
+# inlined in the page would be "bytes embedded in the file that the platform did not supply" and block (found 2026-11-27).
+_ART_PATH = re.compile(r'^assets/148ai-(background|player|enemy|item|ground)\.(png|webp|jpg)$')
 LANGS = {'he': 'rtl', 'ar': 'rtl', 'en': 'ltr'}
 PALETTE_KEYS = ('bg', 'player', 'enemy', 'item', 'ground', 'text')
 TEXT_KEYS = ('start', 'win', 'lose', 'score')
@@ -110,9 +118,32 @@ _LEVEL = {'platformer': (_platformer_level, 1, 10), 'shooter': (_waves, 1, 1),
           'match': (_match_level, 1, 1), 'runner': (_runner_level, 1, 1)}
 
 
+def _art(problems, art):
+    """The art block of a version 2 definition: the path of one image file per role, named after its role."""
+    if not isinstance(art, dict) or not art:
+        problems.append('art must be an object with at least one image')
+        return
+    for k in sorted(set(art) - set(ART_ROLES)):
+        problems.append(f'art has an unknown role {k!r}; allowed: {list(ART_ROLES)}')
+    for role in ART_ROLES:
+        if role in art:
+            m = _ART_PATH.match(art[role]) if isinstance(art[role], str) else None
+            if not m or m.group(1) != role:
+                problems.append(f'art.{role} must be the path assets/148ai-{role}.png (or .webp, .jpg), got {art[role]!r}')
+
+
 def validate(defn: object) -> dict:
     """Return the definition unchanged when it is playable; raise InvalidGame listing every problem otherwise."""
     problems: list[str] = []
+    if isinstance(defn, dict) and defn.get('schema') == SCHEMA_V2:
+        # Version 2 = version 1 + the optional `art` block. The whole version 1 check runs on the rest, unchanged; a
+        # version 1 file that carries `art` is refused by it below as an unknown key, never quietly accepted.
+        validate({**{k: v for k, v in defn.items() if k != 'art'}, 'schema': SCHEMA})
+        if 'art' in defn:
+            _art(problems, defn['art'])
+            if problems:
+                raise InvalidGame(problems)
+        return defn
     if not _keys(problems, 'game', defn, TOP_KEYS):
         raise InvalidGame(problems)
     if problems:

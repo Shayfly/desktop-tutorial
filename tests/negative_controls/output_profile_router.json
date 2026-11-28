@@ -4,7 +4,7 @@
  "controls": [
   {"id": "NC1", "what": "A0 bypassed: a game is interviewed as a web app again (warehouse 69 as it was found)",
    "mutations": [{"file": "omni_prod/conversation/supervisor.py",
-                  "old": "        refused = self._route_output(row, message, lang)    # A0 (warehouse 69): the output type, before any model",
+                  "old": "        refused = self._route_output(row, message, lang, account_id)    # A0 (warehouse 69): the output type, before any model",
                   "new": "        refused = None  # NEGATIVE CONTROL"}],
    "targets": ["tests/test_output_profile_router.py"],
    "expect_failed": ["test_a_game_request_is_refused_before_any_question", "test_a_song_and_a_native_app_are_refused_too",

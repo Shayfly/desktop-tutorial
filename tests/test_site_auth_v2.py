@@ -479,8 +479,13 @@ class SourceIdentity(unittest.TestCase):
         # whole flag-only skill (~67 lines), so this change is flagged for review by eye, as it should be.
         self.assertEqual(t['heavy_files'], ['omni_prod/skills_runtime.py'])
         self.assertTrue(t['needs_human_review'])
+        # S12 (2D games, 2026-11-27): the output rollout (feature_flags.output_rollout, OMNI_OUTPUT_GAME, off by default) is read in
+        # two places of the pipeline, one line each: the router's refusal and the worker's engine choice
         self.assertEqual(set(self.BASE['stripped']), {'omni_prod/skills_runtime.py', 'omni_prod/behavior_acceptance.py',
-                                                      'omni_prod/investor_app.py', 'omni_prod/probe_manifest.py'})
+                                                      'omni_prod/investor_app.py', 'omni_prod/probe_manifest.py',
+                                                      'omni_prod/output_profile/__init__.py', 'omni_prod/worker_tasks.py'})
+        for one_line in ('omni_prod/output_profile/__init__.py', 'omni_prod/worker_tasks.py'):
+            self.assertEqual(self.BASE['stripped'][one_line], {'blocks': 1, 'lines': 1, 'names': 0}, one_line)
 
     def test_a_large_flag_only_rewrite_asks_for_a_human(self):
         from omni_prod import pipeline_identity as pi

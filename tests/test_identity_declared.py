@@ -245,3 +245,49 @@ class RevertEntries(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+SAME = FROM
+SRC = {'id': '570-source-only', 'kind': 'source_only', 'from_digest': SAME, 'to_digest': SAME,
+       'added': ['omni_prod/opening_hours.py'], 'removed': [],
+       'changed': ['omni_prod/fact_canon.py', 'omni_prod/skills_runtime.py'], 'data_changed': [],
+       'reason': 'flag-only branches; the flag-off pipeline is unchanged', 'author': 'claude', 'reviewer': 'shai',
+       'reviewed_at': '2026-11-28'}
+
+
+class SourceOnly(unittest.TestCase):
+    """The owner, 2026-11-28 (#570, option 1): the gate code changed, the flag-off digest did not."""
+
+    def test_the_exact_signed_source_only_entry_passes_when_the_digest_is_unchanged(self):
+        self.assertTrue(ok(SRC, base_digest=SAME, head_digest=SAME))
+
+    def test_it_may_repeat_a_digest_another_entry_declared(self):
+        # the anchor's digest is the to_digest of the entry that introduced it: that is not a repeat here
+        entry, _ = D.match([{**ENTRY, 'to_digest': SAME, 'from_digest': TO}, SRC], SAME, SAME, D.diff(BASE, HEAD))
+        self.assertEqual(entry['id'], SRC['id'])
+
+    def test_it_never_matches_a_change_of_behaviour(self):
+        self.assertFalse(ok(SRC, base_digest=SAME, head_digest=TO))
+        self.assertFalse(ok({**SRC, 'to_digest': TO}, base_digest=SAME, head_digest=TO))   # two digests: refused
+        self.assertTrue(D.problems({**SRC, 'to_digest': TO}))
+
+    def test_the_path_sets_are_exact(self):
+        self.assertFalse(ok({**SRC, 'changed': ['omni_prod/fact_canon.py']}, base_digest=SAME, head_digest=SAME))
+        more = {**HEAD, 'files': {**HEAD['files'], 'omni_prod/x.py': 'c2'}}
+        self.assertFalse(ok(SRC, base_digest=SAME, head_digest=SAME, head=more))
+
+    def test_it_is_signed_like_any_entry(self):
+        for reviewer in ('', 'claude', 'pending'):
+            self.assertFalse(ok({**SRC, 'reviewer': reviewer}, base_digest=SAME, head_digest=SAME), reviewer)
+
+    def test_the_same_source_only_change_is_declared_once(self):
+        again = {**SRC, 'id': 'copy'}
+        self.assertTrue(D.duplicates([SRC, again]))
+        self.assertIsNone(D.match([SRC, again], SAME, SAME, D.diff(BASE, HEAD))[0])
+
+    def test_an_unknown_kind_an_empty_change_or_a_revert_is_refused(self):
+        self.assertFalse(ok({**SRC, 'kind': 'source-only'}, base_digest=SAME, head_digest=SAME))
+        self.assertFalse(ok({**SRC, 'revert_of': '335-part-1'}, base_digest=SAME, head_digest=SAME))
+        self.assertTrue(D.problems({**SRC, 'revert_of': '335-part-1'}))
+        empty = {**SRC, 'added': [], 'changed': []}
+        self.assertTrue(D.problems(empty))

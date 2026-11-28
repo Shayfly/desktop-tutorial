@@ -24,6 +24,7 @@ from .. import pricing
 from . import page_types as PT
 
 BUILDER_WEB_V1 = 'web_graph_v1'        # planning.architect.web_graph + the autonomous core: the one engine that exists
+BUILDER_CANVAS_GAME_V1 = 'canvas_game_v1'   # the same engine with the game agents (omni_prod/game_kit/builder.py)
 
 
 class ProfileMissing(LookupError):
@@ -84,13 +85,15 @@ PAGE_FAMILIES = ('website',)       # the output types that are pages; a web_app 
 def _profile(kind: str) -> OutputProfile:
     others = {f for other in EXECUTABLE if other != kind for f in _field_names(other)}
     required = _field_names(kind)
+    game = kind == 'game'
     return OutputProfile(
-        type=kind, builder=BUILDER_WEB_V1,
+        type=kind, builder=BUILDER_CANVAS_GAME_V1 if game else BUILDER_WEB_V1,
         required_brief_fields=required,
         forbidden_brief_fields=tuple(sorted(others - set(required))),
-        asset_kinds=('logo', 'image'),
+        asset_kinds=('art',) if game else ('logo', 'image'),
         gates=tuple(CORE_CHECKS),
-        acceptance_checks=('omni_prod.behavior_acceptance', 'omni_prod.browser_probe', 'omni_prod.visual_qa'),
+        acceptance_checks=('omni_prod.game_kit.probe',) if game else (
+            'omni_prod.behavior_acceptance', 'omni_prod.browser_probe', 'omni_prod.visual_qa'),
         cost_ceiling_usd=pricing.m5_class_llm_cap(pricing.CostClass.LIGHT),
         repair_rounds_max=pricing.DEFAULT_REPAIR_ROUNDS,
         human_review=False,
@@ -130,7 +133,13 @@ _UNSUPPORTED: dict[str, tuple[str, str, str]] = {
 
 PROFILES: dict[str, OutputProfile] = {kind: _profile(kind) for kind in sorted(EXECUTABLE)}
 UNSUPPORTED: dict[str, Unsupported] = {
-    fam: Unsupported(fam, reason, he + _EXIT_HE, en + _EXIT_EN) for fam, (reason, he, en) in _UNSUPPORTED.items()}
+    fam: Unsupported(fam, reason, he + _EXIT_HE, en + _EXIT_EN) for fam, (reason, he, en) in _UNSUPPORTED.items()
+    if fam not in PROFILES}
+# A type with a profile whose rollout excludes the account gets its "not yet" sentence from here (check_truth: a family
+# is never both supported and unsupported, so this is not UNSUPPORTED).
+ROLLOUT_REFUSALS: dict[str, Unsupported] = {
+    fam: Unsupported(fam, reason, he + _EXIT_HE, en + _EXIT_EN) for fam, (reason, he, en) in _UNSUPPORTED.items()
+    if fam in PROFILES}
 
 
 def check_truth(profiles, unsupported, executable, families) -> None:
@@ -155,10 +164,14 @@ def profile_for(family: str) -> OutputProfile | None:
     return PROFILES.get(family)
 
 
-def route(family: str) -> Routing:
+def route(family: str, account_id=None) -> Routing:
     """A0: the routing of one family. Supported -> its profile; declared unsupported -> the customer's sentence;
-    anything else raises, because a type the pipeline does not know must never be defaulted."""
+    anything else raises, because a type the pipeline does not know must never be defaulted. A family with a profile that
+    the output rollout does not give this account (feature_flags.output_rollout) is refused with its "not yet" sentence."""
     if family in PROFILES:
+        from ..feature_flags import output_rollout
+        if family in ROLLOUT_REFUSALS and not output_rollout(family, account_id):
+            return Routing(family, None, ROLLOUT_REFUSALS[family])
         return Routing(family, PROFILES[family], None)
     if family in UNSUPPORTED:
         return Routing(family, None, UNSUPPORTED[family])

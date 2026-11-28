@@ -12,7 +12,9 @@ import re
 
 FAMILIES = ('web_app', 'website', 'mobile_app', 'game', 'ai_agent', 'automation', 'api_integration', 'media',
             '3d_experience')
-EXECUTABLE = {'web_app', 'website'}
+# 'game' (the owner, 2026-11-27, answer 11): executable only together with its profile (output_profile) and only for an
+# account the output rollout lets through (feature_flags.output_rollout; OMNI_OUTPUT_GAME, off by default).
+EXECUTABLE = {'web_app', 'website', 'game'}
 
 # "שיר" (a song) as a WORD: alone or after one Hebrew prefix letter ("השיר", "לשיר", "ושיר", "בשיר"), never the tail
 # of another word. Production 2026-11-17, "148 דלתות": the owner pasted a full brief for a doors company's site; its

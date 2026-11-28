@@ -88,6 +88,9 @@ CONDITIONAL = {f.name: f for f in (
 ARTIFACT_FIELDS: dict[str, tuple[Field, ...]] = {
     'website': _COMMON + _SITE,
     'web_app': _COMMON + _APP,
+    # a game (the owner, 2026-11-27, answer 11): who it is for, the language, the look and the colours -- none of a site's
+    # records, sign-in or content fields. What the game is and how it is won come from the request itself.
+    'game': tuple(f for f in _COMMON if f.name in ('audience', 'languages', 'style', 'color')),
 }
 
 

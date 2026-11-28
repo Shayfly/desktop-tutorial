@@ -18,7 +18,8 @@
     "tests/test_identity_declared.py"
    ],
    "expect_failed": [
-    "test_one_path_more_or_less_is_refused"
+    "test_one_path_more_or_less_is_refused",
+    "test_the_path_sets_are_exact"
    ]
   },
   {
@@ -37,7 +38,8 @@
    "expect_failed": [
     "test_the_reverted_entry_must_be_valid_and_earlier",
     "test_a_revert_is_signed_like_any_entry",
-    "test_an_unsigned_or_self_signed_entry_is_refused"
+    "test_an_unsigned_or_self_signed_entry_is_refused",
+    "test_it_is_signed_like_any_entry"
    ]
   },
   {
@@ -54,7 +56,9 @@
     "tests/test_identity_declared.py"
    ],
    "expect_failed": [
-    "test_an_undeclared_digest_is_refused"
+    "test_an_undeclared_digest_is_refused",
+    "test_it_may_repeat_a_digest_another_entry_declared",
+    "test_it_never_matches_a_change_of_behaviour"
    ]
   },
   {
@@ -94,7 +98,8 @@
     "test_mismatched_path_sets_are_refused",
     "test_revert_of_naming_a_missing_entry_is_refused",
     "test_the_cli_passes_a_revert_and_refuses_it_without_revert_of",
-    "test_a_new_digest_is_declared_once"
+    "test_a_new_digest_is_declared_once",
+    "test_the_same_source_only_change_is_declared_once"
    ]
   },
   {
@@ -360,6 +365,109 @@
    ],
    "expect_failed": [
     "test_a_plain_entry_may_not_repeat_a_reverts_digest"
+   ]
+  },
+  {
+   "id": "NC22",
+   "what": "a source_only entry may declare two digests",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "        if entry.get('from_digest') != entry.get('to_digest'):\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_it_never_matches_a_change_of_behaviour"
+   ]
+  },
+  {
+   "id": "NC23",
+   "what": "the same source_only change may be declared twice",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "            if key in keys and f'{to} (source_only)' not in dup:\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_the_same_source_only_change_is_declared_once"
+   ]
+  },
+  {
+   "id": "NC24",
+   "what": "an unknown kind is accepted",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "    if 'kind' in entry and entry.get('kind') != SOURCE_ONLY:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_kind_an_empty_change_or_a_revert_is_refused"
+   ]
+  },
+  {
+   "id": "NC25",
+   "what": "a source_only entry is held to the to_digest rule (the change cannot be declared at all)",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "        if source_only(entry):   # exempt from the digest rule; the same source-only change is declared once\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_it_may_repeat_a_digest_another_entry_declared",
+    "test_the_repository_file_is_well_formed"
+   ]
+  },
+  {
+   "id": "NC26",
+   "what": "a source_only entry with no path passes",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "        if not any(isinstance(entry.get(k), list) and entry.get(k) for k in _SETS):\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_kind_an_empty_change_or_a_revert_is_refused"
+   ]
+  },
+  {
+   "id": "NC27",
+   "what": "a source_only entry may be a revert",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "        if 'revert_of' in entry:\n            out.append('a source_only entry is never a revert')\n",
+     "new": "        pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_an_unknown_kind_an_empty_change_or_a_revert_is_refused"
    ]
   }
  ]

@@ -98,6 +98,25 @@ class AgenticRepairTests(unittest.TestCase):
             with mock.patch.dict('os.environ', {'OMNI_AGENTIC_REPAIR': 'all'}):
                 e = E(); self.assertTrue(_install_agentic_repair(e, {'user_id': 'usr_c'}))
 
+    def test_a_game_is_never_given_the_agentic_repairer_and_a_double_is_not_a_game(self):
+        """A game (game_engine sets `game_state` on the instance) is repaired through its definition. A test double's
+        auto attribute (MagicMock().game_state exists on read) is not a game: reading it as one switched the repair off."""
+        from omni_prod.worker_tasks import _install_agentic_repair
+
+        class E:
+            def __init__(self):
+                self.repairer = mock.Mock(gateway=object())
+        with mock.patch.dict('os.environ', {'OMNI_AGENTIC_REPAIR': 'all'}):
+            game = E()
+            game.game_state = object()
+            kept = game.repairer
+            self.assertFalse(_install_agentic_repair(game, {'user_id': 'usr_c'}))
+            self.assertIs(game.repairer, kept)
+            double = mock.MagicMock()
+            double.repairer = mock.Mock(gateway=object())
+            self.assertTrue(_install_agentic_repair(double, {'user_id': 'usr_c'}))
+            self.assertEqual(type(double.repairer).__name__, 'AgenticRepairAgent')
+
     def test_repository_never_reaches_the_classic_prompt(self):
         from omni_prod.autonomous_agents import _filter_repo_summary
         self.assertNotIn('_repository', _filter_repo_summary({'files': [], '_repository': {'a': 'b'}}))

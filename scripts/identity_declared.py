@@ -26,6 +26,16 @@ at the END of "changes", and the to_digest rule reads the file from the top -- a
 above it (a revert included) already declared is a repeat. Any other repeat -- without revert_of, revert_of naming no
 entry or a later one, other digests, other paths -- still refuses the whole file.
 
+Source only (the owner, 2026-11-28, #570, option 1): a change to the gate code that leaves the flag-off behavioural
+digest EQUAL (the code moved or gained flag-only branches; the flag-off pipeline is the same) has no new digest to
+declare, and to_digest is unique, so it could not be declared at all. An entry with "kind": "source_only" declares it:
+  * from_digest == to_digest: the one digest of before and after (the anchor's);
+  * added / removed / changed / data_changed are the exact path sets, as for any entry; at least one is not empty;
+  * it never carries revert_of, and it is exempt from the to_digest rule (its digest is an old one by definition);
+  * instead, (digest, the four path sets) is unique among source_only entries: the same change is declared once;
+  * it matches only a change whose base and head digests are both that digest -- never a change of behaviour.
+"kind" has one known value; any other value refuses the entry.
+
 CLI (identity.yml): identity_declared.py BASE_DIGEST HEAD_DIGEST BASE_MANIFEST HEAD_MANIFEST
 prints one ::notice / ::error line and exits 0 only on an exact signed match.
 """
@@ -39,6 +49,15 @@ DECLARATIONS = Path(__file__).resolve().parent.parent / 'docs' / 'identity' / 'a
 _SETS = ('added', 'removed', 'changed', 'data_changed')
 _WILD = set('*?[]{}')
 _NOT_A_REVIEWER = {'', 'claude', 'author', 'pending'}
+SOURCE_ONLY = 'source_only'
+
+
+def source_only(entry: dict) -> bool:
+    return entry.get('kind') == SOURCE_ONLY
+
+
+def _key(entry: dict) -> tuple:
+    return (str(entry.get('to_digest') or ''),) + tuple(tuple(_paths(entry.get(k)) or ()) for k in _SETS)
 
 
 def diff(base: dict, head: dict) -> dict:
@@ -64,6 +83,15 @@ def problems(entry: dict) -> list[str]:
             out.append(f'{key} must be a list of paths')
         elif any(_WILD & set(p) for p in value):
             out.append(f'{key} has a wildcard')
+    if 'kind' in entry and entry.get('kind') != SOURCE_ONLY:
+        out.append(f'kind {entry.get("kind")!r} is not known (the one kind is {SOURCE_ONLY!r})')
+    if source_only(entry):
+        if entry.get('from_digest') != entry.get('to_digest'):
+            out.append('a source_only entry declares one digest: from_digest must equal to_digest')
+        if 'revert_of' in entry:
+            out.append('a source_only entry is never a revert')
+        if not any(isinstance(entry.get(k), list) and entry.get(k) for k in _SETS):
+            out.append('a source_only entry names at least one path')
     return out
 
 
@@ -122,9 +150,15 @@ def duplicates(entries: list) -> list[str]:
     new digest is declared ONCE, so an entry that was consumed can never match a later change by accident. The one
     exception is an exact, signed revert (exact_revert()): it restores an earlier digest, so it may repeat it. Read
     from the top: a plain entry repeating any to_digest above it, a revert's included, is a repeat."""
-    seen, dup = set(), []
+    seen, dup, keys = set(), [], set()
     for entry in entries:
         to = str(entry.get('to_digest') or '')
+        if source_only(entry):   # exempt from the digest rule; the same source-only change is declared once
+            key = _key(entry)
+            if key in keys and f'{to} (source_only)' not in dup:
+                dup.append(f'{to} (source_only)')
+            keys.add(key)
+            continue
         if exact_revert(entry, entries):   # it may repeat; a plain entry below it may not repeat what it declares
             seen.add(to)
             continue

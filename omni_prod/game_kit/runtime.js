@@ -401,6 +401,47 @@
   }
 
   var KIND = { platformer: platformer, shooter: shooter, runner: runner, match: match }[DEF.kind];
+
+  // ================= art (schema 148ai.game/2, S12.3) =================
+  // Optional images per role (DEF.art: data URIs, checked by the schema). A role with no image, or an image that has not
+  // loaded yet, draws the flat shape of version 1 -- the look of a version 1 file is exactly what it was. drawn[] counts the
+  // sprites actually drawn, read only through __game.art(); the state window of __game.state() is unchanged.
+  var ART = {}, artDrawn = {};
+  Object.keys(DEF.art || {}).forEach(function (role) {
+    var im = new Image(); im.onload = function () { ART[role] = im; }; im.src = DEF.art[role]; artDrawn[role] = 0; });
+  function sprite(role, x, y, w, h, flip) {
+    var im = ART[role]; if (!im) return false;
+    ctx.save(); ctx.imageSmoothingEnabled = false;
+    if (flip) { ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(im, 0, 0, w, h); } else ctx.drawImage(im, x, y, w, h);
+    ctx.restore(); artDrawn[role] += 1; return true;
+  }
+  var flatCreature = creature, flatCoin = coin, flatBackground = background, flatPlatformDraw = platformer.draw;
+  creature = function (x, y, w, h, color, face) {
+    var role = color === P.player ? 'player' : color === P.enemy ? 'enemy' : null;
+    if (role && sprite(role, x, y, w, h, face < 0)) return;
+    flatCreature(x, y, w, h, color, face); };
+  coin = function (cx, cy) { if (!sprite('item', cx - 13, cy - 13, 26, 26)) flatCoin(cx, cy); };
+  background = function () {
+    var im = ART.background;
+    if (!im) { flatBackground(); return; }
+    var cam = (G.world && (G.world.cam || G.world.scroll)) || 0, sx = Math.floor((cam * 0.25) % W);
+    ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(im, -sx, 0, W, H); ctx.drawImage(im, W - sx, 0, W, H); ctx.restore();
+    artDrawn.background += 1; };
+  var flatShooterDraw = shooter.draw;
+  shooter.draw = function () {         // the ship and the invaders are sprites only when both images are there
+    if (!(ART.player && ART.enemy)) { flatShooterDraw.call(shooter); return; }
+    var w = G.world, p = w.p;
+    ctx.fillStyle = P.item; w.shots.forEach(function (s) { rr(s.x, s.y, s.w, s.h, 3); ctx.fill(); });
+    w.enemies.forEach(function (e) { sprite('enemy', e.x, e.y, e.w, e.h, false); });
+    if (!(p.inv > 0 && Math.floor(p.inv * 10) % 2)) sprite('player', p.x, p.y, p.w, p.h, false);
+  };
+  platformer.draw = function () {
+    flatPlatformDraw.call(platformer);
+    if (!ART.ground) return;
+    var w = G.world, cam = w.cam;
+    for (var r = 0; r < w.rows; r++) for (var c = Math.max(0, Math.floor(cam / TS)); c < Math.min(w.cols, Math.ceil((cam + W) / TS) + 1); c++)
+      if (w.tiles[r][c]) sprite('ground', c * TS - cam, w.top + r * TS, TS, TS);
+  };
   if (!KIND) throw new Error('game: unknown kind ' + DEF.kind);
 
   // ---- drawing helpers ----
@@ -489,6 +530,7 @@
     fastForward: function (seconds) { var n = Math.min(Math.round(seconds * 60), 60 * 400);
       for (var i = 0; i < n && G.status === 'playing'; i++) step(STEP); return G.status; },
     sense: function () { return G.status === 'playing' ? KIND.sense() : {}; },
+    art: function () { return { declared: Object.keys(DEF.art || {}), loaded: Object.keys(ART), drawn: artDrawn }; },
     hint: function () { return DEF.kind === 'match' ? match.hint() : null; },
     cellCenter: function (c, r) { var w = G.world; if (DEF.kind !== 'match') return null;
       return { x: view.ox + (w.x0 + c * w.cell + w.cell / 2) * view.s, y: view.oy + (w.y0 + r * w.cell + w.cell / 2) * view.s }; }
