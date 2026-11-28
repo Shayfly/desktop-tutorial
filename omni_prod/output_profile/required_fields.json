@@ -1,0 +1,133 @@
+{
+ "schema": "148ai.required_fields/1",
+ "_about": "Warehouse 122 (the owner's expert, 2026-11-21): the fields a page must have. Keyed by the page type of warehouse 123 (output_profile/page_types.json, the stable key page_type). `page_types` holds the fields every page of a type needs; `domains` holds, per domain file (docs/domains/<slug>.md), the category-specific fields (each is a row of that domain's section 3 in domain_registry.json, named by `domain_fact`; its question and reason are the registry's, the three-language words are in page_requirements.py) and the declared defaults (each is a row of section 4, named by `domain_row`). kind: fact (read by the fact sheet's extractors), words (a cue in the customer's own words; any reply to its question is the answer), list (at least min_items named items). A required field has no default. A type with an empty list has none defined yet (the owner's expert gave examples for business, portfolio and event only).",
+ "page_types": {
+  "business": {
+   "required": [
+    {
+     "key": "phone",
+     "kind": "fact",
+     "fact": "phone"
+    },
+    {
+     "key": "address",
+     "kind": "fact",
+     "fact": "address"
+    },
+    {
+     "key": "hours",
+     "kind": "fact",
+     "fact": "hours"
+    }
+   ]
+  },
+  "portfolio": {
+   "required": [
+    {
+     "key": "projects",
+     "kind": "list",
+     "cue": "פרויקט|עבודות|projects?|works|مشروع|مشاريع|أعمال",
+     "min_items": 3
+    }
+   ]
+  },
+  "event": {
+   "required": [
+    {
+     "key": "date",
+     "kind": "words",
+     "cue": "\\d{1,2}[./]\\d{1,2}(?:[./]\\d{2,4})?|ינואר|פברואר|מרץ|אפריל|מאי|יוני|יולי|אוגוסט|ספטמבר|אוקטובר|נובמבר|דצמבר|תאריך|\\bdate\\b|january|february|march|april|may \\d|june|july|august|september|october|november|december|تاريخ|يناير|فبراير|مارس|أبريل|مايو|يونيو|يوليو|أغسطس|سبتمبر|أكتوبر|نوفمبر|ديسمبر"
+    },
+    {
+     "key": "venue",
+     "kind": "words",
+     "cue": "אולם|גן אירועים|במקום|מיקום|כתובת|ברחוב|venue|location|address|مكان|قاعة|عنوان|موقع"
+    },
+    {
+     "key": "registration",
+     "kind": "words",
+     "cue": "הרשמה|להירשם|נרשמים|כרטיס|register|registration|tickets?|rsvp|تسجيل|تذاكر|حجز"
+    }
+   ]
+  },
+  "community": {
+   "required": []
+  },
+  "documentation": {
+   "required": []
+  },
+  "product": {
+   "required": []
+  },
+  "personal": {
+   "required": []
+  },
+  "landing": {
+   "required": []
+  }
+ },
+ "domains": {
+  "butcher-deli": {
+   "required": [
+    {
+     "key": "kashrut",
+     "kind": "words",
+     "domain_fact": 3,
+     "cue": "כשר|כשרות|השגחה|הכשר|חלאל|kosher|kashrut|halal|كوشر|كشر|حلال|إشراف|اشراف"
+    },
+    {
+     "key": "delivery",
+     "kind": "words",
+     "domain_fact": 15,
+     "cue": "משלוח|שליח|delivery|deliver|ship|توصيل|نوصل",
+     "also": "אזור|ק\"מ|ק״מ|קילומטר|כל הארץ|ברחבי|עיר|ישוב|אין משלוח|בלי משלוח|ללא משלוח|לא מבצעים משלוח|\\bkm\\b|miles|nationwide|across|within|region|area|city|no delivery|don.t deliver|do not deliver|without delivery|منطقة|كم|مدينة|داخل|جميع|لا يوجد توصيل|بدون توصيل|لا نوصل"
+    }
+   ],
+   "defaults": [
+    {
+     "key": "order",
+     "domain_row": "Main action"
+    },
+    {
+     "key": "price",
+     "domain_row": "Missing price"
+    }
+   ]
+  },
+  "restaurant": {
+   "required": [],
+   "defaults": [
+    {
+     "key": "order",
+     "domain_row": "Main action"
+    },
+    {
+     "key": "price",
+     "domain_row": "Missing dish price"
+    }
+   ]
+  },
+  "cafe-bakery": {
+   "required": [],
+   "defaults": [
+    {
+     "key": "price",
+     "domain_row": "Missing price"
+    }
+   ]
+  },
+  "hair-salon": {
+   "required": [],
+   "defaults": [
+    {
+     "key": "order",
+     "domain_row": "Main action"
+    },
+    {
+     "key": "price",
+     "domain_row": "Missing price"
+    }
+   ]
+  }
+ }
+}
