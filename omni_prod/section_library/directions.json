@@ -33,5 +33,17 @@
                "voice": "בטוח ומדויק: מתארים את העבודה ואת הדרך, בלי סופרלטיבים ובלי שמות לקוחות שלא ניתנו; פנייה ברבים.",
                "sections": ["hero", "services", "about", "process", "faq", "cta", "contact"]}
  },
- "single_weight_display": ["Secular One"]
+ "single_weight_display": ["Secular One"],
+ "contract": {
+  "_about": "Warehouse 125 (the owner 2026-11-21; variants: 2026-11-27, '4א'). The design contract of a category: the model picks from it and invents none of it. A category has a palette (vertical_palettes.json: its colours and its declared dark and light variants), the palette has a direction (above), and the direction fixes what is here. Sizes are G-APPLE tokens (g_apple/contract.py TYPE_PX, SPACE_PX) and equal what library.css sets for the direction; tests/test_design_contract.py checks both, and checks every palette and variant against 'contrast'. Read with section_library.design_contract(palette).",
+  "contrast": {"ink_on_background": 7.0, "primary_on_background": 4.5, "accent_on_background": 4.5, "text_on_primary": 4.5},
+  "font_cap": {"families": 2, "weights": [400, 700]},
+  "spacing_rhythm": {"section": 96, "section_head": 48},
+  "directions": {
+   "formal":  {"font_scale": {"hero": 56, "title": 40, "body": 16, "small": 14}},
+   "warm":    {"font_scale": {"hero": 56, "title": 40, "body": 16, "small": 14}},
+   "bold":    {"font_scale": {"hero": 72, "title": 56, "body": 16, "small": 14}},
+   "elegant": {"font_scale": {"hero": 72, "title": 56, "body": 16, "small": 14}}
+  }
+ }
 }

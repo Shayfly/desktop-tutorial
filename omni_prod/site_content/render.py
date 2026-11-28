@@ -58,7 +58,8 @@ RENDERER_VERSION = renderer_version()
 _DESIGN_LINE = re.compile(r'Design: style (?P<style>[\w-]+); (?P<colours>[^\n]*?); font (?P<font>[^;()\n]{1,200}?) \(')
 
 
-def render_contract(prompt: str, palette: dict, fonts: dict | None = None) -> tuple[dict, str]:
+def render_contract(prompt: str, palette: dict, fonts: dict | None = None,
+                    variants: dict | None = None) -> tuple[dict, str]:
     """(contract, source). The brief's own contract when its Design line locks one (source 'brief': the G-APPLE gate
     holds the same object). A brief whose customer stated fewer than four colours locks none (the gate says NOT_RUN):
     the page then takes the roles of the colours the customer stated (colour_roles.roles) and completes the palette
@@ -67,7 +68,8 @@ def render_contract(prompt: str, palette: dict, fonts: dict | None = None) -> tu
     a colour answer in which nothing is known leaves the category's palette (source 'brief-primary+category' when the
     customer stated a colour, 'category+dark', 'category+light' or 'category' when only words). A Design line that is
     not there at all raises ContractError. `fonts` is the route's font pair (warehouse 126, typography.contract_fonts),
-    locked into either contract."""
+    locked into either contract. `variants` is the palette's declared dark and light variants (warehouse 125,
+    vertical_palettes.variants_for); a description word without them raises."""
     try:
         return C.build(prompt, fonts), 'brief'
     except C.ContractError as first:
@@ -75,7 +77,7 @@ def render_contract(prompt: str, palette: dict, fonts: dict | None = None) -> tu
         m = _DESIGN_LINE.search(block[1] if len(block) == 2 else '')
         if not m:
             raise C.ContractError(f'{first}; and there is no Design line to complete') from first
-        r = colour_roles.roles(m['colours'], palette)
+        r = colour_roles.roles(m['colours'], palette, variants)
         line = (f"\n--- Approved project brief\nDesign: style {m['style']}; primary colour {r['primary']}; palette "
                 f"{r['primary']}, {r['accent']}, {r['background']}, {r['ink']} (primary, accent, background, text: "
                 f"{r['basis']}); font {m['font']} (load it from Google Fonts with a system fallback)")

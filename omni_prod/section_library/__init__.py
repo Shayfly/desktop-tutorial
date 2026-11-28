@@ -199,6 +199,21 @@ def font_links(contract: dict) -> str:
             f'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?{families}&display=swap">')
 
 
+def design_contract(palette: str) -> dict:
+    """The declared design contract of a palette's categories (warehouse 125): {palette, direction, display,
+    font_scale, spacing_rhythm, font_cap, contrast_rules, variants}. `variants` is {'base', 'dark', 'light'}, each
+    {primary, accent, background, ink}. A palette the library or the colour data does not know raises."""
+    from .. import vertical_palettes as VP
+    entry = direction_for(palette)
+    contract = DIRECTIONS['contract']
+    colours = VP.load()['palettes'][palette]
+    return {'palette': palette, 'direction': entry['direction'], 'display': entry['display'],
+            'font_scale': dict(contract['directions'][entry['direction']]['font_scale']),
+            'spacing_rhythm': dict(contract['spacing_rhythm']), 'font_cap': dict(contract['font_cap']),
+            'contrast_rules': dict(contract['contrast']),
+            'variants': {'base': {r: colours[r] for r in VP.ROLES}, **VP.variants_for(palette)}}
+
+
 def direction_for(palette: str) -> dict:
     """{'direction', 'display'} of a vertical palette (vertical_palettes.json). An unknown palette raises."""
     if palette not in DIRECTIONS['palettes']:
