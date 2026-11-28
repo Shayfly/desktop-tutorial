@@ -1,0 +1,62 @@
+{
+ "pr": "photo-served-digest",
+ "sha256": [
+  "tests/test_photo_served_digest.py",
+  "omni_prod/uploaded_assets.py",
+  "omni_prod/a4/__init__.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the spec is built from the prompt as the converter left it: the original's digest, a file the page never serves",
+   "mutations": [
+    {
+     "file": "omni_prod/uploaded_assets.py",
+     "old": "    return served_digests(prompt + '\\n\\n' + '\\n'.join(lines), images)",
+     "new": "    return prompt + '\\n\\n' + '\\n'.join(lines)"
+    }
+   ],
+   "targets": [
+    "tests/test_photo_served_digest.py"
+   ],
+   "expect_failed": [
+    "test_the_prompt_the_spec_is_built_from_names_only_the_served_digest"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the page fit re-encodes the photo and the prompt keeps the digest of the file before the fit",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "        prompt = served_digests(prompt, uploaded)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_photo_served_digest.py"
+   ],
+   "expect_failed": [
+    "test_after_the_page_fit_changes_the_bytes_again_the_prompt_follows_them"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the digest of the served file is read from the customer's original bytes",
+   "mutations": [
+    {
+     "file": "omni_prod/uploaded_assets.py",
+     "old": "        return hashlib.sha256(self.data).hexdigest()",
+     "new": "        return self.sha256"
+    }
+   ],
+   "targets": [
+    "tests/test_photo_served_digest.py"
+   ],
+   "expect_failed": [
+    "test_the_prompt_the_spec_is_built_from_names_only_the_served_digest",
+    "test_after_the_page_fit_changes_the_bytes_again_the_prompt_follows_them"
+   ]
+  }
+ ]
+}
