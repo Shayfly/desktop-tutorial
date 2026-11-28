@@ -202,6 +202,9 @@ def install(engine, *, prompt: str) -> str:
     uploaded = uploaded if isinstance(uploaded, (list, tuple)) else ()
     generated = generated if isinstance(generated, (list, tuple)) else ()
     core.image_fit = _fit_page(core, uploaded, generated)      # S2: before the plan; in image_weight.page_fit
+    if uploaded:                                               # the fit changed the bytes: the prompt names the final ones
+        from ..uploaded_assets import served_digests
+        prompt = served_digests(prompt, uploaded)
     slots = plan(uploaded, generated)
     mode = G.mode(GATE)
     modes = dict(getattr(core, 'gate_modes', None) or {})
