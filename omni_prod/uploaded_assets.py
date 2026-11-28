@@ -127,6 +127,12 @@ class _MainImage:
         self.carried = CarriedImage(self.marker, asset_path('upload', index, self.mime), self.data, self.mime)
         self.uri = self.carried.path
 
+    @property
+    def served_sha256(self) -> str:
+        """sha256 of the bytes written to assets/ and served: what the spec and the acceptance must name. Always read
+        from `data`, so a page fit (refit) is followed."""
+        return hashlib.sha256(self.data).hexdigest()
+
     def refit(self, r: dict) -> None:
         """New bytes from the page fit (web_rendition.fit_page), in the same file: the type, and so the path, stay."""
         if r['mime'] != self.mime:
@@ -134,6 +140,30 @@ class _MainImage:
         from .web_rendition import record
         self.data, self.width, self.height, self.rendition = r['data'], r['width'], r['height'], record(r)
         self.carried.rebind(r['data'])
+
+
+_FILE_DIGEST = re.compile(r'(- image (\d{1,2}): src="[^"\n]*"[^\n]*; file: [^\n;]+; file sha256=)[0-9a-f]{64}')
+
+
+def served_digests(prompt: str, images) -> str:
+    """One digest per photo in the prompt the engine builds the spec from: the sha256 of the bytes written to assets/
+    and served (img.served_sha256), never the customer's original (2026-11-27, rehearsal 46016272646: the brief line
+    binds the original, the page carries the web rendition, so the spec demanded a digest no served file had and the
+    repair rounds could not converge). Rewrites the binding line and the `file sha256=` of the size line; idempotent,
+    and called again after the page fit, which changes the bytes once more."""
+    by_index = {int(i.index): i for i in images}
+
+    def binding(m):
+        img = by_index.get(int(m[1]))
+        if img is None:
+            return m[0]
+        return m[0][:m.start(3) - m.start(0)] + img.served_sha256 + m[0][m.end(3) - m.start(0):]
+
+    def size_line(m):
+        img = by_index.get(int(m[2]))
+        return m[1] + img.served_sha256 if img is not None else m[0]
+
+    return _FILE_DIGEST.sub(size_line, _IMAGE_BINDING.sub(binding, prompt or ''))
 
 
 # The owner, 2026-11-16 00:18 / 00:49: a photo placed in "the story" must sit INSIDE a story section, not anywhere on
@@ -227,10 +257,11 @@ def install_main_image(engine, *, prompt, pool, store, project_id, account_id):
     images = []
     for m in found:
         row = repo.get(project_id=project_id, account_id=account_id, attachment_id=m[2])
-        if row['sha256'] != m[3]:
+        if row['sha256'] != m[3]:                  # the brief binds the customer's file; the prompt is rewritten below
             raise ValueError(f'uploaded image {m[1]}: digest changed')
-        images.append(_MainImage(repo.read(row), row['mime'], m[3], m[7], row.get('width'), row.get('height'),
-                                 index=int(m[1]), place=m[5]))
+        img = _MainImage(repo.read(row), row['mime'], m[3], m[7], row.get('width'), row.get('height'),
+                         index=int(m[1]), place=m[5])
+        images.append(img)
     from .generated_images import _Transform, ASSET_SERVING
     core = getattr(engine, 'core', engine)
     core.repository_transform = _Transform(getattr(core, 'repository_transform', None), images)
@@ -245,5 +276,5 @@ def install_main_image(engine, *, prompt, pool, store, project_id, account_id):
     for img in images:
         size = f'{img.width}x{img.height} px' if img.width and img.height else 'size unknown'
         lines.append(f'- image {img.index}: src="{img.marker}"; place: {img.place}; {size}; {img.mime}; alt="{img.alt}"; '
-                     f'file: {img.uri}')
-    return prompt + '\n\n' + '\n'.join(lines)
+                     f'file: {img.uri}; file sha256={img.served_sha256}')
+    return served_digests(prompt + '\n\n' + '\n'.join(lines), images)
