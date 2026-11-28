@@ -212,6 +212,37 @@
    "reviewer": "shai",
    "reviewed_at": "2026-11-22",
    "signature_note": "Signed by the owner's instruction: standing autonomy grant (2026-11-16), the owner's message of 2026-11-21 ('סומך עלייך מאשר לך הכול') and his order of 2026-11-22 ('118 — ראשון, ועכשיו'). The reviewer field was typed by the author (claude) on that instruction."
+  },
+  {
+    "id": "570-game2d-source-only",
+    "kind": "source_only",
+    "from_digest": "fd3a45bf33f61c27ef08db0b41f1c147ae9c621dfd61d069744bb9c6e48be084",
+    "to_digest": "fd3a45bf33f61c27ef08db0b41f1c147ae9c621dfd61d069744bb9c6e48be084",
+    "added": [
+      "omni_prod/game_kit/__init__.py",
+      "omni_prod/game_kit/art.py",
+      "omni_prod/game_kit/assemble.py",
+      "omni_prod/game_kit/builder.py",
+      "omni_prod/game_kit/probe.py",
+      "omni_prod/game_kit/schema.py"
+    ],
+    "removed": [],
+    "changed": [
+      "omni_prod/conversation/supervisor.py",
+      "omni_prod/intake/artifact_fields.py",
+      "omni_prod/intake/families.py",
+      "omni_prod/output_profile/__init__.py",
+      "omni_prod/site_content/__init__.py",
+      "omni_prod/worker_tasks.py"
+    ],
+    "data_changed": [
+      "omni_prod/game_kit/runtime.js"
+    ],
+    "reason": "Warehouse 134 (2D games, #570): the game kit enters the gate closure (game_kit/*) and six gate files gain the game profile behind its flag. With the flag off the behavioural digest is unchanged (fd3a45bf before and after, pipeline_identity on main and on this branch), so this is a source-only change: the code differs, the flag-off pipeline does not.",
+    "author": "claude",
+    "reviewer": "shai",
+    "reviewed_at": "2026-11-28",
+    "signature_note": "Signed by the owner's instruction: on 2026-11-28 the owner chose option 1 for #570 ('570 תעשה 1'), a source_only declaration for this change; standing grant 2026-11-16 and 'I approve declarations', 2026-11-25. The reviewer field was typed by the author (claude) on that instruction."
   }
  ]
 }
