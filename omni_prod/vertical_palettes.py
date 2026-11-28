@@ -15,6 +15,8 @@ from pathlib import Path
 
 DATA = Path(__file__).with_name('vertical_palettes.json')
 ROLES = ('primary', 'accent', 'background', 'ink')
+VARIANTS = ('dark', 'light')       # warehouse 125 (the owner 2026-11-27, "4א"): every palette declares both
+AA_TEXT = 4.5                      # WCAG 2.x AA, normal text: ink, and the primary and accent that carry text or controls
 _HEX = re.compile(r'#[0-9a-f]{6}')
 # a Hebrew word may carry up to two one-letter prefixes (ה, ו, ב, ש, ל, מ, כ): "והאטליז", "במספרה"
 _PRE = r'(?:(?<=^)|(?<=[^\w֐-׿]))(?:[הובשלמכ]|[لبوف]){0,2}'   # Arabic: ل ب و ف (warehouse 122: "لصالون الحلاقة")
@@ -32,6 +34,16 @@ def check(data: dict, categories) -> None:
         for role in ROLES:
             if not _HEX.fullmatch(str(p.get(role, ''))):
                 raise PaletteError(f'palette {name!r}: {role} must be #rrggbb, not {p.get(role)!r}')
+        for variant in VARIANTS:
+            v = p.get(variant)
+            if not isinstance(v, dict):
+                raise PaletteError(f'palette {name!r}: no declared {variant} variant')
+            for role in ROLES:
+                if not _HEX.fullmatch(str(v.get(role, ''))):
+                    raise PaletteError(f'palette {name!r} {variant}: {role} must be #rrggbb, not {v.get(role)!r}')
+        low = contrast_findings(name, p)
+        if low:
+            raise PaletteError(f'palette {name!r} is below WCAG AA ({AA_TEXT}): {low}')
     missing = sorted(set(categories) - set(mapped))
     if missing:
         raise PaletteError(f'categories without a palette: {missing}')
@@ -46,6 +58,23 @@ def check(data: dict, categories) -> None:
             raise PaletteError(f'category {slug!r}: no palette named {entry.get("palette")!r}')
         if not entry.get('words'):
             raise PaletteError(f'category {slug!r}: no words to recognise it by')
+
+
+def contrast_findings(name: str, palette: dict) -> dict:
+    """{'<palette or variant>: <pair>': ratio} for each pair below WCAG AA (4.5:1) in the palette itself and in its
+    dark and light variants: ink, primary and accent on the page, and the better of white and black on the primary (the
+    colour of a button's text, which the contract computes). Empty when every pair reads."""
+    from .g_apple import contract as C
+    low = {}
+    for label, p in [(name, palette)] + [(f'{name}.{v}', palette[v]) for v in VARIANTS if isinstance(palette.get(v), dict)]:
+        on_primary = max(C.contrast('#ffffff', p['primary']), C.contrast('#000000', p['primary']))
+        for pair, ratio in {'ink on background': C.contrast(p['ink'], p['background']),
+                            'primary on background': C.contrast(p['primary'], p['background']),
+                            'accent on background': C.contrast(p['accent'], p['background']),
+                            'text on primary': on_primary}.items():
+            if ratio < AA_TEXT:
+                low[f'{label}: {pair}'] = ratio
+    return low
 
 
 @lru_cache(maxsize=1)
@@ -138,6 +167,15 @@ def palette_for(category: str) -> tuple[str, dict]:
         raise PaletteError(f'{category!r} is not a catalogue category')
     name = data['categories'][category]['palette']
     return name, {role: data['palettes'][name][role] for role in ROLES}
+
+
+def variants_for(palette: str) -> dict:
+    """{'dark': {...}, 'light': {...}}: the two variants a palette declares, each {primary, accent, background, ink}.
+    An unknown palette raises. colour_roles takes them when a customer says "dark" or "light" (warehouse 125)."""
+    data = load()['palettes']
+    if palette not in data:
+        raise PaletteError(f'{palette!r} is not a palette')
+    return {v: {role: data[palette][v][role] for role in ROLES} for v in VARIANTS}
 
 
 def design_colours(text: str) -> str:

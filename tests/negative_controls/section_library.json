@@ -581,6 +581,27 @@
    "envs": [
     "browser"
    ]
+  },
+  {
+   "id": "NC25",
+   "what": "the hero entrance takes 900ms: the render check (which screenshots 300ms after load) would see a half-faded page",
+   "mutations": [
+    {
+     "file": "omni_prod/section_library/library.css",
+     "old": ".hero h1, .hero .lead, .hero .actions, .panel { animation: settle var(--motion-base) var(--motion-ease) both; }",
+     "new": ".hero h1, .hero .lead, .hero .actions, .panel { animation: settle 900ms var(--motion-ease) both; }"
+    }
+   ],
+   "targets": [
+    "tests/test_section_library.py",
+    "tests/test_section_library_conformance.py"
+   ],
+   "expect_failed": [
+    "test_the_render_check_sees_every_element_settled_after_300ms"
+   ],
+   "envs": [
+    "browser"
+   ]
   }
  ]
 }
