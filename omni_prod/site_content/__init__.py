@@ -387,5 +387,8 @@ def report(engine) -> dict | None:
                    library_feedback=list(getattr(core, 'site_feedback', None) or [])[:40],
                    repair_trace=list(getattr(repairer, 'trace', None) or [])[-20:],
                    # the owner, 2026-11-26 16:10 ("רק מדידה"): every content call's real tokens and cost, and totals
-                   content_usage=_content_usage(core))
+                   content_usage=_content_usage(core),
+                   # warehouse 122: which required fields the page shows in the customer's words, which it leaves off
+                   # ("not given"), and which declared category defaults it shows, marked as defaults
+                   page_fields=getattr(getattr(getattr(core, 'site_sheet', None), 'page', None), 'to_dict', lambda: None)())
     return out

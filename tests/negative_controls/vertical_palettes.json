@@ -12,7 +12,7 @@
    "mutations": [
     {
      "file": "omni_prod/vertical_palettes.json",
-     "old": "  \"butcher\":            {\"palette\": \"crimson\",  \"words\": [\"אטליז\", \"קצביה\", \"קצב\", \"butcher\"]},\n",
+     "old": "  \"butcher\":            {\"palette\": \"crimson\",  \"words\": [\"אטליז\", \"קצביה\", \"קצב\", \"butcher\", \"ملحمة\", \"جزار\"]},\n",
      "new": ""
     }
    ],

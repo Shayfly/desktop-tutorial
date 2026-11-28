@@ -1355,6 +1355,7 @@ class ConversationSupervisor:
             source.history = [m for m in self.store.messages_for(project_id, limit=6)[:-1]
                               if not (m.get('interpretation') or {}).get('system')][-4:]   # never the flow mark
             interp = source.interpret(message, row.brief if row else None)
+            self._note_required_asked(row, message, interp)
         from ..intake import conversation_agent as agent
         if agent.enabled() and row is not None and message and not answers:
             # phase 1 of the conversation agent (the owner, 2026-11-17): no cards, so the customer answers a question
@@ -1447,7 +1448,7 @@ class ConversationSupervisor:
         # writes the values the request implies into the brief (shown as assumptions), and its ONE ordered question
         # replaces the questionnaire's list. Only a conflict with a confirmed value is still asked back first.
         gaps, gap_q = self._gaps(project_id, message, interp, answers, new_brief, lang,
-                                 contested={c['field'] for c in res.conflicts})
+                                 contested={c['field'] for c in res.conflicts}, two_names=bool(name_choice))
         # C6 (CEO 2026-10-27): the detector decides completeness. Its open material field is recorded in the brief
         # (so the approval gate sees it), a field it asks is never also shown as an assumption, and the catalog is
         # only the fallback: when the detector has nothing material left, a catalog question that may not be assumed
@@ -1668,9 +1669,13 @@ class ConversationSupervisor:
         # never over a model failure: "the model refused / is busy" is the truth of this turn (found by
         # tests/test_venice_refusal_is_not_spend.py on this change)
         model_failed = turn.reply in (T['model_refused'], T['model_unavailable'])
+        # warehouse 122: a required page field is a gap question that is not a card (it is not in d.BY_ID), so
+        # `turn.questions` is empty while its text is in the reply; the name / colour question must not replace that reply
+        # (not when the model failed: that reply is already the failure message, and model_failed below guards it)
+        page_gap = gap_q is not None and gap_q.field not in d.BY_ID and not model_failed and not name_choice
         if no_name and name_choice and not res.conflicts and not model_failed:
             turn.questions = []      # review SF3: the choice exists only in this message -- asked now, the rest after
-        if no_name and not res.conflicts and not turn.blocked and not turn.questions and not model_failed:
+        if no_name and not page_gap and not res.conflicts and not turn.blocked and not turn.questions and not model_failed:
             said = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
             # two different names the customer wrote are asked back as a choice, quoting both (agent.name_question)
             question = (agent.NAME_WHICH_QUESTION[lang if lang in agent.NAME_WHICH_QUESTION else 'en'].format(
@@ -1678,7 +1683,7 @@ class ConversationSupervisor:
             turn.reply = ((said or '') + ' ' + question).strip()
             turn.asked_in_words = [agent.NAME_ID]
             return turn
-        if no_colour and not model_failed and not res.conflicts and not turn.blocked and not turn.questions:
+        if no_colour and not page_gap and not model_failed and not res.conflicts and not turn.blocked and not turn.questions:
             words = _no_question(interp.reply.strip()) if model_reply else ''   # the model's words, never a card list
             turn.reply = ((words or '') + ' ' + agent.COLOUR_QUESTION['he' if lang == 'he' else 'en']).strip()
             turn.asked_in_words = [agent.COLOUR_ID]
@@ -2055,7 +2060,7 @@ class ConversationSupervisor:
                 closed.update((q.field, q.id))
         return closed
 
-    def _gaps(self, project_id, message, interp, answers, brief, lang, contested=()):
+    def _gaps(self, project_id, message, interp, answers, brief, lang, contested=(), two_names=False):
         """(gaps evidence, the one next Question or None).
 
         The spec is rebuilt from the durable conversation on EVERY turn (_replayed_spec): the store is the only
@@ -2087,6 +2092,8 @@ class ConversationSupervisor:
                                           'confidence': 'assumed'}
         pending = [q.field for q in d.pending(brief)]
         g = spec.detect(pending)
+        from .. import page_requirements as PR
+        d.note_page_answers(brief, PR.answers('\n'.join(spec.ledger.messages), g, spec.value))   # warehouse 122
         for name, imp in g['implied'].items():        # implied by the request: an assumption in the brief, not asked
             q = d.BY_ID.get(name)
             if q is not None and name not in brief.fields and (q.kind == 'text' or imp['value'] in {o.value for o in q.options}):
@@ -2096,12 +2103,34 @@ class ConversationSupervisor:
         closed = self._closed_in_brief(brief)
         allowed = self._askable([n for n in g['missing_material'] if n not in held], closed, previous,
                                 unsure=unsure, contested=contested)
+        if self._turn_limit(project_id, interp, answers) is not None:
+            # warehouse 122: the page's required-field questions are the agent's (a model reply); at its limit the
+            # conversation asks only what a button or a word can answer for free -- the page fields are still read
+            # from every message
+            allowed = [n for n in allowed if n not in PR.TEXT]
         model_turn = str(getattr(interp, 'interpreter', '')).startswith('model')
         gateway = getattr(self.worker_interpreter, 'gateway', None) if model_turn else None   # one call, same budget
         q = Questioner(getattr(gateway, 'complete_json', None)).next(spec, pending, explain=unsure, allowed=allowed)
+        if (q is not None and not two_names      # two names are asked which first: the page field then stays unasked
+                and PR.is_page_reason(next((f.reason for f in spec.fields if f.name == q.field), ''))):
+            d.note_page_asked(brief, q.field)               # warehouse 122: a required field is asked at most once
         return {**spec.detect(pending), 'allowed': allowed, 'previous': previous, 'held_open': sorted(held),
                 'assumed_now': assumed_now,
                 'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}, q
+
+    @staticmethod
+    def _note_required_asked(row, message, interp) -> None:
+        """Warehouse 122: when the model's reply asked, the required page field it was given (context.required_next)
+        counts as asked; it is never given again, so a field is asked at most once and a non-answer ends it."""
+        from ..intake import conversation_agent as agent
+        from ..intake.interpreter import required_question
+        if row is None or interp is None or not agent.enabled() or not str(getattr(interp, 'interpreter', '')).startswith('model'):
+            return
+        if not agent.has_question(getattr(interp, 'reply', '') or ''):
+            return
+        asked = required_question(row.brief, message)
+        if asked:
+            d.note_page_asked(row.brief, asked['field'])
 
     @staticmethod
     def _unsettled_sensitive(spec, previous, settle) -> bool:

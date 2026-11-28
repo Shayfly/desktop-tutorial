@@ -19,7 +19,7 @@ VARIANTS = ('dark', 'light')       # warehouse 125 (the owner 2026-11-27, "4א")
 AA_TEXT = 4.5                      # WCAG 2.x AA, normal text: ink, and the primary and accent that carry text or controls
 _HEX = re.compile(r'#[0-9a-f]{6}')
 # a Hebrew word may carry up to two one-letter prefixes (ה, ו, ב, ש, ל, מ, כ): "והאטליז", "במספרה"
-_PRE = r'(?:(?<=^)|(?<=[^\w֐-׿]))[הובשלמכ]{0,2}'
+_PRE = r'(?:(?<=^)|(?<=[^\w֐-׿]))(?:[הובשלמכ]|[لبوف]){0,2}'   # Arabic: ل ب و ف (warehouse 122: "لصالون الحلاقة")
 _END = r'(?![\w֐-׿])'
 
 
