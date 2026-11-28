@@ -432,7 +432,8 @@
     "tests/test_identity_declared.py"
    ],
    "expect_failed": [
-    "test_it_may_repeat_a_digest_another_entry_declared"
+    "test_it_may_repeat_a_digest_another_entry_declared",
+    "test_the_repository_file_is_well_formed"
    ]
   },
   {
